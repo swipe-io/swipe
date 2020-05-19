@@ -1,0 +1,247 @@
+package swipe_test
+
+import (
+	"net/http"
+	"os/user"
+
+	"github.com/go-kit/kit/log"
+
+	"github.com/swipe-io/swipe/fixtures/model"
+	"github.com/swipe-io/swipe/fixtures/service"
+	"github.com/swipe-io/swipe/fixtures/transport/jsonrpc"
+	"github.com/swipe-io/swipe/fixtures/transport/rest"
+	. "github.com/swipe-io/swipe/pkg/swipe"
+)
+
+func ExampleProtocol() {
+	Build(
+		Service((*service.Interface)(nil),
+			Transport("http"),
+		),
+	)
+}
+
+// Example enabled valyala/fasthttp. Supported in both REST and JSON RPC.
+func ExampleHTTPFast() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				FastEnable(),
+			),
+		),
+	)
+}
+
+func ExampleTransport_restListener() {
+	h, err := rest.MakeHandlerRESTServiceInterface(&service.Service{}, log.NewNopLogger())
+	if err != nil {
+		panic(err)
+	}
+	go http.ListenAndServe(":80", h)
+}
+
+func ExampleTransport_jsonRPCListener() {
+	h, err := jsonrpc.MakeHandlerJSONRPCServiceInterface(&service.Service{}, log.NewNopLogger())
+	if err != nil {
+		panic(err)
+	}
+	go http.ListenAndServe(":80", h)
+}
+
+// Example basic use Service option.
+func ExampleService() {
+	Build(
+		Service((*service.Service)(nil)),
+	)
+}
+
+// Example basic use logging.
+func ExampleLogging() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http"),
+			Logging(),
+		),
+	)
+}
+
+// Example basic use instrumenting.
+func ExampleInstrumenting() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http"),
+			Instrumenting(
+				Namespace("api"),
+				Subsystem("api"),
+			),
+		),
+	)
+}
+
+// Use the swipe.MethodOptions option to specify settings for generating the service method.
+func ExampleHTTPPath() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				MethodOptions(service.Interface.Get,
+					Path("/users"),
+				),
+			),
+		),
+	)
+}
+
+// Use the swipe.MethodOptions option to specify settings for generating the service method.
+func ExampleHTTPMethod() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				MethodOptions(service.Interface.Get,
+					Method(http.MethodGet),
+				),
+			),
+		),
+	)
+}
+
+// A parameter is a key pair, where the key is the name of the method parameter,
+// and the value is the name of the parameter in the header.
+func ExampleHTTPHeaderVars() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				MethodOptions(service.Interface.Get,
+					HeaderVars([]string{"name", "x-name"}),
+				),
+			),
+		),
+	)
+}
+
+// A parameter is a key pair, where the key is the name of the method parameter,
+// and the value is the name of the parameter in the url query arguments.
+func ExampleHTTPQueryVars() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				MethodOptions(service.Interface.Get,
+					QueryVars([]string{"name", "x-name"}),
+				),
+			),
+		),
+	)
+}
+
+func ExampleOpenapi() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				Openapi(),
+			),
+		),
+	)
+}
+
+func ExampleOpenapiOutput() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				Openapi(
+					OpenapiOutput("../../docs"),
+				),
+			),
+		),
+	)
+}
+
+func ExampleOpenapiVersion() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				Openapi(
+					OpenapiVersion("1.0.0"),
+				),
+			),
+		),
+	)
+}
+
+func ExampleOpenapiTitle() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				Openapi(
+					OpenapiTitle("Openapi doc title"),
+				),
+			),
+		),
+	)
+}
+
+func ExampleOpenapiServers() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				Openapi(
+					OpenapiServer("Description for server", "http://server.domain"),
+				),
+			),
+		),
+	)
+}
+
+func ExampleOpenapiContact() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				Openapi(
+					OpenapiContact("name", "your_email@mail.com", "http://contact.url"),
+				),
+			),
+		),
+	)
+}
+
+func ExampleOpenapiLicence() {
+	Build(
+		Service((*service.Service)(nil),
+			Transport("http",
+				Openapi(
+					OpenapiLicence("MIT", "http://licence.url"),
+				),
+			),
+		),
+	)
+}
+
+type Config struct {
+	BindAddr string
+}
+
+func ExampleConfigEnv() {
+	Build(
+		ConfigEnv(
+			&Config{
+				BindAddr: ":9000",
+			},
+			FuncName("LoadConfig"),
+		),
+	)
+}
+
+func ExampleAssembly() {
+	Build(
+		Assembly(model.User{}, user.User{},
+			AssemblyMapping([]string{
+				".Point.T", ".Point.Type",
+			}),
+			AssemblyExclude([]string{"Password"}, []string{}),
+			AssemblyFormatter(".Name",
+				nil,
+				func(from user.User) string {
+					return "OK"
+				},
+			),
+		),
+	)
+}
