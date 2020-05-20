@@ -19,6 +19,12 @@ func (*ErrUnauthorized) StatusCode() int {
 	return 403
 }
 
+// ErrorCode error value implements ErrorCoder,
+// the ErrorCode will be used when encoding the error.
+func (*ErrUnauthorized) ErrorCode() int {
+	return -32001
+}
+
 type Interface interface {
 	Create(ctx context.Context, name string) (err error)
 	Get(ctx context.Context, id int, name, fname string, price float32, n int) (data user.User, err error)

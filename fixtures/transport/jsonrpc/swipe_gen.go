@@ -146,7 +146,7 @@ func ErrorDecode(code int) (_ error) {
 	switch code {
 	default:
 		return fmt.Errorf("error code %d", code)
-	case 403:
+	case -32001:
 		return new(service.ErrUnauthorized)
 	}
 }

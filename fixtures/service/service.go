@@ -16,7 +16,7 @@ func (s *Service) Create(ctx context.Context, name string) (err error) {
 }
 
 func (s *Service) Get(ctx context.Context, id int, name, fname string, price float32, n int) (u user.User, err error) {
-	return user.User{}, nil
+	return user.User{}, &ErrUnauthorized{}
 }
 
 func (s *Service) GetAll(ctx context.Context) (users []user.User, err error) {

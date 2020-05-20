@@ -254,33 +254,54 @@ func (w *TransportHTTP) Write(opt *parser.Option) error {
 		}
 	}
 
+	errorStatusMethod := "StatusCode"
+	if options.jsonRPC.enable {
+		errorStatusMethod = "ErrorCode"
+	}
+
 	mapCodeErrors := map[*stdtypes.Named]string{}
 
 	w.w.Inspect(func(p *packages.Package, n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "StatusCode" {
-			if fn.Recv != nil && len(fn.Recv.List) > 0 {
-				recvType := p.TypesInfo.TypeOf(fn.Recv.List[0].Type)
-				recvPtr := recvType.(*stdtypes.Pointer)
-				recv := recvPtr.Elem().(*stdtypes.Named)
-
-				found := false
-				for i := 0; i < recv.NumMethods(); i++ {
-					if recv.Method(i).Name() == "Error" {
-						found = true
-						break
-					}
-				}
-				if found {
-					ast.Inspect(n, func(n ast.Node) bool {
-						if ret, ok := n.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
-							if v, ok := p.TypesInfo.Types[ret.Results[0]]; ok {
-								if v.Value != nil && v.Value.Kind() == constant.Int {
-									mapCodeErrors[recv] = v.Value.String()
+		if ret, ok := n.(*ast.ReturnStmt); ok {
+			for _, expr := range ret.Results {
+				if typeInfo, ok := p.TypesInfo.Types[expr]; ok {
+					if pointer, ok := typeInfo.Type.(*stdtypes.Pointer); ok {
+						if named, ok := pointer.Elem().(*stdtypes.Named); ok {
+							for i := 0; i < named.NumMethods(); i++ {
+								m := named.Method(i)
+								if m.Name() == errorStatusMethod {
+									mapCodeErrors[named] = ""
+									break
 								}
 							}
 						}
-						return true
-					})
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	w.w.Inspect(func(p *packages.Package, n ast.Node) bool {
+		if fn, ok := n.(*ast.FuncDecl); ok {
+			if fn.Name.Name == errorStatusMethod {
+				if fn.Recv != nil && len(fn.Recv.List) > 0 {
+					recvType := p.TypesInfo.TypeOf(fn.Recv.List[0].Type)
+					recvPtr := recvType.(*stdtypes.Pointer)
+					recv := recvPtr.Elem().(*stdtypes.Named)
+
+					if _, ok := mapCodeErrors[recv]; ok {
+						ast.Inspect(n, func(n ast.Node) bool {
+							if ret, ok := n.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
+								if v, ok := p.TypesInfo.Types[ret.Results[0]]; ok {
+									if v.Value != nil && v.Value.Kind() == constant.Int {
+										mapCodeErrors[recv] = v.Value.String()
+									}
+								}
+							}
+							return true
+						})
+					}
 				}
 			}
 		}
