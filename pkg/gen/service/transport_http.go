@@ -267,12 +267,15 @@ func (w *TransportHTTP) Write(opt *parser.Option) error {
 				if typeInfo, ok := p.TypesInfo.Types[expr]; ok {
 					if pointer, ok := typeInfo.Type.(*stdtypes.Pointer); ok {
 						if named, ok := pointer.Elem().(*stdtypes.Named); ok {
+							found := 0
 							for i := 0; i < named.NumMethods(); i++ {
 								m := named.Method(i)
-								if m.Name() == errorStatusMethod {
-									mapCodeErrors[named] = ""
-									break
+								if m.Name() == errorStatusMethod || m.Name() == "Error" {
+									found++
 								}
+							}
+							if found == 2 {
+								mapCodeErrors[named] = ""
 							}
 						}
 					}
