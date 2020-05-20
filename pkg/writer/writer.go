@@ -227,7 +227,7 @@ func (w *Writer) GetFormatType(valueId string, f *stdtypes.Var) string {
 	return valueId
 }
 
-func (w *Writer) writeConvertBasicType(name, assignId, valueId string, t *stdtypes.Basic, sliceErr string, declareVar bool) {
+func (w *Writer) writeConvertBasicType(name, assignId, valueId string, t *stdtypes.Basic, sliceErr string, declareVar bool, msgErrTemplate string) {
 	useCheckErr := true
 
 	fmtPkg := w.Import("fmt", "fmt")
@@ -241,7 +241,11 @@ func (w *Writer) writeConvertBasicType(name, assignId, valueId string, t *stdtyp
 		tmpId = valueId
 	}
 	if useCheckErr {
-		errMsg := strconv.Quote("convert error " + name + ": %w")
+		if msgErrTemplate == "" {
+			msgErrTemplate = "convert error"
+		}
+
+		errMsg := strconv.Quote(msgErrTemplate + ": %w")
 		w.Write("if err != nil {\n")
 		if sliceErr == "" {
 			w.Write("return nil, %s.Errorf(%s, err)\n", fmtPkg, errMsg)
@@ -264,12 +268,12 @@ func (w *Writer) writeConvertBasicType(name, assignId, valueId string, t *stdtyp
 	w.Write("\n")
 }
 
-func (w *Writer) WriteConvertType(assignId, valueId string, f *stdtypes.Var, sliceErr string, declareVar bool) {
+func (w *Writer) WriteConvertType(assignId, valueId string, f *stdtypes.Var, sliceErr string, declareVar bool, msgErrTemplate string) {
 	var tmpId string
 
 	switch t := f.Type().(type) {
 	case *stdtypes.Basic:
-		w.writeConvertBasicType(f.Name(), assignId, valueId, t, sliceErr, declareVar)
+		w.writeConvertBasicType(f.Name(), assignId, valueId, t, sliceErr, declareVar, msgErrTemplate)
 	case *stdtypes.Slice:
 		stringsPkg := w.Import("strings", "strings")
 		switch t := t.Elem().(type) {
@@ -283,7 +287,7 @@ func (w *Writer) WriteConvertType(assignId, valueId string, f *stdtypes.Var, sli
 				}
 				w.Write("%s = make([]%s, len(%s))\n", assignId, t.String(), tmpId)
 				w.Write("for i, s := range %s {\n", tmpId)
-				w.writeConvertBasicType("tmp", assignId+"[i]", "s", t, sliceErr, false)
+				w.writeConvertBasicType("tmp", assignId+"[i]", "s", t, sliceErr, false, msgErrTemplate)
 				w.Write("}\n")
 			}
 		}

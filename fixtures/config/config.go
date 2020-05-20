@@ -16,9 +16,9 @@ type DB struct {
 }
 
 type Config struct {
-	Bind     string `flag:"bind-addr"`
+	Bind     string `flag:"bind-addr,required"`
 	Name     string
-	MaxPrice int `env:"MAX_PRICE"`
+	MaxPrice int `env:"MAX_PRICE,required"`
 	DB       DB  `env:"DB2"`
 	URLs     []int
 }
@@ -27,6 +27,7 @@ func SwipeConfig() {
 	Build(
 		ConfigEnv(
 			&Config{
+				Bind: "hohoho",
 				Name: "Default Name",
 			},
 			FuncName("LoadConfig"),

@@ -1001,7 +1001,7 @@ func (w *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 						} else {
 							valueID = "vars[" + strconv.Quote(pathVarName) + "]"
 						}
-						w.w.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false)
+						w.w.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
 					}
 				}
 			}
@@ -1019,7 +1019,7 @@ func (w *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 						} else {
 							valueID = "q.Get(" + strconv.Quote(queryName) + ")"
 						}
-						w.w.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false)
+						w.w.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
 					}
 				}
 			}
@@ -1031,7 +1031,7 @@ func (w *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 					} else {
 						valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
 					}
-					w.w.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false)
+					w.w.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
 				}
 			}
 			w.w.Write("return req, nil\n")

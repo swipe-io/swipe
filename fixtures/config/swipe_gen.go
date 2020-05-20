@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -27,18 +28,22 @@ type DB struct {
 // config.go:
 
 type Config struct {
-	Bind     string `flag:"bind-addr"`
+	Bind     string `flag:"bind-addr,required"`
 	Name     string
-	MaxPrice int `env:"MAX_PRICE"`
+	MaxPrice int `env:"MAX_PRICE,required"`
 	DB       DB  `env:"DB2"`
 	URLs     []int
 }
 
 func LoadConfig() (cfg *Config, errs []error) {
 	cfg = &Config{
+		Bind: "hohoho",
 		Name: "Default Name",
 	}
-	flag.StringVar(&cfg.Bind, "bind-addr", "", "")
+	flag.StringVar(&cfg.Bind, "bind-addr", cfg.Bind, "")
+	if cfg.Bind == "" {
+		errs = append(errs, errors.New("flag bind-addr required"))
+	}
 	cfgNameTmp, ok := os.LookupEnv("NAME")
 	if ok {
 		cfg.Name = cfgNameTmp
@@ -47,9 +52,12 @@ func LoadConfig() (cfg *Config, errs []error) {
 	if ok {
 		maxpriceInt, err := strconv.Atoi(cfgMaxPriceTmp)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("convert error MaxPrice: %w", err))
+			errs = append(errs, fmt.Errorf("convert MAX_PRICE error: %w", err))
 		}
 		cfg.MaxPrice = int(maxpriceInt)
+	}
+	if cfg.MaxPrice == 0 {
+		errs = append(errs, errors.New("env MAX_PRICE required"))
 	}
 	cfg.DB = DB{}
 	cfgDBConnTmp, ok := os.LookupEnv("DB2_CONN")
@@ -68,7 +76,7 @@ func LoadConfig() (cfg *Config, errs []error) {
 		for i, s := range partsurlsInt {
 			tmpInt, err := strconv.Atoi(s)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("convert error tmp: %w", err))
+				errs = append(errs, fmt.Errorf("convert URLS error: %w", err))
 			}
 			cfg.URLs[i] = int(tmpInt)
 		}
