@@ -1,6 +1,5 @@
-
-<a name="1.1.2"></a>
-## [1.1.2](https://github.com/swipe-io/swipe/compare/v1.1.1...1.1.2) (2020-05-21)
+<a name="v1.1.2"></a>
+## [v1.1.2](https://github.com/swipe-io/swipe/compare/v1.1.1...v1.1.2) (2020-05-21)
 
 ### Bug Fixes
 
