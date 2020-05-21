@@ -162,12 +162,24 @@ func ServiceInterfaceCreateClientOptions(opt ...jsonrpc.ClientOption) (_ clientS
 	return func(c *clientServiceInterface) { c.createClientOption = opt }
 }
 
+func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.getClientOption = opt }
 }
 
+func ServiceInterfaceGetClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetAllClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.getAllClientOption = opt }
+}
+
+func ServiceInterfaceGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getAllEndpointMiddleware = opt }
 }
 
 type clientServiceInterface struct {
@@ -250,9 +262,7 @@ func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterface
 		"create",
 		append(c.genericClientOption, c.createClientOption...)...,
 	).Endpoint()
-	for _, e := range c.createEndpointMiddleware {
-		c.createEndpoint = e(c.createEndpoint)
-	}
+	c.createEndpoint = middlewareChain(c.createEndpointMiddleware)(c.createEndpoint)
 	c.getClientOption = append(
 		c.getClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
@@ -283,9 +293,7 @@ func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterface
 		"get",
 		append(c.genericClientOption, c.getClientOption...)...,
 	).Endpoint()
-	for _, e := range c.getEndpointMiddleware {
-		c.getEndpoint = e(c.getEndpoint)
-	}
+	c.getEndpoint = middlewareChain(c.getEndpointMiddleware)(c.getEndpoint)
 	c.getAllClientOption = append(
 		c.getAllClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
@@ -308,18 +316,32 @@ func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterface
 		"getAll",
 		append(c.genericClientOption, c.getAllClientOption...)...,
 	).Endpoint()
-	for _, e := range c.getAllEndpointMiddleware {
-		c.getAllEndpoint = e(c.getAllEndpoint)
-	}
+	c.getAllEndpoint = middlewareChain(c.getAllEndpointMiddleware)(c.getAllEndpoint)
 	return c, nil
+}
+func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		if len(middlewares) == 0 {
+			return next
+		}
+		outer := middlewares[0]
+		others := middlewares[1:]
+		for i := len(others) - 1; i >= 0; i-- {
+			next = others[i](next)
+		}
+		return outer(next)
+	}
 }
 
 type serverServiceInterfaceOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
-	genericServerOption []jsonrpc.ServerOption
-	createServerOption  []jsonrpc.ServerOption
-	getServerOption     []jsonrpc.ServerOption
-	getAllServerOption  []jsonrpc.ServerOption
+	genericServerOption      []jsonrpc.ServerOption
+	createServerOption       []jsonrpc.ServerOption
+	createEndpointMiddleware []endpoint.Middleware
+	getServerOption          []jsonrpc.ServerOption
+	getEndpointMiddleware    []endpoint.Middleware
+	getAllServerOption       []jsonrpc.ServerOption
+	getAllEndpointMiddleware []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
@@ -359,7 +381,7 @@ func MakeHandlerJSONRPCServiceInterface(s service.Interface, logger log.Logger, 
 	r := mux.NewRouter()
 	handler := jsonrpc.NewServer(jsonrpc.EndpointCodecMap{
 		"create": jsonrpc.EndpointCodec{
-			Endpoint: makeCreateEndpoint(s),
+			Endpoint: middlewareChain(sopt.createEndpointMiddleware)(makeCreateEndpoint(s)),
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
 				var req createRequestServiceInterface
 				err := ffjson.Unmarshal(msg, &req)
@@ -371,7 +393,7 @@ func MakeHandlerJSONRPCServiceInterface(s service.Interface, logger log.Logger, 
 			Encode: encodeResponseJSONRPCServiceInterface,
 		},
 		"get": jsonrpc.EndpointCodec{
-			Endpoint: makeGetEndpoint(s),
+			Endpoint: middlewareChain(sopt.getEndpointMiddleware)(makeGetEndpoint(s)),
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
 				var req getRequestServiceInterface
 				err := ffjson.Unmarshal(msg, &req)
@@ -383,7 +405,7 @@ func MakeHandlerJSONRPCServiceInterface(s service.Interface, logger log.Logger, 
 			Encode: encodeResponseJSONRPCServiceInterface,
 		},
 		"getAll": jsonrpc.EndpointCodec{
-			Endpoint: makeGetAllEndpoint(s),
+			Endpoint: middlewareChain(sopt.getAllEndpointMiddleware)(makeGetAllEndpoint(s)),
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
 				return nil, nil
 			},

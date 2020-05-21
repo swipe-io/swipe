@@ -362,6 +362,7 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 	var (
 		kithttpPkg string
 	)
+	endpointPkg := g.w.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	if opts.jsonRPC.enable {
 		if opts.fastHTTP {
 			kithttpPkg = g.w.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
@@ -379,6 +380,21 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 	serverOptType := fmt.Sprintf("server%sOpts", g.ctx.id)
 	serverOptionType := fmt.Sprintf("server%sOption", g.ctx.id)
 	kithttpServerOption := fmt.Sprintf("%s.ServerOption", kithttpPkg)
+	endpointMiddlewareOption := fmt.Sprintf("%s.Middleware", endpointPkg)
+
+	g.w.Write("func middlewareChain(middlewares []%[1]s.Middleware) %[1]s.Middleware {\n", endpointPkg)
+	g.w.Write("return func(next %[1]s.Endpoint) %[1]s.Endpoint {\n", endpointPkg)
+	g.w.Write("if len(middlewares) == 0 {\n")
+	g.w.Write("return next\n")
+	g.w.Write("}\n")
+	g.w.Write("outer := middlewares[0]\n")
+	g.w.Write("others := middlewares[1:]\n")
+	g.w.Write("for i := len(others) - 1; i >= 0; i-- {\n")
+	g.w.Write("next = others[i](next)\n")
+	g.w.Write("}\n")
+	g.w.Write("return outer(next)\n")
+	g.w.Write("}\n")
+	g.w.Write("}\n")
 
 	g.w.Write("type %s func (*%s)\n", serverOptionType, serverOptType)
 
@@ -388,6 +404,7 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 		m := g.ctx.iface.Method(i)
 		lcName := strings.LcFirst(m.Name())
 		g.w.Write("%sServerOption []%s\n", lcName, kithttpServerOption)
+		g.w.Write("%sEndpointMiddleware []%s\n", lcName, endpointMiddlewareOption)
 	}
 	g.w.Write("}\n")
 
@@ -413,6 +430,16 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 				[]string{"", serverOptionType},
 				func() {
 					g.w.Write("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, lcName)
+				},
+			)
+
+			g.w.WriteFunc(
+				g.ctx.id+m.Name()+"ServerEndpointMiddlewares",
+				"",
+				[]string{"opt", "..." + endpointMiddlewareOption},
+				[]string{"", serverOptionType},
+				func() {
+					g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, lcName)
 				},
 			)
 		}
@@ -573,11 +600,6 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 		}
 		responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
 	}
-
-	// pathStr := mopt.path
-	// for _, regexp := range mopt.pathVars {
-	// 	pathStr = stdstrings.Replace(pathStr, ":"+regexp, "", -1)
-	// }
 
 	o := &openapi.Operation{
 		Summary: m.Name(),
@@ -906,7 +928,6 @@ func (g *TransportHTTP) writeHTTPHandler(opts *transportOptions) {
 	} else {
 		g.w.Write("return r, nil")
 	}
-
 }
 
 func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Func, sig *stdtypes.Signature) {
@@ -921,13 +942,14 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 	} else {
 		jsonrpcPkg = g.w.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
 	}
+
 	jsonPkg := g.w.Import("json", "encoding/json")
 	ffjsonPkg := g.w.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 	contextPkg := g.w.Import("context", "context")
 
 	lcName := strings.LcFirst(m.Name())
 	g.w.Write("\"%s\": %s.EndpointCodec{\n", lcName, jsonrpcPkg)
-	g.w.Write("Endpoint: make%sEndpoint(s),\n", m.Name())
+	g.w.Write("Endpoint: middlewareChain(sopt.%sEndpointMiddleware)(make%sEndpoint(s)),\n", lcName, m.Name())
 	g.w.Write("Decode: ")
 
 	if mopt.serverRequestFunc.expr != nil {
@@ -1028,7 +1050,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 		g.w.Write("Handler(")
 	}
 
-	g.w.Write("%s.NewServer(\nmake%sEndpoint(s),\n", kithttpPkg, fn.Name())
+	g.w.Write("%s.NewServer(\nmiddlewareChain(sopt.%sEndpointMiddleware)(make%sEndpoint(s)),\n", kithttpPkg, lcName, fn.Name())
 
 	if mopt.serverRequestFunc.expr != nil {
 		g.w.WriteAST(mopt.serverRequestFunc.expr)
@@ -1201,6 +1223,7 @@ func (g *TransportHTTP) writeClientStructOptions(opts *transportOptions) {
 	var (
 		kithttpPkg string
 	)
+	endpointPkg := g.w.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	if opts.jsonRPC.enable {
 		if opts.fastHTTP {
 			kithttpPkg = g.w.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
@@ -1240,6 +1263,16 @@ func (g *TransportHTTP) writeClientStructOptions(opts *transportOptions) {
 			[]string{"", clientType + "Option"},
 			func() {
 				g.w.Write("return func(c *%s) { c.%sClientOption = opt }\n", clientType, lcName)
+			},
+		)
+
+		g.w.WriteFunc(
+			g.ctx.id+m.Name()+"ClientEndpointMiddlewares",
+			"",
+			[]string{"opt", "..." + endpointPkg + ".Middleware"},
+			[]string{"", clientType + "Option"},
+			func() {
+				g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", clientType, lcName)
 			},
 		)
 	}
@@ -1567,9 +1600,7 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 
 		g.w.Write(").Endpoint()\n")
 
-		g.w.Write("for _, e := range c.%sEndpointMiddleware {\n", lcName)
-		g.w.Write("c.%[1]sEndpoint = e(c.%[1]sEndpoint)\n", lcName)
-		g.w.Write("}\n")
+		g.w.Write("c.%[1]sEndpoint = middlewareChain(c.%[1]sEndpointMiddleware)(c.%[1]sEndpoint)\n", lcName)
 	}
 }
 
@@ -1649,9 +1680,7 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 
 		g.w.Write(").Endpoint()\n")
 
-		g.w.Write("for _, e := range c.%sEndpointMiddleware {\n", lcName)
-		g.w.Write("c.%[1]sEndpoint = e(c.%[1]sEndpoint)\n", lcName)
-		g.w.Write("}\n")
+		g.w.Write("c.%[1]sEndpoint = middlewareChain(c.%[1]sEndpointMiddleware)(c.%[1]sEndpoint)\n", lcName)
 	}
 }
 

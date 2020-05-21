@@ -166,12 +166,24 @@ func ServiceInterfaceCreateClientOptions(opt ...http.ClientOption) (_ clientServ
 	return func(c *clientServiceInterface) { c.createClientOption = opt }
 }
 
+func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetClientOptions(opt ...http.ClientOption) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.getClientOption = opt }
 }
 
+func ServiceInterfaceGetClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetAllClientOptions(opt ...http.ClientOption) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.getAllClientOption = opt }
+}
+
+func ServiceInterfaceGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getAllEndpointMiddleware = opt }
 }
 
 type clientServiceInterface struct {
@@ -258,9 +270,7 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 		},
 		append(c.genericClientOption, c.createClientOption...)...,
 	).Endpoint()
-	for _, e := range c.createEndpointMiddleware {
-		c.createEndpoint = e(c.createEndpoint)
-	}
+	c.createEndpoint = middlewareChain(c.createEndpointMiddleware)(c.createEndpoint)
 	c.getEndpoint = http.NewClient(
 		fasthttp.MethodGet,
 		u,
@@ -294,9 +304,7 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 		},
 		append(c.genericClientOption, c.getClientOption...)...,
 	).Endpoint()
-	for _, e := range c.getEndpointMiddleware {
-		c.getEndpoint = e(c.getEndpoint)
-	}
+	c.getEndpoint = middlewareChain(c.getEndpointMiddleware)(c.getEndpoint)
 	c.getAllEndpoint = http.NewClient(
 		fasthttp.MethodGet,
 		u,
@@ -322,18 +330,32 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 		},
 		append(c.genericClientOption, c.getAllClientOption...)...,
 	).Endpoint()
-	for _, e := range c.getAllEndpointMiddleware {
-		c.getAllEndpoint = e(c.getAllEndpoint)
-	}
+	c.getAllEndpoint = middlewareChain(c.getAllEndpointMiddleware)(c.getAllEndpoint)
 	return c, nil
+}
+func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		if len(middlewares) == 0 {
+			return next
+		}
+		outer := middlewares[0]
+		others := middlewares[1:]
+		for i := len(others) - 1; i >= 0; i-- {
+			next = others[i](next)
+		}
+		return outer(next)
+	}
 }
 
 type serverServiceInterfaceOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
-	genericServerOption []http.ServerOption
-	createServerOption  []http.ServerOption
-	getServerOption     []http.ServerOption
-	getAllServerOption  []http.ServerOption
+	genericServerOption      []http.ServerOption
+	createServerOption       []http.ServerOption
+	createEndpointMiddleware []endpoint.Middleware
+	getServerOption          []http.ServerOption
+	getEndpointMiddleware    []endpoint.Middleware
+	getAllServerOption       []http.ServerOption
+	getAllEndpointMiddleware []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...http.ServerOption) (_ serverServiceInterfaceOption) {
@@ -344,12 +366,24 @@ func ServiceInterfaceCreateServerOptions(opt ...http.ServerOption) (_ serverServ
 	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
 }
 
+func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetServerOptions(opt ...http.ServerOption) (_ serverServiceInterfaceOption) {
 	return func(c *serverServiceInterfaceOpts) { c.getServerOption = opt }
 }
 
+func ServiceInterfaceGetServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetAllServerOptions(opt ...http.ServerOption) (_ serverServiceInterfaceOption) {
 	return func(c *serverServiceInterfaceOpts) { c.getAllServerOption = opt }
+}
+
+func ServiceInterfaceGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getAllEndpointMiddleware = opt }
 }
 
 // HTTP REST Transport
@@ -399,7 +433,7 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 	}
 	r := mux.NewRouter()
 	r.Methods(fasthttp.MethodPost).Path("/users").Handler(http.NewServer(
-		makeCreateEndpoint(s),
+		middlewareChain(sopt.createEndpointMiddleware)(makeCreateEndpoint(s)),
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			var req createRequestServiceInterface
 			b, err := ioutil.ReadAll(r.Body)
@@ -416,7 +450,7 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		append(sopt.genericServerOption, sopt.createServerOption...)...,
 	))
 	r.Methods(fasthttp.MethodGet).Path("/users/{name:[a-z]}").Handler(http.NewServer(
-		makeGetEndpoint(s),
+		middlewareChain(sopt.getEndpointMiddleware)(makeGetEndpoint(s)),
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			var req getRequestServiceInterface
 			vars := mux.Vars(r)
@@ -438,7 +472,7 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		append(sopt.genericServerOption, sopt.getServerOption...)...,
 	))
 	r.Methods(fasthttp.MethodGet).Path("/users").Handler(http.NewServer(
-		makeGetAllEndpoint(s),
+		middlewareChain(sopt.getAllEndpointMiddleware)(makeGetAllEndpoint(s)),
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			return nil, nil
 		},
