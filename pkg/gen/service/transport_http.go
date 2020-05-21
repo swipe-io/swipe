@@ -418,31 +418,29 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 		},
 	)
 
-	if !opts.jsonRPC.enable {
-		for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-			m := g.ctx.iface.Method(i)
-			lcName := strings.LcFirst(m.Name())
+	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
+		m := g.ctx.iface.Method(i)
+		lcName := strings.LcFirst(m.Name())
 
-			g.w.WriteFunc(
-				g.ctx.id+m.Name()+"ServerOptions",
-				"",
-				[]string{"opt", "..." + kithttpServerOption},
-				[]string{"", serverOptionType},
-				func() {
-					g.w.Write("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, lcName)
-				},
-			)
+		g.w.WriteFunc(
+			g.ctx.id+m.Name()+"ServerOptions",
+			"",
+			[]string{"opt", "..." + kithttpServerOption},
+			[]string{"", serverOptionType},
+			func() {
+				g.w.Write("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, lcName)
+			},
+		)
 
-			g.w.WriteFunc(
-				g.ctx.id+m.Name()+"ServerEndpointMiddlewares",
-				"",
-				[]string{"opt", "..." + endpointMiddlewareOption},
-				[]string{"", serverOptionType},
-				func() {
-					g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, lcName)
-				},
-			)
-		}
+		g.w.WriteFunc(
+			g.ctx.id+m.Name()+"ServerEndpointMiddlewares",
+			"",
+			[]string{"opt", "..." + endpointMiddlewareOption},
+			[]string{"", serverOptionType},
+			func() {
+				g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, lcName)
+			},
+		)
 	}
 
 	g.w.Write("// HTTP %s Transport\n", opts.prefix)

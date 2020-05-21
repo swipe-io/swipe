@@ -348,6 +348,30 @@ func ServiceInterfaceGenericServerOptions(v ...jsonrpc.ServerOption) (_ serverSe
 	return func(o *serverServiceInterfaceOpts) { o.genericServerOption = v }
 }
 
+func ServiceInterfaceCreateServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
+}
+
+func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceGetServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getServerOption = opt }
+}
+
+func ServiceInterfaceGetServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceGetAllServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getAllServerOption = opt }
+}
+
+func ServiceInterfaceGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getAllEndpointMiddleware = opt }
+}
+
 // HTTP JSONRPC Transport
 func encodeResponseJSONRPCServiceInterface(_ context.Context, result interface{}) (json.RawMessage, error) {
 	b, err := ffjson.Marshal(result)

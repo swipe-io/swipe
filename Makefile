@@ -1,2 +1,6 @@
-standard-version:
-	standard-version --header "# Changelog"
+chglog:
+	git-chglog -o CHANGELOG.md
+
+check:
+	go vet ./...
+	go test ./...

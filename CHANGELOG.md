@@ -1,31 +1,52 @@
-# Changelog
-### [1.1.1](https://github.com/swipe-io/swipe/compare/v1.1.0...v1.1.1) (2020-05-21)
 
-## [1.1.0](https://github.com/swipe-io/swipe/compare/v1.0.5...v1.1.0) (2020-05-21)
+<a name="1.1.2"></a>
+## [1.1.2](https://github.com/swipe-io/swipe/compare/v1.1.1...1.1.2) (2020-05-21)
 
+### Bug Fixes
+
+* generate server middleware option funcs
+
+
+<a name="v1.1.1"></a>
+## [v1.1.1](https://github.com/swipe-io/swipe/compare/v1.1.0...v1.1.1) (2020-05-21)
+
+
+<a name="v1.1.0"></a>
+## [v1.1.0](https://github.com/swipe-io/swipe/compare/v1.0.5...v1.1.0) (2020-05-21)
 
 ### Features
 
-* implement generate endpoint middleware option ([8eaa422](https://github.com/swipe-io/swipe/commit/8eaa4222b48fc79ad8773c8483ddf2634fec0377))
-
-### [1.0.5](https://github.com/swipe-io/swipe/compare/v1.0.4...v1.0.5) (2020-05-21)
-
-### [1.0.4](https://github.com/swipe-io/swipe/compare/v1.0.3...v1.0.4) (2020-05-21)
+* implement generate endpoint middleware option
 
 
-### Bug Fixes
+<a name="v1.0.5"></a>
+## [v1.0.5](https://github.com/swipe-io/swipe/compare/v1.0.4...v1.0.5) (2020-05-21)
 
-* openapi doc generated bugs, replace options OpenapiVersion, OpenapiTitle, OpenapiDescription to OpenapiInfo(title, description, version) ([fb8ad91](https://github.com/swipe-io/swipe/commit/fb8ad91a3328c5c7ddda5956921112d62822fb1c))
 
-### [1.0.3](https://github.com/swipe-io/swipe/compare/v1.0.2...v1.0.3) (2020-05-20)
-
+<a name="v1.0.4"></a>
+## [v1.0.4](https://github.com/swipe-io/swipe/compare/v1.0.3...v1.0.4) (2020-05-21)
 
 ### Bug Fixes
 
-* not ignore no error types ([0515495](https://github.com/swipe-io/swipe/commit/051549519a3a5d68da1cc577c372943a225367ee))
+* openapi doc generated bugs, replace options OpenapiVersion, OpenapiTitle, OpenapiDescription to OpenapiInfo(title, description, version)
 
-### [1.0.2](https://github.com/swipe-io/swipe/compare/v1.0.1...v1.0.2) (2020-05-20)
 
-### [1.0.1](https://github.com/swipe-io/swipe/compare/v1.0.0...v1.0.1) (2020-05-20)
+<a name="v1.0.3"></a>
+## [v1.0.3](https://github.com/swipe-io/swipe/compare/v1.0.2...v1.0.3) (2020-05-20)
 
-## 1.0.0 (2020-05-19)
+### Bug Fixes
+
+* not ignore no error types
+
+
+<a name="v1.0.2"></a>
+## [v1.0.2](https://github.com/swipe-io/swipe/compare/v1.0.1...v1.0.2) (2020-05-20)
+
+
+<a name="v1.0.1"></a>
+## [v1.0.1](https://github.com/swipe-io/swipe/compare/v1.0.0...v1.0.1) (2020-05-20)
+
+
+<a name="v1.0.0"></a>
+## v1.0.0 (2020-05-19)
+
