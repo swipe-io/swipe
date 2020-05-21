@@ -1,4 +1,6 @@
 # Changelog
+### [1.1.1](https://github.com/swipe-io/swipe/compare/v1.1.0...v1.1.1) (2020-05-21)
+
 ## [1.1.0](https://github.com/swipe-io/swipe/compare/v1.0.5...v1.1.0) (2020-05-21)
 
 
