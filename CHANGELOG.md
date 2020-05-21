@@ -1,4 +1,11 @@
 # Changelog
+## [1.1.0](https://github.com/swipe-io/swipe/compare/v1.0.5...v1.1.0) (2020-05-21)
+
+
+### Features
+
+* implement generate endpoint middleware option ([8eaa422](https://github.com/swipe-io/swipe/commit/8eaa4222b48fc79ad8773c8483ddf2634fec0377))
+
 ### [1.0.5](https://github.com/swipe-io/swipe/compare/v1.0.4...v1.0.5) (2020-05-21)
 
 ### [1.0.4](https://github.com/swipe-io/swipe/compare/v1.0.3...v1.0.4) (2020-05-21)
