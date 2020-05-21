@@ -12,12 +12,12 @@ type License struct {
 }
 
 type Info struct {
-	Title          string  `yaml:"title,omitempty" json:"title,omitempty"`
-	Description    string  `yaml:"description,omitempty" json:"description,omitempty"`
-	TermsOfService string  `yaml:"termsOfService,omitempty" json:"termsOfService,omitempty"`
-	Contact        Contact `yaml:"contact,omitempty" json:"contact,omitempty"`
-	License        License `yaml:"license,omitempty" json:"license,omitempty"`
-	Version        string  `yaml:"version,omitempty" json:"version,omitempty"`
+	Title          string   `yaml:"title,omitempty" json:"title,omitempty"`
+	Description    string   `yaml:"description,omitempty" json:"description,omitempty"`
+	TermsOfService string   `yaml:"termsOfService,omitempty" json:"termsOfService,omitempty"`
+	Contact        *Contact `yaml:"contact,omitempty" json:"contact,omitempty"`
+	License        *License `yaml:"license,omitempty" json:"license,omitempty"`
+	Version        string   `yaml:"version,omitempty" json:"version,omitempty"`
 }
 
 type ExternalDocs struct {
@@ -113,11 +113,11 @@ type Components struct {
 }
 
 type OpenAPI struct {
-	OpenAPI    string          `yaml:"openapi" json:"openapi"`
-	Info       Info            `yaml:"info,omitempty" json:"info,omitempty"`
-	Servers    []Server        `yaml:"servers,omitempty" json:"servers,omitempty"`
-	Tags       []Tag           `yaml:"tags,omitempty" json:"tags,omitempty"`
-	Schemes    []string        `yaml:"schemes,omitempty" json:"schemes,omitempty"`
-	Paths      map[string]Path `yaml:"paths,omitempty" json:"paths,omitempty"`
-	Components Components      `yaml:"components,omitempty" json:"components,omitempty"`
+	OpenAPI    string           `yaml:"openapi" json:"openapi"`
+	Info       Info             `yaml:"info,omitempty" json:"info,omitempty"`
+	Servers    []Server         `yaml:"servers,omitempty" json:"servers,omitempty"`
+	Tags       []Tag            `yaml:"tags,omitempty" json:"tags,omitempty"`
+	Schemes    []string         `yaml:"schemes,omitempty" json:"schemes,omitempty"`
+	Paths      map[string]*Path `yaml:"paths,omitempty" json:"paths,omitempty"`
+	Components Components       `yaml:"components,omitempty" json:"components,omitempty"`
 }

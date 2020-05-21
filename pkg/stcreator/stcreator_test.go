@@ -12,8 +12,8 @@ func TestCreator(t *testing.T) {
 		Name: "project",
 		Children: []stcreator.I{
 			&stcreator.F{
-				Name:    "Dockerfile",
-				Content: "FROM {{.Name}}\n",
+				Name:     "Dockerfile",
+				Template: "FROM {{.Name}}\n",
 				Data: struct {
 					Name string
 				}{"ubuntu"},
@@ -34,7 +34,7 @@ func TestCreator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v := stcreator.New()
+	v := stcreator.New(nil)
 
 	if err := parent.Accept(v, basePath); err != nil {
 		t.Fatal(err)

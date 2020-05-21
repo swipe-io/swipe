@@ -17,7 +17,6 @@ import (
 	"github.com/swipe-io/swipe/pkg/writer"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/go/types/typeutil"
 )
 
 const loadAllSyntax = packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps | packages.NeedExportsFile | packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypesSizes
@@ -106,7 +105,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 			result[i].Errs = ec.Errors()
 		}
 
-		goSrc := w.Frame()
+		goSrc := w.Frame(false)
 
 		fmtSrc, err := format.Source(goSrc)
 		if err != nil {
@@ -224,89 +223,6 @@ func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Pa
 		return nil, nil, errs
 	}
 	return pkgs, allPkgs, nil
-}
-
-func (s *Swipe) print(lpkg *packages.Package) {
-	// if app.PrintJSON {
-	// 	data, _ := json.MarshalIndent(lpkg, "", "\t")
-	// 	os.Stdout.Write(data)
-	// 	return
-	// }
-	// title
-	var kind string
-	// TODO(matloob): If IsTest is added back print "test command" or
-	// "test package" for packages with IsTest == true.
-	if lpkg.Name == "main" {
-		kind += "command"
-	} else {
-		kind += "package"
-	}
-	fmt.Printf("Go %s %q:\n", kind, lpkg.ID) // unique ID
-	fmt.Printf("\tpackage %s\n", lpkg.Name)
-
-	// characterize type info
-	if lpkg.Types == nil {
-		fmt.Printf("\thas no exported type info\n")
-	} else if !lpkg.Types.Complete() {
-		fmt.Printf("\thas incomplete exported type info\n")
-	} else if len(lpkg.Syntax) == 0 {
-		fmt.Printf("\thas complete exported type info\n")
-	} else {
-		fmt.Printf("\thas complete exported type info and typed ASTs\n")
-	}
-	if lpkg.Types != nil && lpkg.IllTyped && len(lpkg.Errors) == 0 {
-		fmt.Printf("\thas an error among its dependencies\n")
-	}
-
-	// source files
-	for _, src := range lpkg.GoFiles {
-		fmt.Printf("\tfile %s\n", src)
-	}
-
-	// imports
-	var lines []string
-	for importPath, imp := range lpkg.Imports {
-		var line string
-		if imp.ID == importPath {
-			line = fmt.Sprintf("\timport %q", importPath)
-		} else {
-			line = fmt.Sprintf("\timport %q => %q", importPath, imp.ID)
-		}
-		lines = append(lines, line)
-	}
-	sort.Strings(lines)
-	for _, line := range lines {
-		fmt.Println(line)
-	}
-
-	// errors
-	for _, err := range lpkg.Errors {
-		fmt.Printf("\t%s\n", err)
-	}
-
-	// package members (TypeCheck or WholeProgram mode)
-	if lpkg.Types != nil {
-		qual := types.RelativeTo(lpkg.Types)
-		scope := lpkg.Types.Scope()
-		for _, name := range scope.Names() {
-			obj := scope.Lookup(name)
-			// if !obj.Exported() && !app.Private {
-			// continue // skip unexported names
-			// }
-
-			fmt.Printf("\t%s\n", types.ObjectString(obj, qual))
-			if _, ok := obj.(*types.TypeName); ok {
-				for _, meth := range typeutil.IntuitiveMethodSet(obj.Type(), nil) {
-					// if !meth.Obj().Exported() && !app.Private {
-					// continue // skip unexported names
-					// }
-					fmt.Printf("\t%s\n", types.SelectionString(meth, qual))
-				}
-			}
-		}
-	}
-
-	fmt.Println()
 }
 
 func NewSwipe(ctx context.Context, wd string, env []string, patterns []string) *Swipe {

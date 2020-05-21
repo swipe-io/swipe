@@ -13,6 +13,7 @@ func Swipe() {
 		Service((*service.Interface)(nil),
 			Transport("http",
 				Openapi(
+					OpenapiInfo("Service Test", "", "v1.0.0"),
 					OpenapiOutput("../../docs"),
 					OpenapiServer("", "http://test.api"),
 				),

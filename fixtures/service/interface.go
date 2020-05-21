@@ -26,7 +26,7 @@ func (*ErrUnauthorized) ErrorCode() int {
 }
 
 type Interface interface {
-	Create(ctx context.Context, name string) (err error)
+	Create(ctx context.Context, name string, data []byte) (err error)
 	Get(ctx context.Context, id int, name, fname string, price float32, n int) (data user.User, err error)
 	GetAll(ctx context.Context) (data []user.User, err error)
 }

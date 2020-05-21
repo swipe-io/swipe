@@ -11,7 +11,7 @@ var _ Interface = new(Service)
 type Service struct {
 }
 
-func (s *Service) Create(ctx context.Context, name string) (err error) {
+func (s *Service) Create(ctx context.Context, name string, data []byte) (err error) {
 	return nil
 }
 

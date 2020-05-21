@@ -5,6 +5,7 @@ import "go/types"
 var (
 	ErrorType = types.Universe.Lookup("error").Type()
 	PanicType = types.Universe.Lookup("panic").Type()
+	NilType   = types.Universe.Lookup("nil").Type()
 )
 
 func GetBitSize(kind types.BasicKind) string {

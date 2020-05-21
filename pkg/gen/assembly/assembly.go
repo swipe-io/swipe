@@ -8,10 +8,9 @@ import (
 
 	"github.com/swipe-io/swipe/pkg/errors"
 	"github.com/swipe-io/swipe/pkg/parser"
+	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/writer"
 )
-
-var nilType = stdtypes.Universe.Lookup("nil").Type()
 
 type scope string
 
@@ -80,7 +79,7 @@ func (w *Assembly) Write(opt *parser.Option) error {
 			fnDTOOpt := parser.MustOption(opt.Get("formatterDTO"))
 			fnType := fnDTOOpt.Value.Type()
 
-			if !stdtypes.Identical(fnType, nilType) {
+			if !stdtypes.Identical(fnType, types.NilType) {
 				_, ok := fnType.(*stdtypes.Signature)
 				if !ok {
 					return errors.NotePosition(opt.Position, fmt.Errorf("the %s param %s must be func", opt.Name, fnDTOOpt.Name))
@@ -91,7 +90,7 @@ func (w *Assembly) Write(opt *parser.Option) error {
 			fnModelOpt := parser.MustOption(opt.Get("formatterModel"))
 			fnType = fnModelOpt.Value.Type()
 
-			if !stdtypes.Identical(fnType, nilType) {
+			if !stdtypes.Identical(fnType, types.NilType) {
 				_, ok = fnType.(*stdtypes.Signature)
 				if !ok {
 					return errors.NotePosition(opt.Position, fmt.Errorf("the %s param %s must be func", opt.Name, fnModelOpt.Name))

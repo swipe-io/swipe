@@ -19,7 +19,7 @@ func Swipe() {
 				),
 				Openapi(
 					OpenapiOutput("/../../docs"),
-					OpenapiVersion("1.0.0"),
+					OpenapiInfo("Service Test", "description", "v1.0.0"),
 				),
 			),
 			Logging(),

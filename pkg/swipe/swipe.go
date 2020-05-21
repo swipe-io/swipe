@@ -259,18 +259,8 @@ func OpenapiOutput(string) OpenapiOption {
 	return "implementation not generated, run swipe"
 }
 
-// OpenapiVersion sets version.
-func OpenapiVersion(string) OpenapiOption {
-	return "implementation not generated, run swipe"
-}
-
-// OpenapiTitle sets title.
-func OpenapiTitle(string) OpenapiOption {
-	return "implementation not generated, run swipe"
-}
-
-// OpenapiDescription sets description.
-func OpenapiDescription(string) OpenapiOption {
+// OpenapiInfo sets info.
+func OpenapiInfo(title, description, version string) OpenapiOption {
 	return "implementation not generated, run swipe"
 }
 

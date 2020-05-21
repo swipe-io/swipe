@@ -24,6 +24,7 @@ import (
 
 type createRequestServiceInterface struct {
 	Name string `json:"name"`
+	Data []byte `json:"data"`
 }
 
 type createResponseServiceInterface struct {
@@ -37,7 +38,7 @@ func (r createResponseServiceInterface) Failed() (_ error) {
 func makeCreateEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createRequestServiceInterface)
-		err := s.Create(ctx, req.Name)
+		err := s.Create(ctx, req.Name, req.Data)
 		return createResponseServiceInterface{Err: err}, nil
 	}
 	return w
@@ -91,11 +92,11 @@ type loggingMiddlewareServiceInterface struct {
 	logger log.Logger
 }
 
-func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name string) (err error) {
+func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
 	defer func(now time.Time) {
-		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "err", err)
+		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", err)
 	}(time.Now())
-	return s.next.Create(ctx, name)
+	return s.next.Create(ctx, name, data)
 }
 
 func (s *loggingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
@@ -118,12 +119,12 @@ type instrumentingMiddlewareServiceInterface struct {
 	requestLatency metrics.Histogram
 }
 
-func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, name string) (err error) {
+func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
 	defer func(begin time.Time) {
 		s.requestCount.With("method", "Create").Add(1)
 		s.requestLatency.With("method", "Create").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return s.next.Create(ctx, name)
+	return s.next.Create(ctx, name, data)
 }
 
 func (s *instrumentingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
@@ -183,8 +184,8 @@ type clientServiceInterface struct {
 	genericEndpointMiddleware []endpoint.Middleware
 }
 
-func (c *clientServiceInterface) Create(ctx context.Context, name string) (err error) {
-	resp, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name})
+func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
+	resp, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name, Data: data})
 	if err != nil {
 		return err
 	}

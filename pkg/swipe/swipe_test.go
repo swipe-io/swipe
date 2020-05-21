@@ -13,7 +13,7 @@ import (
 	. "github.com/swipe-io/swipe/pkg/swipe"
 )
 
-func ExampleProtocol() {
+func ExampleTransport() {
 	Build(
 		Service((*service.Interface)(nil),
 			Transport("http"),
@@ -22,7 +22,7 @@ func ExampleProtocol() {
 }
 
 // Example enabled valyala/fasthttp. Supported in both REST and JSON RPC.
-func ExampleHTTPFast() {
+func ExampleFastEnable() {
 	Build(
 		Service((*service.Service)(nil),
 			Transport("http",
@@ -79,7 +79,7 @@ func ExampleInstrumenting() {
 }
 
 // Use the swipe.MethodOptions option to specify settings for generating the service method.
-func ExampleHTTPPath() {
+func ExamplePath() {
 	Build(
 		Service((*service.Service)(nil),
 			Transport("http",
@@ -92,7 +92,7 @@ func ExampleHTTPPath() {
 }
 
 // Use the swipe.MethodOptions option to specify settings for generating the service method.
-func ExampleHTTPMethod() {
+func ExampleMethod() {
 	Build(
 		Service((*service.Service)(nil),
 			Transport("http",
@@ -106,7 +106,7 @@ func ExampleHTTPMethod() {
 
 // A parameter is a key pair, where the key is the name of the method parameter,
 // and the value is the name of the parameter in the header.
-func ExampleHTTPHeaderVars() {
+func ExampleHeaderVars() {
 	Build(
 		Service((*service.Service)(nil),
 			Transport("http",
@@ -120,7 +120,7 @@ func ExampleHTTPHeaderVars() {
 
 // A parameter is a key pair, where the key is the name of the method parameter,
 // and the value is the name of the parameter in the url query arguments.
-func ExampleHTTPQueryVars() {
+func ExampleQueryVars() {
 	Build(
 		Service((*service.Service)(nil),
 			Transport("http",
@@ -154,31 +154,19 @@ func ExampleOpenapiOutput() {
 	)
 }
 
-func ExampleOpenapiVersion() {
+func ExampleOpenapiInfo() {
 	Build(
 		Service((*service.Service)(nil),
 			Transport("http",
 				Openapi(
-					OpenapiVersion("1.0.0"),
+					OpenapiInfo("Openapi doc title", "1.0.0", "description"),
 				),
 			),
 		),
 	)
 }
 
-func ExampleOpenapiTitle() {
-	Build(
-		Service((*service.Service)(nil),
-			Transport("http",
-				Openapi(
-					OpenapiTitle("Openapi doc title"),
-				),
-			),
-		),
-	)
-}
-
-func ExampleOpenapiServers() {
+func ExampleOpenapiServer() {
 	Build(
 		Service((*service.Service)(nil),
 			Transport("http",
