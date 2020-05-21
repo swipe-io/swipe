@@ -91,6 +91,11 @@ type transportOptions struct {
 	methodOptions  map[string]transportMethodOptions
 }
 
+type errorDecodeInfo struct {
+	v         string
+	isPointer bool
+}
+
 type TransportHTTP struct {
 	ctx serviceCtx
 	w   *writer.Writer
@@ -258,24 +263,30 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		errorStatusMethod = "ErrorCode"
 	}
 
-	mapCodeErrors := map[*stdtypes.Named]string{}
+	mapCodeErrors := map[*stdtypes.Named]*errorDecodeInfo{}
 
 	g.w.Inspect(func(p *packages.Package, n ast.Node) bool {
 		if ret, ok := n.(*ast.ReturnStmt); ok {
 			for _, expr := range ret.Results {
 				if typeInfo, ok := p.TypesInfo.Types[expr]; ok {
-					if pointer, ok := typeInfo.Type.(*stdtypes.Pointer); ok {
-						if named, ok := pointer.Elem().(*stdtypes.Named); ok {
-							found := 0
-							for i := 0; i < named.NumMethods(); i++ {
-								m := named.Method(i)
-								if m.Name() == errorStatusMethod || m.Name() == "Error" {
-									found++
-								}
+					retType := typeInfo.Type
+					isPointer := false
+
+					ptr, ok := retType.(*stdtypes.Pointer)
+					if ok {
+						isPointer = true
+						retType = ptr.Elem()
+					}
+					if named, ok := retType.(*stdtypes.Named); ok {
+						found := 0
+						for i := 0; i < named.NumMethods(); i++ {
+							m := named.Method(i)
+							if m.Name() == errorStatusMethod || m.Name() == "Error" {
+								found++
 							}
-							if found == 2 {
-								mapCodeErrors[named] = ""
-							}
+						}
+						if found == 2 {
+							mapCodeErrors[named] = &errorDecodeInfo{isPointer: isPointer}
 						}
 					}
 				}
@@ -289,20 +300,23 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 			if fn.Name.Name == errorStatusMethod {
 				if fn.Recv != nil && len(fn.Recv.List) > 0 {
 					recvType := p.TypesInfo.TypeOf(fn.Recv.List[0].Type)
-					recvPtr := recvType.(*stdtypes.Pointer)
-					recv := recvPtr.Elem().(*stdtypes.Named)
-
-					if _, ok := mapCodeErrors[recv]; ok {
-						ast.Inspect(n, func(n ast.Node) bool {
-							if ret, ok := n.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
-								if v, ok := p.TypesInfo.Types[ret.Results[0]]; ok {
-									if v.Value != nil && v.Value.Kind() == constant.Int {
-										mapCodeErrors[recv] = v.Value.String()
+					ptr, ok := recvType.(*stdtypes.Pointer)
+					if ok {
+						recvType = ptr.Elem()
+					}
+					if named, ok := recvType.(*stdtypes.Named); ok {
+						if _, ok := mapCodeErrors[named]; ok {
+							ast.Inspect(n, func(n ast.Node) bool {
+								if ret, ok := n.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
+									if v, ok := p.TypesInfo.Types[ret.Results[0]]; ok {
+										if v.Value != nil && v.Value.Kind() == constant.Int {
+											mapCodeErrors[named].v = v.Value.String()
+										}
 									}
 								}
-							}
-							return true
-						})
+								return true
+							})
+						}
 					}
 				}
 			}
@@ -315,11 +329,14 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 	g.w.WriteFunc("ErrorDecode", "", []string{"code", "int"}, []string{"", "error"}, func() {
 		g.w.Write("switch code {\n")
 		g.w.Write("default:\nreturn %s.Errorf(\"error code %%d\", code)\n", fmtPkg)
-		for v, code := range mapCodeErrors {
-			g.w.Write("case %s:\n", code)
-
+		for v, i := range mapCodeErrors {
+			g.w.Write("case %s:\n", i.v)
 			pkg := g.w.Import(v.Obj().Pkg().Name(), v.Obj().Pkg().Path())
-			g.w.Write("return new(%s.%s)\n", pkg, v.Obj().Name())
+			g.w.Write("return ")
+			if i.isPointer {
+				g.w.Write("&")
+			}
+			g.w.Write("%s.%s{}\n", pkg, v.Obj().Name())
 		}
 		g.w.Write("}\n")
 	})

@@ -1,3 +1,5 @@
+//+build !swipe
+
 package main
 
 import (

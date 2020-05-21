@@ -90,31 +90,33 @@ func (s *Swipe) Generate() ([]Result, []error) {
 			}
 		}
 
-		for name, opts := range generatorOpts {
-			if f, ok := factory[name]; ok {
-				gw := f(w)
-				for _, opt := range opts {
-					if err := gw.Write(opt); err != nil {
-						ec.Add(err)
+		if len(generatorOpts) > 0 {
+			for name, opts := range generatorOpts {
+				if f, ok := factory[name]; ok {
+					gw := f(w)
+					for _, opt := range opts {
+						if err := gw.Write(opt); err != nil {
+							ec.Add(err)
+						}
 					}
 				}
 			}
-		}
 
-		if len(ec.Errors()) > 0 {
-			result[i].Errs = ec.Errors()
-		}
+			if len(ec.Errors()) > 0 {
+				result[i].Errs = ec.Errors()
+			}
 
-		goSrc := w.Frame(false)
+			goSrc := w.Frame(false)
 
-		fmtSrc, err := format.Source(goSrc)
-		if err != nil {
-			result[i].Errs = append(result[i].Errs, err)
-		} else {
-			goSrc = fmtSrc
+			fmtSrc, err := format.Source(goSrc)
+			if err != nil {
+				result[i].Errs = append(result[i].Errs, err)
+			} else {
+				goSrc = fmtSrc
+			}
+			result[i].Content = goSrc
+			result[i].OutputPath = filepath.Join(outDir, "swipe_gen.go")
 		}
-		result[i].Content = goSrc
-		result[i].OutputPath = filepath.Join(outDir, "swipe_gen.go")
 	}
 
 	return result, nil
@@ -124,37 +126,25 @@ func (s *Swipe) findInjector(info *types.Info, fn *ast.FuncDecl) (*ast.CallExpr,
 	if fn.Body == nil {
 		return nil, nil
 	}
-	numStatements := 0
-	invalid := false
-
 	for _, stmt := range fn.Body.List {
 		switch stmt := stmt.(type) {
 		case *ast.ExprStmt:
-			numStatements++
-			if numStatements > 1 {
-				invalid = true
-			}
 			call, ok := stmt.X.(*ast.CallExpr)
 			if !ok {
 				continue
 			}
 			obj := value.QualifiedIdentObject(info, call.Fun)
-			if obj.Name() != "Build" {
+			if obj == nil || obj.Pkg() == nil {
 				continue
 			}
-			if obj == nil || obj.Pkg() == nil {
+			if obj.Name() != "Build" {
 				continue
 			}
 			return call, nil
 		case *ast.EmptyStmt:
-		case *ast.ReturnStmt:
-			if numStatements == 0 {
-				return nil, nil
-			}
+
+			return nil, nil
 		}
-	}
-	if invalid {
-		return nil, errors.New("a call to swipe make handlers indicates that this function is an injector, but injectors must consist of only the swipe.HTTP call and an optional return")
 	}
 	return nil, nil
 }
@@ -174,18 +164,17 @@ func (s *Swipe) detectOutputDir(paths []string) (string, error) {
 
 func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Package, errs []error) {
 	cfg := &packages.Config{
-		Context:    s.ctx,
-		Mode:       loadAllSyntax,
+		Context: s.ctx,
+		// Mode:       loadAllSyntax,
+		Mode:       packages.LoadSyntax,
 		Dir:        s.wd,
 		Env:        s.env,
 		BuildFlags: []string{"-tags=swipe"},
 	}
-
 	escaped := make([]string, len(s.patterns))
 	for i := range s.patterns {
 		escaped[i] = "pattern=" + s.patterns[i]
 	}
-
 	pkgs, err := packages.Load(cfg, escaped...)
 	if err != nil {
 		return nil, nil, []error{err}
