@@ -1,4 +1,12 @@
 
+<a name="v1.1.4"></a>
+## [v1.1.4](https://github.com/swipe-io/swipe/compare/v1.1.3...v1.1.4) (2020-05-22)
+
+### Bug Fixes
+
+* invalid type generation in the example field. added generation of standard JSON RPC errors
+
+
 <a name="v1.1.3"></a>
 ## [v1.1.3](https://github.com/swipe-io/swipe/compare/v1.1.2...v1.1.3) (2020-05-21)
 
