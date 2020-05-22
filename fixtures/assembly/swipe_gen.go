@@ -10,22 +10,6 @@ import (
 	"github.com/swipe-io/swipe/fixtures/user"
 )
 
-// swipe_gen.go:
-
-func AssemblyFromDTOUserToModelUser(from user.User) (to model.User) {
-	to = model.User{Name: func(from user.User) string {
-		return "OK"
-	}(from), Password: from.Password, Point: model.Point{T: from.Point.Type, Coordinates: from.Point.Coordinates}}
-	return
-}
-
-// swipe_gen.go:
-
-func AssemblyFromModelUserToDTOUser(from model.User) (to user.User) {
-	to = user.User{Name: from.Name, Point: user.GeoJSON{Type: from.Point.T, Coordinates: from.Point.Coordinates}}
-	return
-}
-
 func AssemblyFromDTOUserToModelUser(from user.User) (to model.User) {
 	to = model.User{Name: func(from user.User) string {
 		return "OK"

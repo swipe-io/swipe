@@ -5,6 +5,7 @@ package openapi
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	fflib "github.com/pquerna/ffjson/fflib/v1"
@@ -5374,9 +5375,13 @@ func (j *Schema) MarshalJSONBuf(buf fflib.EncodingBuffer) error {
 		}
 		buf.WriteByte(',')
 	}
-	if len(j.Example) != 0 {
+	if j.Example != nil {
 		buf.WriteString(`"example":`)
-		fflib.WriteJsonString(buf, string(j.Example))
+		/* Interface types must use runtime reflection. type=interface {} kind=interface */
+		err = buf.Encode(j.Example)
+		if err != nil {
+			return err
+		}
 		buf.WriteByte(',')
 	}
 	buf.Rewind(1)
@@ -5912,24 +5917,18 @@ handle_Enum:
 
 handle_Example:
 
-	/* handler: j.Example type=string kind=string quoted=false*/
+	/* handler: j.Example type=interface {} kind=interface quoted=false*/
 
 	{
-
-		{
-			if tok != fflib.FFTok_string && tok != fflib.FFTok_null {
-				return fs.WrapErr(fmt.Errorf("cannot unmarshal %s into Go value for string", tok))
-			}
+		/* Falling back. type=interface {} kind=interface */
+		tbuf, err := fs.CaptureField(tok)
+		if err != nil {
+			return fs.WrapErr(err)
 		}
 
-		if tok == fflib.FFTok_null {
-
-		} else {
-
-			outBuf := fs.Output.Bytes()
-
-			j.Example = string(string(outBuf))
-
+		err = json.Unmarshal(tbuf, &j.Example)
+		if err != nil {
+			return fs.WrapErr(err)
 		}
 	}
 

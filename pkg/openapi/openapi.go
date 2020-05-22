@@ -34,13 +34,13 @@ type Tag struct {
 type Properties map[string]*Schema
 
 type Schema struct {
-	Ref        string     `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Type       string     `yaml:"type,omitempty" json:"type,omitempty"`
-	Format     string     `yaml:"format,omitempty" json:"format,omitempty"`
-	Properties Properties `yaml:"properties,omitempty" json:"properties,omitempty"`
-	Items      *Schema    `yaml:"items,omitempty" json:"items,omitempty"`
-	Enum       []string   `yaml:"enum,omitempty" json:"enum,omitempty"`
-	Example    string     `yaml:"example,omitempty" json:"example,omitempty"`
+	Ref        string      `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Type       string      `yaml:"type,omitempty" json:"type,omitempty"`
+	Format     string      `yaml:"format,omitempty" json:"format,omitempty"`
+	Properties Properties  `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Items      *Schema     `yaml:"items,omitempty" json:"items,omitempty"`
+	Enum       []string    `yaml:"enum,omitempty" json:"enum,omitempty"`
+	Example    interface{} `yaml:"example,omitempty" json:"example,omitempty"`
 }
 
 type Parameter struct {

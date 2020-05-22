@@ -580,10 +580,12 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 	mopt := opts.methodOptions[m.Name()]
 
 	responseParams := &openapi.Schema{
+		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
 
 	requestParams := &openapi.Schema{
+		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
 
@@ -696,10 +698,12 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 	msig := m.Type().(*stdtypes.Signature)
 
 	responseParams := &openapi.Schema{
+		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
 
 	requestParams := &openapi.Schema{
+		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
 
@@ -723,10 +727,12 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 		Type: "object",
 		Properties: openapi.Properties{
 			"jsonrpc": &openapi.Schema{
-				Type: "string",
+				Type:    "string",
+				Example: "2.0",
 			},
 			"id": &openapi.Schema{
-				Type: "string",
+				Type:    "string",
+				Example: "c9b14c57-7503-447a-9fb9-be6f8920f31f",
 			},
 			"result": responseParams,
 		},
@@ -735,10 +741,12 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 		Type: "object",
 		Properties: openapi.Properties{
 			"jsonrpc": &openapi.Schema{
-				Type: "string",
+				Type:    "string",
+				Example: "2.0",
 			},
 			"id": &openapi.Schema{
-				Type: "string",
+				Type:    "string",
+				Example: "c9b14c57-7503-447a-9fb9-be6f8920f31f",
 			},
 			"method": &openapi.Schema{
 				Type: "string",
@@ -766,12 +774,62 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 					},
 				},
 			},
-			"500": {
-				Description: "FAIL",
+			"x-32000...-32099": {
+				Description: "Server error. Reserved for implementation-defined server-errors.",
 				Content: openapi.Content{
 					"application/json": {
 						Schema: &openapi.Schema{
-							Ref: "#/components/schemas/Error",
+							Ref: "#/components/schemas/ServerError",
+						},
+					},
+				},
+			},
+			"x-32700": {
+				Description: "Parse error. Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
+				Content: openapi.Content{
+					"application/json": {
+						Schema: &openapi.Schema{
+							Ref: "#/components/schemas/ParseError",
+						},
+					},
+				},
+			},
+			"x-32600": {
+				Description: "Invalid Request. The JSON sent is not a valid Request object.",
+				Content: openapi.Content{
+					"application/json": {
+						Schema: &openapi.Schema{
+							Ref: "#/components/schemas/InvalidRequestError",
+						},
+					},
+				},
+			},
+			"x-32601": {
+				Description: "Method not found. The method does not exist / is not available.",
+				Content: openapi.Content{
+					"application/json": {
+						Schema: &openapi.Schema{
+							Ref: "#/components/schemas/MethodNotFoundError",
+						},
+					},
+				},
+			},
+			"x-32602": {
+				Description: "Invalid params. Invalid method parameters.",
+				Content: openapi.Content{
+					"application/json": {
+						Schema: &openapi.Schema{
+							Ref: "#/components/schemas/InvalidParamsError",
+						},
+					},
+				},
+			},
+			"x-32603": {
+				Description: "Internal error. Internal JSON-RPC error.",
+				Content: openapi.Content{
+					"application/json": {
+						Schema: &openapi.Schema{
+							Ref: "#/components/schemas/InternalError",
 						},
 					},
 				},
@@ -792,7 +850,7 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 	}
 
 	if opts.jsonRPC.enable {
-		swg.Components.Schemas["Error"] = getOpenapiJSONRPCErrorSchema()
+		swg.Components.Schemas = getOpenapiJSONRPCErrorSchemas()
 	} else {
 		swg.Components.Schemas["Error"] = getOpenapiRestErrorSchema()
 	}
@@ -852,24 +910,158 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 	return nil
 }
 
-func getOpenapiJSONRPCErrorSchema() *openapi.Schema {
-	return &openapi.Schema{
-		Type: "object",
-		Properties: openapi.Properties{
-			"jsonrpc": &openapi.Schema{
-				Type: "string",
-			},
-			"id": &openapi.Schema{
-				Type: "string",
-			},
-			"error": &openapi.Schema{
-				Type: "object",
-				Properties: openapi.Properties{
-					"code": &openapi.Schema{
-						Type: "integer",
+func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
+	return openapi.Schemas{
+		"ServerError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type: "integer",
+						},
+						"message": &openapi.Schema{
+							Type: "string",
+						},
 					},
-					"message": &openapi.Schema{
-						Type: "string",
+				},
+			},
+		},
+		"ParseError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32700,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Parse error",
+						},
+					},
+				},
+			},
+		},
+		"InvalidRequestError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32600,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Invalid Request",
+						},
+					},
+				},
+			},
+		},
+		"MethodNotFoundError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32601,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Method not found",
+						},
+					},
+				},
+			},
+		},
+		"InvalidParamsError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32602,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Invalid params",
+						},
+					},
+				},
+			},
+		},
+		"InternalError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32603,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Internal error",
+						},
 					},
 				},
 			},
@@ -1721,19 +1913,19 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 			schema.Example = "true"
 		case stdtypes.Int8, stdtypes.Int16:
 			schema.Type = "integer"
-			schema.Example = "1"
+			schema.Example = 1
 		case stdtypes.Int32:
 			schema.Type = "integer"
 			schema.Format = "int32"
-			schema.Example = "1"
+			schema.Example = 1
 		case stdtypes.Int, stdtypes.Int64:
 			schema.Type = "integer"
 			schema.Format = "int64"
-			schema.Example = "1"
+			schema.Example = 1
 		case stdtypes.Float32, stdtypes.Float64:
 			schema.Type = "number"
 			schema.Format = "float"
-			schema.Example = "1.1"
+			schema.Example = 1.11
 		}
 	case *stdtypes.Struct:
 		schema.Type = "object"
@@ -1748,10 +1940,12 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 		case "time.Time":
 			schema.Type = "string"
 			schema.Format = "date-time"
+			schema.Example = "1985-02-04T00:00:00.00Z"
 			return
 		case "github.com/pborman/uuid.UUID":
 			schema.Type = "string"
 			schema.Format = "uuid"
+			schema.Example = "d5c02d83-6fbc-4dd7-8416-9f85ed80de46"
 			return
 		}
 		return g.makeSwaggerSchema(v.Obj().Type().Underlying())
