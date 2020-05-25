@@ -86,25 +86,25 @@ func (c *Config) Write(opt *parser.Option) error {
 	return nil
 }
 
-func (c *Config) writeConfigFlagBasic(name, fldName string, descr string, f *types.Var) {
+func (c *Config) writeConfigFlagBasic(name, fldName string, desc string, f *types.Var) {
 	if t, ok := f.Type().(*types.Basic); ok {
 		flagPkg := c.w.Import("flag", "flag")
 		switch t.Kind() {
 		case types.String:
-			c.w.Write("%[1]s.StringVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, descr)
+			c.w.Write("%[1]s.StringVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
 		case types.Int:
-			c.w.Write("%[1]s.IntVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, descr)
+			c.w.Write("%[1]s.IntVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
 		case types.Int64:
-			c.w.Write("%[1]s.Int64Var(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, descr)
+			c.w.Write("%[1]s.Int64Var(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
 		case types.Float64:
-			c.w.Write("%[1]s.Float64Var(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, descr)
+			c.w.Write("%[1]s.Float64Var(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
 		case types.Bool:
-			c.w.Write("%[1]s.BoolVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, descr)
+			c.w.Write("%[1]s.BoolVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
 		}
 	}
 }
 
-func (c *Config) writeConfigBasic(name, fldName string, f *types.Var, descr string, isFlag bool) {
+func (c *Config) writeConfigBasic(name, fldName string, f *types.Var, desc string, isFlag bool) {
 	if !isFlag {
 		tmpVar := strcase.ToLowerCamel(name) + "Tmp"
 		c.w.Write("%s, ok := %s.LookupEnv(%s)\n", tmpVar, c.w.Import("os", "os"), strconv.Quote(fldName))
@@ -112,7 +112,7 @@ func (c *Config) writeConfigBasic(name, fldName string, f *types.Var, descr stri
 		c.w.WriteConvertType(name, tmpVar, f, "errs", false, "convert "+fldName+" error")
 		c.w.Write("}\n")
 	} else {
-		c.writeConfigFlagBasic(name, fldName, descr, f)
+		c.writeConfigFlagBasic(name, fldName, desc, f)
 	}
 }
 
@@ -124,11 +124,11 @@ func (c *Config) writeConfigStruct(name string, envParentName string, st *types.
 		fldName := strcase.ToScreamingSnake(normalizeCamelCase(f.Name()))
 		required := requiredAll
 		parentPostfix := "_"
-		descr := ""
+		desc := ""
 
 		if tags, err := structtag.Parse(st.Tag(i)); err == nil {
 			if tag, err := tags.Get("desc"); err == nil {
-				descr = tag.Name
+				desc = tag.Name
 			}
 			if tag, err := tags.Get("env"); err == nil {
 				required = tag.HasOption("required")
@@ -154,7 +154,7 @@ func (c *Config) writeConfigStruct(name string, envParentName string, st *types.
 		switch v := f.Type().Underlying().(type) {
 		case *types.Pointer:
 			if v.Elem().String() == "net/url.URL" {
-				c.writeConfigBasic(assignID, fldName, f, descr, isFlag)
+				c.writeConfigBasic(assignID, fldName, f, desc, isFlag)
 			} else {
 				if st, ok := v.Elem().Underlying().(*types.Struct); ok {
 					if named, ok := v.Elem().(*types.Named); ok {
@@ -171,8 +171,8 @@ func (c *Config) writeConfigStruct(name string, envParentName string, st *types.
 			envs = append(envs, c.writeConfigStruct(assignID, fldName, v, required, sliceErr)...)
 			required = false // reset check empty for struct because check is generated in writeConfigStruct
 		case *types.Basic, *types.Slice:
-			envs = append(envs, env{name: fldName, fName: f.Name(), assignID: assignID, desc: descr, required: required, isFlag: isFlag})
-			c.writeConfigBasic(assignID, fldName, f, descr, isFlag)
+			envs = append(envs, env{name: fldName, fName: f.Name(), assignID: assignID, desc: desc, required: required, isFlag: isFlag})
+			c.writeConfigBasic(assignID, fldName, f, desc, isFlag)
 		}
 
 		if required {
