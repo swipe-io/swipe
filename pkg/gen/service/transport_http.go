@@ -1588,10 +1588,15 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 
 				for i := 0; i < msig.Results().Len(); i++ {
 					r := msig.Results().At(i)
+
 					if i > 0 {
 						g.w.Write(",")
 					}
-					g.w.Write("response.%s", strings.UcFirst(r.Name()))
+					if types.HasError(r.Type()) {
+						g.w.Write("nil")
+					} else {
+						g.w.Write("response.%s", strings.UcFirst(r.Name()))
+					}
 				}
 				g.w.Write("\n")
 			}

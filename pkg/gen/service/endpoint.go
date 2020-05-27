@@ -39,17 +39,17 @@ func (w *Endpoint) Write() error {
 
 		ntResults := utils.Params(sig.Results(), func(p *stdtypes.Var) []string {
 			name := p.Name()
-
-			tagName := strcase.ToLowerCamel(p.Name())
+			tagName := strcase.ToLowerCamel(name)
 			typeName := w.w.TypeString(p.Type())
-
 			fieldName := stdstrings.ToUpper(name[:1]) + name[1:]
 
-			if typeName == "error" {
-				tagName = "-"
-			}
 			return []string{fieldName, typeName + "`json:" + strconv.Quote(tagName) + "`"}
-		}, nil)
+		}, func(p *stdtypes.Var) bool {
+			if types.HasError(p.Type()) {
+				return false
+			}
+			return true
+		})
 
 		if len(ntParams) > 0 {
 			requestName := fmt.Sprintf("%sRequest%s", strings.LcFirst(m.Name()), w.ctx.id)
@@ -58,12 +58,7 @@ func (w *Endpoint) Write() error {
 
 		if len(ntResults) > 0 {
 			responseName := fmt.Sprintf("%sResponse%s", strings.LcFirst(m.Name()), w.ctx.id)
-
 			w.w.WriteTypeStruct(responseName, ntResults)
-
-			w.w.WriteFunc("Failed", fmt.Sprintf("r %s", responseName), nil, []string{"", "error"}, func() {
-				w.w.Write("return r.Err\n")
-			})
 		}
 		if err := w.writeEndpoint(m, sig); err != nil {
 			return err
@@ -103,6 +98,7 @@ func (w *Endpoint) writeEndpoint(fn *stdtypes.Func, sig *stdtypes.Signature) err
 	}
 
 	namesResults := utils.NameParams(sig.Results(), nil)
+
 	if len(namesResults) > 0 {
 		w.w.Write(stdstrings.Join(namesResults, ","))
 		w.w.Write(" := ")
@@ -110,11 +106,22 @@ func (w *Endpoint) writeEndpoint(fn *stdtypes.Func, sig *stdtypes.Signature) err
 
 	w.w.WriteFuncCall("s", fn.Name(), callParams)
 
+	if types.HasErrorInResults(sig.Results()) {
+		w.w.WriteCheckErr(func() {
+			w.w.Write("return nil, err")
+		})
+	}
+
 	w.w.Write("return ")
 
 	if sig.Results().Len() > 0 {
 		w.w.Write("%sResponse%s", lcName, w.ctx.id)
-		w.w.WriteStructAssign(structKeyValue(sig.Results(), nil))
+		w.w.WriteStructAssign(structKeyValue(sig.Results(), func(p *stdtypes.Var) bool {
+			if types.HasError(p.Type()) {
+				return false
+			}
+			return true
+		}))
 	} else {
 		w.w.Write("nil")
 	}
