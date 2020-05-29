@@ -208,22 +208,22 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 				}
 			}
 
-			if serverRequestFunc, ok := methodOpt.Get("ServerRequestFunc"); ok {
+			if serverRequestFunc, ok := methodOpt.Get("ServerDecodeRequestFunc"); ok {
 				transportMethodOptions.serverRequestFunc.t = serverRequestFunc.Value.Type()
 				transportMethodOptions.serverRequestFunc.expr = serverRequestFunc.Value.Expr()
 			}
 
-			if serverResponseFunc, ok := methodOpt.Get("ServerResponseFunc"); ok {
+			if serverResponseFunc, ok := methodOpt.Get("ServerEncodeResponseFunc"); ok {
 				transportMethodOptions.serverResponseFunc.t = serverResponseFunc.Value.Type()
 				transportMethodOptions.serverResponseFunc.expr = serverResponseFunc.Value.Expr()
 			}
 
-			if clientRequestFunc, ok := methodOpt.Get("ClientRequestFunc"); ok {
+			if clientRequestFunc, ok := methodOpt.Get("ClientEncodeRequestFunc"); ok {
 				transportMethodOptions.clientRequestFunc.t = clientRequestFunc.Value.Type()
 				transportMethodOptions.clientRequestFunc.expr = clientRequestFunc.Value.Expr()
 			}
 
-			if clientResponseFunc, ok := methodOpt.Get("ClientResponseFunc"); ok {
+			if clientResponseFunc, ok := methodOpt.Get("ClientDecodeResponseFunc"); ok {
 				transportMethodOptions.clientResponseFunc.t = clientResponseFunc.Value.Type()
 				transportMethodOptions.clientResponseFunc.expr = clientResponseFunc.Value.Expr()
 			}
