@@ -180,10 +180,31 @@ func ErrorDecode(code int) (_ error) {
 	}
 }
 
+type clientServiceInterface struct {
+	createEndpoint            endpoint.Endpoint
+	createClientOption        []http.ClientOption
+	createEndpointMiddleware  []endpoint.Middleware
+	deleteEndpoint            endpoint.Endpoint
+	deleteClientOption        []http.ClientOption
+	deleteEndpointMiddleware  []endpoint.Middleware
+	getEndpoint               endpoint.Endpoint
+	getClientOption           []http.ClientOption
+	getEndpointMiddleware     []endpoint.Middleware
+	getAllEndpoint            endpoint.Endpoint
+	getAllClientOption        []http.ClientOption
+	getAllEndpointMiddleware  []endpoint.Middleware
+	genericClientOption       []http.ClientOption
+	genericEndpointMiddleware []endpoint.Middleware
+}
+
 type clientServiceInterfaceOption func(*clientServiceInterface)
 
 func ServiceInterfaceGenericClientOptions(opt ...http.ClientOption) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.genericClientOption = opt }
+}
+
+func ServiceInterfaceGenericClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.genericEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceCreateClientOptions(opt ...http.ClientOption) (_ clientServiceInterfaceOption) {
@@ -216,23 +237,6 @@ func ServiceInterfaceGetAllClientOptions(opt ...http.ClientOption) (_ clientServ
 
 func ServiceInterfaceGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.getAllEndpointMiddleware = opt }
-}
-
-type clientServiceInterface struct {
-	createEndpoint            endpoint.Endpoint
-	createClientOption        []http.ClientOption
-	createEndpointMiddleware  []endpoint.Middleware
-	deleteEndpoint            endpoint.Endpoint
-	deleteClientOption        []http.ClientOption
-	deleteEndpointMiddleware  []endpoint.Middleware
-	getEndpoint               endpoint.Endpoint
-	getClientOption           []http.ClientOption
-	getEndpointMiddleware     []endpoint.Middleware
-	getAllEndpoint            endpoint.Endpoint
-	getAllClientOption        []http.ClientOption
-	getAllEndpointMiddleware  []endpoint.Middleware
-	genericClientOption       []http.ClientOption
-	genericEndpointMiddleware []endpoint.Middleware
 }
 
 func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
@@ -303,7 +307,7 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 		},
 		append(c.genericClientOption, c.createClientOption...)...,
 	).Endpoint()
-	c.createEndpoint = middlewareChain(c.createEndpointMiddleware)(c.createEndpoint)
+	c.createEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.createEndpointMiddleware...))(c.createEndpoint)
 	c.deleteEndpoint = http.NewClient(
 		fasthttp.MethodPost,
 		u,
@@ -329,7 +333,7 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 		},
 		append(c.genericClientOption, c.deleteClientOption...)...,
 	).Endpoint()
-	c.deleteEndpoint = middlewareChain(c.deleteEndpointMiddleware)(c.deleteEndpoint)
+	c.deleteEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.deleteEndpointMiddleware...))(c.deleteEndpoint)
 	c.getEndpoint = http.NewClient(
 		fasthttp.MethodGet,
 		u,
@@ -363,7 +367,7 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 		},
 		append(c.genericClientOption, c.getClientOption...)...,
 	).Endpoint()
-	c.getEndpoint = middlewareChain(c.getEndpointMiddleware)(c.getEndpoint)
+	c.getEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.getEndpointMiddleware...))(c.getEndpoint)
 	c.getAllEndpoint = http.NewClient(
 		fasthttp.MethodGet,
 		u,
@@ -389,7 +393,7 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 		},
 		append(c.genericClientOption, c.getAllClientOption...)...,
 	).Endpoint()
-	c.getAllEndpoint = middlewareChain(c.getAllEndpointMiddleware)(c.getAllEndpoint)
+	c.getAllEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.getAllEndpointMiddleware...))(c.getAllEndpoint)
 	return c, nil
 }
 func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
@@ -408,19 +412,24 @@ func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
 
 type serverServiceInterfaceOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
-	genericServerOption      []http.ServerOption
-	createServerOption       []http.ServerOption
-	createEndpointMiddleware []endpoint.Middleware
-	deleteServerOption       []http.ServerOption
-	deleteEndpointMiddleware []endpoint.Middleware
-	getServerOption          []http.ServerOption
-	getEndpointMiddleware    []endpoint.Middleware
-	getAllServerOption       []http.ServerOption
-	getAllEndpointMiddleware []endpoint.Middleware
+	genericServerOption       []http.ServerOption
+	genericEndpointMiddleware []endpoint.Middleware
+	createServerOption        []http.ServerOption
+	createEndpointMiddleware  []endpoint.Middleware
+	deleteServerOption        []http.ServerOption
+	deleteEndpointMiddleware  []endpoint.Middleware
+	getServerOption           []http.ServerOption
+	getEndpointMiddleware     []endpoint.Middleware
+	getAllServerOption        []http.ServerOption
+	getAllEndpointMiddleware  []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...http.ServerOption) (_ serverServiceInterfaceOption) {
 	return func(o *serverServiceInterfaceOpts) { o.genericServerOption = v }
+}
+
+func ServiceInterfaceEndpointMiddlewares(v ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(o *serverServiceInterfaceOpts) { o.genericEndpointMiddleware = v }
 }
 
 func ServiceInterfaceCreateServerOptions(opt ...http.ServerOption) (_ serverServiceInterfaceOption) {
@@ -502,7 +511,7 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 	}
 	r := mux.NewRouter()
 	r.Methods(fasthttp.MethodPost).Path("/users").Handler(http.NewServer(
-		middlewareChain(sopt.createEndpointMiddleware)(makeCreateEndpoint(s)),
+		middlewareChain(append(sopt.genericEndpointMiddleware, sopt.createEndpointMiddleware...))(makeCreateEndpoint(s)),
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			var req createRequestServiceInterface
 			b, err := ioutil.ReadAll(r.Body)
@@ -519,7 +528,7 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		append(sopt.genericServerOption, sopt.createServerOption...)...,
 	))
 	r.Methods(fasthttp.MethodPost).Path("/delete").Handler(http.NewServer(
-		middlewareChain(sopt.deleteEndpointMiddleware)(makeDeleteEndpoint(s)),
+		middlewareChain(append(sopt.genericEndpointMiddleware, sopt.deleteEndpointMiddleware...))(makeDeleteEndpoint(s)),
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			var req deleteRequestServiceInterface
 			b, err := ioutil.ReadAll(r.Body)
@@ -536,7 +545,7 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		append(sopt.genericServerOption, sopt.deleteServerOption...)...,
 	))
 	r.Methods(fasthttp.MethodGet).Path("/users/{name:[a-z]}").Handler(http.NewServer(
-		middlewareChain(sopt.getEndpointMiddleware)(makeGetEndpoint(s)),
+		middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getEndpointMiddleware...))(makeGetEndpoint(s)),
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			var req getRequestServiceInterface
 			vars := mux.Vars(r)
@@ -558,7 +567,7 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		append(sopt.genericServerOption, sopt.getServerOption...)...,
 	))
 	r.Methods(fasthttp.MethodGet).Path("/users").Handler(http.NewServer(
-		middlewareChain(sopt.getAllEndpointMiddleware)(makeGetAllEndpoint(s)),
+		middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getAllEndpointMiddleware...))(makeGetAllEndpoint(s)),
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			return nil, nil
 		},

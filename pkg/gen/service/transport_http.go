@@ -417,6 +417,8 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 
 	g.w.Write("type %s struct {\n", serverOptType)
 	g.w.Write("genericServerOption []%s\n", kithttpServerOption)
+	g.w.Write("genericEndpointMiddleware []%s\n", endpointMiddlewareOption)
+
 	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
 		m := g.ctx.iface.Method(i)
 		lcName := strings.LcFirst(m.Name())
@@ -432,6 +434,16 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 		[]string{"", serverOptionType},
 		func() {
 			g.w.Write("return func(o *%s) { o.genericServerOption = v }\n", serverOptType)
+		},
+	)
+
+	g.w.WriteFunc(
+		g.ctx.id+"GenericServerEndpointMiddlewares",
+		"",
+		[]string{"v", "..." + endpointMiddlewareOption},
+		[]string{"", serverOptionType},
+		func() {
+			g.w.Write("return func(o *%s) { o.genericEndpointMiddleware = v }\n", serverOptType)
 		},
 	)
 
@@ -1156,7 +1168,7 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 
 	lcName := strings.LcFirst(m.Name())
 	g.w.Write("\"%s\": %s.EndpointCodec{\n", lcName, jsonrpcPkg)
-	g.w.Write("Endpoint: middlewareChain(sopt.%sEndpointMiddleware)(make%sEndpoint(s)),\n", lcName, m.Name())
+	g.w.Write("Endpoint: middlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n", lcName, m.Name())
 	g.w.Write("Decode: ")
 
 	if mopt.serverRequestFunc.expr != nil {
@@ -1257,7 +1269,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 		g.w.Write("Handler(")
 	}
 
-	g.w.Write("%s.NewServer(\nmiddlewareChain(sopt.%sEndpointMiddleware)(make%sEndpoint(s)),\n", kithttpPkg, lcName, fn.Name())
+	g.w.Write("%s.NewServer(\nmiddlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n", kithttpPkg, lcName, fn.Name())
 
 	if mopt.serverRequestFunc.expr != nil {
 		g.w.WriteAST(mopt.serverRequestFunc.expr)
@@ -1459,6 +1471,16 @@ func (g *TransportHTTP) writeClientStructOptions(opts *transportOptions) {
 		},
 	)
 
+	g.w.WriteFunc(
+		g.ctx.id+"GenericClientEndpointMiddlewares",
+		"",
+		[]string{"opt", "..." + endpointPkg + ".Middleware"},
+		[]string{"", clientType + "Option"},
+		func() {
+			g.w.Write("return func(c *%s) { c.genericEndpointMiddleware = opt }\n", clientType)
+		},
+	)
+
 	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
 		m := g.ctx.iface.Method(i)
 		lcName := strings.LcFirst(m.Name())
@@ -1506,8 +1528,6 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 	endpointPkg := g.w.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	contextPkg := g.w.Import("context", "context")
 
-	g.writeClientStructOptions(opts)
-
 	clientType := "client" + g.ctx.id
 
 	g.w.Write("type %s struct {\n", clientType)
@@ -1521,6 +1541,8 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 	g.w.Write("genericEndpointMiddleware []%s.Middleware\n", endpointPkg)
 
 	g.w.Write("}\n\n")
+
+	g.writeClientStructOptions(opts)
 
 	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
 		m := g.ctx.iface.Method(i)
@@ -1536,16 +1558,6 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 			if hasError {
 				resultLen--
 			}
-
-			// if resultLen > 0 {
-			// 	epResult = append(epResult, "resp")
-			// } else {
-			// 	epResult = append(epResult, "_")
-			// }
-
-			// if hasError {
-			// 	epResult = append(epResult, "err")
-			// }
 
 			if resultLen > 0 {
 				g.w.Write("resp")
@@ -1860,7 +1872,7 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 
 		g.w.Write(").Endpoint()\n")
 
-		g.w.Write("c.%[1]sEndpoint = middlewareChain(c.%[1]sEndpointMiddleware)(c.%[1]sEndpoint)\n", lcName)
+		g.w.Write("c.%[1]sEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n", lcName)
 	}
 }
 
@@ -1951,7 +1963,7 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 
 		g.w.Write(").Endpoint()\n")
 
-		g.w.Write("c.%[1]sEndpoint = middlewareChain(c.%[1]sEndpointMiddleware)(c.%[1]sEndpoint)\n", lcName)
+		g.w.Write("c.%[1]sEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n", lcName)
 	}
 }
 
