@@ -1,4 +1,17 @@
 
+<a name="v1.2.2"></a>
+## [v1.2.2](https://github.com/swipe-io/swipe/compare/v1.1.5...v1.2.2) (2020-05-29)
+
+### Bug Fixes
+
+* not worked options ServerEncodeResponseFunc, ServerDecodeRequestFunc, ClientEncodeRequestFunc, ClientDecodeResponseFunc
+* generate return error for endpoint and encode/decode func
+
+### Features
+
+* added generate set generic endpoint middlewares option
+
+
 <a name="v1.1.5"></a>
 ## [v1.1.5](https://github.com/swipe-io/swipe/compare/v1.1.4...v1.1.5) (2020-05-27)
 
