@@ -1527,23 +1527,32 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 		msig := m.Type().(*stdtypes.Signature)
 
 		params := utils.NameTypeParams(msig.Params(), g.w.TypeString, nil)
-		results := utils.NameTypeParams(msig.Results(), g.w.TypeString, nil)
+		results := utils.NameType(msig.Results(), g.w.TypeString, nil)
 
 		g.w.WriteFunc(m.Name(), "c *"+clientType, params, results, func() {
 			hasError := types.HasErrorInResults(msig.Results())
-			epResult := make([]string, 0, 2)
 
 			resultLen := msig.Results().Len()
-			if resultLen > 0 {
-				epResult = append(epResult, "resp")
-			}
 			if hasError {
-				epResult = append(epResult, "err")
+				resultLen--
 			}
 
-			if len(epResult) > 0 {
-				g.w.Write("%s := ", stdstrings.Join(epResult, ","))
+			// if resultLen > 0 {
+			// 	epResult = append(epResult, "resp")
+			// } else {
+			// 	epResult = append(epResult, "_")
+			// }
+
+			// if hasError {
+			// 	epResult = append(epResult, "err")
+			// }
+
+			if resultLen > 0 {
+				g.w.Write("resp")
+			} else {
+				g.w.Write("_")
 			}
+			g.w.Write(", err := ")
 
 			g.w.Write("c.%sEndpoint(", strings.LcFirst(m.Name()))
 
@@ -1559,10 +1568,7 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 				} else {
 					g.w.Write("%sRequest%s", strings.LcFirst(m.Name()), g.ctx.id)
 					params := structKeyValue(msig.Params(), func(p *stdtypes.Var) bool {
-						if types.HasContext(p.Type()) {
-							return false
-						}
-						return true
+						return !types.HasContext(p.Type())
 					})
 					g.w.WriteStructAssign(params)
 				}
@@ -1572,34 +1578,45 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 			if hasError {
 				g.w.Write("if err != nil {\n")
 				g.w.Write("return ")
-				for i := 0; i < msig.Results().Len(); i++ {
-					r := msig.Results().At(i)
-					if i > 0 {
-						g.w.Write(",")
+
+				if resultLen > 0 {
+					for i := 0; i < resultLen; i++ {
+						r := msig.Results().At(i)
+						if i > 0 {
+							g.w.Write(",")
+						}
+						g.w.Write(g.w.ZeroValue(r.Type()))
 					}
-					g.w.Write(r.Name())
+					g.w.Write(",")
 				}
+
+				g.w.Write(" err\n")
+
 				g.w.Write("}\n")
 			}
 
-			if len(epResult) > 0 {
+			if resultLen > 0 {
 				g.w.Write("response := resp.(%sResponse%s)\n", strings.LcFirst(m.Name()), g.ctx.id)
-				g.w.Write("return ")
+			}
 
-				for i := 0; i < msig.Results().Len(); i++ {
+			g.w.Write("return ")
+
+			if resultLen > 0 {
+				for i := 0; i < resultLen; i++ {
 					r := msig.Results().At(i)
-
 					if i > 0 {
 						g.w.Write(",")
 					}
-					if types.HasError(r.Type()) {
-						g.w.Write("nil")
-					} else {
-						g.w.Write("response.%s", strings.UcFirst(r.Name()))
-					}
+					g.w.Write("response.%s", strings.UcFirst(r.Name()))
 				}
-				g.w.Write("\n")
+				g.w.Write(", ")
 			}
+
+			if hasError {
+				g.w.Write("nil")
+			}
+
+			g.w.Write("\n")
 		})
 	}
 }
@@ -1641,6 +1658,54 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		mopts := opts.methodOptions[m.Name()]
 
 		defaultHTTPMethod := "GET"
+
+		paramLen := msig.Params().Len()
+		resultLen := msig.Results().Len()
+
+		if types.HasContextInParams(msig.Params()) {
+			paramLen--
+		}
+
+		if types.HasErrorInResults(msig.Results()) {
+			resultLen--
+		}
+
+		pathStr := mopts.path
+		if pathStr == "" {
+			pathStr = "/" + lcName
+		}
+
+		pathVars := []string{}
+		for name, regexp := range mopts.pathVars {
+			if p := types.LookupFieldSig(name, msig); p != nil {
+				paramLen--
+
+				if regexp != "" {
+					regexp = ":" + regexp
+				}
+				pathStr = stdstrings.Replace(pathStr, "{"+name+regexp+"}", "%s", -1)
+				pathVars = append(pathVars, g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
+			}
+		}
+
+		queryVars := []string{}
+		for fName, qName := range mopts.queryVars {
+			if p := types.LookupFieldSig(fName, msig); p != nil {
+				paramLen--
+
+				queryVars = append(queryVars, strconv.Quote(qName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
+			}
+		}
+
+		headerVars := []string{}
+		for fName, hName := range mopts.headerVars {
+			if p := types.LookupFieldSig(fName, msig); p != nil {
+				paramLen--
+
+				headerVars = append(headerVars, strconv.Quote(hName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
+			}
+		}
+
 		g.w.Write("c.%s = %s.NewClient(\n", epName, kithttpPkg)
 		if mopts.method.name != "" {
 			g.w.WriteAST(mopts.method.expr)
@@ -1655,28 +1720,11 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		} else {
 			g.w.Write("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
-			paramsLen := msig.Params().Len()
-			if types.HasContextInParams(msig.Params()) {
-				paramsLen--
-			}
-
-			if paramsLen > 0 {
+			if paramLen > 0 {
 				g.w.Write("req, ok := request.(%sRequest%s)\n", lcName, g.ctx.id)
 				g.w.Write("if !ok {\n")
 				g.w.Write("return %s.Errorf(\"couldn't assert request as %sRequest%s, got %%T\", request)\n", fmtPkg, lcName, g.ctx.id)
 				g.w.Write("}\n")
-			}
-
-			pathStr := mopts.path
-			pathVars := []string{}
-			for name, regexp := range mopts.pathVars {
-				if p := types.LookupFieldSig(name, msig); p != nil {
-					if regexp != "" {
-						regexp = ":" + regexp
-					}
-					pathStr = stdstrings.Replace(pathStr, "{"+name+regexp+"}", "%s", -1)
-					pathVars = append(pathVars, g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
-				}
 			}
 
 			if opts.fastHTTP {
@@ -1706,17 +1754,15 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			}
 			g.w.Write("\n")
 
-			if len(mopts.queryVars) > 0 {
+			if len(queryVars) > 0 {
 				if opts.fastHTTP {
 					g.w.Write("q := r.URI().QueryArgs()\n")
 				} else {
 					g.w.Write("q := r.URL.Query()\n")
 				}
 
-				for fName, qName := range mopts.queryVars {
-					if p := types.LookupFieldSig(fName, msig); p != nil {
-						g.w.Write("q.Add(%s, %s)\n", strconv.Quote(qName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
-					}
+				for i := 0; i < len(queryVars); i += 2 {
+					g.w.Write("q.Add(%s, %s)\n", queryVars[i], queryVars[i+1])
 				}
 
 				if opts.fastHTTP {
@@ -1726,10 +1772,8 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 				}
 			}
 
-			for fName, hName := range mopts.headerVars {
-				if p := types.LookupFieldSig(fName, msig); p != nil {
-					g.w.Write("r.Header.Add(%s, %s)\n", strconv.Quote(hName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
-				}
+			for i := 0; i < len(headerVars); i += 2 {
+				g.w.Write("r.Header.Add(%s, %s)\n", headerVars[i], headerVars[i+1])
 			}
 
 			switch stdstrings.ToUpper(mopts.method.name) {
@@ -1769,39 +1813,43 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			g.w.Write("return nil, ErrorDecode(statusCode)\n")
 			g.w.Write("}\n")
 
-			g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
+			if resultLen > 0 {
+				g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
 
-			if opts.notWrapBody {
-				g.w.Write("var body %s\n", g.w.TypeString(msig.Results().At(0).Type()))
-			}
+				if opts.notWrapBody {
+					g.w.Write("var body %s\n", g.w.TypeString(msig.Results().At(0).Type()))
+				}
 
-			if opts.fastHTTP {
-				g.w.Write("err := %s.Unmarshal(r.Body(), ", jsonPkg)
+				if opts.fastHTTP {
+					g.w.Write("err := %s.Unmarshal(r.Body(), ", jsonPkg)
+				} else {
+					ioutilPkg := g.w.Import("ioutil", "io/ioutil")
+
+					g.w.Write("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
+					g.w.WriteCheckErr(func() {
+						g.w.Write("return nil, err\n")
+					})
+					g.w.Write("err = %s.Unmarshal(b, ", jsonPkg)
+				}
+
+				if opts.notWrapBody {
+					g.w.Write("&body)\n")
+				} else {
+					g.w.Write("&resp)\n")
+				}
+
+				g.w.Write("if err != nil && err != %s.EOF {\n", pkgIO)
+				g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
+				g.w.Write("}\n")
+
+				if opts.notWrapBody {
+					g.w.Write("resp.%s = body\n", strings.UcFirst(msig.Results().At(0).Name()))
+				}
+
+				g.w.Write("return resp, nil\n")
 			} else {
-				ioutilPkg := g.w.Import("ioutil", "io/ioutil")
-
-				g.w.Write("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
-				g.w.WriteCheckErr(func() {
-					g.w.Write("return nil, err\n")
-				})
-				g.w.Write("err = %s.Unmarshal(b, ", jsonPkg)
+				g.w.Write("return nil, nil\n")
 			}
-
-			if opts.notWrapBody {
-				g.w.Write("&body)\n")
-			} else {
-				g.w.Write("&resp)\n")
-			}
-
-			g.w.Write("if err != nil && err != %s.EOF {\n", pkgIO)
-			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
-			g.w.Write("}\n")
-
-			if opts.notWrapBody {
-				g.w.Write("resp.%s = body\n", strings.UcFirst(msig.Results().At(0).Name()))
-			}
-
-			g.w.Write("return resp, nil\n")
 
 			g.w.Write("}")
 		}
@@ -1849,8 +1897,14 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
 
 		pramsLen := sig.Params().Len()
+		resultLen := sig.Results().Len()
+
 		if types.HasContextInSignature(sig) {
 			pramsLen--
+		}
+
+		if types.HasErrorInResults(sig.Results()) {
+			resultLen--
 		}
 
 		if pramsLen > 0 {
@@ -1873,12 +1927,17 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("if response.Error != nil {\n")
 		g.w.Write("return nil, ErrorDecode(response.Error.Code)\n")
 		g.w.Write("}\n")
-		g.w.Write("var res %sResponse%s\n", lcName, g.ctx.id)
-		g.w.Write("err := %s.Unmarshal(response.Result, &res)\n", ffjsonPkg)
-		g.w.Write("if err != nil {\n")
-		g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
-		g.w.Write("}\n")
-		g.w.Write("return res, nil\n")
+
+		if resultLen > 0 {
+			g.w.Write("var res %sResponse%s\n", lcName, g.ctx.id)
+			g.w.Write("err := %s.Unmarshal(response.Result, &res)\n", ffjsonPkg)
+			g.w.Write("if err != nil {\n")
+			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
+			g.w.Write("}\n")
+			g.w.Write("return res, nil\n")
+		} else {
+			g.w.Write("return nil, nil\n")
+		}
 
 		g.w.Write("}),\n")
 

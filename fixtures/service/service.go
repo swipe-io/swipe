@@ -22,3 +22,7 @@ func (s *Service) Get(ctx context.Context, id int, name, fname string, price flo
 func (s *Service) GetAll(ctx context.Context) (users []user.User, err error) {
 	return []user.User{}, nil
 }
+
+func (s *Service) Delete(ctx context.Context, id int) (err error) {
+	return nil
+}

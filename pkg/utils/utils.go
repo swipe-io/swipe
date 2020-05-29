@@ -32,3 +32,9 @@ func NameTypeParams(tuple *types.Tuple, typeString func(t types.Type) string, fi
 		return []string{p.Name(), typeString(p.Type())}
 	}, filterFn)
 }
+
+func NameType(tuple *types.Tuple, typeString func(t types.Type) string, filterFn FilterFn) (results []string) {
+	return Params(tuple, func(p *types.Var) []string {
+		return []string{"", typeString(p.Type())}
+	}, filterFn)
+}

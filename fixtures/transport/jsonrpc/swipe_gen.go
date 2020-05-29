@@ -29,19 +29,30 @@ type createRequestServiceInterface struct {
 	Data []byte `json:"data"`
 }
 
-type createResponseServiceInterface struct {
-	Err error `json:"-"`
-}
-
-func (r createResponseServiceInterface) Failed() (_ error) {
-	return r.Err
-}
-
 func makeCreateEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createRequestServiceInterface)
 		err := s.Create(ctx, req.Name, req.Data)
-		return createResponseServiceInterface{Err: err}, nil
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	return w
+}
+
+type deleteRequestServiceInterface struct {
+	Id int `json:"id"`
+}
+
+func makeDeleteEndpoint(s service.Interface) endpoint.Endpoint {
+	w := func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteRequestServiceInterface)
+		err := s.Delete(ctx, req.Id)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
 	}
 	return w
 }
@@ -56,35 +67,31 @@ type getRequestServiceInterface struct {
 
 type getResponseServiceInterface struct {
 	Data user.User `json:"data"`
-	Err  error     `json:"-"`
-}
-
-func (r getResponseServiceInterface) Failed() (_ error) {
-	return r.Err
 }
 
 func makeGetEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getRequestServiceInterface)
 		data, err := s.Get(ctx, req.Id, req.Name, req.Fname, req.Price, req.N)
-		return getResponseServiceInterface{Data: data, Err: err}, nil
+		if err != nil {
+			return nil, err
+		}
+		return getResponseServiceInterface{Data: data}, nil
 	}
 	return w
 }
 
 type getAllResponseServiceInterface struct {
 	Data []user.User `json:"data"`
-	Err  error       `json:"-"`
-}
-
-func (r getAllResponseServiceInterface) Failed() (_ error) {
-	return r.Err
 }
 
 func makeGetAllEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		data, err := s.GetAll(ctx)
-		return getAllResponseServiceInterface{Data: data, Err: err}, nil
+		if err != nil {
+			return nil, err
+		}
+		return getAllResponseServiceInterface{Data: data}, nil
 	}
 	return w
 }
@@ -99,6 +106,13 @@ func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name str
 		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", err)
 	}(time.Now())
 	return s.next.Create(ctx, name, data)
+}
+
+func (s *loggingMiddlewareServiceInterface) Delete(ctx context.Context, id int) (err error) {
+	defer func(now time.Time) {
+		s.logger.Log("method", "Delete", "took", time.Since(now), "id", id, "err", err)
+	}(time.Now())
+	return s.next.Delete(ctx, id)
 }
 
 func (s *loggingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
@@ -127,6 +141,14 @@ func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, na
 		s.requestLatency.With("method", "Create").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return s.next.Create(ctx, name, data)
+}
+
+func (s *instrumentingMiddlewareServiceInterface) Delete(ctx context.Context, id int) (err error) {
+	defer func(begin time.Time) {
+		s.requestCount.With("method", "Delete").Add(1)
+		s.requestLatency.With("method", "Delete").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return s.next.Delete(ctx, id)
 }
 
 func (s *instrumentingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
@@ -168,6 +190,14 @@ func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware)
 	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
 }
 
+func ServiceInterfaceDeleteClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteClientOption = opt }
+}
+
+func ServiceInterfaceDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.getClientOption = opt }
 }
@@ -188,6 +218,9 @@ type clientServiceInterface struct {
 	createEndpoint            endpoint.Endpoint
 	createClientOption        []jsonrpc.ClientOption
 	createEndpointMiddleware  []endpoint.Middleware
+	deleteEndpoint            endpoint.Endpoint
+	deleteClientOption        []jsonrpc.ClientOption
+	deleteEndpointMiddleware  []endpoint.Middleware
 	getEndpoint               endpoint.Endpoint
 	getClientOption           []jsonrpc.ClientOption
 	getEndpointMiddleware     []endpoint.Middleware
@@ -198,31 +231,38 @@ type clientServiceInterface struct {
 	genericEndpointMiddleware []endpoint.Middleware
 }
 
-func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
-	resp, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name, Data: data})
+func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
+	_, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name, Data: data})
 	if err != nil {
 		return err
 	}
-	response := resp.(createResponseServiceInterface)
-	return response.Err
+	return nil
 }
 
-func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
+func (c *clientServiceInterface) Delete(ctx context.Context, id int) (_ error) {
+	_, err := c.deleteEndpoint(ctx, deleteRequestServiceInterface{Id: id})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (_ user.User, _ error) {
 	resp, err := c.getEndpoint(ctx, getRequestServiceInterface{Id: id, Name: name, Fname: fname, Price: price, N: n})
 	if err != nil {
-		return data, err
+		return user.User{}, err
 	}
 	response := resp.(getResponseServiceInterface)
-	return response.Data, response.Err
+	return response.Data, nil
 }
 
-func (c *clientServiceInterface) GetAll(ctx context.Context) (data []user.User, err error) {
+func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []user.User, _ error) {
 	resp, err := c.getAllEndpoint(ctx, nil)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
 	response := resp.(getAllResponseServiceInterface)
-	return response.Data, response.Err
+	return response.Data, nil
 }
 
 func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterfaceOption) (service.Interface, error) {
@@ -251,12 +291,7 @@ func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterface
 			if response.Error != nil {
 				return nil, ErrorDecode(response.Error.Code)
 			}
-			var res createResponseServiceInterface
-			err := ffjson.Unmarshal(response.Result, &res)
-			if err != nil {
-				return nil, fmt.Errorf("couldn't unmarshal body to createResponseServiceInterface: %s", err)
-			}
-			return res, nil
+			return nil, nil
 		}),
 	)
 	c.createEndpoint = jsonrpc.NewClient(
@@ -265,6 +300,32 @@ func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterface
 		append(c.genericClientOption, c.createClientOption...)...,
 	).Endpoint()
 	c.createEndpoint = middlewareChain(c.createEndpointMiddleware)(c.createEndpoint)
+	c.deleteClientOption = append(
+		c.deleteClientOption,
+		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
+			req, ok := obj.(deleteRequestServiceInterface)
+			if !ok {
+				return nil, fmt.Errorf("couldn't assert request as deleteRequestServiceInterface, got %T", obj)
+			}
+			b, err := ffjson.Marshal(req)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't marshal request %T: %s", obj, err)
+			}
+			return b, nil
+		}),
+		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
+			if response.Error != nil {
+				return nil, ErrorDecode(response.Error.Code)
+			}
+			return nil, nil
+		}),
+	)
+	c.deleteEndpoint = jsonrpc.NewClient(
+		u,
+		"delete",
+		append(c.genericClientOption, c.deleteClientOption...)...,
+	).Endpoint()
+	c.deleteEndpoint = middlewareChain(c.deleteEndpointMiddleware)(c.deleteEndpoint)
 	c.getClientOption = append(
 		c.getClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
@@ -340,6 +401,8 @@ type serverServiceInterfaceOpts struct {
 	genericServerOption      []jsonrpc.ServerOption
 	createServerOption       []jsonrpc.ServerOption
 	createEndpointMiddleware []endpoint.Middleware
+	deleteServerOption       []jsonrpc.ServerOption
+	deleteEndpointMiddleware []endpoint.Middleware
 	getServerOption          []jsonrpc.ServerOption
 	getEndpointMiddleware    []endpoint.Middleware
 	getAllServerOption       []jsonrpc.ServerOption
@@ -356,6 +419,14 @@ func ServiceInterfaceCreateServerOptions(opt ...jsonrpc.ServerOption) (_ serverS
 
 func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
 	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceDeleteServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
+}
+
+func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
@@ -413,6 +484,18 @@ func MakeHandlerJSONRPCServiceInterface(s service.Interface, logger log.Logger, 
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
 					return nil, fmt.Errorf("couldn't unmarshal body to createRequestServiceInterface: %s", err)
+				}
+				return req, nil
+			},
+			Encode: encodeResponseJSONRPCServiceInterface,
+		},
+		"delete": jsonrpc.EndpointCodec{
+			Endpoint: middlewareChain(sopt.deleteEndpointMiddleware)(makeDeleteEndpoint(s)),
+			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
+				var req deleteRequestServiceInterface
+				err := ffjson.Unmarshal(msg, &req)
+				if err != nil {
+					return nil, fmt.Errorf("couldn't unmarshal body to deleteRequestServiceInterface: %s", err)
 				}
 				return req, nil
 			},

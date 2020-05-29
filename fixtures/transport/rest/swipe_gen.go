@@ -33,19 +33,30 @@ type createRequestServiceInterface struct {
 	Data []byte `json:"data"`
 }
 
-type createResponseServiceInterface struct {
-	Err error `json:"-"`
-}
-
-func (r createResponseServiceInterface) Failed() (_ error) {
-	return r.Err
-}
-
 func makeCreateEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createRequestServiceInterface)
 		err := s.Create(ctx, req.Name, req.Data)
-		return createResponseServiceInterface{Err: err}, nil
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	return w
+}
+
+type deleteRequestServiceInterface struct {
+	Id int `json:"id"`
+}
+
+func makeDeleteEndpoint(s service.Interface) endpoint.Endpoint {
+	w := func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteRequestServiceInterface)
+		err := s.Delete(ctx, req.Id)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
 	}
 	return w
 }
@@ -60,35 +71,31 @@ type getRequestServiceInterface struct {
 
 type getResponseServiceInterface struct {
 	Data user.User `json:"data"`
-	Err  error     `json:"-"`
-}
-
-func (r getResponseServiceInterface) Failed() (_ error) {
-	return r.Err
 }
 
 func makeGetEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(getRequestServiceInterface)
 		data, err := s.Get(ctx, req.Id, req.Name, req.Fname, req.Price, req.N)
-		return getResponseServiceInterface{Data: data, Err: err}, nil
+		if err != nil {
+			return nil, err
+		}
+		return getResponseServiceInterface{Data: data}, nil
 	}
 	return w
 }
 
 type getAllResponseServiceInterface struct {
 	Data []user.User `json:"data"`
-	Err  error       `json:"-"`
-}
-
-func (r getAllResponseServiceInterface) Failed() (_ error) {
-	return r.Err
 }
 
 func makeGetAllEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		data, err := s.GetAll(ctx)
-		return getAllResponseServiceInterface{Data: data, Err: err}, nil
+		if err != nil {
+			return nil, err
+		}
+		return getAllResponseServiceInterface{Data: data}, nil
 	}
 	return w
 }
@@ -103,6 +110,13 @@ func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name str
 		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", err)
 	}(time.Now())
 	return s.next.Create(ctx, name, data)
+}
+
+func (s *loggingMiddlewareServiceInterface) Delete(ctx context.Context, id int) (err error) {
+	defer func(now time.Time) {
+		s.logger.Log("method", "Delete", "took", time.Since(now), "id", id, "err", err)
+	}(time.Now())
+	return s.next.Delete(ctx, id)
 }
 
 func (s *loggingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
@@ -131,6 +145,14 @@ func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, na
 		s.requestLatency.With("method", "Create").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return s.next.Create(ctx, name, data)
+}
+
+func (s *instrumentingMiddlewareServiceInterface) Delete(ctx context.Context, id int) (err error) {
+	defer func(begin time.Time) {
+		s.requestCount.With("method", "Delete").Add(1)
+		s.requestLatency.With("method", "Delete").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return s.next.Delete(ctx, id)
 }
 
 func (s *instrumentingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
@@ -172,6 +194,14 @@ func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware)
 	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
 }
 
+func ServiceInterfaceDeleteClientOptions(opt ...http.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteClientOption = opt }
+}
+
+func ServiceInterfaceDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceGetClientOptions(opt ...http.ClientOption) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.getClientOption = opt }
 }
@@ -192,6 +222,9 @@ type clientServiceInterface struct {
 	createEndpoint            endpoint.Endpoint
 	createClientOption        []http.ClientOption
 	createEndpointMiddleware  []endpoint.Middleware
+	deleteEndpoint            endpoint.Endpoint
+	deleteClientOption        []http.ClientOption
+	deleteEndpointMiddleware  []endpoint.Middleware
 	getEndpoint               endpoint.Endpoint
 	getClientOption           []http.ClientOption
 	getEndpointMiddleware     []endpoint.Middleware
@@ -202,31 +235,38 @@ type clientServiceInterface struct {
 	genericEndpointMiddleware []endpoint.Middleware
 }
 
-func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
-	resp, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name, Data: data})
+func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
+	_, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name, Data: data})
 	if err != nil {
 		return err
 	}
-	response := resp.(createResponseServiceInterface)
-	return response.Err
+	return nil
 }
 
-func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
+func (c *clientServiceInterface) Delete(ctx context.Context, id int) (_ error) {
+	_, err := c.deleteEndpoint(ctx, deleteRequestServiceInterface{Id: id})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (_ user.User, _ error) {
 	resp, err := c.getEndpoint(ctx, getRequestServiceInterface{Id: id, Name: name, Fname: fname, Price: price, N: n})
 	if err != nil {
-		return data, err
+		return user.User{}, err
 	}
 	response := resp.(getResponseServiceInterface)
-	return response.Data, response.Err
+	return response.Data, nil
 }
 
-func (c *clientServiceInterface) GetAll(ctx context.Context) (data []user.User, err error) {
+func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []user.User, _ error) {
 	resp, err := c.getAllEndpoint(ctx, nil)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
 	response := resp.(getAllResponseServiceInterface)
-	return response.Data, response.Err
+	return response.Data, nil
 }
 
 func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOption) (service.Interface, error) {
@@ -259,20 +299,37 @@ func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOpt
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
 				return nil, ErrorDecode(statusCode)
 			}
-			var resp createResponseServiceInterface
-			b, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				return nil, err
-			}
-			err = ffjson.Unmarshal(b, &resp)
-			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to createResponseServiceInterface: %s", err)
-			}
-			return resp, nil
+			return nil, nil
 		},
 		append(c.genericClientOption, c.createClientOption...)...,
 	).Endpoint()
 	c.createEndpoint = middlewareChain(c.createEndpointMiddleware)(c.createEndpoint)
+	c.deleteEndpoint = http.NewClient(
+		fasthttp.MethodPost,
+		u,
+		func(_ context.Context, r *http2.Request, request interface{}) error {
+			req, ok := request.(deleteRequestServiceInterface)
+			if !ok {
+				return fmt.Errorf("couldn't assert request as deleteRequestServiceInterface, got %T", request)
+			}
+			r.Method = fasthttp.MethodPost
+			r.URL.Path = fmt.Sprintf("/delete")
+			data, err := ffjson.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
+			}
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+			return nil
+		},
+		func(_ context.Context, r *http2.Response) (interface{}, error) {
+			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
+				return nil, ErrorDecode(statusCode)
+			}
+			return nil, nil
+		},
+		append(c.genericClientOption, c.deleteClientOption...)...,
+	).Endpoint()
+	c.deleteEndpoint = middlewareChain(c.deleteEndpointMiddleware)(c.deleteEndpoint)
 	c.getEndpoint = http.NewClient(
 		fasthttp.MethodGet,
 		u,
@@ -354,6 +411,8 @@ type serverServiceInterfaceOpts struct {
 	genericServerOption      []http.ServerOption
 	createServerOption       []http.ServerOption
 	createEndpointMiddleware []endpoint.Middleware
+	deleteServerOption       []http.ServerOption
+	deleteEndpointMiddleware []endpoint.Middleware
 	getServerOption          []http.ServerOption
 	getEndpointMiddleware    []endpoint.Middleware
 	getAllServerOption       []http.ServerOption
@@ -370,6 +429,14 @@ func ServiceInterfaceCreateServerOptions(opt ...http.ServerOption) (_ serverServ
 
 func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
 	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceDeleteServerOptions(opt ...http.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
+}
+
+func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetServerOptions(opt ...http.ServerOption) (_ serverServiceInterfaceOption) {
@@ -450,6 +517,23 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		},
 		encodeResponseHTTPServiceInterface,
 		append(sopt.genericServerOption, sopt.createServerOption...)...,
+	))
+	r.Methods(fasthttp.MethodPost).Path("/delete").Handler(http.NewServer(
+		middlewareChain(sopt.deleteEndpointMiddleware)(makeDeleteEndpoint(s)),
+		func(ctx context.Context, r *http2.Request) (interface{}, error) {
+			var req deleteRequestServiceInterface
+			b, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't read body for deleteRequestServiceInterface: %s", err)
+			}
+			err = ffjson.Unmarshal(b, &req)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to deleteRequestServiceInterface: %s", err)
+			}
+			return req, nil
+		},
+		encodeResponseHTTPServiceInterface,
+		append(sopt.genericServerOption, sopt.deleteServerOption...)...,
 	))
 	r.Methods(fasthttp.MethodGet).Path("/users/{name:[a-z]}").Handler(http.NewServer(
 		middlewareChain(sopt.getEndpointMiddleware)(makeGetEndpoint(s)),

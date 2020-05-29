@@ -34,6 +34,9 @@ func Swipe() {
 					Path("/users"),
 					Method(fasthttp.MethodPost),
 				),
+				MethodOptions(service.Interface.Delete,
+					Method(fasthttp.MethodPost),
+				),
 			),
 			Logging(),
 			Instrumenting(

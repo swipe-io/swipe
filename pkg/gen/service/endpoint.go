@@ -31,10 +31,7 @@ func (w *Endpoint) Write() error {
 			typeName := w.w.TypeString(p.Type())
 			return []string{fieldName, typeName + "`json:" + strconv.Quote(tagName) + "`"}
 		}, func(p *stdtypes.Var) bool {
-			if types.HasContext(p.Type()) {
-				return false
-			}
-			return true
+			return !types.HasContext(p.Type())
 		})
 
 		ntResults := utils.Params(sig.Results(), func(p *stdtypes.Var) []string {
@@ -45,10 +42,7 @@ func (w *Endpoint) Write() error {
 
 			return []string{fieldName, typeName + "`json:" + strconv.Quote(tagName) + "`"}
 		}, func(p *stdtypes.Var) bool {
-			if types.HasError(p.Type()) {
-				return false
-			}
-			return true
+			return !types.HasError(p.Type())
 		})
 
 		if len(ntParams) > 0 {
@@ -112,15 +106,17 @@ func (w *Endpoint) writeEndpoint(fn *stdtypes.Func, sig *stdtypes.Signature) err
 		})
 	}
 
+	resultsLen := sig.Results().Len()
+	if types.HasErrorInResults(sig.Results()) {
+		resultsLen--
+	}
+
 	w.w.Write("return ")
 
-	if sig.Results().Len() > 0 {
+	if resultsLen > 0 {
 		w.w.Write("%sResponse%s", lcName, w.ctx.id)
 		w.w.WriteStructAssign(structKeyValue(sig.Results(), func(p *stdtypes.Var) bool {
-			if types.HasError(p.Type()) {
-				return false
-			}
-			return true
+			return !types.HasError(p.Type())
 		}))
 	} else {
 		w.w.Write("nil")
