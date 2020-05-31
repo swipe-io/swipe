@@ -1,4 +1,12 @@
 
+<a name="v1.3.0"></a>
+## [v1.3.0](https://github.com/swipe-io/swipe/compare/v1.2.2...v1.3.0) (2020-05-31)
+
+### Features
+
+* update gokit jsonrpc transport to v1.10.0, added batch requests
+
+
 <a name="v1.2.2"></a>
 ## [v1.2.2](https://github.com/swipe-io/swipe/compare/v1.1.5...v1.2.2) (2020-05-29)
 
