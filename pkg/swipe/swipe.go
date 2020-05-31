@@ -12,10 +12,10 @@
 // 3. Function with a `swipe.Build` option inserted in the body. `swipe.Build` will not be transferred to the generated code.
 //
 // If you want the generate code, you can run:
-//  swipe /pkg/your_package/your_file.go
+//  swipe ./pkg/...
 //
 // Full example:
-//  //+build swipe
+//  // +build swipe
 //
 //  package jsonrpc
 //
