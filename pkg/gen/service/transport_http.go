@@ -40,6 +40,7 @@ type transportMethod struct {
 
 type transportOpenapiMethodOption struct {
 	errors []string
+	tags   []string
 }
 
 type transportMethodOptions struct {
@@ -263,6 +264,9 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 					}
 					transportMethodOptions.openapi.errors = append(transportMethodOptions.openapi.errors, named.Obj().Name())
 				}
+			}
+			if openapiGroup, ok := methodOpt.Get("OpenapiTags"); ok {
+				transportMethodOptions.openapi.tags = openapiGroup.Value.StringSlice()
 			}
 			options.methodOptions[fnSel.Sel.Name] = transportMethodOptions
 		}
@@ -962,6 +966,8 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 				pathStr = stdstrings.Replace(pathStr, ":"+regexp, "", -1)
 			}
 		}
+
+		o.Tags = mopt.openapi.tags
 
 		if _, ok := swg.Paths[pathStr]; !ok {
 			swg.Paths[pathStr] = &openapi.Path{}

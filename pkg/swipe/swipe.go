@@ -191,6 +191,11 @@ func OpenapiErrors(errors []error) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
+// OpenapiTags sets docs tags for method.
+func OpenapiTags([]string) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
 // Method sets http method, default is GET.
 func Method(string) MethodOption {
 	return "implementation not generated, run swipe"
