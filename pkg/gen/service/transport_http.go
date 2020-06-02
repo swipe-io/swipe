@@ -627,7 +627,11 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 		if types.HasError(r.Type()) {
 			continue
 		}
+		if opts.notWrapBody {
+			responseParams = g.makeSwaggerSchema(r.Type())
+		} else {
 		responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
+	}
 	}
 
 	o := &openapi.Operation{
@@ -732,7 +736,11 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 		if types.HasError(r.Type()) {
 			continue
 		}
+		if opts.notWrapBody {
+			responseParams = g.makeSwaggerSchema(r.Type())
+		} else {
 		responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
+	}
 	}
 
 	response := &openapi.Schema{
