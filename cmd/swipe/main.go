@@ -13,7 +13,7 @@ import (
 	"github.com/google/subcommands"
 )
 
-const version = "v1.3.0"
+const version = "v1.6.0"
 
 func main() {
 	subcommands.Register(subcommands.CommandsCommand(), "")

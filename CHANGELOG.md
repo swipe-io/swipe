@@ -1,4 +1,18 @@
 
+<a name="v1.6.0"></a>
+## [v1.6.0](https://github.com/swipe-io/swipe/compare/v1.3.0...v1.6.0) (2020-06-02)
+
+### Bug Fixes
+
+* doc generation with NotWrapBody option
+
+### Features
+
+* added OpenapiTags option for set tags method on openapi doc generation
+* added OpenapiErrors for mapping errors to method on openapi docs
+* added notWrapBody for JSON RPC generation
+
+
 <a name="v1.3.0"></a>
 ## [v1.3.0](https://github.com/swipe-io/swipe/compare/v1.2.2...v1.3.0) (2020-05-31)
 
