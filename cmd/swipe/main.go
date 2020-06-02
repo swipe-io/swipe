@@ -99,7 +99,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		return subcommands.ExitFailure
 	}
 
-	s := gen.NewSwipe(ctx, wd, os.Environ(), packages(f))
+	s := gen.NewSwipe(ctx, version, wd, os.Environ(), packages(f))
 
 	results, errs := s.Generate()
 

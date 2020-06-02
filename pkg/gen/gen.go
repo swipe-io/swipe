@@ -34,6 +34,7 @@ type Result struct {
 
 type Swipe struct {
 	ctx      context.Context
+	version  string
 	wd       string
 	env      []string
 	patterns []string
@@ -56,7 +57,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 			continue
 		}
 
-		w := writer.NewWriter(pkg, allPkgs, outDir)
+		w := writer.NewWriter(s.version, pkg, allPkgs, outDir)
 		p := parser.NewParser(pkg)
 
 		generatorOpts := make(map[string][]*parser.Option)
@@ -214,6 +215,6 @@ func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Pa
 	return pkgs, allPkgs, nil
 }
 
-func NewSwipe(ctx context.Context, wd string, env []string, patterns []string) *Swipe {
-	return &Swipe{ctx: ctx, wd: wd, env: env, patterns: patterns}
+func NewSwipe(ctx context.Context, version, wd string, env []string, patterns []string) *Swipe {
+	return &Swipe{ctx: ctx, version: version, wd: wd, env: env, patterns: patterns}
 }
