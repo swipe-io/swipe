@@ -630,8 +630,8 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 		if opts.notWrapBody {
 			responseParams = g.makeSwaggerSchema(r.Type())
 		} else {
-		responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
-	}
+			responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
+		}
 	}
 
 	o := &openapi.Operation{
@@ -739,8 +739,8 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 		if opts.notWrapBody {
 			responseParams = g.makeSwaggerSchema(r.Type())
 		} else {
-		responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
-	}
+			responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
+		}
 	}
 
 	response := &openapi.Schema{
@@ -1158,12 +1158,12 @@ func (g *TransportHTTP) writeHTTPHandler(opts *transportOptions) {
 }
 
 func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Func, sig *stdtypes.Signature) {
-	var (
-		jsonrpcPkg string
-	)
-
 	mopt := opts.methodOptions[m.Name()]
 
+	var (
+		jsonrpcPkg string
+		// httpPkg    string
+	)
 	if opts.fastHTTP {
 		jsonrpcPkg = g.w.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
 	} else {
@@ -1205,12 +1205,28 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 		g.w.Write("}")
 	}
 
+	resultsLen := sig.Results().Len()
+	if types.HasErrorInResults(sig.Results()) {
+		resultsLen--
+	}
+
 	g.w.Write(",\n")
 
-	if opts.jsonRPC.enable {
-		g.w.Write("Encode: encodeResponseJSONRPC%s,\n", g.ctx.id)
+	g.w.Write("Encode:")
+
+	if opts.notWrapBody && resultsLen > 0 {
+		fmtPkg := g.w.Import("fmt", "fmt")
+		jsonPkg := g.w.Import("json", "encoding/json")
+
+		g.w.Write("func (ctx context.Context, response interface{}) (%s.RawMessage, error) {\n", jsonPkg)
+		g.w.Write("resp, ok := response.(%sResponse%s)\n", lcName, g.ctx.id)
+		g.w.Write("if !ok {\n")
+		g.w.Write("return nil, %s.Errorf(\"couldn't assert response as %sResponse%s, got %%T\", response)\n", fmtPkg, lcName, g.ctx.id)
+		g.w.Write("}\n")
+		g.w.Write("return encodeResponseJSONRPC%s(ctx, resp.%s)\n", g.ctx.id, strings.UcFirst(sig.Results().At(0).Name()))
+		g.w.Write("},\n")
 	} else {
-		g.w.Write("Encode: encodeResponseHTTP%s,\n", g.ctx.id)
+		g.w.Write("encodeResponseJSONRPC%s,\n", g.ctx.id)
 	}
 
 	g.w.Write("},\n")
@@ -1949,12 +1965,29 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("}\n")
 
 		if resultLen > 0 {
-			g.w.Write("var res %sResponse%s\n", lcName, g.ctx.id)
-			g.w.Write("err := %s.Unmarshal(response.Result, &res)\n", ffjsonPkg)
+			g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
+
+			if opts.notWrapBody {
+				g.w.Write("var body %s\n", g.w.TypeString(sig.Results().At(0).Type()))
+			}
+
+			g.w.Write("err := %s.Unmarshal(response.Result, ", ffjsonPkg)
+
+			if opts.notWrapBody {
+				g.w.Write("&body)\n")
+			} else {
+				g.w.Write("&resp)\n")
+			}
+
 			g.w.Write("if err != nil {\n")
 			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
 			g.w.Write("}\n")
-			g.w.Write("return res, nil\n")
+
+			if opts.notWrapBody {
+				g.w.Write("resp.%s = body\n", strings.UcFirst(sig.Results().At(0).Name()))
+			}
+
+			g.w.Write("return resp, nil\n")
 		} else {
 			g.w.Write("return nil, nil\n")
 		}
@@ -1978,6 +2011,8 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Schema) {
 	schema = &openapi.Schema{}
 	switch v := t.(type) {
+	case *stdtypes.Pointer:
+		return g.makeSwaggerSchema(v.Elem().Underlying())
 	case *stdtypes.Slice:
 		if vv, ok := v.Elem().(*stdtypes.Basic); ok && vv.Kind() == stdtypes.Byte {
 			schema.Type = "string"
@@ -2026,7 +2061,7 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 			schema.Format = "date-time"
 			schema.Example = "1985-02-04T00:00:00.00Z"
 			return
-		case "github.com/pborman/uuid.UUID":
+		case "github.com/pborman/uuid.UUID", "github.com/google/uuid.UUID":
 			schema.Type = "string"
 			schema.Format = "uuid"
 			schema.Example = "d5c02d83-6fbc-4dd7-8416-9f85ed80de46"
