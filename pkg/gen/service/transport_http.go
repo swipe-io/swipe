@@ -38,12 +38,17 @@ type transportMethod struct {
 	expr ast.Expr
 }
 
+type transportOpenapiMethodOption struct {
+	errors []string
+}
+
 type transportMethodOptions struct {
 	method             transportMethod
 	path               string
 	pathVars           map[string]string
 	headerVars         map[string]string
 	queryVars          map[string]string
+	openapi            transportOpenapiMethodOption
 	serverRequestFunc  astOptions
 	serverResponseFunc astOptions
 	clientRequestFunc  astOptions
@@ -89,10 +94,12 @@ type transportOptions struct {
 	fastHTTP       bool
 	jsonRPC        transportJsonRPCOption
 	methodOptions  map[string]transportMethodOptions
+	mapCodeErrors  map[string]*errorDecodeInfo
 }
 
 type errorDecodeInfo struct {
-	v         string
+	code      int64
+	n         *stdtypes.Named
 	isPointer bool
 }
 
@@ -108,6 +115,7 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 	options := &transportOptions{
 		fastHTTP:      enabledFastHTTP,
 		methodOptions: map[string]transportMethodOptions{},
+		mapCodeErrors: map[string]*errorDecodeInfo{},
 	}
 
 	if _, ok := opt.Get("ClientEnable"); ok {
@@ -243,7 +251,19 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 					transportMethodOptions.headerVars[values[0]] = values[1]
 				}
 			}
-
+			if openapiErrors, ok := methodOpt.Get("OpenapiErrors"); ok {
+				for _, expr := range openapiErrors.Value.ExprSlice() {
+					ptr, ok := g.w.TypeOf(expr).(*stdtypes.Pointer)
+					if !ok {
+						return errors.NotePosition(signOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
+					}
+					named, ok := ptr.Elem().(*stdtypes.Named)
+					if !ok {
+						return errors.NotePosition(signOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
+					}
+					transportMethodOptions.openapi.errors = append(transportMethodOptions.openapi.errors, named.Obj().Name())
+				}
+			}
 			options.methodOptions[fnSel.Sel.Name] = transportMethodOptions
 		}
 	}
@@ -252,18 +272,10 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		options.prefix = "JSONRPC"
 	}
 
-	if options.openapiDoc.enable {
-		if err := g.writeOpenapiDoc(options); err != nil {
-			return err
-		}
-	}
-
 	errorStatusMethod := "StatusCode"
 	if options.jsonRPC.enable {
 		errorStatusMethod = "ErrorCode"
 	}
-
-	mapCodeErrors := map[*stdtypes.Named]*errorDecodeInfo{}
 
 	g.w.Inspect(func(p *packages.Package, n ast.Node) bool {
 		if ret, ok := n.(*ast.ReturnStmt); ok {
@@ -286,7 +298,7 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 							}
 						}
 						if found == 2 {
-							mapCodeErrors[named] = &errorDecodeInfo{isPointer: isPointer}
+							options.mapCodeErrors[named.Obj().Name()] = &errorDecodeInfo{isPointer: isPointer, n: named}
 						}
 					}
 				}
@@ -305,12 +317,13 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 						recvType = ptr.Elem()
 					}
 					if named, ok := recvType.(*stdtypes.Named); ok {
-						if _, ok := mapCodeErrors[named]; ok {
+						if _, ok := options.mapCodeErrors[named.Obj().Name()]; ok {
 							ast.Inspect(n, func(n ast.Node) bool {
 								if ret, ok := n.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
 									if v, ok := p.TypesInfo.Types[ret.Results[0]]; ok {
 										if v.Value != nil && v.Value.Kind() == constant.Int {
-											mapCodeErrors[named].v = v.Value.String()
+											code, _ := constant.Int64Val(v.Value)
+											options.mapCodeErrors[named.Obj().Name()].code = code
 										}
 									}
 								}
@@ -324,19 +337,25 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		return true
 	})
 
+	if options.openapiDoc.enable {
+		if err := g.writeOpenapiDoc(options); err != nil {
+			return err
+		}
+	}
+
 	fmtPkg := g.w.Import("fmt", "fmt")
 
 	g.w.WriteFunc("ErrorDecode", "", []string{"code", "int"}, []string{"", "error"}, func() {
 		g.w.Write("switch code {\n")
 		g.w.Write("default:\nreturn %s.Errorf(\"error code %%d\", code)\n", fmtPkg)
-		for v, i := range mapCodeErrors {
-			g.w.Write("case %s:\n", i.v)
-			pkg := g.w.Import(v.Obj().Pkg().Name(), v.Obj().Pkg().Path())
+		for _, i := range options.mapCodeErrors {
+			g.w.Write("case %d:\n", i.code)
+			pkg := g.w.Import(i.n.Obj().Pkg().Name(), i.n.Obj().Pkg().Path())
 			g.w.Write("return ")
 			if i.isPointer {
 				g.w.Write("&")
 			}
-			g.w.Write("%s.%s{}\n", pkg, v.Obj().Name())
+			g.w.Write("%s.%s{}\n", pkg, i.n.Obj().Name())
 		}
 		g.w.Write("}\n")
 	})
@@ -794,16 +813,6 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 					},
 				},
 			},
-			"x-32000...-32099": {
-				Description: "Server error. Reserved for implementation-defined server-errors.",
-				Content: openapi.Content{
-					"application/json": {
-						Schema: &openapi.Schema{
-							Ref: "#/components/schemas/ServerError",
-						},
-					},
-				},
-			},
 			"x-32700": {
 				Description: "Parse error. Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
 				Content: openapi.Content{
@@ -875,6 +884,47 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 		swg.Components.Schemas["Error"] = getOpenapiRestErrorSchema()
 	}
 
+	for name, ei := range opts.mapCodeErrors {
+		var s *openapi.Schema
+		if opts.jsonRPC.enable {
+			s = &openapi.Schema{
+				Type: "object",
+				Properties: openapi.Properties{
+					"jsonrpc": &openapi.Schema{
+						Type:    "string",
+						Example: "2.0",
+					},
+					"id": &openapi.Schema{
+						Type:    "string",
+						Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+					},
+					"error": &openapi.Schema{
+						Type: "object",
+						Properties: openapi.Properties{
+							"code": &openapi.Schema{
+								Type:    "integer",
+								Example: ei.code,
+							},
+							"message": &openapi.Schema{
+								Type: "string",
+							},
+						},
+					},
+				},
+			}
+		} else {
+			s = &openapi.Schema{
+				Type: "object",
+				Properties: openapi.Properties{
+					"error": &openapi.Schema{
+						Type: "string",
+					},
+				},
+			}
+		}
+		swg.Components.Schemas[name] = s
+	}
+
 	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
 		m := g.ctx.iface.Method(i)
 
@@ -889,6 +939,22 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 			o = g.makeJsonRPCPath(opts, m)
 			pathStr = "/" + strings.LcFirst(m.Name())
 			mopt.method.name = "POST"
+
+			for _, name := range mopt.openapi.errors {
+				if ei, ok := opts.mapCodeErrors[name]; ok {
+					codeStr := strconv.FormatInt(ei.code, 10)
+					o.Responses["x"+codeStr] = openapi.Response{
+						Description: name,
+						Content: openapi.Content{
+							"application/json": {
+								Schema: &openapi.Schema{
+									Ref: "#/components/schemas/" + name,
+								},
+							},
+						},
+					}
+				}
+			}
 		} else {
 			o = g.makeRestPath(opts, m)
 			pathStr = mopt.path
@@ -932,30 +998,6 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 
 func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 	return openapi.Schemas{
-		"ServerError": {
-			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
-					Type:    "string",
-					Example: "2.0",
-				},
-				"id": &openapi.Schema{
-					Type:    "string",
-					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-				},
-				"error": &openapi.Schema{
-					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
-							Type: "integer",
-						},
-						"message": &openapi.Schema{
-							Type: "string",
-						},
-					},
-				},
-			},
-		},
 		"ParseError": {
 			Type: "object",
 			Properties: openapi.Properties{

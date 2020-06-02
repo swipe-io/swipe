@@ -186,6 +186,11 @@ func JSONRPCPath(string) JSONRPCOption {
 	return "implementation not generated, run swipe"
 }
 
+// OpenapiErrors sets binding errors for method in docs generation.
+func OpenapiErrors(errors []error) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
 // Method sets http method, default is GET.
 func Method(string) MethodOption {
 	return "implementation not generated, run swipe"

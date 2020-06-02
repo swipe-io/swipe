@@ -33,6 +33,11 @@ func (v Value) Expr() ast.Expr {
 	return v.expr
 }
 
+func (v Value) ExprSlice() (value []ast.Expr) {
+	value, _ = v.v.([]ast.Expr)
+	return
+}
+
 func (v Value) StringSlice() (value []string) {
 	value, _ = v.v.([]string)
 	return
@@ -178,6 +183,8 @@ func (p Parser) getValue(expr ast.Expr) interface{} {
 					switch elt := vt.Elt.(type) {
 					case *ast.Ident:
 						switch elt.Name {
+						default:
+							v = ve.Elts
 						case "string":
 							v = p.makeStringSlice(ve.Elts)
 						}
