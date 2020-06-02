@@ -1,4 +1,17 @@
 
+<a name="v1.7.2"></a>
+## [v1.7.2](https://github.com/swipe-io/swipe/compare/v1.6.0...v1.7.2) (2020-06-02)
+
+### Bug Fixes
+
+* remove unused constants
+* added to generate file swipe version
+
+### Features
+
+* added MethodDefaultOptions for sets default methods options
+
+
 <a name="v1.6.0"></a>
 ## [v1.6.0](https://github.com/swipe-io/swipe/compare/v1.3.0...v1.6.0) (2020-06-02)
 
@@ -9,7 +22,7 @@
 ### Features
 
 * added OpenapiTags option for set tags method on openapi doc generation
-* added OpenapiErrors for mapping errors to method on openapi docs
+* added OpenapiErrors for maping errors to method on openapi docs
 * added notWrapBody for JSON RPC generation
 
 
