@@ -176,6 +176,17 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		}
 	}
 
+	var defaultMethodOptions transportMethodOptions
+	if methodDefaultOpt, ok := opt.Get("MethodDefaultOptions"); ok {
+		mopts, err := g.getMethodOptions(methodDefaultOpt, transportMethodOptions{})
+		if err != nil {
+			return err
+		}
+		defaultMethodOptions = mopts
+	} else {
+		defaultMethodOptions = transportMethodOptions{}
+	}
+
 	if methods, ok := opt.GetSlice("MethodOptions"); ok {
 		for _, methodOpt := range methods {
 			signOpt := parser.MustOption(methodOpt.Get("signature"))
@@ -183,92 +194,11 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 			if !ok {
 				return errors.NotePosition(signOpt.Position, fmt.Errorf("the Signature value must be func selector"))
 			}
-
-			transportMethodOptions := transportMethodOptions{}
-
-			if httpMethodOpt, ok := methodOpt.Get("Method"); ok {
-				transportMethodOptions.method.name = httpMethodOpt.Value.String()
-				transportMethodOptions.method.expr = httpMethodOpt.Value.Expr()
+			mopts, err := g.getMethodOptions(methodOpt, defaultMethodOptions)
+			if err != nil {
+				return err
 			}
-
-			if path, ok := methodOpt.Get("Path"); ok {
-				transportMethodOptions.path = path.Value.String()
-
-				idxs, err := httpBraceIndices(transportMethodOptions.path)
-				if err != nil {
-					return err
-				}
-				if len(idxs) > 0 {
-					transportMethodOptions.pathVars = make(map[string]string, len(idxs))
-
-					var end int
-					for i := 0; i < len(idxs); i += 2 {
-						end = idxs[i+1]
-						parts := stdstrings.SplitN(transportMethodOptions.path[idxs[i]+1:end-1], ":", 2)
-
-						name := parts[0]
-						regexp := ""
-
-						if len(parts) == 2 {
-							regexp = parts[1]
-						}
-						transportMethodOptions.pathVars[name] = regexp
-					}
-				}
-			}
-
-			if serverRequestFunc, ok := methodOpt.Get("ServerDecodeRequestFunc"); ok {
-				transportMethodOptions.serverRequestFunc.t = serverRequestFunc.Value.Type()
-				transportMethodOptions.serverRequestFunc.expr = serverRequestFunc.Value.Expr()
-			}
-
-			if serverResponseFunc, ok := methodOpt.Get("ServerEncodeResponseFunc"); ok {
-				transportMethodOptions.serverResponseFunc.t = serverResponseFunc.Value.Type()
-				transportMethodOptions.serverResponseFunc.expr = serverResponseFunc.Value.Expr()
-			}
-
-			if clientRequestFunc, ok := methodOpt.Get("ClientEncodeRequestFunc"); ok {
-				transportMethodOptions.clientRequestFunc.t = clientRequestFunc.Value.Type()
-				transportMethodOptions.clientRequestFunc.expr = clientRequestFunc.Value.Expr()
-			}
-
-			if clientResponseFunc, ok := methodOpt.Get("ClientDecodeResponseFunc"); ok {
-				transportMethodOptions.clientResponseFunc.t = clientResponseFunc.Value.Type()
-				transportMethodOptions.clientResponseFunc.expr = clientResponseFunc.Value.Expr()
-			}
-
-			if queryVars, ok := methodOpt.Get("QueryVars"); ok {
-				transportMethodOptions.queryVars = map[string]string{}
-
-				values := queryVars.Value.StringSlice()
-				for i := 0; i < len(values); i += 2 {
-					transportMethodOptions.queryVars[values[0]] = values[1]
-				}
-			}
-			if headerVars, ok := methodOpt.Get("HeaderVars"); ok {
-				transportMethodOptions.headerVars = map[string]string{}
-				values := headerVars.Value.StringSlice()
-				for i := 0; i < len(values); i += 2 {
-					transportMethodOptions.headerVars[values[0]] = values[1]
-				}
-			}
-			if openapiErrors, ok := methodOpt.Get("OpenapiErrors"); ok {
-				for _, expr := range openapiErrors.Value.ExprSlice() {
-					ptr, ok := g.w.TypeOf(expr).(*stdtypes.Pointer)
-					if !ok {
-						return errors.NotePosition(signOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
-					}
-					named, ok := ptr.Elem().(*stdtypes.Named)
-					if !ok {
-						return errors.NotePosition(signOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
-					}
-					transportMethodOptions.openapi.errors = append(transportMethodOptions.openapi.errors, named.Obj().Name())
-				}
-			}
-			if openapiGroup, ok := methodOpt.Get("OpenapiTags"); ok {
-				transportMethodOptions.openapi.tags = openapiGroup.Value.StringSlice()
-			}
-			options.methodOptions[fnSel.Sel.Name] = transportMethodOptions
+			options.methodOptions[fnSel.Sel.Name] = mopts
 		}
 	}
 	options.prefix = "REST"
@@ -396,6 +326,95 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		}
 	}
 	return nil
+}
+
+func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, defaultMethodOptions transportMethodOptions) (transportMethodOptions, error) {
+	result := defaultMethodOptions
+
+	if httpMethodOpt, ok := methodOpt.Get("Method"); ok {
+		result.method.name = httpMethodOpt.Value.String()
+		result.method.expr = httpMethodOpt.Value.Expr()
+	}
+
+	if path, ok := methodOpt.Get("Path"); ok {
+		result.path = path.Value.String()
+
+		idxs, err := httpBraceIndices(result.path)
+		if err != nil {
+			return result, err
+		}
+		if len(idxs) > 0 {
+			result.pathVars = make(map[string]string, len(idxs))
+
+			var end int
+			for i := 0; i < len(idxs); i += 2 {
+				end = idxs[i+1]
+				parts := stdstrings.SplitN(result.path[idxs[i]+1:end-1], ":", 2)
+
+				name := parts[0]
+				regexp := ""
+
+				if len(parts) == 2 {
+					regexp = parts[1]
+				}
+				result.pathVars[name] = regexp
+			}
+		}
+	}
+
+	if serverRequestFunc, ok := methodOpt.Get("ServerDecodeRequestFunc"); ok {
+		result.serverRequestFunc.t = serverRequestFunc.Value.Type()
+		result.serverRequestFunc.expr = serverRequestFunc.Value.Expr()
+	}
+
+	if serverResponseFunc, ok := methodOpt.Get("ServerEncodeResponseFunc"); ok {
+		result.serverResponseFunc.t = serverResponseFunc.Value.Type()
+		result.serverResponseFunc.expr = serverResponseFunc.Value.Expr()
+	}
+
+	if clientRequestFunc, ok := methodOpt.Get("ClientEncodeRequestFunc"); ok {
+		result.clientRequestFunc.t = clientRequestFunc.Value.Type()
+		result.clientRequestFunc.expr = clientRequestFunc.Value.Expr()
+	}
+
+	if clientResponseFunc, ok := methodOpt.Get("ClientDecodeResponseFunc"); ok {
+		result.clientResponseFunc.t = clientResponseFunc.Value.Type()
+		result.clientResponseFunc.expr = clientResponseFunc.Value.Expr()
+	}
+
+	if queryVars, ok := methodOpt.Get("QueryVars"); ok {
+		result.queryVars = map[string]string{}
+
+		values := queryVars.Value.StringSlice()
+		for i := 0; i < len(values); i += 2 {
+			result.queryVars[values[0]] = values[1]
+		}
+	}
+	if headerVars, ok := methodOpt.Get("HeaderVars"); ok {
+		result.headerVars = map[string]string{}
+		values := headerVars.Value.StringSlice()
+		for i := 0; i < len(values); i += 2 {
+			result.headerVars[values[0]] = values[1]
+		}
+	}
+	if openapiErrors, ok := methodOpt.Get("OpenapiErrors"); ok {
+		for _, expr := range openapiErrors.Value.ExprSlice() {
+			ptr, ok := g.w.TypeOf(expr).(*stdtypes.Pointer)
+			if !ok {
+				return result, errors.NotePosition(openapiErrors.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
+			}
+			named, ok := ptr.Elem().(*stdtypes.Named)
+			if !ok {
+				return result, errors.NotePosition(openapiErrors.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
+			}
+			result.openapi.errors = append(result.openapi.errors, named.Obj().Name())
+		}
+	}
+	if openapiGroup, ok := methodOpt.Get("OpenapiTags"); ok {
+		result.openapi.tags = openapiGroup.Value.StringSlice()
+	}
+
+	return result, nil
 }
 
 func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {

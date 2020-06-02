@@ -176,6 +176,11 @@ func MethodOptions(signature interface{}, opts ...MethodOption) TransportOption 
 	return "implementation not generated, run swipe"
 }
 
+// MethodDefaultOptions option for defining for all methods default settings.
+func MethodDefaultOptions(...MethodOption) TransportOption {
+	return "implementation not generated, run swipe"
+}
+
 // JSONRPC enabled use JSON RPC instead of REST.
 func JSONRPC(...JSONRPCOption) TransportOption {
 	return "implementation not generated, run swipe"
