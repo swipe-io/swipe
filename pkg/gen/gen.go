@@ -19,8 +19,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-const loadAllSyntax = packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedDeps | packages.NeedExportsFile | packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypesSizes
-
 type Generator interface {
 	Write(opt *parser.Option) error
 }
