@@ -191,16 +191,6 @@ func JSONRPCPath(string) JSONRPCOption {
 	return "implementation not generated, run swipe"
 }
 
-// OpenapiErrors sets binding errors for method in docs generation.
-func OpenapiErrors(errors []error) MethodOption {
-	return "implementation not generated, run swipe"
-}
-
-// OpenapiTags sets docs tags for method.
-func OpenapiTags([]string) MethodOption {
-	return "implementation not generated, run swipe"
-}
-
 // Method sets http method, default is GET.
 func Method(string) MethodOption {
 	return "implementation not generated, run swipe"
@@ -266,6 +256,16 @@ func ServerDisabled() TransportOption {
 
 // Openapi generate openapi documentation.
 func Openapi(...OpenapiOption) TransportOption {
+	return "implementation not generated, run swipe"
+}
+
+// OpenapiErrors sets binding errors for method in docs generation.
+func OpenapiErrors(methods []interface{}, errors []error) OpenapiOption {
+	return "implementation not generated, run swipe"
+}
+
+// OpenapiTags sets docs tags for method.
+func OpenapiTags(methods []interface{}, tags []string) OpenapiOption {
 	return "implementation not generated, run swipe"
 }
 

@@ -181,6 +181,8 @@ func (p Parser) getValue(expr ast.Expr) interface{} {
 				switch vt := ve.Type.(type) {
 				case *ast.ArrayType:
 					switch elt := vt.Elt.(type) {
+					default:
+						v = ve.Elts
 					case *ast.Ident:
 						switch elt.Name {
 						default:

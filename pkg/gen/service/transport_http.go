@@ -38,18 +38,12 @@ type transportMethod struct {
 	expr ast.Expr
 }
 
-type transportOpenapiMethodOption struct {
-	errors []string
-	tags   []string
-}
-
 type transportMethodOptions struct {
 	method             transportMethod
 	path               string
 	pathVars           map[string]string
 	headerVars         map[string]string
 	queryVars          map[string]string
-	openapi            transportOpenapiMethodOption
 	serverRequestFunc  astOptions
 	serverResponseFunc astOptions
 	clientRequestFunc  astOptions
@@ -73,13 +67,20 @@ type transportOpenapiServer struct {
 	desc string
 }
 
+type transportOpenapiMethodOption struct {
+	errors []string
+	tags   []string
+}
+
 type transportOpenapiDoc struct {
-	enable  bool
-	output  string
-	servers []openapi.Server
-	contact *openapi.Contact
-	licence *openapi.License
-	info    openapi.Info
+	enable        bool
+	output        string
+	servers       []openapi.Server
+	contact       *openapi.Contact
+	licence       *openapi.License
+	info          openapi.Info
+	methods       map[string]*transportOpenapiMethodOption
+	defaultMethod transportOpenapiMethodOption
 }
 
 type transportClient struct {
@@ -117,6 +118,9 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		fastHTTP:      enabledFastHTTP,
 		methodOptions: map[string]transportMethodOptions{},
 		mapCodeErrors: map[string]*errorDecodeInfo{},
+		openapiDoc: transportOpenapiDoc{
+			methods: map[string]*transportOpenapiMethodOption{},
+		},
 	}
 
 	if _, ok := opt.Get("ClientEnable"); ok {
@@ -162,6 +166,72 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 					Description: parser.MustOption(v.Get("description")).Value.String(),
 					URL:         parser.MustOption(v.Get("url")).Value.String(),
 				})
+			}
+		}
+
+		if openapiErrors, ok := openapiDocOpt.GetSlice("OpenapiErrors"); ok {
+			for _, openapiErrorsOpt := range openapiErrors {
+				var methods []string
+				if methodsOpt, ok := openapiErrorsOpt.Get("methods"); ok {
+					for _, expr := range methodsOpt.Value.ExprSlice() {
+						fnSel, ok := expr.(*ast.SelectorExpr)
+						if !ok {
+							return errors.NotePosition(methodsOpt.Position, fmt.Errorf("the %s value must be func selector", methodsOpt.Name))
+						}
+						methods = append(methods, fnSel.Sel.Name)
+						if _, ok := options.openapiDoc.methods[fnSel.Sel.Name]; !ok {
+							options.openapiDoc.methods[fnSel.Sel.Name] = &transportOpenapiMethodOption{}
+						}
+					}
+				}
+				if errorsOpt, ok := openapiErrorsOpt.Get("errors"); ok {
+					var errorsName []string
+					for _, expr := range errorsOpt.Value.ExprSlice() {
+						ptr, ok := g.w.TypeOf(expr).(*stdtypes.Pointer)
+						if !ok {
+							return errors.NotePosition(openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name))
+						}
+						named, ok := ptr.Elem().(*stdtypes.Named)
+						if !ok {
+							return errors.NotePosition(openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name))
+						}
+						errorsName = append(errorsName, named.Obj().Name())
+					}
+					if len(methods) > 0 {
+						for _, method := range methods {
+							options.openapiDoc.methods[method].errors = append(options.openapiDoc.methods[method].errors, errorsName...)
+						}
+					} else {
+						options.openapiDoc.defaultMethod.errors = append(options.openapiDoc.defaultMethod.errors, errorsName...)
+					}
+				}
+			}
+		}
+
+		if openapiTags, ok := openapiDocOpt.GetSlice("OpenapiTags"); ok {
+			for _, openapiTagsOpt := range openapiTags {
+				var methods []string
+				if methodsOpt, ok := openapiTagsOpt.Get("methods"); ok {
+					for _, expr := range methodsOpt.Value.ExprSlice() {
+						fnSel, ok := expr.(*ast.SelectorExpr)
+						if !ok {
+							return errors.NotePosition(methodsOpt.Position, fmt.Errorf("the %s value must be func selector", methodsOpt.Name))
+						}
+						methods = append(methods, fnSel.Sel.Name)
+						if _, ok := options.openapiDoc.methods[fnSel.Sel.Name]; !ok {
+							options.openapiDoc.methods[fnSel.Sel.Name] = &transportOpenapiMethodOption{}
+						}
+					}
+				}
+				if tagsOpt, ok := openapiTagsOpt.Get("tags"); ok {
+					if len(methods) > 0 {
+						for _, method := range methods {
+							options.openapiDoc.methods[method].tags = append(options.openapiDoc.methods[method].tags, tagsOpt.Value.StringSlice()...)
+						}
+					} else {
+						options.openapiDoc.defaultMethod.tags = append(options.openapiDoc.defaultMethod.tags, tagsOpt.Value.StringSlice()...)
+					}
+				}
 			}
 		}
 
@@ -397,23 +467,6 @@ func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, defaultMethod
 			result.headerVars[values[0]] = values[1]
 		}
 	}
-	if openapiErrors, ok := methodOpt.Get("OpenapiErrors"); ok {
-		for _, expr := range openapiErrors.Value.ExprSlice() {
-			ptr, ok := g.w.TypeOf(expr).(*stdtypes.Pointer)
-			if !ok {
-				return result, errors.NotePosition(openapiErrors.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
-			}
-			named, ok := ptr.Elem().(*stdtypes.Named)
-			if !ok {
-				return result, errors.NotePosition(openapiErrors.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrors.Name))
-			}
-			result.openapi.errors = append(result.openapi.errors, named.Obj().Name())
-		}
-	}
-	if openapiGroup, ok := methodOpt.Get("OpenapiTags"); ok {
-		result.openapi.tags = openapiGroup.Value.StringSlice()
-	}
-
 	return result, nil
 }
 
@@ -956,14 +1009,20 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 		var (
 			o       *openapi.Operation
 			pathStr string
+			errors  = opts.openapiDoc.defaultMethod.errors
+			tags    = opts.openapiDoc.defaultMethod.tags
 		)
+
+		if openapiMethodOpt, ok := opts.openapiDoc.methods[m.Name()]; ok {
+			errors = append(errors, openapiMethodOpt.errors...)
+			tags = append(tags, openapiMethodOpt.tags...)
+		}
 
 		if opts.jsonRPC.enable {
 			o = g.makeJsonRPCPath(opts, m)
 			pathStr = "/" + strings.LcFirst(m.Name())
 			mopt.method.name = "POST"
-
-			for _, name := range mopt.openapi.errors {
+			for _, name := range errors {
 				if ei, ok := opts.mapCodeErrors[name]; ok {
 					codeStr := strconv.FormatInt(ei.code, 10)
 					o.Responses["x"+codeStr] = openapi.Response{
@@ -986,7 +1045,7 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 			}
 		}
 
-		o.Tags = mopt.openapi.tags
+		o.Tags = tags
 
 		if _, ok := swg.Paths[pathStr]; !ok {
 			swg.Paths[pathStr] = &openapi.Path{}
