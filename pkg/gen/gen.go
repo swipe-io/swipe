@@ -83,9 +83,6 @@ func (s *Swipe) Generate() ([]Result, []error) {
 						continue
 					}
 				}
-				w.Write("// %s:\n\n", filepath.Base(pkg.Fset.File(f.Pos()).Name()))
-				w.WriteAST(decl)
-				w.Write("\n\n")
 			}
 		}
 
