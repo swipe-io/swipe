@@ -1,4 +1,17 @@
 
+<a name="v1.9.0"></a>
+## [v1.9.0](https://github.com/swipe-io/swipe/compare/v1.8.0...v1.9.0) (2020-06-03)
+
+### Bug Fixes
+
+* Moved OpenapiTags, OpenapiErrors from MethodOptions to Openapi
+
+### BREAKING CHANGE
+
+
+Changes for OpenapiTags, OpenapiErrors are not compatible with versions <v1.9.0
+
+
 <a name="v1.8.0"></a>
 ## [v1.8.0](https://github.com/swipe-io/swipe/compare/v1.7.2...v1.8.0) (2020-06-03)
 
