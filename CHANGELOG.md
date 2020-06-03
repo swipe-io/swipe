@@ -1,4 +1,17 @@
 
+<a name="v1.8.0"></a>
+## [v1.8.0](https://github.com/swipe-io/swipe/compare/v1.7.2...v1.8.0) (2020-06-03)
+
+### Features
+
+* removed copy code from swipe generation file
+
+### BREAKING CHANGE
+
+
+if you used the ability to use the code in the generation description file, then the update will not work
+
+
 <a name="v1.7.2"></a>
 ## [v1.7.2](https://github.com/swipe-io/swipe/compare/v1.6.0...v1.7.2) (2020-06-02)
 
