@@ -1,20 +1,13 @@
-// Package swipe is a code generation tool that automates the creation of repetitively used code.
+// Swipe is a code generation tool that automates the creation of repetitively used code.
 // Configuration parameters are presented in Swipe as parameters of the Golang function, using explicit initialization instead of
 // global variables or reflections.
 //
-// Swipe generates code using an option: a function that calls functions that define the generation parameters.
-// Using Swipe, you describe the generation parameters in the option, and then Swipe generates the code.
+// Swipe generates code using the function as an option that defines the generation parameters.
 //
-// 1. The "function as an option" approach is used to configure generation.
+// To describe the generation parameters, add the `swipe.Build` function to the function body,
+// also add the build tag `+build swipe` so that Golang does not try to compile the settings file.
 //
-// 2. All ads that are not related to options found in the file will be copied to the generated file.
-//
-// 3. Function with a `swipe.Build` option inserted in the body. `swipe.Build` will not be transferred to the generated code.
-//
-// If you want the generate code, you can run:
-//  swipe ./pkg/...
-//
-// Full example:
+// Example file:
 //  // +build swipe
 //
 //  package jsonrpc
@@ -41,6 +34,8 @@
 // 		),
 // 	  )
 //  }
+// To start code generation, you must run:
+//  swipe ./pkg/...
 package swipe
 
 // A Option is an option for a Swipe.
