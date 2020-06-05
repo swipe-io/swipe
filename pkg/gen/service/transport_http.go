@@ -348,6 +348,7 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 	}
 
 	fmtPkg := g.w.Import("fmt", "fmt")
+	endpointPkg := g.w.Import("endpoint", "github.com/go-kit/kit/endpoint")
 
 	g.w.WriteFunc("ErrorDecode", "", []string{"code", "int"}, []string{"", "error"}, func() {
 		g.w.Write("switch code {\n")
@@ -363,6 +364,20 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		}
 		g.w.Write("}\n")
 	})
+
+	g.w.Write("func middlewareChain(middlewares []%[1]s.Middleware) %[1]s.Middleware {\n", endpointPkg)
+	g.w.Write("return func(next %[1]s.Endpoint) %[1]s.Endpoint {\n", endpointPkg)
+	g.w.Write("if len(middlewares) == 0 {\n")
+	g.w.Write("return next\n")
+	g.w.Write("}\n")
+	g.w.Write("outer := middlewares[0]\n")
+	g.w.Write("others := middlewares[1:]\n")
+	g.w.Write("for i := len(others) - 1; i >= 0; i-- {\n")
+	g.w.Write("next = others[i](next)\n")
+	g.w.Write("}\n")
+	g.w.Write("return outer(next)\n")
+	g.w.Write("}\n")
+	g.w.Write("}\n")
 
 	if options.client.enable {
 		g.writeClientStruct(options)
@@ -493,20 +508,6 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 	serverOptionType := fmt.Sprintf("server%sOption", g.ctx.id)
 	kithttpServerOption := fmt.Sprintf("%s.ServerOption", kithttpPkg)
 	endpointMiddlewareOption := fmt.Sprintf("%s.Middleware", endpointPkg)
-
-	g.w.Write("func middlewareChain(middlewares []%[1]s.Middleware) %[1]s.Middleware {\n", endpointPkg)
-	g.w.Write("return func(next %[1]s.Endpoint) %[1]s.Endpoint {\n", endpointPkg)
-	g.w.Write("if len(middlewares) == 0 {\n")
-	g.w.Write("return next\n")
-	g.w.Write("}\n")
-	g.w.Write("outer := middlewares[0]\n")
-	g.w.Write("others := middlewares[1:]\n")
-	g.w.Write("for i := len(others) - 1; i >= 0; i-- {\n")
-	g.w.Write("next = others[i](next)\n")
-	g.w.Write("}\n")
-	g.w.Write("return outer(next)\n")
-	g.w.Write("}\n")
-	g.w.Write("}\n")
 
 	g.w.Write("type %s func (*%s)\n", serverOptionType, serverOptType)
 
