@@ -457,14 +457,14 @@ func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, defaultMethod
 
 		values := queryVars.Value.StringSlice()
 		for i := 0; i < len(values); i += 2 {
-			result.queryVars[values[0]] = values[1]
+			result.queryVars[values[i]] = values[i+1]
 		}
 	}
 	if headerVars, ok := methodOpt.Get("HeaderVars"); ok {
 		result.headerVars = map[string]string{}
 		values := headerVars.Value.StringSlice()
 		for i := 0; i < len(values); i += 2 {
-			result.headerVars[values[0]] = values[1]
+			result.headerVars[values[i]] = values[i+1]
 		}
 	}
 	return result, nil
@@ -1849,7 +1849,6 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 				pathVars = append(pathVars, g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
-
 		queryVars := []string{}
 		for fName, qName := range mopts.queryVars {
 			if p := types.LookupFieldSig(fName, msig); p != nil {
