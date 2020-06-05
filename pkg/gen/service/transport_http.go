@@ -1901,7 +1901,7 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			if opts.fastHTTP {
 				g.w.Write("r.SetRequestURI(")
 			} else {
-				g.w.Write("r.URL.Path = ")
+				g.w.Write("r.URL.Path += ")
 			}
 			g.w.Write("%s.Sprintf(%s, %s)", fmtPkg, strconv.Quote(pathStr), stdstrings.Join(pathVars, ","))
 
