@@ -1840,8 +1840,6 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		pathVars := []string{}
 		for name, regexp := range mopts.pathVars {
 			if p := types.LookupFieldSig(name, msig); p != nil {
-				paramLen--
-
 				if regexp != "" {
 					regexp = ":" + regexp
 				}
@@ -1852,8 +1850,6 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		queryVars := []string{}
 		for fName, qName := range mopts.queryVars {
 			if p := types.LookupFieldSig(fName, msig); p != nil {
-				paramLen--
-
 				queryVars = append(queryVars, strconv.Quote(qName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
@@ -1861,8 +1857,6 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		headerVars := []string{}
 		for fName, hName := range mopts.headerVars {
 			if p := types.LookupFieldSig(fName, msig); p != nil {
-				paramLen--
-
 				headerVars = append(headerVars, strconv.Quote(hName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
