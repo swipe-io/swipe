@@ -215,7 +215,7 @@ func (w *Writer) getFormatFuncName(kind stdtypes.BasicKind) string {
 	case stdtypes.Int, stdtypes.Int8, stdtypes.Int16, stdtypes.Int32, stdtypes.Int64:
 		return "FormatInt(int64(%s), 10)"
 	case stdtypes.Float32, stdtypes.Float64:
-		return "FormatFloat(float64(%s), 'w', 2, " + types.GetBitSize(kind) + ")"
+		return "FormatFloat(float64(%s), 'g', 2, " + types.GetBitSize(kind) + ")"
 	case stdtypes.Uint, stdtypes.Uint8, stdtypes.Uint16, stdtypes.Uint32, stdtypes.Uint64:
 		return "FormatUint(uint64(%s), 10)"
 	case stdtypes.Bool:
