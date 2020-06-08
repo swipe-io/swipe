@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -831,15 +832,20 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	for i := 1; i < msig.Params().Len(); i++ {
-		p := msig.Params().At(i)
-		if types.IsContext(p.Type()) {
-			continue
-		}
-		requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
-	}
-
 	resultLen := types.LenWithoutErr(msig.Results())
+	paramLen := types.LenWithoutContext(msig.Params())
+
+	if paramLen > 0 {
+		for i := 0; i < msig.Params().Len(); i++ {
+			p := msig.Params().At(i)
+			if types.IsContext(p.Type()) {
+				continue
+			}
+			requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
+		}
+	} else {
+		requestSchema.Example = json.RawMessage("null")
+	}
 
 	if resultLen > 1 {
 		responseSchema = g.makeSwaggerSchema(msig.Results().At(0).Type())
@@ -848,6 +854,8 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 			r := msig.Results().At(i)
 			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
 		}
+	} else {
+		responseSchema.Example = json.RawMessage("null")
 	}
 
 	if opts.wrapResponse.enable {
