@@ -7,7 +7,7 @@
 //
 // 1. The "function as an option" approach is used to configure generation.
 //
-// 2. All ads that are not related to options found in the file will be copied to the generated file.
+// 2. All code that is not associated with the generation parameters will not be copied to the generated file.
 //
 // 3. Function with a `swipe.Build` option inserted in the body. `swipe.Build` will not be transferred to the generated code.
 //
@@ -150,15 +150,13 @@ func Transport(protocol string, opts ...TransportOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// Protocol type of transport protocol, currently available only http, coming soon gRPC.
-//
-// This option is required.
-// func Protocol(string) TransportOption {
-// 	return "implementation not generated, run swipe"
-// }
-
-// NotWrapBody coming soon.
-func NotWrapBody() TransportOption {
+// WrapResponse wrap the response from the server to an object, for example if you want to return as:
+//  {data: { you responce data }}
+// need to add option:
+//  ...code here...
+//  WrapResponse("data")
+//  ... code here ...
+func WrapResponse(string) TransportOption {
 	return "implementation not generated, run swipe"
 }
 

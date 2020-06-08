@@ -21,37 +21,50 @@ func GetBitSize(kind types.BasicKind) string {
 	}
 }
 
-func HasError(t types.Type) bool {
+func IsError(t types.Type) bool {
 	return types.Identical(t, ErrorType)
 }
 
-func HasPanic(t types.Type) bool {
+func IsPanic(t types.Type) bool {
 	return types.Identical(t, PanicType)
 }
 
-func HasContextInSignature(sig *types.Signature) bool {
-	return HasContextInParams(sig.Params())
+func ContainsContext(t *types.Tuple) bool {
+	if t.Len() > 0 {
+		return IsContext(t.At(0).Type())
+	}
+	return false
+
 }
 
-func HasContextInParams(params *types.Tuple) bool {
-	if params.Len() > 0 {
-		return HasContext(params.At(0).Type())
+func ContainsError(results *types.Tuple) bool {
+	if results.Len() > 0 {
+		return IsError(results.At(results.Len() - 1).Type())
 	}
 	return false
 }
 
-func HasContext(t types.Type) bool {
+func IsContext(t types.Type) bool {
 	return types.TypeString(t, nil) == "context.Context"
 }
 
-func HasErrorInResults(results *types.Tuple) bool {
-	if results.Len() > 0 {
-		return HasError(results.At(results.Len() - 1).Type())
+func LenWithoutErr(t *types.Tuple) int {
+	len := t.Len()
+	if ContainsError(t) {
+		len--
 	}
-	return false
+	return len
 }
 
-func LookupFieldSig(name string, sig *types.Signature) *types.Var {
+func LenWithoutContext(t *types.Tuple) int {
+	len := t.Len()
+	if ContainsContext(t) {
+		len--
+	}
+	return len
+}
+
+func LookupField(name string, sig *types.Signature) *types.Var {
 	for i := 0; i < sig.Params().Len(); i++ {
 		p := sig.Params().At(i)
 		if p.Name() == name {

@@ -87,9 +87,14 @@ type transportClient struct {
 	enable bool
 }
 
+type transportWrapResponse struct {
+	enable bool
+	name   string
+}
+
 type transportOptions struct {
 	prefix         string
-	notWrapBody    bool
+	wrapResponse   transportWrapResponse
 	serverDisabled bool
 	client         transportClient
 	openapiDoc     transportOpenapiDoc
@@ -131,8 +136,9 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		options.serverDisabled = true
 	}
 
-	if _, ok := opt.Get("NotWrapBody"); ok {
-		options.notWrapBody = true
+	if wrapResponseOpt, ok := opt.Get("WrapResponse"); ok {
+		options.wrapResponse.enable = true
+		options.wrapResponse.name = wrapResponseOpt.Value.String()
 	}
 
 	if openapiDocOpt, ok := opt.Get("Openapi"); ok {
@@ -687,12 +693,12 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 	msig := m.Type().(*stdtypes.Signature)
 	mopt := opts.methodOptions[m.Name()]
 
-	responseParams := &openapi.Schema{
+	responseSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	requestParams := &openapi.Schema{
+	requestSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
@@ -712,21 +718,27 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 			continue
 		}
 
-		if types.HasContext(p.Type()) {
+		if types.IsContext(p.Type()) {
 			continue
 		}
-		requestParams.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
+		requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
 	}
 
-	for i := 0; i < msig.Results().Len(); i++ {
-		r := msig.Results().At(i)
-		if types.HasError(r.Type()) {
-			continue
+	resultLen := types.LenWithoutErr(msig.Results())
+	if resultLen > 1 {
+		for i := 0; i < resultLen; i++ {
+			r := msig.Results().At(i)
+			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
 		}
-		if opts.notWrapBody {
-			responseParams = g.makeSwaggerSchema(r.Type())
-		} else {
-			responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
+	} else if resultLen == 1 {
+		responseSchema = g.makeSwaggerSchema(msig.Results().At(0).Type())
+	}
+
+	if opts.wrapResponse.enable {
+		properties := openapi.Properties{}
+		properties[opts.wrapResponse.name] = responseSchema
+		responseSchema = &openapi.Schema{
+			Properties: properties,
 		}
 	}
 
@@ -737,7 +749,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 				Description: "OK",
 				Content: openapi.Content{
 					"application/json": {
-						Schema: responseParams,
+						Schema: responseSchema,
 					},
 				},
 			},
@@ -756,7 +768,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 
 	for name := range mopt.pathVars {
 		var schema *openapi.Schema
-		if fld := types.LookupFieldSig(name, msig); fld != nil {
+		if fld := types.LookupField(name, msig); fld != nil {
 			schema = g.makeSwaggerSchema(fld.Type())
 		}
 		o.Parameters = append(o.Parameters, openapi.Parameter{
@@ -769,7 +781,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 
 	for argName, name := range mopt.queryVars {
 		var schema *openapi.Schema
-		if fld := types.LookupFieldSig(argName, msig); fld != nil {
+		if fld := types.LookupField(argName, msig); fld != nil {
 			schema = g.makeSwaggerSchema(fld.Type())
 		}
 		o.Parameters = append(o.Parameters, openapi.Parameter{
@@ -781,7 +793,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 
 	for argName, name := range mopt.headerVars {
 		var schema *openapi.Schema
-		if fld := types.LookupFieldSig(argName, msig); fld != nil {
+		if fld := types.LookupField(argName, msig); fld != nil {
 			schema = g.makeSwaggerSchema(fld.Type())
 		}
 		o.Parameters = append(o.Parameters, openapi.Parameter{
@@ -797,7 +809,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 			Required: true,
 			Content: map[string]openapi.Media{
 				"application/json": {
-					Schema: requestParams,
+					Schema: requestSchema,
 				},
 			},
 		}
@@ -809,33 +821,40 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func) *openapi.Operation {
 	msig := m.Type().(*stdtypes.Signature)
 
-	responseParams := &openapi.Schema{
+	responseSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	requestParams := &openapi.Schema{
+	requestSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
 
 	for i := 1; i < msig.Params().Len(); i++ {
 		p := msig.Params().At(i)
-		if types.HasContext(p.Type()) {
+		if types.IsContext(p.Type()) {
 			continue
 		}
-		requestParams.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
+		requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
 	}
 
-	for i := 0; i < msig.Results().Len(); i++ {
-		r := msig.Results().At(i)
-		if types.HasError(r.Type()) {
-			continue
+	resultLen := types.LenWithoutErr(msig.Results())
+
+	if resultLen > 1 {
+		responseSchema = g.makeSwaggerSchema(msig.Results().At(0).Type())
+	} else if resultLen == 1 {
+		for i := 0; i < msig.Results().Len(); i++ {
+			r := msig.Results().At(i)
+			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
 		}
-		if opts.notWrapBody {
-			responseParams = g.makeSwaggerSchema(r.Type())
-		} else {
-			responseParams.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
+	}
+
+	if opts.wrapResponse.enable {
+		properties := openapi.Properties{}
+		properties[opts.wrapResponse.name] = responseSchema
+		responseSchema = &openapi.Schema{
+			Properties: properties,
 		}
 	}
 
@@ -850,7 +869,7 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 				Type:    "string",
 				Example: "c9b14c57-7503-447a-9fb9-be6f8920f31f",
 			},
-			"result": responseParams,
+			"result": responseSchema,
 		},
 	}
 	request := &openapi.Schema{
@@ -868,7 +887,7 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 				Type: "string",
 				Enum: []string{strcase.ToLowerCamel(m.Name())},
 			},
-			"params": requestParams,
+			"params": requestSchema,
 		},
 	}
 
@@ -1289,7 +1308,6 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 
 	var (
 		jsonrpcPkg string
-		// httpPkg    string
 	)
 	if opts.fastHTTP {
 		jsonrpcPkg = g.w.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
@@ -1313,12 +1331,7 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 
 		g.w.Write("func(_ %s.Context, msg %s.RawMessage) (interface{}, error) {\n", contextPkg, jsonPkg)
 
-		paramsLen := sig.Params().Len()
-		if types.HasContextInSignature(sig) {
-			paramsLen--
-		}
-
-		if paramsLen > 0 {
+		if types.LenWithoutContext(sig.Params()) > 0 {
 			g.w.Write("var req %sRequest%s\n", lcName, g.ctx.id)
 			g.w.Write("err := %s.Unmarshal(msg, &req)\n", ffjsonPkg)
 			g.w.Write("if err != nil {\n")
@@ -1332,25 +1345,14 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 		g.w.Write("}")
 	}
 
-	resultsLen := sig.Results().Len()
-	if types.HasErrorInResults(sig.Results()) {
-		resultsLen--
-	}
-
 	g.w.Write(",\n")
 
 	g.w.Write("Encode:")
 
-	if opts.notWrapBody && resultsLen > 0 {
-		fmtPkg := g.w.Import("fmt", "fmt")
+	if opts.wrapResponse.enable && types.LenWithoutErr(sig.Results()) > 0 {
 		jsonPkg := g.w.Import("json", "encoding/json")
-
 		g.w.Write("func (ctx context.Context, response interface{}) (%s.RawMessage, error) {\n", jsonPkg)
-		g.w.Write("resp, ok := response.(%sResponse%s)\n", lcName, g.ctx.id)
-		g.w.Write("if !ok {\n")
-		g.w.Write("return nil, %s.Errorf(\"couldn't assert response as %sResponse%s, got %%T\", response)\n", fmtPkg, lcName, g.ctx.id)
-		g.w.Write("}\n")
-		g.w.Write("return encodeResponseJSONRPC%s(ctx, resp.%s)\n", g.ctx.id, strings.UcFirst(sig.Results().At(0).Name()))
+		g.w.Write("return encodeResponseJSONRPC%s(ctx, map[string]interface{}{\"%s\": response})\n", g.ctx.id, opts.wrapResponse.name)
 		g.w.Write("},\n")
 	} else {
 		g.w.Write("encodeResponseJSONRPC%s,\n", g.ctx.id)
@@ -1426,11 +1428,8 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 		g.w.WriteAST(mopt.serverRequestFunc.expr)
 	} else {
 		g.w.Write("func(ctx %s.Context, r *%s.Request) (interface{}, error) {\n", contextPkg, httpPkg)
-		paramsLen := sig.Params().Len()
-		if types.HasContextInSignature(sig) {
-			paramsLen--
-		}
-		if paramsLen > 0 {
+
+		if types.LenWithoutContext(sig.Params()) > 0 {
 			g.w.Write("var req %sRequest%s\n", lcName, g.ctx.id)
 			switch stdstrings.ToUpper(mopt.method.name) {
 			case "POST", "PUT", "PATCH":
@@ -1466,7 +1465,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 					g.w.Write("vars := %s.Vars(r)\n", routerPkg)
 				}
 				for pathVarName := range mopt.pathVars {
-					if f := types.LookupFieldSig(pathVarName, sig); f != nil {
+					if f := types.LookupField(pathVarName, sig); f != nil {
 						var valueID string
 						if opts.fastHTTP {
 							valueID = "vars.Param(" + strconv.Quote(pathVarName) + ")"
@@ -1484,7 +1483,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 					g.w.Write("q := r.URL.Query()\n")
 				}
 				for argName, queryName := range mopt.queryVars {
-					if f := types.LookupFieldSig(argName, sig); f != nil {
+					if f := types.LookupField(argName, sig); f != nil {
 						var valueID string
 						if opts.fastHTTP {
 							valueID = "string(q.Peek(" + strconv.Quote(queryName) + "))"
@@ -1496,7 +1495,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 				}
 			}
 			for argName, headerName := range mopt.headerVars {
-				if f := types.LookupFieldSig(argName, sig); f != nil {
+				if f := types.LookupField(argName, sig); f != nil {
 					var valueID string
 					if opts.fastHTTP {
 						valueID = "string(r.Header.Peek(" + strconv.Quote(headerName) + "))"
@@ -1518,24 +1517,15 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 		if opts.jsonRPC.enable {
 			g.w.Write("encodeResponseJSONRPC%s", g.ctx.id)
 		} else {
-			if opts.notWrapBody {
-				fmtPkg := g.w.Import("fmt", "fmt")
-
+			if opts.wrapResponse.enable {
 				var responseWriterType string
 				if opts.fastHTTP {
 					responseWriterType = fmt.Sprintf("*%s.Response", httpPkg)
 				} else {
 					responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
 				}
-
 				g.w.Write("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
-				g.w.Write("resp, ok := response.(%sResponse%s)\n", lcName, g.ctx.id)
-
-				g.w.Write("if !ok {\n")
-				g.w.Write("return %s.Errorf(\"couldn't assert response as %sResponse%s, got %%T\", response)\n", fmtPkg, lcName, g.ctx.id)
-				g.w.Write("}\n")
-
-				g.w.Write("return encodeResponseHTTP%s(ctx, w, resp.%s)\n", g.ctx.id, strings.UcFirst(sig.Results().At(0).Name()))
+				g.w.Write("return encodeResponseHTTP%s(ctx, w, map[string]interface{}{\"%s\": response})\n", g.ctx.id, opts.wrapResponse.name)
 				g.w.Write("}")
 			} else {
 				g.w.Write("encodeResponseHTTP%s", g.ctx.id)
@@ -1703,12 +1693,10 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 		results := utils.NameType(msig.Results(), g.w.TypeString, nil)
 
 		g.w.WriteFunc(m.Name(), "c *"+clientType, params, results, func() {
-			hasError := types.HasErrorInResults(msig.Results())
-
-			resultLen := msig.Results().Len()
-			if hasError {
-				resultLen--
-			}
+			hasError := types.ContainsError(msig.Results())
+			hasContext := types.ContainsContext(msig.Params())
+			paramLen := types.LenWithoutContext(msig.Params())
+			resultLen := types.LenWithoutErr(msig.Results())
 
 			if resultLen > 0 {
 				g.w.Write("resp")
@@ -1719,24 +1707,23 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 
 			g.w.Write("c.%sEndpoint(", strings.LcFirst(m.Name()))
 
-			if msig.Params().Len() > 0 {
-				hasContext := types.HasContext(msig.Params().At(0).Type())
-				if hasContext {
-					g.w.Write("%s,", msig.Params().At(0).Name())
-				} else {
-					g.w.Write("%s.Background(),", contextPkg)
-				}
-				if hasContext && msig.Params().Len() == 1 {
-					g.w.Write("nil")
-				} else {
-					g.w.Write("%sRequest%s", strings.LcFirst(m.Name()), g.ctx.id)
-					params := structKeyValue(msig.Params(), func(p *stdtypes.Var) bool {
-						return !types.HasContext(p.Type())
-					})
-					g.w.WriteStructAssign(params)
-				}
-				g.w.Write(")\n")
+			if hasContext {
+				g.w.Write("%s,", msig.Params().At(0).Name())
+			} else {
+				g.w.Write("%s.Background(),", contextPkg)
 			}
+
+			if paramLen > 0 {
+				g.w.Write("%sRequest%s", strings.LcFirst(m.Name()), g.ctx.id)
+				params := structKeyValue(msig.Params(), func(p *stdtypes.Var) bool {
+					return !types.IsContext(p.Type())
+				})
+				g.w.WriteStructAssign(params)
+			} else {
+				g.w.Write(" nil")
+			}
+
+			g.w.Write(")\n")
 
 			if hasError {
 				g.w.Write("if err != nil {\n")
@@ -1820,18 +1807,17 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 
 		mopts := opts.methodOptions[m.Name()]
 
-		defaultHTTPMethod := "GET"
-
-		paramLen := msig.Params().Len()
-		resultLen := msig.Results().Len()
-
-		if types.HasContextInParams(msig.Params()) {
-			paramLen--
+		httpMethod := mopts.method.name
+		if httpMethod == "" {
+			if types.LenWithoutContext(msig.Params()) > 0 {
+				httpMethod = "POST"
+			} else {
+				httpMethod = "GET"
+			}
 		}
 
-		if types.HasErrorInResults(msig.Results()) {
-			resultLen--
-		}
+		paramLen := types.LenWithoutContext(msig.Params())
+		resultLen := types.LenWithoutErr(msig.Results())
 
 		pathStr := mopts.path
 		if pathStr == "" {
@@ -1840,7 +1826,7 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 
 		pathVars := []string{}
 		for name, regexp := range mopts.pathVars {
-			if p := types.LookupFieldSig(name, msig); p != nil {
+			if p := types.LookupField(name, msig); p != nil {
 				if regexp != "" {
 					regexp = ":" + regexp
 				}
@@ -1850,23 +1836,23 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		}
 		queryVars := []string{}
 		for fName, qName := range mopts.queryVars {
-			if p := types.LookupFieldSig(fName, msig); p != nil {
+			if p := types.LookupField(fName, msig); p != nil {
 				queryVars = append(queryVars, strconv.Quote(qName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
 
 		headerVars := []string{}
 		for fName, hName := range mopts.headerVars {
-			if p := types.LookupFieldSig(fName, msig); p != nil {
+			if p := types.LookupField(fName, msig); p != nil {
 				headerVars = append(headerVars, strconv.Quote(hName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
 
 		g.w.Write("c.%s = %s.NewClient(\n", epName, kithttpPkg)
-		if mopts.method.name != "" {
+		if mopts.method.expr != nil {
 			g.w.WriteAST(mopts.method.expr)
 		} else {
-			g.w.Write(strconv.Quote(defaultHTTPMethod))
+			g.w.Write(strconv.Quote(httpMethod))
 		}
 		g.w.Write(",\n")
 		g.w.Write("u,\n")
@@ -1888,10 +1874,10 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			} else {
 				g.w.Write("r.Method = ")
 			}
-			if mopts.method.name != "" {
+			if mopts.method.expr != nil {
 				g.w.WriteAST(mopts.method.expr)
 			} else {
-				g.w.Write(strconv.Quote(defaultHTTPMethod))
+				g.w.Write(strconv.Quote(httpMethod))
 			}
 			if opts.fastHTTP {
 				g.w.Write(")")
@@ -1932,7 +1918,7 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 				g.w.Write("r.Header.Add(%s, %s)\n", headerVars[i], headerVars[i+1])
 			}
 
-			switch stdstrings.ToUpper(mopts.method.name) {
+			switch stdstrings.ToUpper(httpMethod) {
 			case "POST", "PUT", "PATCH":
 				jsonPkg := g.w.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 
@@ -1970,10 +1956,10 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			g.w.Write("}\n")
 
 			if resultLen > 0 {
-				g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
-
-				if opts.notWrapBody {
-					g.w.Write("var body %s\n", g.w.TypeString(msig.Results().At(0).Type()))
+				if opts.wrapResponse.enable {
+					g.w.Write("var resp struct {\nData %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, opts.wrapResponse.name)
+				} else {
+					g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
 				}
 
 				if opts.fastHTTP {
@@ -1988,21 +1974,17 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 					g.w.Write("err = %s.Unmarshal(b, ", jsonPkg)
 				}
 
-				if opts.notWrapBody {
-					g.w.Write("&body)\n")
-				} else {
-					g.w.Write("&resp)\n")
-				}
+				g.w.Write("&resp)\n")
 
 				g.w.Write("if err != nil && err != %s.EOF {\n", pkgIO)
 				g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
 				g.w.Write("}\n")
 
-				if opts.notWrapBody {
-					g.w.Write("resp.%s = body\n", strings.UcFirst(msig.Results().At(0).Name()))
+				if opts.wrapResponse.enable {
+					g.w.Write("return resp.Data, nil\n")
+				} else {
+					g.w.Write("return resp, nil\n")
 				}
-
-				g.w.Write("return resp, nil\n")
 			} else {
 				g.w.Write("return nil, nil\n")
 			}
@@ -2052,16 +2034,8 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("%s.ClientRequestEncoder(", jsonrpcPkg)
 		g.w.Write("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
 
-		pramsLen := sig.Params().Len()
-		resultLen := sig.Results().Len()
-
-		if types.HasContextInSignature(sig) {
-			pramsLen--
-		}
-
-		if types.HasErrorInResults(sig.Results()) {
-			resultLen--
-		}
+		pramsLen := types.LenWithoutContext(sig.Params())
+		resultLen := types.LenWithoutErr(sig.Results())
 
 		if pramsLen > 0 {
 			g.w.Write("req, ok := obj.(%sRequest%s)\n", lcName, g.ctx.id)
@@ -2085,29 +2059,22 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("}\n")
 
 		if resultLen > 0 {
-			g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
-
-			if opts.notWrapBody {
-				g.w.Write("var body %s\n", g.w.TypeString(sig.Results().At(0).Type()))
-			}
-
-			g.w.Write("err := %s.Unmarshal(response.Result, ", ffjsonPkg)
-
-			if opts.notWrapBody {
-				g.w.Write("&body)\n")
+			if opts.wrapResponse.enable {
+				g.w.Write("var resp struct {\n Data %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, opts.wrapResponse.name)
 			} else {
-				g.w.Write("&resp)\n")
+				g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
 			}
 
+			g.w.Write("err := %s.Unmarshal(response.Result, &resp)\n", ffjsonPkg)
 			g.w.Write("if err != nil {\n")
 			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
 			g.w.Write("}\n")
 
-			if opts.notWrapBody {
-				g.w.Write("resp.%s = body\n", strings.UcFirst(sig.Results().At(0).Name()))
+			if opts.wrapResponse.enable {
+				g.w.Write("return resp.Data, nil\n")
+			} else {
+				g.w.Write("return resp, nil\n")
 			}
-
-			g.w.Write("return resp, nil\n")
 		} else {
 			g.w.Write("return nil, nil\n")
 		}

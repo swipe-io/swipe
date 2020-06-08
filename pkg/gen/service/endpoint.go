@@ -31,7 +31,7 @@ func (w *Endpoint) Write() error {
 			typeName := w.w.TypeString(p.Type())
 			return []string{fieldName, typeName + "`json:" + strconv.Quote(tagName) + "`"}
 		}, func(p *stdtypes.Var) bool {
-			return !types.HasContext(p.Type())
+			return !types.IsContext(p.Type())
 		})
 
 		ntResults := utils.Params(sig.Results(), func(p *stdtypes.Var) []string {
@@ -42,7 +42,7 @@ func (w *Endpoint) Write() error {
 
 			return []string{fieldName, typeName + "`json:" + strconv.Quote(tagName) + "`"}
 		}, func(p *stdtypes.Var) bool {
-			return !types.HasError(p.Type())
+			return !types.IsError(p.Type())
 		})
 
 		if len(ntParams) > 0 {
@@ -73,7 +73,7 @@ func (w *Endpoint) writeEndpoint(fn *stdtypes.Func, sig *stdtypes.Signature) err
 	w.w.Write("w := func(ctx %s.Context, request interface{}) (interface{}, error) {\n", contextPkg)
 
 	callParams := utils.Params(sig.Params(), func(p *stdtypes.Var) []string {
-		if types.HasContext(p.Type()) {
+		if types.IsContext(p.Type()) {
 			return []string{"ctx"}
 		}
 		name := p.Name()
@@ -81,13 +81,7 @@ func (w *Endpoint) writeEndpoint(fn *stdtypes.Func, sig *stdtypes.Signature) err
 		return []string{"req." + name}
 	}, nil)
 
-	paramLen := sig.Params().Len()
-
-	if types.HasContextInParams(sig.Params()) {
-		paramLen--
-	}
-
-	if paramLen > 0 {
+	if types.LenWithoutContext(sig.Params()) > 0 {
 		w.w.Write("req := request.(%sRequest%s)\n", lcName, w.ctx.id)
 	}
 
@@ -100,23 +94,18 @@ func (w *Endpoint) writeEndpoint(fn *stdtypes.Func, sig *stdtypes.Signature) err
 
 	w.w.WriteFuncCall("s", fn.Name(), callParams)
 
-	if types.HasErrorInResults(sig.Results()) {
+	if types.ContainsError(sig.Results()) {
 		w.w.WriteCheckErr(func() {
 			w.w.Write("return nil, err")
 		})
 	}
 
-	resultsLen := sig.Results().Len()
-	if types.HasErrorInResults(sig.Results()) {
-		resultsLen--
-	}
-
 	w.w.Write("return ")
 
-	if resultsLen > 0 {
+	if types.LenWithoutErr(sig.Results()) > 0 {
 		w.w.Write("%sResponse%s", lcName, w.ctx.id)
 		w.w.WriteStructAssign(structKeyValue(sig.Results(), func(p *stdtypes.Var) bool {
-			return !types.HasError(p.Type())
+			return !types.IsError(p.Type())
 		}))
 	} else {
 		w.w.Write("nil")

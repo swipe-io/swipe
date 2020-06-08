@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 
 	"github.com/iancoleman/strcase"
@@ -26,7 +25,6 @@ type serviceCtx struct {
 	id            string
 	typeStr       string
 	iface         *types.Interface
-	fnDecl        *ast.FuncDecl
 	logging       bool
 	instrumenting serviceInstrumenting
 }
