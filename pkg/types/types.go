@@ -73,3 +73,10 @@ func LookupField(name string, sig *types.Signature) *types.Var {
 	}
 	return nil
 }
+
+func IsNamed(t *types.Tuple) bool {
+	if t.Len() > 0 {
+		return t.At(0).Name() != ""
+	}
+	return false
+}
