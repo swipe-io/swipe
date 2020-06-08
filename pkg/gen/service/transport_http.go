@@ -253,15 +253,14 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		}
 	}
 
-	var defaultMethodOptions transportMethodOptions
 	if methodDefaultOpt, ok := opt.Get("MethodDefaultOptions"); ok {
-		mopts, err := g.getMethodOptions(methodDefaultOpt, transportMethodOptions{})
+		mopt, err := g.getMethodOptions(methodDefaultOpt, transportMethodOptions{})
 		if err != nil {
 			return err
 		}
-		defaultMethodOptions = mopts
-	} else {
-		defaultMethodOptions = transportMethodOptions{}
+		for i := 0; i < g.ctx.iface.NumMethods(); i++ {
+			options.methodOptions[g.ctx.iface.Method(i).Name()] = mopt
+		}
 	}
 
 	if methods, ok := opt.GetSlice("MethodOptions"); ok {
@@ -271,13 +270,15 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 			if !ok {
 				return errors.NotePosition(signOpt.Position, fmt.Errorf("the Signature value must be func selector"))
 			}
-			mopts, err := g.getMethodOptions(methodOpt, defaultMethodOptions)
+			baseMethodOpts := options.methodOptions[fnSel.Sel.Name]
+			mopt, err := g.getMethodOptions(methodOpt, baseMethodOpts)
 			if err != nil {
 				return err
 			}
-			options.methodOptions[fnSel.Sel.Name] = mopts
+			options.methodOptions[fnSel.Sel.Name] = mopt
 		}
 	}
+
 	options.prefix = "REST"
 	if options.jsonRPC.enable {
 		options.prefix = "JSONRPC"
@@ -420,28 +421,31 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 	return nil
 }
 
-func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, defaultMethodOptions transportMethodOptions) (transportMethodOptions, error) {
-	result := defaultMethodOptions
+func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, baseMethodOpts transportMethodOptions) (transportMethodOptions, error) {
+	if wrapResponseOpt, ok := methodOpt.Get("WrapResponse"); ok {
+		baseMethodOpts.wrapResponse.enable = true
+		baseMethodOpts.wrapResponse.name = wrapResponseOpt.Value.String()
+	}
 
 	if httpMethodOpt, ok := methodOpt.Get("Method"); ok {
-		result.method.name = httpMethodOpt.Value.String()
-		result.method.expr = httpMethodOpt.Value.Expr()
+		baseMethodOpts.method.name = httpMethodOpt.Value.String()
+		baseMethodOpts.method.expr = httpMethodOpt.Value.Expr()
 	}
 
 	if path, ok := methodOpt.Get("Path"); ok {
-		result.path = path.Value.String()
+		baseMethodOpts.path = path.Value.String()
 
-		idxs, err := httpBraceIndices(result.path)
+		idxs, err := httpBraceIndices(baseMethodOpts.path)
 		if err != nil {
-			return result, err
+			return baseMethodOpts, err
 		}
 		if len(idxs) > 0 {
-			result.pathVars = make(map[string]string, len(idxs))
+			baseMethodOpts.pathVars = make(map[string]string, len(idxs))
 
 			var end int
 			for i := 0; i < len(idxs); i += 2 {
 				end = idxs[i+1]
-				parts := stdstrings.SplitN(result.path[idxs[i]+1:end-1], ":", 2)
+				parts := stdstrings.SplitN(baseMethodOpts.path[idxs[i]+1:end-1], ":", 2)
 
 				name := parts[0]
 				regexp := ""
@@ -449,47 +453,47 @@ func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, defaultMethod
 				if len(parts) == 2 {
 					regexp = parts[1]
 				}
-				result.pathVars[name] = regexp
+				baseMethodOpts.pathVars[name] = regexp
 			}
 		}
 	}
 
 	if serverRequestFunc, ok := methodOpt.Get("ServerDecodeRequestFunc"); ok {
-		result.serverRequestFunc.t = serverRequestFunc.Value.Type()
-		result.serverRequestFunc.expr = serverRequestFunc.Value.Expr()
+		baseMethodOpts.serverRequestFunc.t = serverRequestFunc.Value.Type()
+		baseMethodOpts.serverRequestFunc.expr = serverRequestFunc.Value.Expr()
 	}
 
 	if serverResponseFunc, ok := methodOpt.Get("ServerEncodeResponseFunc"); ok {
-		result.serverResponseFunc.t = serverResponseFunc.Value.Type()
-		result.serverResponseFunc.expr = serverResponseFunc.Value.Expr()
+		baseMethodOpts.serverResponseFunc.t = serverResponseFunc.Value.Type()
+		baseMethodOpts.serverResponseFunc.expr = serverResponseFunc.Value.Expr()
 	}
 
 	if clientRequestFunc, ok := methodOpt.Get("ClientEncodeRequestFunc"); ok {
-		result.clientRequestFunc.t = clientRequestFunc.Value.Type()
-		result.clientRequestFunc.expr = clientRequestFunc.Value.Expr()
+		baseMethodOpts.clientRequestFunc.t = clientRequestFunc.Value.Type()
+		baseMethodOpts.clientRequestFunc.expr = clientRequestFunc.Value.Expr()
 	}
 
 	if clientResponseFunc, ok := methodOpt.Get("ClientDecodeResponseFunc"); ok {
-		result.clientResponseFunc.t = clientResponseFunc.Value.Type()
-		result.clientResponseFunc.expr = clientResponseFunc.Value.Expr()
+		baseMethodOpts.clientResponseFunc.t = clientResponseFunc.Value.Type()
+		baseMethodOpts.clientResponseFunc.expr = clientResponseFunc.Value.Expr()
 	}
 
 	if queryVars, ok := methodOpt.Get("QueryVars"); ok {
-		result.queryVars = map[string]string{}
+		baseMethodOpts.queryVars = map[string]string{}
 
 		values := queryVars.Value.StringSlice()
 		for i := 0; i < len(values); i += 2 {
-			result.queryVars[values[i]] = values[i+1]
+			baseMethodOpts.queryVars[values[i]] = values[i+1]
 		}
 	}
 	if headerVars, ok := methodOpt.Get("HeaderVars"); ok {
-		result.headerVars = map[string]string{}
+		baseMethodOpts.headerVars = map[string]string{}
 		values := headerVars.Value.StringSlice()
 		for i := 0; i < len(values); i += 2 {
-			result.headerVars[values[i]] = values[i+1]
+			baseMethodOpts.headerVars[values[i]] = values[i+1]
 		}
 	}
-	return result, nil
+	return baseMethodOpts, nil
 }
 
 func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
