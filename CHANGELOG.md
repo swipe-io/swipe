@@ -1,4 +1,25 @@
 
+<a name="v1.10.0"></a>
+## [v1.10.0](https://github.com/swipe-io/swipe/compare/v1.9.0...v1.10.0) (2020-06-08)
+
+### Bug Fixes
+
+* FormatFloat incorrect fmt arg generate
+* the base path in the client's request was erased
+* not generate middlewareChain if server generate disabled
+* not generate request typecast for rest client bug
+* make query vars mapping using incorrect index
+
+### Features
+
+* renamed NotWrapBody option to WrapResponse, documentation added
+
+### BREAKING CHANGE
+
+
+NotWrapBody is not compatible with version <= 1.9.0
+
+
 <a name="v1.9.0"></a>
 ## [v1.9.0](https://github.com/swipe-io/swipe/compare/v1.8.0...v1.9.0) (2020-06-03)
 
