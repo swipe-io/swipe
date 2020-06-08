@@ -150,16 +150,6 @@ func Transport(protocol string, opts ...TransportOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// WrapResponse wrap the response from the server to an object, for example if you want to return as:
-//  {data: { you responce data }}
-// need to add option:
-//  ...code here...
-//  WrapResponse("data")
-//  ... code here ...
-func WrapResponse(string) TransportOption {
-	return "implementation not generated, run swipe"
-}
-
 // FastEnable enable use valyala/fasthttp instead net/http package.
 //
 // Supported in both REST and JSON RPC.
@@ -186,6 +176,16 @@ func JSONRPC(...JSONRPCOption) TransportOption {
 
 // JSONRPCPath sets the end point for transport.
 func JSONRPCPath(string) JSONRPCOption {
+	return "implementation not generated, run swipe"
+}
+
+// WrapResponse wrap the response from the server to an object, for example if you want to return as:
+//  {data: { you responce data }}
+// need to add option:
+//  ...code here...
+//  WrapResponse("data")
+//  ... code here ...
+func WrapResponse(string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 

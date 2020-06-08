@@ -39,12 +39,18 @@ type transportMethod struct {
 	expr ast.Expr
 }
 
+type transportWrapResponse struct {
+	enable bool
+	name   string
+}
+
 type transportMethodOptions struct {
 	method             transportMethod
 	path               string
 	pathVars           map[string]string
 	headerVars         map[string]string
 	queryVars          map[string]string
+	wrapResponse       transportWrapResponse
 	serverRequestFunc  astOptions
 	serverResponseFunc astOptions
 	clientRequestFunc  astOptions
@@ -88,14 +94,9 @@ type transportClient struct {
 	enable bool
 }
 
-type transportWrapResponse struct {
-	enable bool
-	name   string
-}
-
 type transportOptions struct {
-	prefix         string
-	wrapResponse   transportWrapResponse
+	prefix string
+
 	serverDisabled bool
 	client         transportClient
 	openapiDoc     transportOpenapiDoc
@@ -135,11 +136,6 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 
 	if _, ok := opt.Get("ServerDisabled"); ok {
 		options.serverDisabled = true
-	}
-
-	if wrapResponseOpt, ok := opt.Get("WrapResponse"); ok {
-		options.wrapResponse.enable = true
-		options.wrapResponse.name = wrapResponseOpt.Value.String()
 	}
 
 	if openapiDocOpt, ok := opt.Get("Openapi"); ok {
@@ -739,9 +735,9 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 		responseSchema = g.makeSwaggerSchema(msig.Results().At(0).Type())
 	}
 
-	if opts.wrapResponse.enable {
+	if mopt.wrapResponse.enable {
 		properties := openapi.Properties{}
-		properties[opts.wrapResponse.name] = responseSchema
+		properties[mopt.wrapResponse.name] = responseSchema
 		responseSchema = &openapi.Schema{
 			Properties: properties,
 		}
@@ -826,6 +822,8 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func) *openapi.Operation {
 	msig := m.Type().(*stdtypes.Signature)
 
+	mopt := opts.methodOptions[m.Name()]
+
 	responseSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
@@ -862,9 +860,9 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 		responseSchema.Example = json.RawMessage("null")
 	}
 
-	if opts.wrapResponse.enable {
+	if mopt.wrapResponse.enable {
 		properties := openapi.Properties{}
-		properties[opts.wrapResponse.name] = responseSchema
+		properties[mopt.wrapResponse.name] = responseSchema
 		responseSchema = &openapi.Schema{
 			Properties: properties,
 		}
@@ -1361,10 +1359,10 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 
 	g.w.Write("Encode:")
 
-	if opts.wrapResponse.enable && types.LenWithoutErr(sig.Results()) > 0 {
+	if mopt.wrapResponse.enable && types.LenWithoutErr(sig.Results()) > 0 {
 		jsonPkg := g.w.Import("json", "encoding/json")
 		g.w.Write("func (ctx context.Context, response interface{}) (%s.RawMessage, error) {\n", jsonPkg)
-		g.w.Write("return encodeResponseJSONRPC%s(ctx, map[string]interface{}{\"%s\": response})\n", g.ctx.id, opts.wrapResponse.name)
+		g.w.Write("return encodeResponseJSONRPC%s(ctx, map[string]interface{}{\"%s\": response})\n", g.ctx.id, mopt.wrapResponse.name)
 		g.w.Write("},\n")
 	} else {
 		g.w.Write("encodeResponseJSONRPC%s,\n", g.ctx.id)
@@ -1529,7 +1527,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 		if opts.jsonRPC.enable {
 			g.w.Write("encodeResponseJSONRPC%s", g.ctx.id)
 		} else {
-			if opts.wrapResponse.enable {
+			if mopt.wrapResponse.enable {
 				var responseWriterType string
 				if opts.fastHTTP {
 					responseWriterType = fmt.Sprintf("*%s.Response", httpPkg)
@@ -1537,7 +1535,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 					responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
 				}
 				g.w.Write("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
-				g.w.Write("return encodeResponseHTTP%s(ctx, w, map[string]interface{}{\"%s\": response})\n", g.ctx.id, opts.wrapResponse.name)
+				g.w.Write("return encodeResponseHTTP%s(ctx, w, map[string]interface{}{\"%s\": response})\n", g.ctx.id, mopt.wrapResponse.name)
 				g.w.Write("}")
 			} else {
 				g.w.Write("encodeResponseHTTP%s", g.ctx.id)
@@ -1817,9 +1815,9 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 
 		epName := lcName + "Endpoint"
 
-		mopts := opts.methodOptions[m.Name()]
+		mopt := opts.methodOptions[m.Name()]
 
-		httpMethod := mopts.method.name
+		httpMethod := mopt.method.name
 		if httpMethod == "" {
 			if types.LenWithoutContext(msig.Params()) > 0 {
 				httpMethod = "POST"
@@ -1831,13 +1829,13 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		paramLen := types.LenWithoutContext(msig.Params())
 		resultLen := types.LenWithoutErr(msig.Results())
 
-		pathStr := mopts.path
+		pathStr := mopt.path
 		if pathStr == "" {
 			pathStr = "/" + lcName
 		}
 
 		pathVars := []string{}
-		for name, regexp := range mopts.pathVars {
+		for name, regexp := range mopt.pathVars {
 			if p := types.LookupField(name, msig); p != nil {
 				if regexp != "" {
 					regexp = ":" + regexp
@@ -1847,30 +1845,30 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			}
 		}
 		queryVars := []string{}
-		for fName, qName := range mopts.queryVars {
+		for fName, qName := range mopt.queryVars {
 			if p := types.LookupField(fName, msig); p != nil {
 				queryVars = append(queryVars, strconv.Quote(qName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
 
 		headerVars := []string{}
-		for fName, hName := range mopts.headerVars {
+		for fName, hName := range mopt.headerVars {
 			if p := types.LookupField(fName, msig); p != nil {
 				headerVars = append(headerVars, strconv.Quote(hName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
 
 		g.w.Write("c.%s = %s.NewClient(\n", epName, kithttpPkg)
-		if mopts.method.expr != nil {
-			g.w.WriteAST(mopts.method.expr)
+		if mopt.method.expr != nil {
+			g.w.WriteAST(mopt.method.expr)
 		} else {
 			g.w.Write(strconv.Quote(httpMethod))
 		}
 		g.w.Write(",\n")
 		g.w.Write("u,\n")
 
-		if mopts.clientRequestFunc.expr != nil {
-			g.w.WriteAST(mopts.clientRequestFunc.expr)
+		if mopt.clientRequestFunc.expr != nil {
+			g.w.WriteAST(mopt.clientRequestFunc.expr)
 		} else {
 			g.w.Write("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
@@ -1886,8 +1884,8 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			} else {
 				g.w.Write("r.Method = ")
 			}
-			if mopts.method.expr != nil {
-				g.w.WriteAST(mopts.method.expr)
+			if mopt.method.expr != nil {
+				g.w.WriteAST(mopt.method.expr)
 			} else {
 				g.w.Write(strconv.Quote(httpMethod))
 			}
@@ -1953,8 +1951,8 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		}
 		g.w.Write(",\n")
 
-		if mopts.clientResponseFunc.expr != nil {
-			g.w.WriteAST(mopts.clientResponseFunc.expr)
+		if mopt.clientResponseFunc.expr != nil {
+			g.w.WriteAST(mopt.clientResponseFunc.expr)
 		} else {
 			g.w.Write("func(_ %s.Context, r *%s.Response) (interface{}, error) {\n", contextPkg, httpPkg)
 
@@ -1968,8 +1966,8 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			g.w.Write("}\n")
 
 			if resultLen > 0 {
-				if opts.wrapResponse.enable {
-					g.w.Write("var resp struct {\nData %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, opts.wrapResponse.name)
+				if mopt.wrapResponse.enable {
+					g.w.Write("var resp struct {\nData %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, mopt.wrapResponse.name)
 				} else {
 					g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
 				}
@@ -1992,7 +1990,7 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 				g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
 				g.w.Write("}\n")
 
-				if opts.wrapResponse.enable {
+				if mopt.wrapResponse.enable {
 					g.w.Write("return resp.Data, nil\n")
 				} else {
 					g.w.Write("return resp, nil\n")
@@ -2041,6 +2039,8 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		sig := m.Type().(*stdtypes.Signature)
 		lcName := strings.LcFirst(m.Name())
 
+		mopt := opts.methodOptions[m.Name()]
+
 		g.w.Write("c.%[1]sClientOption = append(\nc.%[1]sClientOption,\n", lcName)
 
 		g.w.Write("%s.ClientRequestEncoder(", jsonrpcPkg)
@@ -2071,8 +2071,8 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("}\n")
 
 		if resultLen > 0 {
-			if opts.wrapResponse.enable {
-				g.w.Write("var resp struct {\n Data %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, opts.wrapResponse.name)
+			if mopt.wrapResponse.enable {
+				g.w.Write("var resp struct {\n Data %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, mopt.wrapResponse.name)
 			} else {
 				g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
 			}
@@ -2082,7 +2082,7 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
 			g.w.Write("}\n")
 
-			if opts.wrapResponse.enable {
+			if mopt.wrapResponse.enable {
 				g.w.Write("return resp.Data, nil\n")
 			} else {
 				g.w.Write("return resp, nil\n")
