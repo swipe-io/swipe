@@ -10,6 +10,7 @@ require (
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334
 	github.com/l-vitaly/go-kit v1.10.0
 	github.com/mailru/easyjson v0.7.1 // indirect
+	github.com/pact-foundation/pact-go v1.0.4
 	github.com/pborman/uuid v1.2.0
 	github.com/pquerna/ffjson v0.0.0-20190930134022-aa0246cd15f7
 	github.com/prometheus/client_golang v1.6.0

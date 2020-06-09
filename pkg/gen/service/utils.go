@@ -10,9 +10,9 @@ import (
 	"github.com/swipe-io/swipe/pkg/utils"
 )
 
-func structKeyValue(tuple *stdtypes.Tuple, filterFn utils.FilterFn) (results []string) {
+func structKeyValue(vars []*stdtypes.Var, filterFn utils.FilterFn) (results []string) {
 	return utils.Params(
-		tuple,
+		vars,
 		func(p *stdtypes.Var) []string {
 			name := p.Name()
 			fieldName := strings.ToUpper(name[:1]) + name[1:]
@@ -22,32 +22,29 @@ func structKeyValue(tuple *stdtypes.Tuple, filterFn utils.FilterFn) (results []s
 	)
 }
 
-func logParams(data ...*stdtypes.Tuple) (result []string) {
-	for _, tuple := range data {
-		for i := 0; i < tuple.Len(); i++ {
-			v := tuple.At(i)
-			if logParam := logParam(v); logParam != "" {
-				result = append(result, strconv.Quote(v.Name()), logParam)
-			}
+func makeLogParams(data ...*stdtypes.Var) (result []string) {
+	for _, v := range data {
+		if logParam := makeLogParam(v.Name(), v.Type()); logParam != "" {
+			result = append(result, strconv.Quote(v.Name()), logParam)
 		}
 	}
 	return
 }
 
-func logParam(p *stdtypes.Var) string {
-	switch t := p.Type().(type) {
+func makeLogParam(name string, t stdtypes.Type) string {
+	switch t := t.(type) {
 	case *stdtypes.Basic:
-		return p.Name()
+		return name
 	case *stdtypes.Slice, *stdtypes.Array, *stdtypes.Map:
-		return "len(" + p.Name() + ")"
+		return "len(" + name + ")"
 	case *stdtypes.Named:
 		if t.Obj().Pkg() != nil {
 			switch t.Obj().Pkg().Path() {
-			case "github.com/satori/go.uuid":
-				return p.Name()
+			case "github.com/satori/go.uuid", "github.com/google/uuid":
+				return name
 			}
 		} else if stdtypes.Identical(t, types.ErrorType) {
-			return p.Name()
+			return name
 		}
 	}
 	return ""

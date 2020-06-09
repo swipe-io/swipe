@@ -1,9 +1,6 @@
 package service
 
 import (
-	"go/types"
-	"strings"
-
 	"github.com/swipe-io/swipe/pkg/utils"
 	"github.com/swipe-io/swipe/pkg/writer"
 )
@@ -25,25 +22,42 @@ func (w *Instrumenting) Write() error {
 	w.w.Write("requestLatency %s.Histogram\n", metricsPkg)
 	w.w.Write("}\n")
 
-	for i := 0; i < w.ctx.iface.NumMethods(); i++ {
-		m := w.ctx.iface.Method(i)
+	for _, m := range w.ctx.iface.methods {
+		var params []string
 
-		sig := m.Type().(*types.Signature)
+		if m.paramCtx != nil {
+			params = append(params, m.paramCtx.Name(), w.w.TypeString(m.paramCtx.Type()))
+		}
 
-		params := utils.NameTypeParams(sig.Params(), w.w.TypeString, nil)
-		results := utils.NameTypeParams(sig.Results(), w.w.TypeString, nil)
+		params = append(params, utils.NameTypeParams(m.params, w.w.TypeString, nil)...)
+		results := utils.NameTypeParams(m.results, w.w.TypeString, nil)
 
-		w.w.WriteFunc(m.Name(), "s *"+name, params, results, func() {
+		if m.returnErr != nil {
+			results = append(results, "", "error")
+		}
+
+		w.w.WriteFunc(m.name, "s *"+name, params, results, func() {
 			w.w.WriteDefer(
 				[]string{"begin " + timePkg + ".Time"},
 				[]string{timePkg + ".Now()"},
 				func() {
-					w.w.Write("s.requestCount.With(\"method\", \"%s\").Add(1)\n", m.Name())
-					w.w.Write("s.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", m.Name(), timePkg)
+					w.w.Write("s.requestCount.With(\"method\", \"%s\").Add(1)\n", m.name)
+					w.w.Write("s.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", m.name, timePkg)
 				},
 			)
-			w.w.Write("return s.next.%s(", m.Name())
-			w.w.Write(strings.Join(utils.NameParams(sig.Params(), nil), ","))
+			w.w.Write("return s.next.%s(", m.name)
+
+			if m.paramCtx != nil {
+				w.w.Write("%s,", m.paramCtx.Name())
+			}
+
+			for i, p := range m.params {
+				if i > 0 {
+					w.w.Write(",")
+				}
+				w.w.Write(p.Name())
+			}
+
 			w.w.Write(")\n")
 		})
 	}

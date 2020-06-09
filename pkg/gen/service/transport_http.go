@@ -13,8 +13,6 @@ import (
 
 	"github.com/iancoleman/strcase"
 	"github.com/pquerna/ffjson/ffjson"
-	"golang.org/x/tools/go/packages"
-
 	"github.com/swipe-io/swipe/pkg/errors"
 	"github.com/swipe-io/swipe/pkg/openapi"
 	"github.com/swipe-io/swipe/pkg/parser"
@@ -22,6 +20,7 @@ import (
 	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/utils"
 	"github.com/swipe-io/swipe/pkg/writer"
+	"golang.org/x/tools/go/packages"
 )
 
 type transportJsonRPCOption struct {
@@ -192,11 +191,15 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 					for _, expr := range errorsOpt.Value.ExprSlice() {
 						ptr, ok := g.w.TypeOf(expr).(*stdtypes.Pointer)
 						if !ok {
-							return errors.NotePosition(openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name))
+							return errors.NotePosition(
+								openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name),
+							)
 						}
 						named, ok := ptr.Elem().(*stdtypes.Named)
 						if !ok {
-							return errors.NotePosition(openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name))
+							return errors.NotePosition(
+								openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name),
+							)
 						}
 						errorsName = append(errorsName, named.Obj().Name())
 					}
@@ -254,8 +257,8 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		if err != nil {
 			return err
 		}
-		for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-			options.methodOptions[g.ctx.iface.Method(i).Name()] = mopt
+		for _, m := range g.ctx.iface.methods {
+			options.methodOptions[m.name] = mopt
 		}
 	}
 
@@ -522,11 +525,9 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 	g.w.Write("genericServerOption []%s\n", kithttpServerOption)
 	g.w.Write("genericEndpointMiddleware []%s\n", endpointMiddlewareOption)
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-		lcName := strings.LcFirst(m.Name())
-		g.w.Write("%sServerOption []%s\n", lcName, kithttpServerOption)
-		g.w.Write("%sEndpointMiddleware []%s\n", lcName, endpointMiddlewareOption)
+	for _, m := range g.ctx.iface.methods {
+		g.w.Write("%sServerOption []%s\n", m.lcName, kithttpServerOption)
+		g.w.Write("%sEndpointMiddleware []%s\n", m.lcName, endpointMiddlewareOption)
 	}
 	g.w.Write("}\n")
 
@@ -550,27 +551,24 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 		},
 	)
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-		lcName := strings.LcFirst(m.Name())
-
+	for _, m := range g.ctx.iface.methods {
 		g.w.WriteFunc(
-			g.ctx.id+m.Name()+"ServerOptions",
+			g.ctx.id+m.name+"ServerOptions",
 			"",
 			[]string{"opt", "..." + kithttpServerOption},
 			[]string{"", serverOptionType},
 			func() {
-				g.w.Write("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, lcName)
+				g.w.Write("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, m.lcName)
 			},
 		)
 
 		g.w.WriteFunc(
-			g.ctx.id+m.Name()+"ServerEndpointMiddlewares",
+			g.ctx.id+m.name+"ServerEndpointMiddlewares",
 			"",
 			[]string{"opt", "..." + endpointMiddlewareOption},
 			[]string{"", serverOptionType},
 			func() {
-				g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, lcName)
+				g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, m.lcName)
 			},
 		)
 	}
@@ -690,9 +688,8 @@ func (g *TransportHTTP) writeHTTPEncodeResponse(opts *transportOptions) {
 	g.w.Write("}\n\n")
 }
 
-func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *openapi.Operation {
-	msig := m.Type().(*stdtypes.Signature)
-	mopt := opts.methodOptions[m.Name()]
+func (g *TransportHTTP) makeRestPath(opts *transportOptions, m ifaceServiceMethod) *openapi.Operation {
+	mopt := opts.methodOptions[m.name]
 
 	responseSchema := &openapi.Schema{
 		Type:       "object",
@@ -704,9 +701,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	for i := 1; i < msig.Params().Len(); i++ {
-		p := msig.Params().At(i)
-
+	for _, p := range m.params {
 		if _, ok := mopt.pathVars[p.Name()]; ok {
 			continue
 		}
@@ -725,14 +720,12 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 		requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
 	}
 
-	resultLen := types.LenWithoutErr(msig.Results())
-	if resultLen > 1 {
-		for i := 0; i < resultLen; i++ {
-			r := msig.Results().At(i)
+	if len(m.results) > 1 {
+		for _, r := range m.results {
 			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
 		}
-	} else if resultLen == 1 {
-		responseSchema = g.makeSwaggerSchema(msig.Results().At(0).Type())
+	} else if len(m.results) == 1 {
+		responseSchema = g.makeSwaggerSchema(m.results[0].Type())
 	}
 
 	if mopt.wrapResponse.enable {
@@ -744,7 +737,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 	}
 
 	o := &openapi.Operation{
-		Summary: m.Name(),
+		Summary: m.name,
 		Responses: map[string]openapi.Response{
 			"200": {
 				Description: "OK",
@@ -769,7 +762,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 
 	for name := range mopt.pathVars {
 		var schema *openapi.Schema
-		if fld := types.LookupField(name, msig); fld != nil {
+		if fld := m.params.lookupField(name); fld != nil {
 			schema = g.makeSwaggerSchema(fld.Type())
 		}
 		o.Parameters = append(o.Parameters, openapi.Parameter{
@@ -782,7 +775,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 
 	for argName, name := range mopt.queryVars {
 		var schema *openapi.Schema
-		if fld := types.LookupField(argName, msig); fld != nil {
+		if fld := m.params.lookupField(argName); fld != nil {
 			schema = g.makeSwaggerSchema(fld.Type())
 		}
 		o.Parameters = append(o.Parameters, openapi.Parameter{
@@ -794,7 +787,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 
 	for argName, name := range mopt.headerVars {
 		var schema *openapi.Schema
-		if fld := types.LookupField(argName, msig); fld != nil {
+		if fld := m.params.lookupField(argName); fld != nil {
 			schema = g.makeSwaggerSchema(fld.Type())
 		}
 		o.Parameters = append(o.Parameters, openapi.Parameter{
@@ -819,10 +812,8 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m *stdtypes.Func) *
 	return o
 }
 
-func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func) *openapi.Operation {
-	msig := m.Type().(*stdtypes.Signature)
-
-	mopt := opts.methodOptions[m.Name()]
+func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m ifaceServiceMethod) *openapi.Operation {
+	mopt := opts.methodOptions[m.name]
 
 	responseSchema := &openapi.Schema{
 		Type:       "object",
@@ -834,28 +825,20 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	resultLen := types.LenWithoutErr(msig.Results())
-	paramLen := types.LenWithoutContext(msig.Params())
-
-	if paramLen > 0 {
-		for i := 0; i < msig.Params().Len(); i++ {
-			p := msig.Params().At(i)
-			if types.IsContext(p.Type()) {
-				continue
-			}
+	if len(m.params) > 0 {
+		for _, p := range m.params {
 			requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
 		}
 	} else {
 		requestSchema.Example = json.RawMessage("null")
 	}
 
-	if resultLen > 1 {
-		responseSchema = g.makeSwaggerSchema(msig.Results().At(0).Type())
-	} else if resultLen == 1 {
-		for i := 0; i < msig.Results().Len(); i++ {
-			r := msig.Results().At(i)
+	if len(m.results) > 1 {
+		for _, r := range m.results {
 			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
 		}
+	} else if len(m.results) == 1 {
+		responseSchema = g.makeSwaggerSchema(m.results[0].Type())
 	} else {
 		responseSchema.Example = json.RawMessage("null")
 	}
@@ -895,7 +878,7 @@ func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m *stdtypes.Func
 			},
 			"method": &openapi.Schema{
 				Type: "string",
-				Enum: []string{strcase.ToLowerCamel(m.Name())},
+				Enum: []string{strcase.ToLowerCamel(m.name)},
 			},
 			"params": requestSchema,
 		},
@@ -1031,10 +1014,8 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 		swg.Components.Schemas[name] = s
 	}
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-
-		mopt := opts.methodOptions[m.Name()]
+	for _, m := range g.ctx.iface.methods {
+		mopt := opts.methodOptions[m.name]
 
 		var (
 			o       *openapi.Operation
@@ -1043,14 +1024,14 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 			tags    = opts.openapiDoc.defaultMethod.tags
 		)
 
-		if openapiMethodOpt, ok := opts.openapiDoc.methods[m.Name()]; ok {
+		if openapiMethodOpt, ok := opts.openapiDoc.methods[m.name]; ok {
 			errors = append(errors, openapiMethodOpt.errors...)
 			tags = append(tags, openapiMethodOpt.tags...)
 		}
 
 		if opts.jsonRPC.enable {
 			o = g.makeJsonRPCPath(opts, m)
-			pathStr = "/" + strings.LcFirst(m.Name())
+			pathStr = "/" + strings.LcFirst(m.name)
 			mopt.method.name = "POST"
 			for _, name := range errors {
 				if ei, ok := opts.mapCodeErrors[name]; ok {
@@ -1282,14 +1263,11 @@ func (g *TransportHTTP) writeHTTPHandler(opts *transportOptions) {
 		g.w.Write("handler := %[1]s.NewServer(%[1]s.EndpointCodecMap{\n", jsonrpcPkg)
 	}
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-		msig := m.Type().(*stdtypes.Signature)
-
+	for _, m := range g.ctx.iface.methods {
 		if opts.jsonRPC.enable {
-			g.writeHTTPJSONRPC(opts, m, msig)
+			g.writeHTTPJSONRPC(opts, m)
 		} else {
-			g.writeHTTPRest(opts, m, msig)
+			g.writeHTTPRest(opts, m)
 		}
 	}
 
@@ -1313,8 +1291,8 @@ func (g *TransportHTTP) writeHTTPHandler(opts *transportOptions) {
 	}
 }
 
-func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Func, sig *stdtypes.Signature) {
-	mopt := opts.methodOptions[m.Name()]
+func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m ifaceServiceMethod) {
+	mopt := opts.methodOptions[m.name]
 
 	var (
 		jsonrpcPkg string
@@ -1329,9 +1307,12 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 	ffjsonPkg := g.w.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 	contextPkg := g.w.Import("context", "context")
 
-	lcName := strings.LcFirst(m.Name())
-	g.w.Write("\"%s\": %s.EndpointCodec{\n", lcName, jsonrpcPkg)
-	g.w.Write("Endpoint: middlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n", lcName, m.Name())
+	g.w.Write("\"%s\": %s.EndpointCodec{\n", m.lcName, jsonrpcPkg)
+	g.w.Write(
+		"Endpoint: middlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n",
+		m.lcName,
+		m.name,
+	)
 	g.w.Write("Decode: ")
 
 	if mopt.serverRequestFunc.expr != nil {
@@ -1341,11 +1322,11 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 
 		g.w.Write("func(_ %s.Context, msg %s.RawMessage) (interface{}, error) {\n", contextPkg, jsonPkg)
 
-		if types.LenWithoutContext(sig.Params()) > 0 {
-			g.w.Write("var req %sRequest%s\n", lcName, g.ctx.id)
+		if len(m.params) > 0 {
+			g.w.Write("var req %sRequest%s\n", m.lcName, g.ctx.id)
 			g.w.Write("err := %s.Unmarshal(msg, &req)\n", ffjsonPkg)
 			g.w.Write("if err != nil {\n")
-			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sRequest%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
+			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sRequest%s: %%s\", err)\n", fmtPkg, m.lcName, g.ctx.id)
 			g.w.Write("}\n")
 			g.w.Write("return req, nil\n")
 
@@ -1359,7 +1340,7 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 
 	g.w.Write("Encode:")
 
-	if mopt.wrapResponse.enable && types.LenWithoutErr(sig.Results()) > 0 {
+	if mopt.wrapResponse.enable && len(m.results) > 0 {
 		jsonPkg := g.w.Import("json", "encoding/json")
 		g.w.Write("func (ctx context.Context, response interface{}) (%s.RawMessage, error) {\n", jsonPkg)
 		g.w.Write("return encodeResponseJSONRPC%s(ctx, map[string]interface{}{\"%s\": response})\n", g.ctx.id, mopt.wrapResponse.name)
@@ -1371,7 +1352,7 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m *stdtypes.Fun
 	g.w.Write("},\n")
 }
 
-func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func, sig *stdtypes.Signature) {
+func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, m ifaceServiceMethod) {
 	var (
 		kithttpPkg string
 		httpPkg    string
@@ -1389,9 +1370,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 
 	contextPkg := g.w.Import("context", "context")
 
-	mopt := opts.methodOptions[fn.Name()]
-
-	lcName := strings.LcFirst(fn.Name())
+	mopt := opts.methodOptions[m.name]
 
 	if opts.fastHTTP {
 		g.w.Write("r.To(")
@@ -1410,7 +1389,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 			urlPath = stdstrings.ReplaceAll(urlPath, "}", ">")
 			g.w.Write(strconv.Quote(urlPath))
 		} else {
-			g.w.Write(strconv.Quote("/" + lcName))
+			g.w.Write(strconv.Quote("/" + m.lcName))
 		}
 		g.w.Write(", ")
 	} else {
@@ -1425,22 +1404,27 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 		if mopt.path != "" {
 			g.w.Write(strconv.Quote(mopt.path))
 		} else {
-			g.w.Write(strconv.Quote("/" + stdstrings.ToLower(fn.Name())))
+			g.w.Write(strconv.Quote("/" + stdstrings.ToLower(m.name)))
 		}
 		g.w.Write(").")
 
 		g.w.Write("Handler(")
 	}
 
-	g.w.Write("%s.NewServer(\nmiddlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n", kithttpPkg, lcName, fn.Name())
+	g.w.Write(
+		"%s.NewServer(\nmiddlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n",
+		kithttpPkg,
+		m.lcName,
+		m.name,
+	)
 
 	if mopt.serverRequestFunc.expr != nil {
 		g.w.WriteAST(mopt.serverRequestFunc.expr)
 	} else {
 		g.w.Write("func(ctx %s.Context, r *%s.Request) (interface{}, error) {\n", contextPkg, httpPkg)
 
-		if types.LenWithoutContext(sig.Params()) > 0 {
-			g.w.Write("var req %sRequest%s\n", lcName, g.ctx.id)
+		if len(m.params) > 0 {
+			g.w.Write("var req %sRequest%s\n", m.lcName, g.ctx.id)
 			switch stdstrings.ToUpper(mopt.method.name) {
 			case "POST", "PUT", "PATCH":
 				fmtPkg := g.w.Import("fmt", "fmt")
@@ -1454,13 +1438,13 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 
 					g.w.Write("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
 					g.w.WriteCheckErr(func() {
-						g.w.Write("return nil, %s.Errorf(\"couldn't read body for %sRequest%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
+						g.w.Write("return nil, %s.Errorf(\"couldn't read body for %sRequest%s: %%s\", err)\n", fmtPkg, m.lcName, g.ctx.id)
 					})
 					g.w.Write("err = %s.Unmarshal(b, &req)\n", jsonPkg)
 				}
 
 				g.w.Write("if err != nil && err != %s.EOF {\n", pkgIO)
-				g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sRequest%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
+				g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sRequest%s: %%s\", err)\n", fmtPkg, m.lcName, g.ctx.id)
 				g.w.Write("}\n")
 			}
 			if len(mopt.pathVars) > 0 {
@@ -1475,7 +1459,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 					g.w.Write("vars := %s.Vars(r)\n", routerPkg)
 				}
 				for pathVarName := range mopt.pathVars {
-					if f := types.LookupField(pathVarName, sig); f != nil {
+					if f := m.params.lookupField(pathVarName); f != nil {
 						var valueID string
 						if opts.fastHTTP {
 							valueID = "vars.Param(" + strconv.Quote(pathVarName) + ")"
@@ -1493,7 +1477,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 					g.w.Write("q := r.URL.Query()\n")
 				}
 				for argName, queryName := range mopt.queryVars {
-					if f := types.LookupField(argName, sig); f != nil {
+					if f := m.params.lookupField(argName); f != nil {
 						var valueID string
 						if opts.fastHTTP {
 							valueID = "string(q.Peek(" + strconv.Quote(queryName) + "))"
@@ -1505,7 +1489,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 				}
 			}
 			for argName, headerName := range mopt.headerVars {
-				if f := types.LookupField(argName, sig); f != nil {
+				if f := m.params.lookupField(argName); f != nil {
 					var valueID string
 					if opts.fastHTTP {
 						valueID = "string(r.Header.Peek(" + strconv.Quote(headerName) + "))"
@@ -1545,7 +1529,7 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, fn *stdtypes.Func,
 
 	g.w.Write(",\n")
 
-	g.w.Write("append(sopt.genericServerOption, sopt.%sServerOption...)...,\n", lcName)
+	g.w.Write("append(sopt.genericServerOption, sopt.%sServerOption...)...,\n", m.lcName)
 	g.w.Write(")")
 
 	if opts.fastHTTP {
@@ -1632,27 +1616,24 @@ func (g *TransportHTTP) writeClientStructOptions(opts *transportOptions) {
 		},
 	)
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-		lcName := strings.LcFirst(m.Name())
-
+	for _, m := range g.ctx.iface.methods {
 		g.w.WriteFunc(
-			g.ctx.id+m.Name()+"ClientOptions",
+			g.ctx.id+m.name+"ClientOptions",
 			"",
 			[]string{"opt", "..." + kithttpPkg + ".ClientOption"},
 			[]string{"", clientType + "Option"},
 			func() {
-				g.w.Write("return func(c *%s) { c.%sClientOption = opt }\n", clientType, lcName)
+				g.w.Write("return func(c *%s) { c.%sClientOption = opt }\n", clientType, m.lcName)
 			},
 		)
 
 		g.w.WriteFunc(
-			g.ctx.id+m.Name()+"ClientEndpointMiddlewares",
+			g.ctx.id+m.name+"ClientEndpointMiddlewares",
 			"",
 			[]string{"opt", "..." + endpointPkg + ".Middleware"},
 			[]string{"", clientType + "Option"},
 			func() {
-				g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", clientType, lcName)
+				g.w.Write("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", clientType, m.lcName)
 			},
 		)
 	}
@@ -1682,11 +1663,10 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 	clientType := "client" + g.ctx.id
 
 	g.w.Write("type %s struct {\n", clientType)
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		lcName := strings.LcFirst(g.ctx.iface.Method(i).Name())
-		g.w.Write("%sEndpoint %s.Endpoint\n", lcName, endpointPkg)
-		g.w.Write("%sClientOption []%s.ClientOption\n", lcName, kithttpPkg)
-		g.w.Write("%sEndpointMiddleware []%s.Middleware\n", lcName, endpointPkg)
+	for _, m := range g.ctx.iface.methods {
+		g.w.Write("%sEndpoint %s.Endpoint\n", m.lcName, endpointPkg)
+		g.w.Write("%sClientOption []%s.ClientOption\n", m.lcName, kithttpPkg)
+		g.w.Write("%sEndpointMiddleware []%s.Middleware\n", m.lcName, endpointPkg)
 	}
 	g.w.Write("genericClientOption []%s.ClientOption\n", kithttpPkg)
 	g.w.Write("genericEndpointMiddleware []%s.Middleware\n", endpointPkg)
@@ -1695,37 +1675,39 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 
 	g.writeClientStructOptions(opts)
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-		msig := m.Type().(*stdtypes.Signature)
+	for _, m := range g.ctx.iface.methods {
+		var params []string
 
-		params := utils.NameTypeParams(msig.Params(), g.w.TypeString, nil)
-		results := utils.NameType(msig.Results(), g.w.TypeString, nil)
+		if m.paramCtx != nil {
+			params = append(params, m.paramCtx.Name(), g.w.TypeString(m.paramCtx.Type()))
+		}
 
-		g.w.WriteFunc(m.Name(), "c *"+clientType, params, results, func() {
-			hasError := types.ContainsError(msig.Results())
-			hasContext := types.ContainsContext(msig.Params())
-			paramLen := types.LenWithoutContext(msig.Params())
-			resultLen := types.LenWithoutErr(msig.Results())
+		params = append(params, utils.NameTypeParams(m.params, g.w.TypeString, nil)...)
+		results := utils.NameType(m.results, g.w.TypeString, nil)
 
-			if resultLen > 0 {
+		if m.returnErr != nil {
+			results = append(results, "", "error")
+		}
+
+		g.w.WriteFunc(m.name, "c *"+clientType, params, results, func() {
+			if len(m.results) > 0 {
 				g.w.Write("resp")
 			} else {
 				g.w.Write("_")
 			}
 			g.w.Write(", err := ")
 
-			g.w.Write("c.%sEndpoint(", strings.LcFirst(m.Name()))
+			g.w.Write("c.%sEndpoint(", m.lcName)
 
-			if hasContext {
-				g.w.Write("%s,", msig.Params().At(0).Name())
+			if m.paramCtx != nil {
+				g.w.Write("%s,", m.paramCtx.Name())
 			} else {
 				g.w.Write("%s.Background(),", contextPkg)
 			}
 
-			if paramLen > 0 {
-				g.w.Write("%sRequest%s", strings.LcFirst(m.Name()), g.ctx.id)
-				params := structKeyValue(msig.Params(), func(p *stdtypes.Var) bool {
+			if len(m.params) > 0 {
+				g.w.Write("%sRequest%s", m.lcName, g.ctx.id)
+				params := structKeyValue(m.params, func(p *stdtypes.Var) bool {
 					return !types.IsContext(p.Type())
 				})
 				g.w.WriteStructAssign(params)
@@ -1735,13 +1717,12 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 
 			g.w.Write(")\n")
 
-			if hasError {
+			if m.returnErr != nil {
 				g.w.Write("if err != nil {\n")
 				g.w.Write("return ")
 
-				if resultLen > 0 {
-					for i := 0; i < resultLen; i++ {
-						r := msig.Results().At(i)
+				if len(m.results) > 0 {
+					for i, r := range m.results {
 						if i > 0 {
 							g.w.Write(",")
 						}
@@ -1755,27 +1736,28 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 				g.w.Write("}\n")
 			}
 
-			if resultLen > 0 {
-				g.w.Write("response := resp.(%sResponse%s)\n", strings.LcFirst(m.Name()), g.ctx.id)
+			if len(m.results) > 0 {
+				g.w.Write("response := resp.(%sResponse%s)\n", m.lcName, g.ctx.id)
 			}
 
 			g.w.Write("return ")
 
-			if resultLen > 0 {
-				for i := 0; i < resultLen; i++ {
-					r := msig.Results().At(i)
-					if i > 0 {
-						g.w.Write(",")
+			if len(m.results) > 0 {
+				if m.resultsNamed {
+					for i, r := range m.results {
+						if i > 0 {
+							g.w.Write(",")
+						}
+						g.w.Write("response.%s", strings.UcFirst(r.Name()))
 					}
-					g.w.Write("response.%s", strings.UcFirst(r.Name()))
+				} else {
+					g.w.Write("response")
 				}
 				g.w.Write(", ")
 			}
-
-			if hasError {
+			if m.returnErr != nil {
 				g.w.Write("nil")
 			}
-
 			g.w.Write("\n")
 		})
 	}
@@ -1808,35 +1790,28 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		g.w.Write("return nil, err")
 	})
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-		msig := m.Type().(*stdtypes.Signature)
-		lcName := strings.LcFirst(m.Name())
+	for _, m := range g.ctx.iface.methods {
+		epName := m.lcName + "Endpoint"
 
-		epName := lcName + "Endpoint"
-
-		mopt := opts.methodOptions[m.Name()]
+		mopt := opts.methodOptions[m.name]
 
 		httpMethod := mopt.method.name
 		if httpMethod == "" {
-			if types.LenWithoutContext(msig.Params()) > 0 {
+			if len(m.params) > 0 {
 				httpMethod = "POST"
 			} else {
 				httpMethod = "GET"
 			}
 		}
 
-		paramLen := types.LenWithoutContext(msig.Params())
-		resultLen := types.LenWithoutErr(msig.Results())
-
 		pathStr := mopt.path
 		if pathStr == "" {
-			pathStr = "/" + lcName
+			pathStr = "/" + m.lcName
 		}
 
 		pathVars := []string{}
 		for name, regexp := range mopt.pathVars {
-			if p := types.LookupField(name, msig); p != nil {
+			if p := m.params.lookupField(name); p != nil {
 				if regexp != "" {
 					regexp = ":" + regexp
 				}
@@ -1846,14 +1821,13 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		}
 		queryVars := []string{}
 		for fName, qName := range mopt.queryVars {
-			if p := types.LookupField(fName, msig); p != nil {
+			if p := m.params.lookupField(fName); p != nil {
 				queryVars = append(queryVars, strconv.Quote(qName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
-
 		headerVars := []string{}
 		for fName, hName := range mopt.headerVars {
-			if p := types.LookupField(fName, msig); p != nil {
+			if p := m.params.lookupField(fName); p != nil {
 				headerVars = append(headerVars, strconv.Quote(hName), g.w.GetFormatType("req."+strings.UcFirst(p.Name()), p))
 			}
 		}
@@ -1872,10 +1846,10 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 		} else {
 			g.w.Write("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
-			if paramLen > 0 {
-				g.w.Write("req, ok := request.(%sRequest%s)\n", lcName, g.ctx.id)
+			if len(m.params) > 0 {
+				g.w.Write("req, ok := request.(%sRequest%s)\n", m.lcName, g.ctx.id)
 				g.w.Write("if !ok {\n")
-				g.w.Write("return %s.Errorf(\"couldn't assert request as %sRequest%s, got %%T\", request)\n", fmtPkg, lcName, g.ctx.id)
+				g.w.Write("return %s.Errorf(\"couldn't assert request as %sRequest%s, got %%T\", request)\n", fmtPkg, m.lcName, g.ctx.id)
 				g.w.Write("}\n")
 			}
 
@@ -1965,11 +1939,11 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			g.w.Write("return nil, ErrorDecode(statusCode)\n")
 			g.w.Write("}\n")
 
-			if resultLen > 0 {
+			if len(m.results) > 0 {
 				if mopt.wrapResponse.enable {
-					g.w.Write("var resp struct {\nData %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, mopt.wrapResponse.name)
+					g.w.Write("var resp struct {\nData %sResponse%s `json:\"%s\"`\n}\n", m.lcName, g.ctx.id, mopt.wrapResponse.name)
 				} else {
-					g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
+					g.w.Write("var resp %sResponse%s\n", m.lcName, g.ctx.id)
 				}
 
 				if opts.fastHTTP {
@@ -1987,7 +1961,7 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 				g.w.Write("&resp)\n")
 
 				g.w.Write("if err != nil && err != %s.EOF {\n", pkgIO)
-				g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
+				g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, m.lcName, g.ctx.id)
 				g.w.Write("}\n")
 
 				if mopt.wrapResponse.enable {
@@ -2004,11 +1978,14 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 
 		g.w.Write(",\n")
 
-		g.w.Write("append(c.genericClientOption, c.%sClientOption...)...,\n", lcName)
+		g.w.Write("append(c.genericClientOption, c.%sClientOption...)...,\n", m.lcName)
 
 		g.w.Write(").Endpoint()\n")
 
-		g.w.Write("c.%[1]sEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n", lcName)
+		g.w.Write(
+			"c.%[1]sEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
+			m.lcName,
+		)
 	}
 }
 
@@ -2034,25 +2011,18 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("return nil, err")
 	})
 
-	for i := 0; i < g.ctx.iface.NumMethods(); i++ {
-		m := g.ctx.iface.Method(i)
-		sig := m.Type().(*stdtypes.Signature)
-		lcName := strings.LcFirst(m.Name())
+	for _, m := range g.ctx.iface.methods {
+		mopt := opts.methodOptions[m.name]
 
-		mopt := opts.methodOptions[m.Name()]
-
-		g.w.Write("c.%[1]sClientOption = append(\nc.%[1]sClientOption,\n", lcName)
+		g.w.Write("c.%[1]sClientOption = append(\nc.%[1]sClientOption,\n", m.lcName)
 
 		g.w.Write("%s.ClientRequestEncoder(", jsonrpcPkg)
 		g.w.Write("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
 
-		pramsLen := types.LenWithoutContext(sig.Params())
-		resultLen := types.LenWithoutErr(sig.Results())
-
-		if pramsLen > 0 {
-			g.w.Write("req, ok := obj.(%sRequest%s)\n", lcName, g.ctx.id)
+		if len(m.params) > 0 {
+			g.w.Write("req, ok := obj.(%sRequest%s)\n", m.lcName, g.ctx.id)
 			g.w.Write("if !ok {\n")
-			g.w.Write("return nil, %s.Errorf(\"couldn't assert request as %sRequest%s, got %%T\", obj)\n", fmtPkg, lcName, g.ctx.id)
+			g.w.Write("return nil, %s.Errorf(\"couldn't assert request as %sRequest%s, got %%T\", obj)\n", fmtPkg, m.lcName, g.ctx.id)
 			g.w.Write("}\n")
 			g.w.Write("b, err := %s.Marshal(req)\n", ffjsonPkg)
 			g.w.Write("if err != nil {\n")
@@ -2070,16 +2040,16 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 		g.w.Write("return nil, ErrorDecode(response.Error.Code)\n")
 		g.w.Write("}\n")
 
-		if resultLen > 0 {
+		if len(m.results) > 0 {
 			if mopt.wrapResponse.enable {
-				g.w.Write("var resp struct {\n Data %sResponse%s `json:\"%s\"`\n}\n", lcName, g.ctx.id, mopt.wrapResponse.name)
+				g.w.Write("var resp struct {\n Data %sResponse%s `json:\"%s\"`\n}\n", m.lcName, g.ctx.id, mopt.wrapResponse.name)
 			} else {
-				g.w.Write("var resp %sResponse%s\n", lcName, g.ctx.id)
+				g.w.Write("var resp %sResponse%s\n", m.lcName, g.ctx.id)
 			}
 
 			g.w.Write("err := %s.Unmarshal(response.Result, &resp)\n", ffjsonPkg)
 			g.w.Write("if err != nil {\n")
-			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, lcName, g.ctx.id)
+			g.w.Write("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, m.lcName, g.ctx.id)
 			g.w.Write("}\n")
 
 			if mopt.wrapResponse.enable {
@@ -2095,15 +2065,18 @@ func (g *TransportHTTP) writeJsonRPCClient(opts *transportOptions) {
 
 		g.w.Write(")\n")
 
-		g.w.Write("c.%sEndpoint = %s.NewClient(\n", lcName, jsonrpcPkg)
+		g.w.Write("c.%sEndpoint = %s.NewClient(\n", m.lcName, jsonrpcPkg)
 		g.w.Write("u,\n")
-		g.w.Write("%s,\n", strconv.Quote(lcName))
+		g.w.Write("%s,\n", strconv.Quote(m.lcName))
 
-		g.w.Write("append(c.genericClientOption, c.%sClientOption...)...,\n", lcName)
+		g.w.Write("append(c.genericClientOption, c.%sClientOption...)...,\n", m.lcName)
 
 		g.w.Write(").Endpoint()\n")
 
-		g.w.Write("c.%[1]sEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n", lcName)
+		g.w.Write(
+			"c.%[1]sEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
+			m.lcName,
+		)
 	}
 }
 

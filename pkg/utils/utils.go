@@ -6,9 +6,8 @@ import (
 
 type FilterFn func(p *types.Var) bool
 
-func Params(tuple *types.Tuple, fn func(p *types.Var) []string, filterFn func(p *types.Var) bool) (results []string) {
-	for i := 0; i < tuple.Len(); i++ {
-		p := tuple.At(i)
+func Params(vars []*types.Var, fn func(p *types.Var) []string, filterFn func(p *types.Var) bool) (results []string) {
+	for _, p := range vars {
 		if filterFn != nil && !filterFn(p) {
 			continue
 		}
@@ -17,24 +16,20 @@ func Params(tuple *types.Tuple, fn func(p *types.Var) []string, filterFn func(p 
 	return
 }
 
-func NameParams(tuple *types.Tuple, filterFn FilterFn) (results []string) {
-	return Params(
-		tuple,
-		func(p *types.Var) []string {
-			return []string{p.Name()}
-		},
-		filterFn,
-	)
+func NameParams(vars []*types.Var, filterFn FilterFn) (results []string) {
+	return Params(vars, func(p *types.Var) []string {
+		return []string{p.Name()}
+	}, filterFn)
 }
 
-func NameTypeParams(tuple *types.Tuple, typeString func(t types.Type) string, filterFn FilterFn) (results []string) {
-	return Params(tuple, func(p *types.Var) []string {
+func NameTypeParams(vars []*types.Var, typeString func(t types.Type) string, filterFn FilterFn) (results []string) {
+	return Params(vars, func(p *types.Var) []string {
 		return []string{p.Name(), typeString(p.Type())}
 	}, filterFn)
 }
 
-func NameType(tuple *types.Tuple, typeString func(t types.Type) string, filterFn FilterFn) (results []string) {
-	return Params(tuple, func(p *types.Var) []string {
+func NameType(vars []*types.Var, typeString func(t types.Type) string, filterFn FilterFn) (results []string) {
+	return Params(vars, func(p *types.Var) []string {
 		return []string{"", typeString(p.Type())}
 	}, filterFn)
 }

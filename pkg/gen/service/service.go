@@ -2,12 +2,15 @@ package service
 
 import (
 	"fmt"
-	"go/types"
+
+	stdtypes "go/types"
 
 	"github.com/iancoleman/strcase"
 
 	"github.com/swipe-io/swipe/pkg/errors"
 	"github.com/swipe-io/swipe/pkg/parser"
+	"github.com/swipe-io/swipe/pkg/strings"
+	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/writer"
 )
 
@@ -21,22 +24,49 @@ type serviceInstrumenting struct {
 	subsystem string
 }
 
+type varSlice []*stdtypes.Var
+
+func (s varSlice) lookupField(name string) *stdtypes.Var {
+	for _, p := range s {
+		if p.Name() == name {
+			return p
+		}
+	}
+	return nil
+}
+
+type ifaceServiceMethod struct {
+	t            *stdtypes.Func
+	name         string
+	lcName       string
+	params       varSlice
+	results      varSlice
+	paramCtx     *stdtypes.Var
+	returnErr    *stdtypes.Var
+	resultsNamed bool
+}
+
+type ifaceService struct {
+	t       *stdtypes.Interface
+	methods map[string]ifaceServiceMethod
+}
+
 type serviceCtx struct {
 	id            string
 	typeStr       string
-	iface         *types.Interface
+	iface         ifaceService
 	logging       bool
 	instrumenting serviceInstrumenting
 }
 
 func (w *Service) Write(opt *parser.Option) error {
 	serviceOpt := parser.MustOption(opt.Get("iface"))
-	ifacePtr, ok := serviceOpt.Value.Type().(*types.Pointer)
+	ifacePtr, ok := serviceOpt.Value.Type().(*stdtypes.Pointer)
 	if !ok {
 		return errors.NotePosition(serviceOpt.Position,
 			fmt.Errorf("the Interface option is required must be a pointer to an interface type; found %s", w.w.TypeString(serviceOpt.Value.Type())))
 	}
-	iface, ok := ifacePtr.Elem().Underlying().(*types.Interface)
+	iface, ok := ifacePtr.Elem().Underlying().(*stdtypes.Interface)
 	if !ok {
 		return errors.NotePosition(serviceOpt.Position,
 			fmt.Errorf("the Interface option is required must be a pointer to an interface type; found %s", w.w.TypeString(serviceOpt.Value.Type())))
@@ -47,7 +77,43 @@ func (w *Service) Write(opt *parser.Option) error {
 	ctx := serviceCtx{
 		id:      id,
 		typeStr: typeStr,
-		iface:   iface,
+		iface: ifaceService{
+			t:       iface,
+			methods: make(map[string]ifaceServiceMethod, iface.NumMethods()),
+		},
+	}
+
+	for i := 0; i < iface.NumMethods(); i++ {
+		m := iface.Method(i)
+		sig := m.Type().(*stdtypes.Signature)
+		sm := ifaceServiceMethod{
+			t:      m,
+			name:   m.Name(),
+			lcName: strings.LcFirst(m.Name()),
+		}
+
+		var (
+			resultOffset, paramOffset int
+		)
+
+		if types.ContainsContext(sig.Params()) {
+			sm.paramCtx = sig.Params().At(0)
+			paramOffset = 1
+		}
+		if types.ContainsError(sig.Results()) {
+			sm.returnErr = sig.Results().At(sig.Results().Len() - 1)
+			resultOffset = 1
+		}
+		if types.IsNamed(sig.Results()) {
+			sm.resultsNamed = true
+		}
+		for j := paramOffset; j < sig.Params().Len(); j++ {
+			sm.params = append(sm.params, sig.Params().At(j))
+		}
+		for j := 0; j < sig.Results().Len()-resultOffset; j++ {
+			sm.results = append(sm.results, sig.Results().At(j))
+		}
+		ctx.iface.methods[m.Name()] = sm
 	}
 
 	if err := newEndpoint(ctx, w.w).Write(); err != nil {
