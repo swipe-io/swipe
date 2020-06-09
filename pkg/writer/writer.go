@@ -102,7 +102,7 @@ func (w *Writer) WriteSignature(keyvals []string) {
 		return
 	}
 	if len(keyvals)%2 != 0 {
-		panic("missing Value")
+		panic("WriteSignature: missing Value")
 	}
 	for i := 0; i < len(keyvals); i += 2 {
 		if i > 0 {
@@ -134,7 +134,7 @@ func (w *Writer) WriteStruct(keyvals []string, assign bool) {
 
 func (w *Writer) WriteStructDefined(keyvals []string) {
 	if len(keyvals)%2 != 0 {
-		panic("missing Value")
+		panic("WriteStructDefined: missing Value")
 	}
 	w.Write("{\n")
 	for i := 0; i < len(keyvals); i += 2 {
@@ -146,7 +146,7 @@ func (w *Writer) WriteStructDefined(keyvals []string) {
 
 func (w *Writer) WriteStructAssign(keyvals []string) {
 	if len(keyvals)%2 != 0 {
-		panic("missing Value")
+		panic("WriteStructAssign: missing Value")
 	}
 	w.Write("{")
 	for i := 0; i < len(keyvals); i += 2 {
