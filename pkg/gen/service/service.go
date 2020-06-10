@@ -105,6 +105,12 @@ func (w *Service) Write(opt *parser.Option) error {
 		if types.IsNamed(sig.Results()) {
 			sm.resultsNamed = true
 		}
+
+		if !sm.resultsNamed && sig.Results().Len()-resultOffset > 1 {
+			return errors.NotePosition(serviceOpt.Position,
+				fmt.Errorf("interface method with unnamed results cannot be greater than 1"))
+		}
+
 		for j := paramOffset; j < sig.Params().Len(); j++ {
 			sm.params = append(sm.params, sig.Params().At(j))
 		}
