@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/utils"
 )
 
@@ -32,22 +31,12 @@ func makeLogParams(data ...*stdtypes.Var) (result []string) {
 }
 
 func makeLogParam(name string, t stdtypes.Type) string {
-	switch t := t.(type) {
-	case *stdtypes.Basic:
+	switch t.(type) {
+	default:
 		return name
-	case *stdtypes.Slice, *stdtypes.Array, *stdtypes.Map:
+	case *stdtypes.Slice, *stdtypes.Array, *stdtypes.Map, *stdtypes.Chan:
 		return "len(" + name + ")"
-	case *stdtypes.Named:
-		if t.Obj().Pkg() != nil {
-			switch t.Obj().Pkg().Path() {
-			case "github.com/satori/go.uuid", "github.com/google/uuid":
-				return name
-			}
-		} else if stdtypes.Identical(t, types.ErrorType) {
-			return name
-		}
 	}
-	return ""
 }
 
 func httpBraceIndices(s string) ([]int, error) {
