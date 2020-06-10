@@ -2138,7 +2138,7 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 		}
 	case *stdtypes.Struct:
 		schema.Type = "object"
-		schema.Properties = map[string]*openapi.Schema{}
+		schema.Properties = openapi.Properties{}
 
 		for i := 0; i < v.NumFields(); i++ {
 			f := v.Field(i)
