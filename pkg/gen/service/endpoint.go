@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	stdtypes "go/types"
 	stdstrings "strings"
 
@@ -41,8 +40,6 @@ func (w *Endpoint) Write() error {
 			w.w.Write("}\n")
 		} else if len(m.results) == 1 {
 			w.w.Write("type %sResponse%s %s\n", m.lcName, w.ctx.id, w.w.TypeString(m.results[0].Type()))
-		} else {
-			return errors.New("not named func results must be one")
 		}
 
 		w.w.Write("func make%sEndpoint(s %s", m.name, w.ctx.typeStr)
@@ -73,10 +70,10 @@ func (w *Endpoint) Write() error {
 				w.w.Write(p.Name())
 			}
 		} else {
-			w.w.Write("result")
+			if len(m.results) > 0 {
+				w.w.Write("result, ")
+			}
 		}
-
-		w.w.Write(", ")
 
 		if m.returnErr != nil {
 			w.w.Write("err")
