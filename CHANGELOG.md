@@ -1,6 +1,15 @@
 
+<a name="v1.11.2"></a>
+## [v1.11.2](https://github.com/swipe-io/swipe/compare/v1.11.0...v1.11.2) (2020-06-10)
+
+### Bug Fixes
+
+* default return name field for makeLogParam, and added Chan type
+* generate endpoint for non named results
+
+
 <a name="v1.11.0"></a>
-## [v1.11.0](https://github.com/swipe-io/swipe/compare/v1.10.0...v1.11.0) (2020-06-09)
+## [v1.11.0](https://github.com/swipe-io/swipe/compare/v1.10.0...v1.11.0) (2020-06-10)
 
 ### Bug Fixes
 
