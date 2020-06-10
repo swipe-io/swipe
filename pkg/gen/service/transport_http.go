@@ -2085,6 +2085,23 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 	switch v := t.(type) {
 	case *stdtypes.Pointer:
 		return g.makeSwaggerSchema(v.Elem().Underlying())
+	case *stdtypes.Interface:
+		// TODO: not anyOf works in SwaggerUI, so the object type is used to display the field.
+		schema.Type = "object"
+		schema.Description = "Can be any value - string, number, boolean, array or object."
+		schema.Properties = openapi.Properties{}
+		schema.Example = json.RawMessage("null")
+		schema.AnyOf = []openapi.Schema{
+			{Type: "string", Example: "abc"},
+			{Type: "integer", Example: 1},
+			{Type: "number", Format: "float", Example: 1.11},
+			{Type: "boolean", Example: true},
+			{Type: "array"},
+			{Type: "object"},
+		}
+	case *stdtypes.Map:
+		schema.Type = "object"
+		schema.Properties = openapi.Properties{}
 	case *stdtypes.Slice:
 		if vv, ok := v.Elem().(*stdtypes.Basic); ok && vv.Kind() == stdtypes.Byte {
 			schema.Type = "string"
