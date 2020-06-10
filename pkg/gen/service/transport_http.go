@@ -2128,6 +2128,10 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 		}
 	case *stdtypes.Named:
 		switch stdtypes.TypeString(v, nil) {
+		case "encoding/json.RawMessage":
+			schema.Type = "object"
+			schema.Properties = openapi.Properties{}
+			return
 		case "time.Time":
 			schema.Type = "string"
 			schema.Format = "date-time"
