@@ -1,4 +1,13 @@
 
+<a name="v1.11.4"></a>
+## [v1.11.4](https://github.com/swipe-io/swipe/compare/v1.11.2...v1.11.4) (2020-06-10)
+
+### Bug Fixes
+
+* an example was added to the openapi documentation generation for the []byte type
+* added for openapi encoding/json.RawMessage type, interpretate as object
+
+
 <a name="v1.11.2"></a>
 ## [v1.11.2](https://github.com/swipe-io/swipe/compare/v1.11.0...v1.11.2) (2020-06-10)
 
