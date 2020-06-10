@@ -91,11 +91,9 @@ func (w *Service) Write(opt *parser.Option) error {
 			name:   m.Name(),
 			lcName: strings.LcFirst(m.Name()),
 		}
-
 		var (
 			resultOffset, paramOffset int
 		)
-
 		if types.ContainsContext(sig.Params()) {
 			sm.paramCtx = sig.Params().At(0)
 			paramOffset = 1
