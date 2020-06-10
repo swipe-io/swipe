@@ -62,17 +62,18 @@ func (w *Endpoint) Write() error {
 			w.w.Write("req := request.(%sRequest%s)\n", m.lcName, w.ctx.id)
 		}
 
-		if m.resultsNamed {
-			for i, p := range m.results {
-				if i > 0 {
-					w.w.Write(", ")
+		if len(m.results) > 0 {
+			if m.resultsNamed {
+				for i, p := range m.results {
+					if i > 0 {
+						w.w.Write(", ")
+					}
+					w.w.Write(p.Name())
 				}
-				w.w.Write(p.Name())
+			} else {
+				w.w.Write("result")
 			}
-		} else {
-			if len(m.results) > 0 {
-				w.w.Write("result, ")
-			}
+			w.w.Write(", ")
 		}
 
 		if m.returnErr != nil {
