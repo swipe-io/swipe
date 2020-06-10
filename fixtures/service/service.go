@@ -23,6 +23,10 @@ func (s *Service) GetAll(ctx context.Context) (users []user.User, err error) {
 	return []user.User{}, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id int) (err error) {
+func (s *Service) Delete(ctx context.Context, id uint) (string, string, error) {
+	return "", "", nil
+}
+
+func (s *Service) TestMethod(data map[string]interface{}, ss interface{}) error {
 	return nil
 }

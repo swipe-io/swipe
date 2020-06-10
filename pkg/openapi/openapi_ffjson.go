@@ -5320,6 +5320,11 @@ func (j *Schema) MarshalJSONBuf(buf fflib.EncodingBuffer) error {
 	_ = obj
 	_ = err
 	buf.WriteString(`{ `)
+	if len(j.Description) != 0 {
+		buf.WriteString(`"description":`)
+		fflib.WriteJsonString(buf, string(j.Description))
+		buf.WriteByte(',')
+	}
 	if len(j.Ref) != 0 {
 		buf.WriteString(`"$ref":`)
 		fflib.WriteJsonString(buf, string(j.Ref))
@@ -5359,6 +5364,30 @@ func (j *Schema) MarshalJSONBuf(buf fflib.EncodingBuffer) error {
 			buf.WriteByte(',')
 		}
 	}
+	if len(j.AnyOf) != 0 {
+		buf.WriteString(`"anyOf":`)
+		if j.AnyOf != nil {
+			buf.WriteString(`[`)
+			for i, v := range j.AnyOf {
+				if i != 0 {
+					buf.WriteString(`,`)
+				}
+
+				{
+
+					err = v.MarshalJSONBuf(buf)
+					if err != nil {
+						return err
+					}
+
+				}
+			}
+			buf.WriteString(`]`)
+		} else {
+			buf.WriteString(`null`)
+		}
+		buf.WriteByte(',')
+	}
 	if len(j.Enum) != 0 {
 		buf.WriteString(`"enum":`)
 		if j.Enum != nil {
@@ -5393,6 +5422,8 @@ const (
 	ffjtSchemabase = iota
 	ffjtSchemanosuchkey
 
+	ffjtSchemaDescription
+
 	ffjtSchemaRef
 
 	ffjtSchemaType
@@ -5403,10 +5434,14 @@ const (
 
 	ffjtSchemaItems
 
+	ffjtSchemaAnyOf
+
 	ffjtSchemaEnum
 
 	ffjtSchemaExample
 )
+
+var ffjKeySchemaDescription = []byte("description")
 
 var ffjKeySchemaRef = []byte("$ref")
 
@@ -5417,6 +5452,8 @@ var ffjKeySchemaFormat = []byte("format")
 var ffjKeySchemaProperties = []byte("properties")
 
 var ffjKeySchemaItems = []byte("items")
+
+var ffjKeySchemaAnyOf = []byte("anyOf")
 
 var ffjKeySchemaEnum = []byte("enum")
 
@@ -5491,6 +5528,22 @@ mainparse:
 						goto mainparse
 					}
 
+				case 'a':
+
+					if bytes.Equal(ffjKeySchemaAnyOf, kn) {
+						currentKey = ffjtSchemaAnyOf
+						state = fflib.FFParse_want_colon
+						goto mainparse
+					}
+
+				case 'd':
+
+					if bytes.Equal(ffjKeySchemaDescription, kn) {
+						currentKey = ffjtSchemaDescription
+						state = fflib.FFParse_want_colon
+						goto mainparse
+					}
+
 				case 'e':
 
 					if bytes.Equal(ffjKeySchemaEnum, kn) {
@@ -5550,6 +5603,12 @@ mainparse:
 					goto mainparse
 				}
 
+				if fflib.SimpleLetterEqualFold(ffjKeySchemaAnyOf, kn) {
+					currentKey = ffjtSchemaAnyOf
+					state = fflib.FFParse_want_colon
+					goto mainparse
+				}
+
 				if fflib.EqualFoldRight(ffjKeySchemaItems, kn) {
 					currentKey = ffjtSchemaItems
 					state = fflib.FFParse_want_colon
@@ -5580,6 +5639,12 @@ mainparse:
 					goto mainparse
 				}
 
+				if fflib.EqualFoldRight(ffjKeySchemaDescription, kn) {
+					currentKey = ffjtSchemaDescription
+					state = fflib.FFParse_want_colon
+					goto mainparse
+				}
+
 				currentKey = ffjtSchemanosuchkey
 				state = fflib.FFParse_want_colon
 				goto mainparse
@@ -5597,6 +5662,9 @@ mainparse:
 			if tok == fflib.FFTok_left_brace || tok == fflib.FFTok_left_bracket || tok == fflib.FFTok_integer || tok == fflib.FFTok_double || tok == fflib.FFTok_string || tok == fflib.FFTok_bool || tok == fflib.FFTok_null {
 				switch currentKey {
 
+				case ffjtSchemaDescription:
+					goto handle_Description
+
 				case ffjtSchemaRef:
 					goto handle_Ref
 
@@ -5611,6 +5679,9 @@ mainparse:
 
 				case ffjtSchemaItems:
 					goto handle_Items
+
+				case ffjtSchemaAnyOf:
+					goto handle_AnyOf
 
 				case ffjtSchemaEnum:
 					goto handle_Enum
@@ -5631,6 +5702,32 @@ mainparse:
 			}
 		}
 	}
+
+handle_Description:
+
+	/* handler: j.Description type=string kind=string quoted=false*/
+
+	{
+
+		{
+			if tok != fflib.FFTok_string && tok != fflib.FFTok_null {
+				return fs.WrapErr(fmt.Errorf("cannot unmarshal %s into Go value for string", tok))
+			}
+		}
+
+		if tok == fflib.FFTok_null {
+
+		} else {
+
+			outBuf := fs.Output.Bytes()
+
+			j.Description = string(string(outBuf))
+
+		}
+	}
+
+	state = fflib.FFParse_after_value
+	goto mainparse
 
 handle_Ref:
 
@@ -5836,6 +5933,74 @@ handle_Items:
 			}
 		}
 		state = fflib.FFParse_after_value
+	}
+
+	state = fflib.FFParse_after_value
+	goto mainparse
+
+handle_AnyOf:
+
+	/* handler: j.AnyOf type=[]openapi.Schema kind=slice quoted=false*/
+
+	{
+
+		{
+			if tok != fflib.FFTok_left_brace && tok != fflib.FFTok_null {
+				return fs.WrapErr(fmt.Errorf("cannot unmarshal %s into Go value for ", tok))
+			}
+		}
+
+		if tok == fflib.FFTok_null {
+			j.AnyOf = nil
+		} else {
+
+			j.AnyOf = []Schema{}
+
+			wantVal := true
+
+			for {
+
+				var tmpJAnyOf Schema
+
+				tok = fs.Scan()
+				if tok == fflib.FFTok_error {
+					goto tokerror
+				}
+				if tok == fflib.FFTok_right_brace {
+					break
+				}
+
+				if tok == fflib.FFTok_comma {
+					if wantVal == true {
+						// TODO(pquerna): this isn't an ideal error message, this handles
+						// things like [,,,] as an array value.
+						return fs.WrapErr(fmt.Errorf("wanted value token, but got token: %v", tok))
+					}
+					continue
+				} else {
+					wantVal = true
+				}
+
+				/* handler: tmpJAnyOf type=openapi.Schema kind=struct quoted=false*/
+
+				{
+					if tok == fflib.FFTok_null {
+
+					} else {
+
+						err = tmpJAnyOf.UnmarshalJSONFFLexer(fs, fflib.FFParse_want_key)
+						if err != nil {
+							return err
+						}
+					}
+					state = fflib.FFParse_after_value
+				}
+
+				j.AnyOf = append(j.AnyOf, tmpJAnyOf)
+
+				wantVal = false
+			}
+		}
 	}
 
 	state = fflib.FFParse_after_value

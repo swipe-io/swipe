@@ -2119,15 +2119,20 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 			schema.Example = "abc"
 		case stdtypes.Bool:
 			schema.Type = "boolean"
-			schema.Example = "true"
-		case stdtypes.Int8, stdtypes.Int16:
+			schema.Example = true
+		case stdtypes.Int,
+			stdtypes.Uint,
+			stdtypes.Uint8,
+			stdtypes.Uint16,
+			stdtypes.Int8,
+			stdtypes.Int16:
 			schema.Type = "integer"
 			schema.Example = 1
-		case stdtypes.Int32:
+		case stdtypes.Uint32, stdtypes.Int32:
 			schema.Type = "integer"
 			schema.Format = "int32"
 			schema.Example = 1
-		case stdtypes.Int, stdtypes.Int64:
+		case stdtypes.Uint64, stdtypes.Int64:
 			schema.Type = "integer"
 			schema.Format = "int64"
 			schema.Example = 1
