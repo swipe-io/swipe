@@ -2089,6 +2089,7 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 		if vv, ok := v.Elem().(*stdtypes.Basic); ok && vv.Kind() == stdtypes.Byte {
 			schema.Type = "string"
 			schema.Format = "byte"
+			schema.Example = "U3dhZ2dlciByb2Nrcw=="
 		} else {
 			schema.Type = "array"
 			schema.Items = g.makeSwaggerSchema(v.Elem())
