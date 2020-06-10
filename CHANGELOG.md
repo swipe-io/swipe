@@ -1,4 +1,20 @@
 
+<a name="v1.11.0"></a>
+## [v1.11.0](https://github.com/swipe-io/swipe/compare/v1.10.0...v1.11.0) (2020-06-09)
+
+### Bug Fixes
+
+* generate precision is -1 for FormatFloat
+* WrapResponse option type changed to MethodOption
+* MethodDefaultOptions not work if the MethodOptions option has not been set
+* generating a value for the request/response if there are no values/result for the method
+
+### BREAKING CHANGE
+
+
+with version <= 1.10.0
+
+
 <a name="v1.10.0"></a>
 ## [v1.10.0](https://github.com/swipe-io/swipe/compare/v1.9.0...v1.10.0) (2020-06-08)
 
