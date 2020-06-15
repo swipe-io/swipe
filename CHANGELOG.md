@@ -1,4 +1,13 @@
 
+<a name="v1.12.1"></a>
+## [v1.12.1](https://github.com/swipe-io/swipe/compare/v1.12.0...v1.12.1) (2020-06-15)
+
+### Bug Fixes
+
+* added ints types
+* generate config for []string type
+
+
 <a name="v1.12.0"></a>
 ## [v1.12.0](https://github.com/swipe-io/swipe/compare/v1.11.4...v1.12.0) (2020-06-15)
 
