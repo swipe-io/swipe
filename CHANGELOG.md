@@ -1,4 +1,19 @@
 
+<a name="v1.12.0"></a>
+## [v1.12.0](https://github.com/swipe-io/swipe/compare/v1.11.4...v1.12.0) (2020-06-15)
+
+### Bug Fixes
+
+* openapi generation adds Uint, Uint8, Uint16, Uint32, Uint64 types
+* added Interface and Map type for make openapi schema
+* added check for named results greater than 1
+* the absence of a comma in the named result of the method in the generation of endpoints
+
+### Features
+
+* added js client generation for jsonrpc
+
+
 <a name="v1.11.4"></a>
 ## [v1.11.4](https://github.com/swipe-io/swipe/compare/v1.11.2...v1.11.4) (2020-06-10)
 
