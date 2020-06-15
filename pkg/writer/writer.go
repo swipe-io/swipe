@@ -284,10 +284,13 @@ func (w *Writer) WriteConvertType(assignId, valueId string, f *stdtypes.Var, sli
 		stringsPkg := w.Import("strings", "strings")
 		switch t := t.Elem().(type) {
 		case *stdtypes.Basic:
-			tmpId = "parts" + stdstrings.ToLower(f.Name()) + strings.UcFirst(t.String())
-			w.Write("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
+
 			switch t.Kind() {
+			case stdtypes.String:
+				w.Write("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
 			case stdtypes.Int:
+				tmpId = "parts" + stdstrings.ToLower(f.Name()) + strings.UcFirst(t.String())
+				w.Write("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
 				if declareVar {
 					w.Write("var ")
 				}
