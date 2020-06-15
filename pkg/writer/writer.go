@@ -288,7 +288,18 @@ func (w *Writer) WriteConvertType(assignId, valueId string, f *stdtypes.Var, sli
 			switch t.Kind() {
 			case stdtypes.String:
 				w.Write("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
-			case stdtypes.Int:
+			case stdtypes.Uint,
+				stdtypes.Uint8,
+				stdtypes.Uint16,
+				stdtypes.Uint32,
+				stdtypes.Uint64,
+				stdtypes.Int,
+				stdtypes.Int8,
+				stdtypes.Int16,
+				stdtypes.Int32,
+				stdtypes.Int64,
+				stdtypes.Float32,
+				stdtypes.Float64:
 				tmpId = "parts" + stdstrings.ToLower(f.Name()) + strings.UcFirst(t.String())
 				w.Write("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
 				if declareVar {

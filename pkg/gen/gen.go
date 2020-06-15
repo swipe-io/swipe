@@ -160,9 +160,8 @@ func (s *Swipe) detectOutputDir(paths []string) (string, error) {
 
 func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Package, errs []error) {
 	cfg := &packages.Config{
-		Context: s.ctx,
-		// Mode:       loadAllSyntax,
-		Mode:       packages.LoadSyntax,
+		Context:    s.ctx,
+		Mode:       packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedImports | packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles,
 		Dir:        s.wd,
 		Env:        s.env,
 		BuildFlags: []string{"-tags=swipe"},
