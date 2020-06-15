@@ -168,23 +168,6 @@ type transportMethodOptions struct {
 	clientResponseFunc astOptions
 }
 
-type transportOpenapiLicence struct {
-	name string
-	url  string
-}
-
-type transportOpenapiContact struct {
-	name  string
-	url   string
-	email string
-}
-
-type transportOpenapiServer struct {
-	name string
-	url  string
-	desc string
-}
-
 type transportOpenapiMethodOption struct {
 	errors []string
 	tags   []string
@@ -194,8 +177,6 @@ type transportOpenapiDoc struct {
 	enable        bool
 	output        string
 	servers       []openapi.Server
-	contact       *openapi.Contact
-	licence       *openapi.License
 	info          openapi.Info
 	methods       map[string]*transportOpenapiMethodOption
 	defaultMethod transportOpenapiMethodOption
