@@ -284,7 +284,6 @@ func (w *Writer) WriteConvertType(assignId, valueId string, f *stdtypes.Var, sli
 		stringsPkg := w.Import("strings", "strings")
 		switch t := t.Elem().(type) {
 		case *stdtypes.Basic:
-
 			switch t.Kind() {
 			case stdtypes.String:
 				w.Write("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
