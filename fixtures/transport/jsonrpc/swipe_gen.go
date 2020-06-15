@@ -86,7 +86,7 @@ func makeGetEndpoint(s service.Interface) endpoint.Endpoint {
 	return w
 }
 
-type getAllResponseServiceInterface []user.User
+type getAllResponseServiceInterface []*user.User
 
 func makeGetAllEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
@@ -103,15 +103,16 @@ type testMethodRequestServiceInterface struct {
 	Data map[string]interface{} `json:"data"`
 	Ss   interface{}            `json:"ss"`
 }
+type testMethodResponseServiceInterface map[string]string
 
 func makeTestMethodEndpoint(s service.Interface) endpoint.Endpoint {
 	w := func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(testMethodRequestServiceInterface)
-		err := s.TestMethod(req.Data, req.Ss)
+		result, err := s.TestMethod(req.Data, req.Ss)
 		if err != nil {
 			return nil, err
 		}
-		return nil, nil
+		return result, nil
 	}
 	return w
 }
@@ -119,6 +120,13 @@ func makeTestMethodEndpoint(s service.Interface) endpoint.Endpoint {
 type loggingMiddlewareServiceInterface struct {
 	next   service.Interface
 	logger log.Logger
+}
+
+func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
+	defer func(now time.Time) {
+		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", err)
+	}(time.Now())
+	return s.next.Create(ctx, name, data)
 }
 
 func (s *loggingMiddlewareServiceInterface) Delete(ctx context.Context, id uint) (a string, b string, err error) {
@@ -135,25 +143,18 @@ func (s *loggingMiddlewareServiceInterface) Get(ctx context.Context, id int, nam
 	return s.next.Get(ctx, id, name, fname, price, n)
 }
 
-func (s *loggingMiddlewareServiceInterface) GetAll(ctx context.Context) (result []user.User, err error) {
+func (s *loggingMiddlewareServiceInterface) GetAll(ctx context.Context) (result []*user.User, err error) {
 	defer func(now time.Time) {
 		s.logger.Log("method", "GetAll", "took", time.Since(now), "result", len(result), "err", err)
 	}(time.Now())
 	return s.next.GetAll(ctx)
 }
 
-func (s *loggingMiddlewareServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (err error) {
+func (s *loggingMiddlewareServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (result map[string]string, err error) {
 	defer func(now time.Time) {
-		s.logger.Log("method", "TestMethod", "took", time.Since(now), "data", len(data), "ss", ss, "err", err)
+		s.logger.Log("method", "TestMethod", "took", time.Since(now), "data", len(data), "ss", ss, "result", len(result), "err", err)
 	}(time.Now())
 	return s.next.TestMethod(data, ss)
-}
-
-func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
-	defer func(now time.Time) {
-		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", err)
-	}(time.Now())
-	return s.next.Create(ctx, name, data)
 }
 
 type instrumentingMiddlewareServiceInterface struct {
@@ -162,7 +163,15 @@ type instrumentingMiddlewareServiceInterface struct {
 	requestLatency metrics.Histogram
 }
 
-func (s *instrumentingMiddlewareServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (_ error) {
+func (s *instrumentingMiddlewareServiceInterface) GetAll(ctx context.Context) (_ []*user.User, _ error) {
+	defer func(begin time.Time) {
+		s.requestCount.With("method", "GetAll").Add(1)
+		s.requestLatency.With("method", "GetAll").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return s.next.GetAll(ctx)
+}
+
+func (s *instrumentingMiddlewareServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (_ map[string]string, _ error) {
 	defer func(begin time.Time) {
 		s.requestCount.With("method", "TestMethod").Add(1)
 		s.requestLatency.With("method", "TestMethod").Observe(time.Since(begin).Seconds())
@@ -194,14 +203,6 @@ func (s *instrumentingMiddlewareServiceInterface) Get(ctx context.Context, id in
 	return s.next.Get(ctx, id, name, fname, price, n)
 }
 
-func (s *instrumentingMiddlewareServiceInterface) GetAll(ctx context.Context) (_ []user.User, _ error) {
-	defer func(begin time.Time) {
-		s.requestCount.With("method", "GetAll").Add(1)
-		s.requestLatency.With("method", "GetAll").Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return s.next.GetAll(ctx)
-}
-
 func ErrorDecode(code int) (_ error) {
 	switch code {
 	default:
@@ -226,9 +227,6 @@ func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
 }
 
 type clientServiceInterface struct {
-	getAllEndpoint               endpoint.Endpoint
-	getAllClientOption           []jsonrpc.ClientOption
-	getAllEndpointMiddleware     []endpoint.Middleware
 	testMethodEndpoint           endpoint.Endpoint
 	testMethodClientOption       []jsonrpc.ClientOption
 	testMethodEndpointMiddleware []endpoint.Middleware
@@ -241,6 +239,9 @@ type clientServiceInterface struct {
 	getEndpoint                  endpoint.Endpoint
 	getClientOption              []jsonrpc.ClientOption
 	getEndpointMiddleware        []endpoint.Middleware
+	getAllEndpoint               endpoint.Endpoint
+	getAllClientOption           []jsonrpc.ClientOption
+	getAllEndpointMiddleware     []endpoint.Middleware
 	genericClientOption          []jsonrpc.ClientOption
 	genericEndpointMiddleware    []endpoint.Middleware
 }
@@ -253,22 +254,6 @@ func ServiceInterfaceGenericClientOptions(opt ...jsonrpc.ClientOption) (_ client
 
 func ServiceInterfaceGenericClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.genericEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceTestMethodClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.testMethodClientOption = opt }
-}
-
-func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.testMethodEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceCreateClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.createClientOption = opt }
-}
-
-func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceDeleteClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
@@ -295,16 +280,23 @@ func ServiceInterfaceGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware)
 	return func(c *clientServiceInterface) { c.getAllEndpointMiddleware = opt }
 }
 
-func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (_ user.User, _ error) {
-	resp, err := c.getEndpoint(ctx, getRequestServiceInterface{Id: id, Name: name, Fname: fname, Price: price, N: n})
-	if err != nil {
-		return user.User{}, err
-	}
-	response := resp.(getResponseServiceInterface)
-	return response.Data, nil
+func ServiceInterfaceTestMethodClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.testMethodClientOption = opt }
 }
 
-func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []user.User, _ error) {
+func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.testMethodEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceCreateClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.createClientOption = opt }
+}
+
+func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
+}
+
+func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []*user.User, _ error) {
 	resp, err := c.getAllEndpoint(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -313,12 +305,13 @@ func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []user.User, _ e
 	return response, nil
 }
 
-func (c *clientServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (_ error) {
-	_, err := c.testMethodEndpoint(context.Background(), testMethodRequestServiceInterface{Data: data, Ss: ss})
+func (c *clientServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (_ map[string]string, _ error) {
+	resp, err := c.testMethodEndpoint(context.Background(), testMethodRequestServiceInterface{Data: data, Ss: ss})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	response := resp.(testMethodResponseServiceInterface)
+	return response, nil
 }
 
 func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
@@ -336,6 +329,15 @@ func (c *clientServiceInterface) Delete(ctx context.Context, id uint) (_ string,
 	}
 	response := resp.(deleteResponseServiceInterface)
 	return response.A, response.B, nil
+}
+
+func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (_ user.User, _ error) {
+	resp, err := c.getEndpoint(ctx, getRequestServiceInterface{Id: id, Name: name, Fname: fname, Price: price, N: n})
+	if err != nil {
+		return user.User{}, err
+	}
+	response := resp.(getResponseServiceInterface)
+	return response.Data, nil
 }
 
 func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterfaceOption) (service.Interface, error) {
@@ -475,7 +477,12 @@ func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterface
 			if response.Error != nil {
 				return nil, ErrorDecode(response.Error.Code)
 			}
-			return nil, nil
+			var resp testMethodResponseServiceInterface
+			err := ffjson.Unmarshal(response.Result, &resp)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't unmarshal body to testMethodResponseServiceInterface: %s", err)
+			}
+			return resp, nil
 		}),
 	)
 	c.testMethodEndpoint = jsonrpc.NewClient(
@@ -491,6 +498,8 @@ type serverServiceInterfaceOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
 	genericServerOption          []jsonrpc.ServerOption
 	genericEndpointMiddleware    []endpoint.Middleware
+	getServerOption              []jsonrpc.ServerOption
+	getEndpointMiddleware        []endpoint.Middleware
 	getAllServerOption           []jsonrpc.ServerOption
 	getAllEndpointMiddleware     []endpoint.Middleware
 	testMethodServerOption       []jsonrpc.ServerOption
@@ -499,8 +508,6 @@ type serverServiceInterfaceOpts struct {
 	createEndpointMiddleware     []endpoint.Middleware
 	deleteServerOption           []jsonrpc.ServerOption
 	deleteEndpointMiddleware     []endpoint.Middleware
-	getServerOption              []jsonrpc.ServerOption
-	getEndpointMiddleware        []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {

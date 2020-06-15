@@ -332,6 +332,10 @@ func (w *Writer) WriteConvertType(assignId, valueId string, f *stdtypes.Var, sli
 	}
 }
 
+func (w *Writer) SwipeVersion() string {
+	return w.version
+}
+
 func (w *Writer) Frame(isTest bool) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("//+build !swipe\n\n")
