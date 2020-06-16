@@ -18,6 +18,8 @@ func Swipe() {
 					OpenapiServer("", "http://test.api"),
 				),
 
+				FastEnable(),
+
 				ClientEnable(),
 
 				MethodOptions(service.Interface.Get,
