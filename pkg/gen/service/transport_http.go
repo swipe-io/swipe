@@ -447,12 +447,27 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		}
 	}
 
-	fmtPkg := g.w.Import("fmt", "fmt")
+	var httpPkg string
+	if options.fastHTTP {
+		httpPkg = g.w.Import("fasthttp", "github.com/valyala/fasthttp")
+	} else {
+		httpPkg = g.w.Import("http", "net/http")
+	}
+
 	endpointPkg := g.w.Import("endpoint", "github.com/go-kit/kit/endpoint")
+
+	g.w.Write("type httpError struct {\ncode int\n}\n")
+	if options.fastHTTP {
+		g.w.Write("func (e httpError) Error() string {\nreturn %s.StatusMessage(e.code)\n}\n", httpPkg)
+	} else {
+		g.w.Write("func (e httpError) Error() string {\nreturn %s.StatusText(e.code)\n}\n", httpPkg)
+	}
+
+	g.w.Write("func (e httpError) StatusCode() int {\nreturn e.code\n}\n")
 
 	g.w.WriteFunc("ErrorDecode", "", []string{"code", "int"}, []string{"", "error"}, func() {
 		g.w.Write("switch code {\n")
-		g.w.Write("default:\nreturn %s.Errorf(\"error code %%d\", code)\n", fmtPkg)
+		g.w.Write("default:\nreturn httpError{code: code}\n")
 		for _, i := range options.mapCodeErrors {
 			g.w.Write("case %d:\n", i.code)
 			pkg := g.w.Import(i.n.Obj().Pkg().Name(), i.n.Obj().Pkg().Path())
