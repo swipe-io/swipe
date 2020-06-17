@@ -1,4 +1,13 @@
 
+<a name="v1.13.0"></a>
+## [v1.13.0](https://github.com/swipe-io/swipe/compare/v1.12.1...v1.13.0) (2020-06-17)
+
+### Features
+
+* Transport moved to external dependency in JS client generation
+* For REST transport, added default error generation with implementation of the StatusCoder interface
+
+
 <a name="v1.12.1"></a>
 ## [v1.12.1](https://github.com/swipe-io/swipe/compare/v1.12.0...v1.12.1) (2020-06-15)
 
