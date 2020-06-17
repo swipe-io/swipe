@@ -38,10 +38,10 @@ export class JSONRPCError extends Error {
 class JSONRPCClient {
 	/**
 	 *
-	 * @param {string} rgt
+	 * @param {*} transport
 	 */
-	constructor(tgt) {
-	  this.tgt = tgt;
+	constructor(transport) {
+	  this._transport = transport;
 	  this._requestID = 0;
 	  this._scheduleRequests = {};
 	  this._commitTimerID = null;
@@ -106,28 +106,8 @@ class JSONRPCClient {
 	  this.__scheduleCommit();
 	  return p;
 	}
-	__doRequest(request, controller) {
-	  let header = {
-		"Content-Type": "application/json;charset=utf-8",
-	  };
-	  if (this._beforeRequest) {
-		let ctx = this._beforeRequest({ header });
-		if (ctx) {
-		  if (ctx.header) {
-			header = {
-			  ...header,
-			  ...ctx.header,
-			};
-		  }
-		}
-	  }
-	  return fetch(this.tgt, {
-		method: "POST",
-		headers: header,
-		body: JSON.stringify(request),
-	  }).then((response) => {
-		return response.json();
-	  });
+	__doRequest(request) {
+	  return this._transport.doRequest(request);
 	}
 	__requestIDGenerate() {
 	  return ++this._requestID;
