@@ -38,8 +38,6 @@ func (w *Endpoint) Write() error {
 				w.w.Write("%s %s `json:\"%s\"`\n", strings.UcFirst(name), w.w.TypeString(p.Type()), strcase.ToLowerCamel(name))
 			}
 			w.w.Write("}\n")
-		} else if len(m.results) == 1 {
-			w.w.Write("type %sResponse%s %s\n", m.lcName, w.ctx.id, w.w.TypeString(m.results[0].Type()))
 		}
 
 		w.w.Write("func make%sEndpoint(s %s", m.name, w.ctx.typeStr)

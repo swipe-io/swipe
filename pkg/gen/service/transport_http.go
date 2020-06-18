@@ -1826,7 +1826,11 @@ func (g *TransportHTTP) writeClientStruct(opts *transportOptions) {
 			}
 
 			if len(m.results) > 0 {
-				g.w.Write("response := resp.(%sResponse%s)\n", m.lcName, g.ctx.id)
+				if m.resultsNamed {
+					g.w.Write("response := resp.(%sResponse%s)\n", m.lcName, g.ctx.id)
+				} else {
+					g.w.Write("response := resp.(%s)\n", g.w.TypeString(m.results[0].Type()))
+				}
 			}
 
 			g.w.Write("return ")
@@ -2029,12 +2033,17 @@ func (g *TransportHTTP) writeRestClient(opts *transportOptions) {
 			g.w.Write("}\n")
 
 			if len(m.results) > 0 {
-				if mopt.wrapResponse.enable {
-					g.w.Write("var resp struct {\nData %sResponse%s `json:\"%s\"`\n}\n", m.lcName, g.ctx.id, mopt.wrapResponse.name)
+				var responseType string
+				if m.resultsNamed {
+					responseType = fmt.Sprintf("%sResponse%s", m.lcName, g.ctx.id)
 				} else {
-					g.w.Write("var resp %sResponse%s\n", m.lcName, g.ctx.id)
+					responseType = g.w.TypeString(m.results[0].Type())
 				}
-
+				if mopt.wrapResponse.enable {
+					g.w.Write("var resp struct {\nData %s `json:\"%s\"`\n}\n", responseType, mopt.wrapResponse.name)
+				} else {
+					g.w.Write("var resp %s\n", responseType)
+				}
 				if opts.fastHTTP {
 					g.w.Write("err := %s.Unmarshal(r.Body(), ", jsonPkg)
 				} else {
@@ -2215,10 +2224,17 @@ func (g *TransportHTTP) writeJsonRPCClientGo(opts *transportOptions) {
 		g.w.Write("}\n")
 
 		if len(m.results) > 0 {
-			if mopt.wrapResponse.enable {
-				g.w.Write("var resp struct {\n Data %sResponse%s `json:\"%s\"`\n}\n", m.lcName, g.ctx.id, mopt.wrapResponse.name)
+			var responseType string
+			if m.resultsNamed {
+				responseType = fmt.Sprintf("%sResponse%s", m.lcName, g.ctx.id)
 			} else {
-				g.w.Write("var resp %sResponse%s\n", m.lcName, g.ctx.id)
+				responseType = g.w.TypeString(m.results[0].Type())
+			}
+
+			if mopt.wrapResponse.enable {
+				g.w.Write("var resp struct {\n Data %s `json:\"%s\"`\n}\n", responseType, mopt.wrapResponse.name)
+			} else {
+				g.w.Write("var resp %s\n", responseType)
 			}
 
 			g.w.Write("err := %s.Unmarshal(response.Result, &resp)\n", ffjsonPkg)
