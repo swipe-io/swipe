@@ -373,7 +373,7 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 						isPointer = true
 						retType = ptr.Elem()
 					}
-					if named, ok := retType.(*stdtypes.Named); ok {
+					if named, ok := retType.(*stdtypes.Named); ok && named.Obj().Exported() {
 						found := 0
 						for i := 0; i < named.NumMethods(); i++ {
 							m := named.Method(i)
