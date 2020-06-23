@@ -1188,7 +1188,10 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 	if err != nil {
 		return err
 	}
-	d, _ := ffjson.Marshal(swg)
+	d, err := ffjson.Marshal(swg)
+	if err != nil {
+		return err
+	}
 	if err := ioutil.WriteFile(filepath.Join(output, fmt.Sprintf("openapi_%s.json", typeName)), d, 0755); err != nil {
 		return err
 	}
