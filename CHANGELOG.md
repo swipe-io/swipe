@@ -1,4 +1,13 @@
 
+<a name="v1.13.2"></a>
+## [v1.13.2](https://github.com/swipe-io/swipe/compare/v1.13.1...v1.13.2) (2020-06-23)
+
+### Bug Fixes
+
+* generate JS client for wrapped data
+* openapi and JS client generate pointer type
+
+
 <a name="v1.13.1"></a>
 ## [v1.13.1](https://github.com/swipe-io/swipe/compare/v1.13.0...v1.13.1) (2020-06-23)
 
