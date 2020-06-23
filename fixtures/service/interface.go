@@ -30,5 +30,5 @@ type Interface interface {
 	Get(ctx context.Context, id int, name, fname string, price float32, n int) (data user.User, err error)
 	GetAll(ctx context.Context) ([]*user.User, error)
 	Delete(ctx context.Context, id uint) (a string, b string, err error)
-	TestMethod(data map[string]interface{}, ss interface{}) (map[string]string, error)
+	TestMethod(data map[string]interface{}, ss interface{}) (map[string]map[int][]string, error)
 }

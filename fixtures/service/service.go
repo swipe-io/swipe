@@ -27,6 +27,6 @@ func (s *Service) Delete(ctx context.Context, id uint) (string, string, error) {
 	return "", "", nil
 }
 
-func (s *Service) TestMethod(data map[string]interface{}, ss interface{}) (map[string]string, error) {
+func (s *Service) TestMethod(data map[string]interface{}, ss interface{}) (map[string]map[int][]string, error) {
 	return nil, nil
 }
