@@ -2330,7 +2330,7 @@ func (g *TransportHTTP) getJSDocType(t stdtypes.Type) string {
 	case *stdtypes.Slice:
 		return fmt.Sprintf("Array.<%s>", g.getJSDocType(v.Elem()))
 	case *stdtypes.Map:
-		return fmt.Sprintf("Object.<%s, %s>", g.getJSDocType(v.Key()), g.getJSDocType(v.Elem()))
+		return fmt.Sprintf("Object.<string, %s>", g.getJSDocType(v.Elem()))
 	case *stdtypes.Named:
 		switch stdtypes.TypeString(v.Obj().Type(), nil) {
 		case "github.com/pborman/uuid.UUID",
@@ -2396,7 +2396,9 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 		}
 	case *stdtypes.Map:
 		schema.Type = "object"
-		schema.Properties = openapi.Properties{}
+		schema.Properties = openapi.Properties{
+			"string": g.makeSwaggerSchema(v.Elem()),
+		}
 	case *stdtypes.Slice:
 		if vv, ok := v.Elem().(*stdtypes.Basic); ok && vv.Kind() == stdtypes.Byte {
 			schema.Type = "string"
