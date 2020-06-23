@@ -2325,7 +2325,8 @@ func (g *TransportHTTP) getJSDocType(t stdtypes.Type) string {
 		return fmt.Sprintf("Object.<%s, %s>", g.getJSDocType(v.Key()), g.getJSDocType(v.Elem()))
 	case *stdtypes.Named:
 		switch stdtypes.TypeString(v.Obj().Type(), nil) {
-		case "github.com/pborman/uuid.UUID", "github.com/google/uuid.UUID":
+		case "github.com/pborman/uuid.UUID",
+			"github.com/google/uuid.UUID":
 			return "string"
 		case "time.Time":
 			return "string"
@@ -2370,7 +2371,7 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 	schema = &openapi.Schema{}
 	switch v := t.(type) {
 	case *stdtypes.Pointer:
-		return g.makeSwaggerSchema(v.Elem().Underlying())
+		return g.makeSwaggerSchema(v.Elem())
 	case *stdtypes.Interface:
 		// TODO: not anyOf works in SwaggerUI, so the object type is used to display the field.
 		schema.Type = "object"
@@ -2446,7 +2447,8 @@ func (g *TransportHTTP) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Sche
 			schema.Format = "date-time"
 			schema.Example = "1985-02-04T00:00:00.00Z"
 			return
-		case "github.com/pborman/uuid.UUID", "github.com/google/uuid.UUID":
+		case "github.com/pborman/uuid.UUID",
+			"github.com/google/uuid.UUID":
 			schema.Type = "string"
 			schema.Format = "uuid"
 			schema.Example = "d5c02d83-6fbc-4dd7-8416-9f85ed80de46"
