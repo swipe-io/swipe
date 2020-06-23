@@ -35,11 +35,11 @@ type EndpointSet struct {
 
 func MakeEndpointSet(s service.Interface) EndpointSet {
 	return EndpointSet{
-		GetAllEndpoint:     makeGetAllEndpoint(s),
-		TestMethodEndpoint: makeTestMethodEndpoint(s),
 		CreateEndpoint:     makeCreateEndpoint(s),
 		DeleteEndpoint:     makeDeleteEndpoint(s),
 		GetEndpoint:        makeGetEndpoint(s),
+		GetAllEndpoint:     makeGetAllEndpoint(s),
+		TestMethodEndpoint: makeTestMethodEndpoint(s),
 	}
 }
 
@@ -138,13 +138,6 @@ type loggingMiddlewareServiceInterface struct {
 	logger log.Logger
 }
 
-func (s *loggingMiddlewareServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (result map[string]string, err error) {
-	defer func(now time.Time) {
-		s.logger.Log("method", "TestMethod", "took", time.Since(now), "data", len(data), "ss", ss, "result", len(result), "err", err)
-	}(time.Now())
-	return s.next.TestMethod(data, ss)
-}
-
 func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (err error) {
 	defer func(now time.Time) {
 		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", err)
@@ -171,6 +164,13 @@ func (s *loggingMiddlewareServiceInterface) GetAll(ctx context.Context) (result 
 		s.logger.Log("method", "GetAll", "took", time.Since(now), "result", len(result), "err", err)
 	}(time.Now())
 	return s.next.GetAll(ctx)
+}
+
+func (s *loggingMiddlewareServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (result map[string]string, err error) {
+	defer func(now time.Time) {
+		s.logger.Log("method", "TestMethod", "took", time.Since(now), "data", len(data), "ss", ss, "result", len(result), "err", err)
+	}(time.Now())
+	return s.next.TestMethod(data, ss)
 }
 
 type instrumentingMiddlewareServiceInterface struct {
@@ -253,6 +253,9 @@ func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
 }
 
 type clientServiceInterface struct {
+	getEndpoint                  endpoint.Endpoint
+	getClientOption              []fasthttp2.ClientOption
+	getEndpointMiddleware        []endpoint.Middleware
 	getAllEndpoint               endpoint.Endpoint
 	getAllClientOption           []fasthttp2.ClientOption
 	getAllEndpointMiddleware     []endpoint.Middleware
@@ -265,9 +268,6 @@ type clientServiceInterface struct {
 	deleteEndpoint               endpoint.Endpoint
 	deleteClientOption           []fasthttp2.ClientOption
 	deleteEndpointMiddleware     []endpoint.Middleware
-	getEndpoint                  endpoint.Endpoint
-	getClientOption              []fasthttp2.ClientOption
-	getEndpointMiddleware        []endpoint.Middleware
 	genericClientOption          []fasthttp2.ClientOption
 	genericEndpointMiddleware    []endpoint.Middleware
 }
@@ -280,6 +280,14 @@ func ServiceInterfaceGenericClientOptions(opt ...fasthttp2.ClientOption) (_ clie
 
 func ServiceInterfaceGenericClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.genericEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceGetClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getClientOption = opt }
+}
+
+func ServiceInterfaceGetClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetAllClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
@@ -312,14 +320,6 @@ func ServiceInterfaceDeleteClientOptions(opt ...fasthttp2.ClientOption) (_ clien
 
 func ServiceInterfaceDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.deleteEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceGetClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.getClientOption = opt }
-}
-
-func ServiceInterfaceGetClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.getEndpointMiddleware = opt }
 }
 
 func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
@@ -522,16 +522,16 @@ type serverServiceInterfaceOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
 	genericServerOption          []fasthttp2.ServerOption
 	genericEndpointMiddleware    []endpoint.Middleware
-	testMethodServerOption       []fasthttp2.ServerOption
-	testMethodEndpointMiddleware []endpoint.Middleware
-	createServerOption           []fasthttp2.ServerOption
-	createEndpointMiddleware     []endpoint.Middleware
 	deleteServerOption           []fasthttp2.ServerOption
 	deleteEndpointMiddleware     []endpoint.Middleware
 	getServerOption              []fasthttp2.ServerOption
 	getEndpointMiddleware        []endpoint.Middleware
 	getAllServerOption           []fasthttp2.ServerOption
 	getAllEndpointMiddleware     []endpoint.Middleware
+	testMethodServerOption       []fasthttp2.ServerOption
+	testMethodEndpointMiddleware []endpoint.Middleware
+	createServerOption           []fasthttp2.ServerOption
+	createEndpointMiddleware     []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...fasthttp2.ServerOption) (_ serverServiceInterfaceOption) {
@@ -540,6 +540,14 @@ func ServiceInterfaceGenericServerOptions(v ...fasthttp2.ServerOption) (_ server
 
 func ServiceInterfaceGenericServerEndpointMiddlewares(v ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
 	return func(o *serverServiceInterfaceOpts) { o.genericEndpointMiddleware = v }
+}
+
+func ServiceInterfaceDeleteServerOptions(opt ...fasthttp2.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
+}
+
+func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetServerOptions(opt ...fasthttp2.ServerOption) (_ serverServiceInterfaceOption) {
@@ -572,14 +580,6 @@ func ServiceInterfaceCreateServerOptions(opt ...fasthttp2.ServerOption) (_ serve
 
 func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
 	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceDeleteServerOptions(opt ...fasthttp2.ServerOption) (_ serverServiceInterfaceOption) {
-	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
-}
-
-func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
-	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }
 
 // HTTP REST Transport
@@ -628,11 +628,11 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		}, []string{"method"}),
 	}
 	ep := MakeEndpointSet(s)
+	ep.DeleteEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.deleteEndpointMiddleware...))(ep.DeleteEndpoint)
 	ep.GetEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getEndpointMiddleware...))(ep.GetEndpoint)
 	ep.GetAllEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getAllEndpointMiddleware...))(ep.GetAllEndpoint)
 	ep.TestMethodEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.testMethodEndpointMiddleware...))(ep.TestMethodEndpoint)
 	ep.CreateEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.createEndpointMiddleware...))(ep.CreateEndpoint)
-	ep.DeleteEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.deleteEndpointMiddleware...))(ep.DeleteEndpoint)
 	r := routing.New()
 	r.To(fasthttp.MethodPost, "/users", fasthttp2.NewServer(
 		ep.CreateEndpoint,

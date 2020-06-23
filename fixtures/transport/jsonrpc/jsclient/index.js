@@ -90,6 +90,27 @@ class JSONRPCClient {
 }
 export default class extends JSONRPCClient {
   /**
+   * @return {PromiseLike<Array.<{id: string, name: string, password: string, point: {type: string, coordinates: Array.<number>}, lastSeen: string, photo: Array.<number>, profile: {phone: string}}>>}
+   **/
+  getAll() {
+    return this.__scheduleRequest("getAll", {});
+  }
+  /**
+   * @param {Object.<string, *>} data
+   * @param {*} ss
+   * @return {PromiseLike<Object.<string, string>>}
+   **/
+  testMethod(data, ss) {
+    return this.__scheduleRequest("testMethod", { data: data, ss: ss });
+  }
+  /**
+   * @param {string} name
+   * @param {Array.<number>} data
+   **/
+  create(name, data) {
+    return this.__scheduleRequest("create", { name: name, data: data });
+  }
+  /**
    * @param {number} id
    * @return {PromiseLike<a: string, b: string>}
    **/
@@ -112,27 +133,6 @@ export default class extends JSONRPCClient {
       price: price,
       n: n
     });
-  }
-  /**
-   * @return {PromiseLike<Array.<{id: string, name: string, password: string, point: {type: string, coordinates: Array.<number>}, lastSeen: string, photo: Array.<number>, profile: {phone: string}}>>}
-   **/
-  getAll() {
-    return this.__scheduleRequest("getAll", {});
-  }
-  /**
-   * @param {Object.<string, *>} data
-   * @param {*} ss
-   * @return {PromiseLike<Object.<string, string>>}
-   **/
-  testMethod(data, ss) {
-    return this.__scheduleRequest("testMethod", { data: data, ss: ss });
-  }
-  /**
-   * @param {string} name
-   * @param {Array.<number>} data
-   **/
-  create(name, data) {
-    return this.__scheduleRequest("create", { name: name, data: data });
   }
 }
 export class ErrUnauthorizedError extends JSONRPCError {
