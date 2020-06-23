@@ -1,4 +1,12 @@
 
+<a name="v1.13.4"></a>
+## [v1.13.4](https://github.com/swipe-io/swipe/compare/v1.13.3...v1.13.4) (2020-06-23)
+
+### Bug Fixes
+
+* An extra wrapper was added for the returned parameter
+
+
 <a name="v1.13.3"></a>
 ## [v1.13.3](https://github.com/swipe-io/swipe/compare/v1.13.2...v1.13.3) (2020-06-23)
 
