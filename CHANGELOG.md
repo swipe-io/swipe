@@ -1,4 +1,12 @@
 
+<a name="v1.13.3"></a>
+## [v1.13.3](https://github.com/swipe-io/swipe/compare/v1.13.2...v1.13.3) (2020-06-23)
+
+### Bug Fixes
+
+* Added map type for Openapi and JS client generate
+
+
 <a name="v1.13.2"></a>
 ## [v1.13.2](https://github.com/swipe-io/swipe/compare/v1.13.1...v1.13.2) (2020-06-23)
 
