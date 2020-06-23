@@ -2146,9 +2146,14 @@ func (g *TransportHTTP) writeJsonRPCClientJS(opts *transportOptions) {
 
 		if len(m.results) > 0 {
 			fmt.Fprintf(w, "* @return {PromiseLike<")
-			if m.resultsNamed && mopt.wrapResponse.enable {
-				fmt.Fprintf(w, "{%s: ", mopt.wrapResponse.name)
+			if m.resultsNamed {
+				if mopt.wrapResponse.enable {
+					fmt.Fprintf(w, "{%s: ", mopt.wrapResponse.name)
+				} else {
+					fmt.Fprint(w, "{")
+				}
 			}
+
 			for i, p := range m.results {
 				if i > 0 {
 					fmt.Fprintf(w, ", ")
@@ -2158,7 +2163,7 @@ func (g *TransportHTTP) writeJsonRPCClientJS(opts *transportOptions) {
 				}
 				fmt.Fprint(w, g.getJSDocType(p.Type()))
 			}
-			if m.resultsNamed && mopt.wrapResponse.enable {
+			if m.resultsNamed || mopt.wrapResponse.enable {
 				fmt.Fprintf(w, "}")
 			}
 			fmt.Fprintf(w, ">}\n")
