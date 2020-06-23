@@ -35,8 +35,6 @@ func (w *Endpoint) Write() error {
 	w.w.Write("}\n")
 
 	for _, m := range w.ctx.iface.methods {
-		resultLen := len(m.results)
-
 		if len(m.params) > 0 {
 			w.w.Write("type %sRequest%s struct {\n", m.lcName, w.ctx.id)
 			for _, p := range m.params {
@@ -75,7 +73,7 @@ func (w *Endpoint) Write() error {
 		}
 
 		if len(m.results) > 0 {
-			if m.resultsNamed {
+			if len(m.results) > 1 && m.resultsNamed {
 				for i, p := range m.results {
 					if i > 0 {
 						w.w.Write(", ")
@@ -104,8 +102,8 @@ func (w *Endpoint) Write() error {
 
 		w.w.Write("return ")
 
-		if resultLen > 0 {
-			if resultLen > 0 && m.resultsNamed {
+		if len(m.results) > 0 {
+			if len(m.results) > 1 && m.resultsNamed {
 				w.w.Write("%sResponse%s", m.lcName, w.ctx.id)
 				w.w.WriteStructAssign(structKeyValue(m.results, nil))
 			} else {
