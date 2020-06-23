@@ -546,6 +546,10 @@ func (w *Writer) TypeString(t stdtypes.Type) string {
 	return stdtypes.TypeString(t, w.qualifyPkg)
 }
 
+func (w *Writer) ObjectOf(id *ast.Ident) stdtypes.Object {
+	return w.pkg.TypesInfo.ObjectOf(id)
+}
+
 func (w *Writer) TypeOf(expr ast.Expr) stdtypes.Type {
 	return w.pkg.TypesInfo.TypeOf(expr)
 }

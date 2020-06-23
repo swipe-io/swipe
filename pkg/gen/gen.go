@@ -166,6 +166,7 @@ func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Pa
 		Env:        s.env,
 		BuildFlags: []string{"-tags=swipe"},
 	}
+
 	escaped := make([]string, len(s.patterns))
 	for i := range s.patterns {
 		escaped[i] = "pattern=" + s.patterns[i]

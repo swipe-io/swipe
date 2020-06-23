@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-
 	stdtypes "go/types"
 
 	"github.com/iancoleman/strcase"
@@ -86,6 +85,7 @@ func (w *Service) Write(opt *parser.Option) error {
 	for i := 0; i < iface.NumMethods(); i++ {
 		m := iface.Method(i)
 		sig := m.Type().(*stdtypes.Signature)
+
 		sm := ifaceServiceMethod{
 			t:      m,
 			name:   m.Name(),
