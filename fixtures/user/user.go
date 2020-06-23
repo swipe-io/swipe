@@ -16,11 +16,13 @@ type Profile struct {
 }
 
 type User struct {
-	ID       uuid.UUID
-	Name     string
-	Password string
-	Point    GeoJSON
-	LastSeen time.Time
-	Photo    []byte
-	Profile  Profile
+	ID        uuid.UUID
+	Name      string
+	Password  string
+	Point     GeoJSON
+	LastSeen  time.Time
+	Photo     []byte
+	Profile   *Profile
+	CreatedAt *time.Time
+	UpdatedAt time.Time
 }

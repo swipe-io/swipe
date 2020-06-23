@@ -35,11 +35,11 @@ type EndpointSet struct {
 
 func MakeEndpointSet(s service.Interface) EndpointSet {
 	return EndpointSet{
-		TestMethodEndpoint: makeTestMethodEndpoint(s),
 		CreateEndpoint:     makeCreateEndpoint(s),
 		DeleteEndpoint:     makeDeleteEndpoint(s),
 		GetEndpoint:        makeGetEndpoint(s),
 		GetAllEndpoint:     makeGetAllEndpoint(s),
+		TestMethodEndpoint: makeTestMethodEndpoint(s),
 	}
 }
 
@@ -253,6 +253,9 @@ func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
 }
 
 type clientServiceInterface struct {
+	deleteEndpoint               endpoint.Endpoint
+	deleteClientOption           []jsonrpc.ClientOption
+	deleteEndpointMiddleware     []endpoint.Middleware
 	getEndpoint                  endpoint.Endpoint
 	getClientOption              []jsonrpc.ClientOption
 	getEndpointMiddleware        []endpoint.Middleware
@@ -265,9 +268,6 @@ type clientServiceInterface struct {
 	createEndpoint               endpoint.Endpoint
 	createClientOption           []jsonrpc.ClientOption
 	createEndpointMiddleware     []endpoint.Middleware
-	deleteEndpoint               endpoint.Endpoint
-	deleteClientOption           []jsonrpc.ClientOption
-	deleteEndpointMiddleware     []endpoint.Middleware
 	genericClientOption          []jsonrpc.ClientOption
 	genericEndpointMiddleware    []endpoint.Middleware
 }
@@ -280,6 +280,22 @@ func ServiceInterfaceGenericClientOptions(opt ...jsonrpc.ClientOption) (_ client
 
 func ServiceInterfaceGenericClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.genericEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceDeleteClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteClientOption = opt }
+}
+
+func ServiceInterfaceDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceGetClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getClientOption = opt }
+}
+
+func ServiceInterfaceGetClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.getEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetAllClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
@@ -306,20 +322,22 @@ func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware)
 	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
 }
 
-func ServiceInterfaceDeleteClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.deleteClientOption = opt }
+func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (_ user.User, _ error) {
+	resp, err := c.getEndpoint(ctx, getRequestServiceInterface{Id: id, Name: name, Fname: fname, Price: price, N: n})
+	if err != nil {
+		return user.User{}, err
+	}
+	response := resp.(getResponseServiceInterface)
+	return response.Data, nil
 }
 
-func ServiceInterfaceDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.deleteEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceGetClientOptions(opt ...jsonrpc.ClientOption) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.getClientOption = opt }
-}
-
-func ServiceInterfaceGetClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.getEndpointMiddleware = opt }
+func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []*user.User, _ error) {
+	resp, err := c.getAllEndpoint(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	response := resp.([]*user.User)
+	return response, nil
 }
 
 func (c *clientServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (_ map[string]string, _ error) {
@@ -346,24 +364,6 @@ func (c *clientServiceInterface) Delete(ctx context.Context, id uint) (_ string,
 	}
 	response := resp.(deleteResponseServiceInterface)
 	return response.A, response.B, nil
-}
-
-func (c *clientServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (_ user.User, _ error) {
-	resp, err := c.getEndpoint(ctx, getRequestServiceInterface{Id: id, Name: name, Fname: fname, Price: price, N: n})
-	if err != nil {
-		return user.User{}, err
-	}
-	response := resp.(getResponseServiceInterface)
-	return response.Data, nil
-}
-
-func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []*user.User, _ error) {
-	resp, err := c.getAllEndpoint(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	response := resp.([]*user.User)
-	return response, nil
 }
 
 func NewClientJSONRPCServiceInterface(tgt string, opts ...clientServiceInterfaceOption) (service.Interface, error) {
@@ -544,6 +544,22 @@ func ServiceInterfaceGenericServerEndpointMiddlewares(v ...endpoint.Middleware) 
 	return func(o *serverServiceInterfaceOpts) { o.genericEndpointMiddleware = v }
 }
 
+func ServiceInterfaceGetAllServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getAllServerOption = opt }
+}
+
+func ServiceInterfaceGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getAllEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceTestMethodServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.testMethodServerOption = opt }
+}
+
+func ServiceInterfaceTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
+	return func(c *serverServiceInterfaceOpts) { c.testMethodEndpointMiddleware = opt }
+}
+
 func ServiceInterfaceCreateServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
 	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
 }
@@ -566,22 +582,6 @@ func ServiceInterfaceGetServerOptions(opt ...jsonrpc.ServerOption) (_ serverServ
 
 func ServiceInterfaceGetServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
 	return func(c *serverServiceInterfaceOpts) { c.getEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceGetAllServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
-	return func(c *serverServiceInterfaceOpts) { c.getAllServerOption = opt }
-}
-
-func ServiceInterfaceGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
-	return func(c *serverServiceInterfaceOpts) { c.getAllEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceTestMethodServerOptions(opt ...jsonrpc.ServerOption) (_ serverServiceInterfaceOption) {
-	return func(c *serverServiceInterfaceOpts) { c.testMethodServerOption = opt }
-}
-
-func ServiceInterfaceTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ serverServiceInterfaceOption) {
-	return func(c *serverServiceInterfaceOpts) { c.testMethodEndpointMiddleware = opt }
 }
 
 // HTTP JSONRPC Transport
@@ -678,11 +678,11 @@ func MakeHandlerJSONRPCServiceInterface(s service.Interface, logger log.Logger, 
 		}, []string{"method"}),
 	}
 	ep := MakeEndpointSet(s)
+	ep.CreateEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.createEndpointMiddleware...))(ep.CreateEndpoint)
 	ep.DeleteEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.deleteEndpointMiddleware...))(ep.DeleteEndpoint)
 	ep.GetEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getEndpointMiddleware...))(ep.GetEndpoint)
 	ep.GetAllEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getAllEndpointMiddleware...))(ep.GetAllEndpoint)
 	ep.TestMethodEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.testMethodEndpointMiddleware...))(ep.TestMethodEndpoint)
-	ep.CreateEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.createEndpointMiddleware...))(ep.CreateEndpoint)
 	r := mux.NewRouter()
 	handler := jsonrpc.NewServer(MakeServiceInterfaceEndpointCodecMap(ep), sopt.genericServerOption...)
 	r.Methods("POST").Path("/rpc/{method}").Handler(handler)

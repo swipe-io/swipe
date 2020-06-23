@@ -26,11 +26,11 @@ import (
 )
 
 type EndpointSet struct {
+	GetAllEndpoint     endpoint.Endpoint
 	TestMethodEndpoint endpoint.Endpoint
 	CreateEndpoint     endpoint.Endpoint
 	DeleteEndpoint     endpoint.Endpoint
 	GetEndpoint        endpoint.Endpoint
-	GetAllEndpoint     endpoint.Endpoint
 }
 
 func MakeEndpointSet(s service.Interface) EndpointSet {
@@ -41,25 +41,6 @@ func MakeEndpointSet(s service.Interface) EndpointSet {
 		GetAllEndpoint:     makeGetAllEndpoint(s),
 		TestMethodEndpoint: makeTestMethodEndpoint(s),
 	}
-}
-
-type createRequestServiceInterface struct {
-	Name string `json:"name"`
-	Data []byte `json:"data"`
-}
-type createResponseServiceInterface struct {
-}
-
-func makeCreateEndpoint(s service.Interface) endpoint.Endpoint {
-	w := func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createRequestServiceInterface)
-		err := s.Create(ctx, req.Name, req.Data)
-		if err != nil {
-			return nil, err
-		}
-		return nil, nil
-	}
-	return w
 }
 
 type deleteRequestServiceInterface struct {
@@ -133,6 +114,25 @@ func makeTestMethodEndpoint(s service.Interface) endpoint.Endpoint {
 	return w
 }
 
+type createRequestServiceInterface struct {
+	Name string `json:"name"`
+	Data []byte `json:"data"`
+}
+type createResponseServiceInterface struct {
+}
+
+func makeCreateEndpoint(s service.Interface) endpoint.Endpoint {
+	w := func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(createRequestServiceInterface)
+		err := s.Create(ctx, req.Name, req.Data)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	return w
+}
+
 type loggingMiddlewareServiceInterface struct {
 	next   service.Interface
 	logger log.Logger
@@ -179,22 +179,6 @@ type instrumentingMiddlewareServiceInterface struct {
 	requestLatency metrics.Histogram
 }
 
-func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
-	defer func(begin time.Time) {
-		s.requestCount.With("method", "Create").Add(1)
-		s.requestLatency.With("method", "Create").Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return s.next.Create(ctx, name, data)
-}
-
-func (s *instrumentingMiddlewareServiceInterface) Delete(ctx context.Context, id uint) (a string, b string, _ error) {
-	defer func(begin time.Time) {
-		s.requestCount.With("method", "Delete").Add(1)
-		s.requestLatency.With("method", "Delete").Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return s.next.Delete(ctx, id)
-}
-
 func (s *instrumentingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, _ error) {
 	defer func(begin time.Time) {
 		s.requestCount.With("method", "Get").Add(1)
@@ -217,6 +201,22 @@ func (s *instrumentingMiddlewareServiceInterface) TestMethod(data map[string]int
 		s.requestLatency.With("method", "TestMethod").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return s.next.TestMethod(data, ss)
+}
+
+func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
+	defer func(begin time.Time) {
+		s.requestCount.With("method", "Create").Add(1)
+		s.requestLatency.With("method", "Create").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return s.next.Create(ctx, name, data)
+}
+
+func (s *instrumentingMiddlewareServiceInterface) Delete(ctx context.Context, id uint) (a string, b string, _ error) {
+	defer func(begin time.Time) {
+		s.requestCount.With("method", "Delete").Add(1)
+		s.requestLatency.With("method", "Delete").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return s.next.Delete(ctx, id)
 }
 
 type httpError struct {
@@ -253,6 +253,12 @@ func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
 }
 
 type clientServiceInterface struct {
+	createEndpoint               endpoint.Endpoint
+	createClientOption           []fasthttp2.ClientOption
+	createEndpointMiddleware     []endpoint.Middleware
+	deleteEndpoint               endpoint.Endpoint
+	deleteClientOption           []fasthttp2.ClientOption
+	deleteEndpointMiddleware     []endpoint.Middleware
 	getEndpoint                  endpoint.Endpoint
 	getClientOption              []fasthttp2.ClientOption
 	getEndpointMiddleware        []endpoint.Middleware
@@ -262,12 +268,6 @@ type clientServiceInterface struct {
 	testMethodEndpoint           endpoint.Endpoint
 	testMethodClientOption       []fasthttp2.ClientOption
 	testMethodEndpointMiddleware []endpoint.Middleware
-	createEndpoint               endpoint.Endpoint
-	createClientOption           []fasthttp2.ClientOption
-	createEndpointMiddleware     []endpoint.Middleware
-	deleteEndpoint               endpoint.Endpoint
-	deleteClientOption           []fasthttp2.ClientOption
-	deleteEndpointMiddleware     []endpoint.Middleware
 	genericClientOption          []fasthttp2.ClientOption
 	genericEndpointMiddleware    []endpoint.Middleware
 }
@@ -280,6 +280,22 @@ func ServiceInterfaceGenericClientOptions(opt ...fasthttp2.ClientOption) (_ clie
 
 func ServiceInterfaceGenericClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.genericEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceCreateClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.createClientOption = opt }
+}
+
+func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceDeleteClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteClientOption = opt }
+}
+
+func ServiceInterfaceDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
+	return func(c *clientServiceInterface) { c.deleteEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
@@ -304,30 +320,6 @@ func ServiceInterfaceTestMethodClientOptions(opt ...fasthttp2.ClientOption) (_ c
 
 func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
 	return func(c *clientServiceInterface) { c.testMethodEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceCreateClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.createClientOption = opt }
-}
-
-func ServiceInterfaceCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.createEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceDeleteClientOptions(opt ...fasthttp2.ClientOption) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.deleteClientOption = opt }
-}
-
-func ServiceInterfaceDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ clientServiceInterfaceOption) {
-	return func(c *clientServiceInterface) { c.deleteEndpointMiddleware = opt }
-}
-
-func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
-	_, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name, Data: data})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *clientServiceInterface) Delete(ctx context.Context, id uint) (_ string, _ string, _ error) {
@@ -364,6 +356,14 @@ func (c *clientServiceInterface) TestMethod(data map[string]interface{}, ss inte
 	}
 	response := resp.(map[string]string)
 	return response, nil
+}
+
+func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
+	_, err := c.createEndpoint(ctx, createRequestServiceInterface{Name: name, Data: data})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewClientRESTServiceInterface(tgt string, opts ...clientServiceInterfaceOption) (service.Interface, error) {
@@ -522,6 +522,8 @@ type serverServiceInterfaceOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
 	genericServerOption          []fasthttp2.ServerOption
 	genericEndpointMiddleware    []endpoint.Middleware
+	createServerOption           []fasthttp2.ServerOption
+	createEndpointMiddleware     []endpoint.Middleware
 	deleteServerOption           []fasthttp2.ServerOption
 	deleteEndpointMiddleware     []endpoint.Middleware
 	getServerOption              []fasthttp2.ServerOption
@@ -530,8 +532,6 @@ type serverServiceInterfaceOpts struct {
 	getAllEndpointMiddleware     []endpoint.Middleware
 	testMethodServerOption       []fasthttp2.ServerOption
 	testMethodEndpointMiddleware []endpoint.Middleware
-	createServerOption           []fasthttp2.ServerOption
-	createEndpointMiddleware     []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...fasthttp2.ServerOption) (_ serverServiceInterfaceOption) {
@@ -634,32 +634,6 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 	ep.TestMethodEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.testMethodEndpointMiddleware...))(ep.TestMethodEndpoint)
 	ep.CreateEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.createEndpointMiddleware...))(ep.CreateEndpoint)
 	r := routing.New()
-	r.To(fasthttp.MethodPost, "/users", fasthttp2.NewServer(
-		ep.CreateEndpoint,
-		func(ctx context.Context, r *fasthttp.Request) (interface{}, error) {
-			var req createRequestServiceInterface
-			err := ffjson.Unmarshal(r.Body(), &req)
-			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to createRequestServiceInterface: %s", err)
-			}
-			return req, nil
-		},
-		encodeResponseHTTPServiceInterface,
-		append(sopt.genericServerOption, sopt.createServerOption...)...,
-	).RouterHandle())
-	r.To(fasthttp.MethodPost, "/delete", fasthttp2.NewServer(
-		ep.DeleteEndpoint,
-		func(ctx context.Context, r *fasthttp.Request) (interface{}, error) {
-			var req deleteRequestServiceInterface
-			err := ffjson.Unmarshal(r.Body(), &req)
-			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to deleteRequestServiceInterface: %s", err)
-			}
-			return req, nil
-		},
-		encodeResponseHTTPServiceInterface,
-		append(sopt.genericServerOption, sopt.deleteServerOption...)...,
-	).RouterHandle())
 	r.To(fasthttp.MethodGet, "/users/<name:[a-z]>", fasthttp2.NewServer(
 		ep.GetEndpoint,
 		func(ctx context.Context, r *fasthttp.Request) (interface{}, error) {
@@ -701,6 +675,32 @@ func MakeHandlerRESTServiceInterface(s service.Interface, logger log.Logger, opt
 		},
 		encodeResponseHTTPServiceInterface,
 		append(sopt.genericServerOption, sopt.testMethodServerOption...)...,
+	).RouterHandle())
+	r.To(fasthttp.MethodPost, "/users", fasthttp2.NewServer(
+		ep.CreateEndpoint,
+		func(ctx context.Context, r *fasthttp.Request) (interface{}, error) {
+			var req createRequestServiceInterface
+			err := ffjson.Unmarshal(r.Body(), &req)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to createRequestServiceInterface: %s", err)
+			}
+			return req, nil
+		},
+		encodeResponseHTTPServiceInterface,
+		append(sopt.genericServerOption, sopt.createServerOption...)...,
+	).RouterHandle())
+	r.To(fasthttp.MethodPost, "/delete", fasthttp2.NewServer(
+		ep.DeleteEndpoint,
+		func(ctx context.Context, r *fasthttp.Request) (interface{}, error) {
+			var req deleteRequestServiceInterface
+			err := ffjson.Unmarshal(r.Body(), &req)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to deleteRequestServiceInterface: %s", err)
+			}
+			return req, nil
+		},
+		encodeResponseHTTPServiceInterface,
+		append(sopt.genericServerOption, sopt.deleteServerOption...)...,
 	).RouterHandle())
 	return r.HandleRequest, nil
 }
