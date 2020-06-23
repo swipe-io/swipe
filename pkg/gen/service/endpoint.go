@@ -20,6 +20,20 @@ func (w *Endpoint) Write() error {
 	kitEndpointPkg := w.w.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	contextPkg := w.w.Import("context", "context")
 
+	w.w.Write("type EndpointSet struct {\n")
+	for _, m := range w.ctx.iface.methods {
+		w.w.Write("%sEndpoint %s.Endpoint\n", m.name, kitEndpointPkg)
+	}
+	w.w.Write("}\n")
+
+	w.w.Write("func MakeEndpointSet(s %s) EndpointSet {\n", w.ctx.typeStr)
+	w.w.Write("return EndpointSet{\n")
+	for _, m := range w.ctx.iface.methods {
+		w.w.Write("%[1]sEndpoint: make%[1]sEndpoint(s),\n", m.name)
+	}
+	w.w.Write("}\n")
+	w.w.Write("}\n")
+
 	for _, m := range w.ctx.iface.methods {
 		resultLen := len(m.results)
 

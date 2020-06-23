@@ -670,6 +670,10 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 		g.writeHTTPEncodeResponse(opts)
 	}
 
+	if opts.jsonRPC.enable {
+		g.writeJSONRPCEndpointCodecMap(opts)
+	}
+
 	g.w.Write("func MakeHandler%s%s(s %s", opts.prefix, g.ctx.id, g.ctx.typeStr)
 	if g.ctx.logging {
 		logPkg := g.w.Import("log", "github.com/go-kit/kit/log")
@@ -690,7 +694,18 @@ func (g *TransportHTTP) writeHTTP(opts *transportOptions) error {
 	g.w.Write("for _, o := range opts {\n o(sopt)\n }\n")
 
 	g.writeMiddlewares(opts)
-	g.writeHTTPHandler(opts)
+
+	g.w.Write("ep := MakeEndpointSet(s)\n")
+
+	for _, m := range g.ctx.iface.methods {
+		g.w.Write("ep.%[1]sEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.%[2]sEndpointMiddleware...))(ep.%[1]sEndpoint)\n", m.name, m.lcName)
+	}
+
+	if opts.jsonRPC.enable {
+		g.writeJSONRPCHandler(opts)
+	} else {
+		g.writeRESTHandler(opts)
+	}
 
 	g.w.Write("}\n\n")
 
@@ -1326,7 +1341,32 @@ func getOpenapiRestErrorSchema() *openapi.Schema {
 	}
 }
 
-func (g *TransportHTTP) writeHTTPHandler(opts *transportOptions) {
+func (g *TransportHTTP) writeJSONRPCEndpointCodecMap(opts *transportOptions) {
+	var jsonrpcPkg string
+	if opts.fastHTTP {
+		jsonrpcPkg = g.w.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
+	} else {
+		jsonrpcPkg = g.w.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
+	}
+	stringsPkg := g.w.Import("strings", "strings")
+
+	g.w.Write("func Make%sEndpointCodecMap(ep EndpointSet, ns ...string) %s.EndpointCodecMap {\n", g.ctx.id, jsonrpcPkg)
+
+	g.w.Write("var namespace = %s.Join(ns, \".\")\n", stringsPkg)
+	g.w.Write("if len(ns) > 0 {\n")
+	g.w.Write("namespace += \".\"\n")
+	g.w.Write("}\n")
+
+	g.w.Write("return %[1]s.EndpointCodecMap{\n", jsonrpcPkg)
+
+	for _, m := range g.ctx.iface.methods {
+		g.writeJSONRPC(opts, m)
+	}
+
+	g.w.Write("}\n}\n")
+}
+
+func (g *TransportHTTP) writeJSONRPCHandler(opts *transportOptions) {
 	var (
 		routerPkg  string
 		jsonrpcPkg string
@@ -1347,32 +1387,16 @@ func (g *TransportHTTP) writeHTTPHandler(opts *transportOptions) {
 		routerPkg = g.w.Import("mux", "github.com/gorilla/mux")
 		g.w.Write("r := %s.NewRouter()\n", routerPkg)
 	}
+	g.w.Write("handler := %[1]s.NewServer(Make%sEndpointCodecMap(ep), sopt.genericServerOption...)\n", jsonrpcPkg, g.ctx.id)
+	jsonRPCPath := opts.jsonRPC.path
+	if opts.fastHTTP {
+		r := stdstrings.NewReplacer("{", "<", "}", ">")
+		jsonRPCPath = r.Replace(jsonRPCPath)
 
-	if opts.jsonRPC.enable {
-		g.w.Write("handler := %[1]s.NewServer(%[1]s.EndpointCodecMap{\n", jsonrpcPkg)
+		g.w.Write("r.Post(\"%s\", func(c *routing.Context) error {\nhandler.ServeFastHTTP(c.RequestCtx)\nreturn nil\n})\n", jsonRPCPath)
+	} else {
+		g.w.Write("r.Methods(\"POST\").Path(\"%s\").Handler(handler)\n", jsonRPCPath)
 	}
-
-	for _, m := range g.ctx.iface.methods {
-		if opts.jsonRPC.enable {
-			g.writeHTTPJSONRPC(opts, m)
-		} else {
-			g.writeHTTPRest(opts, m)
-		}
-	}
-
-	if opts.jsonRPC.enable {
-		g.w.Write("}, sopt.genericServerOption...)\n")
-		jsonRPCPath := opts.jsonRPC.path
-		if opts.fastHTTP {
-			r := stdstrings.NewReplacer("{", "<", "}", ">")
-			jsonRPCPath = r.Replace(jsonRPCPath)
-
-			g.w.Write("r.Post(\"%s\", func(c *routing.Context) error {\nhandler.ServeFastHTTP(c.RequestCtx)\nreturn nil\n})\n", jsonRPCPath)
-		} else {
-			g.w.Write("r.Methods(\"POST\").Path(\"%s\").Handler(handler)\n", jsonRPCPath)
-		}
-	}
-
 	if opts.fastHTTP {
 		g.w.Write("return r.HandleRequest, nil")
 	} else {
@@ -1380,7 +1404,26 @@ func (g *TransportHTTP) writeHTTPHandler(opts *transportOptions) {
 	}
 }
 
-func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m ifaceServiceMethod) {
+func (g *TransportHTTP) writeRESTHandler(opts *transportOptions) {
+	var routerPkg string
+	if opts.fastHTTP {
+		routerPkg = g.w.Import("routing", "github.com/qiangxue/fasthttp-routing")
+		g.w.Write("r := %s.New()\n", routerPkg)
+	} else {
+		routerPkg = g.w.Import("mux", "github.com/gorilla/mux")
+		g.w.Write("r := %s.NewRouter()\n", routerPkg)
+	}
+	for _, m := range g.ctx.iface.methods {
+		g.writeHTTPRest(opts, m)
+	}
+	if opts.fastHTTP {
+		g.w.Write("return r.HandleRequest, nil")
+	} else {
+		g.w.Write("return r, nil")
+	}
+}
+
+func (g *TransportHTTP) writeJSONRPC(opts *transportOptions, m ifaceServiceMethod) {
 	mopt := opts.methodOptions[m.name]
 
 	var (
@@ -1396,10 +1439,9 @@ func (g *TransportHTTP) writeHTTPJSONRPC(opts *transportOptions, m ifaceServiceM
 	ffjsonPkg := g.w.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 	contextPkg := g.w.Import("context", "context")
 
-	g.w.Write("\"%s\": %s.EndpointCodec{\n", m.lcName, jsonrpcPkg)
+	g.w.Write("namespace+\"%s\": %s.EndpointCodec{\n", m.lcName, jsonrpcPkg)
 	g.w.Write(
-		"Endpoint: middlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n",
-		m.lcName,
+		"Endpoint: ep.%sEndpoint,\n",
 		m.name,
 	)
 	g.w.Write("Decode: ")
@@ -1501,9 +1543,8 @@ func (g *TransportHTTP) writeHTTPRest(opts *transportOptions, m ifaceServiceMeth
 	}
 
 	g.w.Write(
-		"%s.NewServer(\nmiddlewareChain(append(sopt.genericEndpointMiddleware, sopt.%sEndpointMiddleware...))(make%sEndpoint(s)),\n",
+		"%s.NewServer(\nep.%sEndpoint,\n",
 		kithttpPkg,
-		m.lcName,
 		m.name,
 	)
 
