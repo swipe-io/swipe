@@ -916,7 +916,7 @@ func (g *TransportHTTP) makeRestPath(opts *transportOptions, m ifaceServiceMetho
 	return o
 }
 
-func (g *TransportHTTP) makeJsonRPCPath(opts *transportOptions, m ifaceServiceMethod) *openapi.Operation {
+func (g *TransportHTTP) makeJSONRPCPath(opts *transportOptions, m ifaceServiceMethod) *openapi.Operation {
 	mopt := opts.methodOptions[m.name]
 
 	responseSchema := &openapi.Schema{
@@ -1134,7 +1134,7 @@ func (g *TransportHTTP) writeOpenapiDoc(opts *transportOptions) error {
 		}
 
 		if opts.jsonRPC.enable {
-			o = g.makeJsonRPCPath(opts, m)
+			o = g.makeJSONRPCPath(opts, m)
 			pathStr = "/" + strings.LcFirst(m.name)
 			mopt.method.name = "POST"
 			for _, name := range errors {
