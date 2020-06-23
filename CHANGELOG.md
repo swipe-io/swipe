@@ -1,4 +1,13 @@
 
+<a name="v1.13.1"></a>
+## [v1.13.1](https://github.com/swipe-io/swipe/compare/v1.13.0...v1.13.1) (2020-06-23)
+
+### Bug Fixes
+
+* Type cast response for rest/jsonrpc
+* Added ignore unexported errors
+
+
 <a name="v1.13.0"></a>
 ## [v1.13.0](https://github.com/swipe-io/swipe/compare/v1.12.1...v1.13.0) (2020-06-17)
 
