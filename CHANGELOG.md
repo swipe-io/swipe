@@ -1,4 +1,12 @@
 
+<a name="v1.14.0"></a>
+## [v1.14.0](https://github.com/swipe-io/swipe/compare/v1.13.4...v1.14.0) (2020-06-24)
+
+### Features
+
+* Added comment generation from the service interface for openapi documentation and JS client
+
+
 <a name="v1.13.4"></a>
 ## [v1.13.4](https://github.com/swipe-io/swipe/compare/v1.13.3...v1.13.4) (2020-06-23)
 
