@@ -28,10 +28,38 @@ type Writer struct {
 	version     string
 	pkg         *packages.Package
 	allPkgs     []*packages.Package
+	commentMaps []ast.CommentMap
 	basePath    string
 	imports     map[string]ImportInfo
 	anonImports map[string]bool
 	buf         bytes.Buffer
+}
+
+func (w *Writer) FindComments(t stdtypes.Type) map[string][]string {
+	result := make(map[string][]string)
+	w.Inspect(func(p *packages.Package, node ast.Node) bool {
+		if at, ok := node.(*ast.TypeSpec); ok {
+			if stdtypes.Identical(p.TypesInfo.TypeOf(at.Type), t) {
+				if iface, ok := at.Type.(*ast.InterfaceType); ok {
+					for _, commentMap := range w.commentMaps {
+						for _, field := range iface.Methods.List {
+							for _, commentGroup := range commentMap.Filter(field).Comments() {
+								for _, comment := range commentGroup.List {
+									result[field.Names[0].Name] = append(
+										result[field.Names[0].Name],
+										stdstrings.TrimLeft(comment.Text, "/"),
+									)
+								}
+							}
+						}
+					}
+				}
+				return false
+			}
+		}
+		return true
+	})
+	return result
 }
 
 func (w *Writer) Inspect(f func(p *packages.Package, n ast.Node) bool) {
@@ -548,7 +576,7 @@ func (w *Writer) TypeOf(expr ast.Expr) stdtypes.Type {
 }
 
 func NewFromWriter(w *Writer) *Writer {
-	return NewWriter(w.version, w.pkg, w.allPkgs, w.basePath)
+	return NewWriter(w.version, w.pkg, w.allPkgs, w.commentMaps, w.basePath)
 }
 
 func (w *Writer) ZeroValue(t stdtypes.Type) string {
@@ -574,11 +602,12 @@ func (w *Writer) ZeroValue(t stdtypes.Type) string {
 	}
 }
 
-func NewWriter(version string, pkg *packages.Package, allPkgs []*packages.Package, basePath string) *Writer {
+func NewWriter(version string, pkg *packages.Package, allPkgs []*packages.Package, commentMaps []ast.CommentMap, basePath string) *Writer {
 	return &Writer{
 		version:     version,
 		pkg:         pkg,
 		allPkgs:     allPkgs,
+		commentMaps: commentMaps,
 		basePath:    basePath,
 		imports:     map[string]ImportInfo{},
 		anonImports: map[string]bool{},

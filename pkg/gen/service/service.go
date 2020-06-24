@@ -40,6 +40,7 @@ type ifaceServiceMethod struct {
 	lcName       string
 	params       varSlice
 	results      varSlice
+	comments     []string
 	paramCtx     *stdtypes.Var
 	returnErr    *stdtypes.Var
 	resultsNamed bool
@@ -59,7 +60,10 @@ type serviceCtx struct {
 }
 
 func (w *Service) Write(opt *parser.Option) error {
-	serviceOpt := parser.MustOption(opt.Get("iface"))
+	serviceOpt := parser.MustOption(opt.At("iface"))
+
+	//fmt.Println(serviceOpt.Value.Expr().(*ast.CallExpr).Fun.(*ast.ParenExpr).X.(*ast.StarExpr).X.(*ast.SelectorExpr).X.(*ast.Ident).Obj)
+
 	ifacePtr, ok := serviceOpt.Value.Type().(*stdtypes.Pointer)
 	if !ok {
 		return errors.NotePosition(serviceOpt.Position,
@@ -70,6 +74,9 @@ func (w *Service) Write(opt *parser.Option) error {
 		return errors.NotePosition(serviceOpt.Position,
 			fmt.Errorf("the Interface option is required must be a pointer to an interface type; found %s", w.w.TypeString(serviceOpt.Value.Type())))
 	}
+
+	methodsComments := w.w.FindComments(iface)
+
 	typeStr := w.w.TypeString(ifacePtr.Elem())
 	id := strcase.ToCamel(typeStr)
 
@@ -87,9 +94,10 @@ func (w *Service) Write(opt *parser.Option) error {
 		sig := m.Type().(*stdtypes.Signature)
 
 		sm := ifaceServiceMethod{
-			t:      m,
-			name:   m.Name(),
-			lcName: strings.LcFirst(m.Name()),
+			t:        m,
+			name:     m.Name(),
+			comments: methodsComments[m.Name()],
+			lcName:   strings.LcFirst(m.Name()),
 		}
 		var (
 			resultOffset, paramOffset int
@@ -123,18 +131,18 @@ func (w *Service) Write(opt *parser.Option) error {
 	if err := newEndpoint(ctx, w.w).Write(); err != nil {
 		return err
 	}
-	if _, ok := opt.Get("Logging"); ok {
+	if _, ok := opt.At("Logging"); ok {
 		ctx.logging = true
 		if err := newLogging(ctx, w.w).Write(); err != nil {
 			return err
 		}
 	}
-	if instrumentingOpt, ok := opt.Get("Instrumenting"); ok {
+	if instrumentingOpt, ok := opt.At("Instrumenting"); ok {
 		ctx.instrumenting.enable = true
-		if namespace, ok := instrumentingOpt.Get("Namespace"); ok {
+		if namespace, ok := instrumentingOpt.At("Namespace"); ok {
 			ctx.instrumenting.namespace = namespace.Value.String()
 		}
-		if subsystem, ok := instrumentingOpt.Get("Subsystem"); ok {
+		if subsystem, ok := instrumentingOpt.At("Subsystem"); ok {
 			ctx.instrumenting.subsystem = subsystem.Value.String()
 		}
 		if err := newInstrumenting(ctx, w.w).Write(); err != nil {
@@ -142,7 +150,7 @@ func (w *Service) Write(opt *parser.Option) error {
 		}
 	}
 
-	if transportOpt, ok := opt.Get("Transport"); ok {
+	if transportOpt, ok := opt.At("Transport"); ok {
 		if err := newTransport(ctx, w.w).Write(transportOpt); err != nil {
 			return err
 		}

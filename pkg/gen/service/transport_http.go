@@ -989,6 +989,7 @@ func (g *TransportHTTP) makeJSONRPCPath(opts *transportOptions, m ifaceServiceMe
 	}
 
 	return &openapi.Operation{
+		Description: stdstrings.Join(m.comments, "\n"),
 		RequestBody: &openapi.RequestBody{
 			Required: true,
 			Content: map[string]openapi.Media{
@@ -2141,8 +2142,15 @@ func (g *TransportHTTP) writeJsonRPCClientJS(opts *transportOptions) {
 
 	for _, m := range g.ctx.iface.methods {
 		mopt := opts.methodOptions[m.name]
-
 		fmt.Fprint(w, "/**\n")
+
+		if len(m.comments) > 0 {
+			for _, comment := range m.comments {
+				fmt.Fprintf(w, "* %s\n", comment)
+			}
+			fmt.Fprint(w, "*\n")
+		}
+
 		for _, p := range m.params {
 			fmt.Fprintf(w, "* @param {%s} %s\n", g.getJSDocType(p.Type()), p.Name())
 		}

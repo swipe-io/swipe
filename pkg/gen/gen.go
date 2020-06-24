@@ -31,11 +31,12 @@ type Result struct {
 }
 
 type Swipe struct {
-	ctx      context.Context
-	version  string
-	wd       string
-	env      []string
-	patterns []string
+	ctx         context.Context
+	version     string
+	wd          string
+	env         []string
+	patterns    []string
+	commentMaps []ast.CommentMap
 }
 
 func (s *Swipe) Generate() ([]Result, []error) {
@@ -55,7 +56,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 			continue
 		}
 
-		w := writer.NewWriter(s.version, pkg, allPkgs, outDir)
+		w := writer.NewWriter(s.version, pkg, allPkgs, s.commentMaps, outDir)
 		p := parser.NewParser(pkg)
 
 		generatorOpts := make(map[string][]*parser.Option)
@@ -196,6 +197,13 @@ func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Pa
 		}
 	}
 	for _, pkg := range pkgs {
+		for _, f := range pkg.Syntax {
+			cmap := ast.NewCommentMap(pkg.Fset, f, f.Comments)
+			if len(cmap) > 0 {
+				s.commentMaps = append(s.commentMaps, cmap)
+			}
+
+		}
 		visit(pkg)
 	}
 
