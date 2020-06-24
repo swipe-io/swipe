@@ -41,13 +41,6 @@ func (w *Writer) Inspect(f func(p *packages.Package, n ast.Node) bool) {
 				return f(p, n)
 			})
 		}
-		for _, pp := range p.Imports {
-			for _, file := range pp.Syntax {
-				ast.Inspect(file, func(n ast.Node) bool {
-					return f(pp, n)
-				})
-			}
-		}
 	}
 }
 
