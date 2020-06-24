@@ -62,8 +62,6 @@ type serviceCtx struct {
 func (w *Service) Write(opt *parser.Option) error {
 	serviceOpt := parser.MustOption(opt.At("iface"))
 
-	//fmt.Println(serviceOpt.Value.Expr().(*ast.CallExpr).Fun.(*ast.ParenExpr).X.(*ast.StarExpr).X.(*ast.SelectorExpr).X.(*ast.Ident).Obj)
-
 	ifacePtr, ok := serviceOpt.Value.Type().(*stdtypes.Pointer)
 	if !ok {
 		return errors.NotePosition(serviceOpt.Position,
