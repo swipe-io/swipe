@@ -28,7 +28,7 @@ type Config struct {
 func (c *Config) Write(opt *parser.Option) error {
 	fmtPkg := c.w.Import("fmt", "fmt")
 
-	structOpt := parser.MustOption(opt.Get("optionsStruct"))
+	structOpt := parser.MustOption(opt.At("optionsStruct"))
 
 	var (
 		strt *types.Struct
@@ -41,7 +41,7 @@ func (c *Config) Write(opt *parser.Option) error {
 	}
 
 	var funcName = "LoadConfig"
-	if funcNameOpt, ok := opt.Get("FuncName"); ok {
+	if funcNameOpt, ok := opt.At("FuncName"); ok {
 		funcName = funcNameOpt.Value.String()
 	}
 

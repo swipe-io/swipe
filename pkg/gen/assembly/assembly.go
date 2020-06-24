@@ -44,8 +44,8 @@ func (w *Assembly) Write(opt *parser.Option) error {
 		excludeModel = []string{}
 	)
 
-	dtoOpt := parser.MustOption(opt.Get("dto"))
-	modelOpt := parser.MustOption(opt.Get("model"))
+	dtoOpt := parser.MustOption(opt.At("dto"))
+	modelOpt := parser.MustOption(opt.At("model"))
 
 	dtoType := dtoOpt.Value.Type()
 	modelType := modelOpt.Value.Type()
@@ -60,9 +60,9 @@ func (w *Assembly) Write(opt *parser.Option) error {
 		return errors.NotePosition(modelOpt.Position,
 			fmt.Errorf("the %s must be a struct type; found %s", modelOpt.Name, w.w.TypeString(modelOpt.Value.Type())))
 	}
-	if opt, ok := opt.Get("AssemblyExclude"); ok {
-		excludeDTO = parser.MustOption(opt.Get("dto")).Value.StringSlice()
-		excludeModel = parser.MustOption(opt.Get("model")).Value.StringSlice()
+	if opt, ok := opt.At("AssemblyExclude"); ok {
+		excludeDTO = parser.MustOption(opt.At("dto")).Value.StringSlice()
+		excludeModel = parser.MustOption(opt.At("model")).Value.StringSlice()
 	}
 
 	dtoStructType := dtoType.Underlying().(*stdtypes.Struct)
@@ -71,12 +71,12 @@ func (w *Assembly) Write(opt *parser.Option) error {
 	fromattersDTO := map[string]parser.Value{}
 	fromattersModel := map[string]parser.Value{}
 
-	if opts, ok := opt.GetSlice("AssemblyFormatter"); ok {
+	if opts, ok := opt.Slice("AssemblyFormatter"); ok {
 		for _, opt := range opts {
-			fldOpt := parser.MustOption(opt.Get("fieldName"))
+			fldOpt := parser.MustOption(opt.At("fieldName"))
 			fieldName := fldOpt.Value.String()
 
-			fnDTOOpt := parser.MustOption(opt.Get("formatterDTO"))
+			fnDTOOpt := parser.MustOption(opt.At("formatterDTO"))
 			fnType := fnDTOOpt.Value.Type()
 
 			if !stdtypes.Identical(fnType, types.NilType) {
@@ -87,7 +87,7 @@ func (w *Assembly) Write(opt *parser.Option) error {
 				fromattersDTO[fieldName] = fnDTOOpt.Value
 			}
 
-			fnModelOpt := parser.MustOption(opt.Get("formatterModel"))
+			fnModelOpt := parser.MustOption(opt.At("formatterModel"))
 			fnType = fnModelOpt.Value.Type()
 
 			if !stdtypes.Identical(fnType, types.NilType) {
@@ -101,7 +101,7 @@ func (w *Assembly) Write(opt *parser.Option) error {
 	}
 
 	fieldsMapping := map[string]string{}
-	if opt, ok := opt.Get("AssemblyMapping"); ok {
+	if opt, ok := opt.At("AssemblyMapping"); ok {
 		mappingValues := opt.Value.StringSlice()
 		for i := 0; i < len(mappingValues); i += 2 {
 			fieldsMapping[mappingValues[i]] = mappingValues[i+1]

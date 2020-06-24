@@ -191,7 +191,7 @@ type TransportHTTP struct {
 
 func (g *TransportHTTP) Write(opt *parser.Option) error {
 
-	_, enabledFastHTTP := opt.Get("FastEnable")
+	_, enabledFastHTTP := opt.At("FastEnable")
 
 	options := &transportOptions{
 		fastHTTP:      enabledFastHTTP,
@@ -202,52 +202,52 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		},
 	}
 
-	if _, ok := opt.Get("ClientEnable"); ok {
+	if _, ok := opt.At("ClientEnable"); ok {
 		options.client.enable = true
 	}
 
-	if _, ok := opt.Get("ServerDisabled"); ok {
+	if _, ok := opt.At("ServerDisabled"); ok {
 		options.serverDisabled = true
 	}
 
-	if openapiDocOpt, ok := opt.Get("Openapi"); ok {
+	if openapiDocOpt, ok := opt.At("Openapi"); ok {
 		options.openapiDoc.enable = true
-		if v, ok := openapiDocOpt.Get("OpenapiOutput"); ok {
+		if v, ok := openapiDocOpt.At("OpenapiOutput"); ok {
 			options.openapiDoc.output = v.Value.String()
 		}
-		if v, ok := openapiDocOpt.Get("OpenapiInfo"); ok {
+		if v, ok := openapiDocOpt.At("OpenapiInfo"); ok {
 			options.openapiDoc.info = openapi.Info{
-				Title:       parser.MustOption(v.Get("title")).Value.String(),
-				Description: parser.MustOption(v.Get("description")).Value.String(),
-				Version:     parser.MustOption(v.Get("version")).Value.String(),
+				Title:       parser.MustOption(v.At("title")).Value.String(),
+				Description: parser.MustOption(v.At("description")).Value.String(),
+				Version:     parser.MustOption(v.At("version")).Value.String(),
 			}
 		}
-		if v, ok := openapiDocOpt.Get("OpenapiContact"); ok {
+		if v, ok := openapiDocOpt.At("OpenapiContact"); ok {
 			options.openapiDoc.info.Contact = &openapi.Contact{
-				Name:  parser.MustOption(v.Get("name")).Value.String(),
-				Email: parser.MustOption(v.Get("email")).Value.String(),
-				URL:   parser.MustOption(v.Get("url")).Value.String(),
+				Name:  parser.MustOption(v.At("name")).Value.String(),
+				Email: parser.MustOption(v.At("email")).Value.String(),
+				URL:   parser.MustOption(v.At("url")).Value.String(),
 			}
 		}
-		if v, ok := openapiDocOpt.Get("OpenapiLicence"); ok {
+		if v, ok := openapiDocOpt.At("OpenapiLicence"); ok {
 			options.openapiDoc.info.License = &openapi.License{
-				Name: parser.MustOption(v.Get("name")).Value.String(),
-				URL:  parser.MustOption(v.Get("url")).Value.String(),
+				Name: parser.MustOption(v.At("name")).Value.String(),
+				URL:  parser.MustOption(v.At("url")).Value.String(),
 			}
 		}
-		if s, ok := openapiDocOpt.GetSlice("OpenapiServer"); ok {
+		if s, ok := openapiDocOpt.Slice("OpenapiServer"); ok {
 			for _, v := range s {
 				options.openapiDoc.servers = append(options.openapiDoc.servers, openapi.Server{
-					Description: parser.MustOption(v.Get("description")).Value.String(),
-					URL:         parser.MustOption(v.Get("url")).Value.String(),
+					Description: parser.MustOption(v.At("description")).Value.String(),
+					URL:         parser.MustOption(v.At("url")).Value.String(),
 				})
 			}
 		}
 
-		if openapiErrors, ok := openapiDocOpt.GetSlice("OpenapiErrors"); ok {
+		if openapiErrors, ok := openapiDocOpt.Slice("OpenapiErrors"); ok {
 			for _, openapiErrorsOpt := range openapiErrors {
 				var methods []string
-				if methodsOpt, ok := openapiErrorsOpt.Get("methods"); ok {
+				if methodsOpt, ok := openapiErrorsOpt.At("methods"); ok {
 					for _, expr := range methodsOpt.Value.ExprSlice() {
 						fnSel, ok := expr.(*ast.SelectorExpr)
 						if !ok {
@@ -259,7 +259,7 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 						}
 					}
 				}
-				if errorsOpt, ok := openapiErrorsOpt.Get("errors"); ok {
+				if errorsOpt, ok := openapiErrorsOpt.At("errors"); ok {
 					var errorsName []string
 					for _, expr := range errorsOpt.Value.ExprSlice() {
 						ptr, ok := g.w.TypeOf(expr).(*stdtypes.Pointer)
@@ -287,10 +287,10 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 			}
 		}
 
-		if openapiTags, ok := openapiDocOpt.GetSlice("OpenapiTags"); ok {
+		if openapiTags, ok := openapiDocOpt.Slice("OpenapiTags"); ok {
 			for _, openapiTagsOpt := range openapiTags {
 				var methods []string
-				if methodsOpt, ok := openapiTagsOpt.Get("methods"); ok {
+				if methodsOpt, ok := openapiTagsOpt.At("methods"); ok {
 					for _, expr := range methodsOpt.Value.ExprSlice() {
 						fnSel, ok := expr.(*ast.SelectorExpr)
 						if !ok {
@@ -302,7 +302,7 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 						}
 					}
 				}
-				if tagsOpt, ok := openapiTagsOpt.Get("tags"); ok {
+				if tagsOpt, ok := openapiTagsOpt.At("tags"); ok {
 					if len(methods) > 0 {
 						for _, method := range methods {
 							options.openapiDoc.methods[method].tags = append(options.openapiDoc.methods[method].tags, tagsOpt.Value.StringSlice()...)
@@ -318,14 +318,14 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 			options.openapiDoc.output = "./"
 		}
 	}
-	if jsonRpcOpt, ok := opt.Get("JSONRPC"); ok {
+	if jsonRpcOpt, ok := opt.At("JSONRPC"); ok {
 		options.jsonRPC.enable = true
-		if path, ok := jsonRpcOpt.Get("JSONRPCPath"); ok {
+		if path, ok := jsonRpcOpt.At("JSONRPCPath"); ok {
 			options.jsonRPC.path = path.Value.String()
 		}
 	}
 
-	if methodDefaultOpt, ok := opt.Get("MethodDefaultOptions"); ok {
+	if methodDefaultOpt, ok := opt.At("MethodDefaultOptions"); ok {
 		mopt, err := g.getMethodOptions(methodDefaultOpt, transportMethodOptions{})
 		if err != nil {
 			return err
@@ -335,9 +335,9 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 		}
 	}
 
-	if methods, ok := opt.GetSlice("MethodOptions"); ok {
+	if methods, ok := opt.Slice("MethodOptions"); ok {
 		for _, methodOpt := range methods {
-			signOpt := parser.MustOption(methodOpt.Get("signature"))
+			signOpt := parser.MustOption(methodOpt.At("signature"))
 			fnSel, ok := signOpt.Value.Expr().(*ast.SelectorExpr)
 			if !ok {
 				return errors.NotePosition(signOpt.Position, fmt.Errorf("the Signature value must be func selector"))
@@ -510,17 +510,17 @@ func (g *TransportHTTP) Write(opt *parser.Option) error {
 }
 
 func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, baseMethodOpts transportMethodOptions) (transportMethodOptions, error) {
-	if wrapResponseOpt, ok := methodOpt.Get("WrapResponse"); ok {
+	if wrapResponseOpt, ok := methodOpt.At("WrapResponse"); ok {
 		baseMethodOpts.wrapResponse.enable = true
 		baseMethodOpts.wrapResponse.name = wrapResponseOpt.Value.String()
 	}
 
-	if httpMethodOpt, ok := methodOpt.Get("Method"); ok {
+	if httpMethodOpt, ok := methodOpt.At("Method"); ok {
 		baseMethodOpts.method.name = httpMethodOpt.Value.String()
 		baseMethodOpts.method.expr = httpMethodOpt.Value.Expr()
 	}
 
-	if path, ok := methodOpt.Get("Path"); ok {
+	if path, ok := methodOpt.At("Path"); ok {
 		baseMethodOpts.path = path.Value.String()
 
 		idxs, err := httpBraceIndices(baseMethodOpts.path)
@@ -546,27 +546,27 @@ func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, baseMethodOpt
 		}
 	}
 
-	if serverRequestFunc, ok := methodOpt.Get("ServerDecodeRequestFunc"); ok {
+	if serverRequestFunc, ok := methodOpt.At("ServerDecodeRequestFunc"); ok {
 		baseMethodOpts.serverRequestFunc.t = serverRequestFunc.Value.Type()
 		baseMethodOpts.serverRequestFunc.expr = serverRequestFunc.Value.Expr()
 	}
 
-	if serverResponseFunc, ok := methodOpt.Get("ServerEncodeResponseFunc"); ok {
+	if serverResponseFunc, ok := methodOpt.At("ServerEncodeResponseFunc"); ok {
 		baseMethodOpts.serverResponseFunc.t = serverResponseFunc.Value.Type()
 		baseMethodOpts.serverResponseFunc.expr = serverResponseFunc.Value.Expr()
 	}
 
-	if clientRequestFunc, ok := methodOpt.Get("ClientEncodeRequestFunc"); ok {
+	if clientRequestFunc, ok := methodOpt.At("ClientEncodeRequestFunc"); ok {
 		baseMethodOpts.clientRequestFunc.t = clientRequestFunc.Value.Type()
 		baseMethodOpts.clientRequestFunc.expr = clientRequestFunc.Value.Expr()
 	}
 
-	if clientResponseFunc, ok := methodOpt.Get("ClientDecodeResponseFunc"); ok {
+	if clientResponseFunc, ok := methodOpt.At("ClientDecodeResponseFunc"); ok {
 		baseMethodOpts.clientResponseFunc.t = clientResponseFunc.Value.Type()
 		baseMethodOpts.clientResponseFunc.expr = clientResponseFunc.Value.Expr()
 	}
 
-	if queryVars, ok := methodOpt.Get("QueryVars"); ok {
+	if queryVars, ok := methodOpt.At("QueryVars"); ok {
 		baseMethodOpts.queryVars = map[string]string{}
 
 		values := queryVars.Value.StringSlice()
@@ -574,7 +574,7 @@ func (g *TransportHTTP) getMethodOptions(methodOpt *parser.Option, baseMethodOpt
 			baseMethodOpts.queryVars[values[i]] = values[i+1]
 		}
 	}
-	if headerVars, ok := methodOpt.Get("HeaderVars"); ok {
+	if headerVars, ok := methodOpt.At("HeaderVars"); ok {
 		baseMethodOpts.headerVars = map[string]string{}
 		values := headerVars.Value.StringSlice()
 		for i := 0; i < len(values); i += 2 {

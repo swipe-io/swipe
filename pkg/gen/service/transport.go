@@ -11,7 +11,7 @@ type Transport struct {
 }
 
 func (w *Transport) Write(opt *parser.Option) error {
-	protocol := parser.MustOption(opt.Get("protocol"))
+	protocol := parser.MustOption(opt.At("protocol"))
 	switch protocol.Value.String() {
 	case "http":
 		return newTransportHTTP(w.ctx, w.w).Write(opt)
