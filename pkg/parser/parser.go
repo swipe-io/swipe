@@ -85,15 +85,15 @@ func (o Option) Exists(key string) bool {
 	return ok
 }
 
-func (o Option) GetSlice(key string) ([]*Option, bool) {
+func (o Option) Slice(key string) ([]*Option, bool) {
 	if values, ok := o.Properties[key]; ok {
 		return values, true
 	}
 	return nil, false
 }
 
-func (o Option) Get(key string) (*Option, bool) {
-	if values, ok := o.GetSlice(key); ok {
+func (o Option) At(key string) (*Option, bool) {
+	if values, ok := o.Slice(key); ok {
 		if len(values) > 0 {
 			return values[0], true
 		}
