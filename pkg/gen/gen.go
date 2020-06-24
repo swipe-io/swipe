@@ -202,11 +202,9 @@ func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Pa
 			if len(cmap) > 0 {
 				s.commentMaps = append(s.commentMaps, cmap)
 			}
-
 		}
 		visit(pkg)
 	}
-
 	for _, p := range pkgs {
 		for _, e := range p.Errors {
 			errs = append(errs, e)
