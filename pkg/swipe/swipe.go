@@ -73,11 +73,6 @@ type OpenapiServersOption string
 // A OpenapiServerOption is an openapi concrete server option.
 type OpenapiServerOption string
 
-// A AssemblyOption is an assembly option.
-type AssemblyOption string
-
-type AssemblyFormaterOption string
-
 // Build the basic option for defining the generation.
 func Build(Option) {
 }
@@ -289,25 +284,5 @@ func OpenapiLicence(name, url string) OpenapiOption {
 
 // OpenapiServer sets openapi server.
 func OpenapiServer(description, url string) OpenapiOption {
-	return "implementation not generated, run swipe"
-}
-
-// Assembly sets an assembly DTO function options.
-func Assembly(model, dto interface{}, opts ...AssemblyOption) Option {
-	return "implementation not generated, run swipe"
-}
-
-// AssemblyFormatter ...
-func AssemblyFormatter(fieldName interface{}, formatterDTO, formatterModel interface{}) AssemblyOption {
-	return "implementation not generated, run swipe"
-}
-
-// AssemblyMapping ...
-func AssemblyMapping([]string) AssemblyOption {
-	return "implementation not generated, run swipe"
-}
-
-// AssemblyExclude ...
-func AssemblyExclude(dto, model []string) AssemblyOption {
 	return "implementation not generated, run swipe"
 }
