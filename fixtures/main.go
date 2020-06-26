@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/valyala/fasthttp"
+
 	"github.com/go-kit/kit/log"
 
 	"github.com/swipe-io/swipe/fixtures/config"
@@ -32,20 +34,27 @@ func main() {
 
 	fmt.Println(cfg)
 
-	httpJSONRPCHandler, err := jsonrpc.MakeHandlerJSONRPCServiceInterface(&service.Service{}, logger)
+	svc := service.Interface(&service.Service{})
+	svc = jsonrpc.NewLoggingMiddlewareServiceInterface(svc, logger)
+
+	httpJSONRPCHandler, err := jsonrpc.MakeHandlerJSONRPCServiceInterface(svc)
 	if err != nil {
 		_ = logger.Log("err", err)
 		os.Exit(1)
 	}
 
-	httpRestHandler, err := rest.MakeHandlerRESTServiceInterface(&service.Service{}, logger)
+	httpRestHandler, err := rest.MakeHandlerRESTServiceInterface(svc)
 	if err != nil {
 		_ = logger.Log("err", err)
 		os.Exit(1)
 	}
 
-	go http.ListenAndServe(":8080", httpJSONRPCHandler)
-	go http.ListenAndServe(":8081", httpRestHandler)
+	go func() {
+		_ = http.ListenAndServe(":8080", httpJSONRPCHandler)
+	}()
+	go func() {
+		_ = fasthttp.ListenAndServe(":8081", httpRestHandler)
+	}()
 
 	<-sigint
 }

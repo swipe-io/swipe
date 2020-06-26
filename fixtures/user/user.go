@@ -8,21 +8,21 @@ import (
 
 type GeoJSON struct {
 	Type        string    `json:"-"`
-	Coordinates []float64 `json:"coordinates"`
+	Coordinates []float64 `json:"coordinates200"`
 }
 
 type Profile struct {
-	Phone string
+	Phone string `json:"phone"`
 }
 
 type User struct {
-	ID        uuid.UUID
-	Name      string
-	Password  string
-	Point     GeoJSON
-	LastSeen  time.Time
-	Photo     []byte
-	Profile   *Profile
-	CreatedAt *time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID  `json:"id"`
+	Name      string     `json:"name"`
+	Password  string     `json:"password"`
+	Point     GeoJSON    `json:"point"`
+	LastSeen  time.Time  `json:"last_seen"`
+	Photo     []byte     `json:"photo"`
+	Profile   *Profile   `json:"profile"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }

@@ -11,7 +11,7 @@ func SwipeConfig() {
 		ConfigEnv(
 			&Config{
 				Bind: "hohoho",
-				Name: "Default Name",
+				Name: "Default MethodName",
 			},
 			FuncName("LoadConfig"),
 		),
