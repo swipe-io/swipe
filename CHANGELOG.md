@@ -1,4 +1,12 @@
 
+<a name="v1.20.0"></a>
+## [v1.20.0](https://github.com/swipe-io/swipe/compare/v1.14.0...v1.20.0) (2020-06-26)
+
+### Bug Fixes
+
+* Remove Assembly option and generation
+
+
 <a name="v1.14.0"></a>
 ## [v1.14.0](https://github.com/swipe-io/swipe/compare/v1.13.4...v1.14.0) (2020-06-24)
 

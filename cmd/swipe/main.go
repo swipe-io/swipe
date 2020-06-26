@@ -8,12 +8,20 @@ import (
 	"os"
 	"strings"
 
-	"github.com/swipe-io/swipe/pkg/gen"
-
 	"github.com/google/subcommands"
+
+	"github.com/gookit/color"
+
+	"github.com/swipe-io/swipe/pkg/gen"
 )
 
-const version = "v1.14.0"
+const version = "v1.20.0"
+
+var (
+	green = color.Green.Render
+	blue  = color.Blue.Render
+	red   = color.Red.Render
+)
 
 func main() {
 	subcommands.Register(subcommands.CommandsCommand(), "")
@@ -95,17 +103,14 @@ func (cmd *genCmd) SetFlags(f *flag.FlagSet) {
 func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Println("failed to get working directory: ", err)
+		log.Println(red("failed to get working directory: "), red(err))
 		return subcommands.ExitFailure
 	}
-
 	s := gen.NewSwipe(ctx, version, wd, os.Environ(), packages(f))
-
 	results, errs := s.Generate()
-
 	if len(errs) > 0 {
 		for _, err := range errs {
-			log.Println(err)
+			log.Println(red(err))
 		}
 		return subcommands.ExitFailure
 	}
@@ -117,7 +122,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	for _, g := range results {
 		if len(g.Errs) > 0 {
 			logErrors(g.Errs)
-			log.Printf("%s: generate failed\n", g.PkgPath)
+			log.Printf("%s: %s\n", g.PkgPath, red("generate failed"))
 			success = false
 		}
 		if len(g.Content) == 0 {
@@ -125,14 +130,14 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}
 		err := ioutil.WriteFile(g.OutputPath, g.Content, 0755)
 		if err == nil {
-			log.Printf("%s: wrote %s\n", g.PkgPath, g.OutputPath)
+			log.Printf("%s: wrote %s\n", green(g.PkgPath), blue(g.OutputPath))
 		} else {
-			log.Printf("%s: failed to write %s: %v\n", g.PkgPath, g.OutputPath, err)
+			log.Printf("%s: failed to write %s: %v\n", green(g.PkgPath), blue(g.OutputPath), red(err))
 			success = false
 		}
 	}
 	if !success {
-		log.Println("at least one generate failure")
+		log.Println(red("at least one generate failure"))
 		return subcommands.ExitFailure
 	}
 	return subcommands.ExitSuccess
