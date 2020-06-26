@@ -5,23 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/token"
-	"go/types"
+	stdtypes "go/types"
+	"os"
 	"path/filepath"
 	"sort"
+	stdstrings "strings"
+	"sync"
 
-	generrors "github.com/swipe-io/swipe/pkg/errors"
+	"golang.org/x/tools/go/types/typeutil"
+
+	"github.com/swipe-io/swipe/pkg/types"
+
+	"github.com/swipe-io/swipe/pkg/domain/model"
+	"github.com/swipe-io/swipe/pkg/file"
 	"github.com/swipe-io/swipe/pkg/parser"
+	"github.com/swipe-io/swipe/pkg/registry"
 	"github.com/swipe-io/swipe/pkg/value"
-	"github.com/swipe-io/swipe/pkg/writer"
 
 	"golang.org/x/tools/go/packages"
 )
-
-type Generator interface {
-	Write(opt *parser.Option) error
-}
 
 type Result struct {
 	PkgPath    string
@@ -36,30 +39,30 @@ type Swipe struct {
 	wd          string
 	env         []string
 	patterns    []string
-	commentMaps []ast.CommentMap
+	commentMaps *typeutil.Map
+	pkgs        []*packages.Package
+	allPkgs     []*packages.Package
 }
 
 func (s *Swipe) Generate() ([]Result, []error) {
-	pkgs, allPkgs, errs := s.loadPackages()
+	r := registry.NewRegistry()
+
+	errs := s.loadPackages()
 	if len(errs) > 0 {
 		return nil, errs
 	}
 
-	result := make([]Result, len(pkgs))
+	var result []Result
+	files := make(map[string]*file.File)
+	basePaths := map[string]struct{}{}
 
-	for i, pkg := range pkgs {
-		ec := new(generrors.ErrorCollector)
-
-		outDir, err := s.detectOutputDir(pkg.GoFiles)
+	for _, pkg := range s.pkgs {
+		basePath, err := s.detectBasePath(pkg.GoFiles)
 		if err != nil {
-			ec.Add(err)
-			continue
+			return nil, []error{err}
 		}
 
-		w := writer.NewWriter(s.version, pkg, allPkgs, s.commentMaps, outDir)
-		p := parser.NewParser(pkg)
-
-		generatorOpts := make(map[string][]*parser.Option)
+		basePaths[basePath] = struct{}{}
 
 		for _, f := range pkg.Syntax {
 			for _, decl := range f.Decls {
@@ -67,16 +70,74 @@ func (s *Swipe) Generate() ([]Result, []error) {
 				case *ast.FuncDecl:
 					call, err := s.findInjector(pkg.TypesInfo, decl)
 					if err != nil {
-						ec.Add(err)
-						continue
+						return nil, []error{err}
 					}
 					if call != nil {
-						opt, err := p.Parse(call.Args[0])
+						opt, err := parser.NewParser(pkg).Parse(call.Args[0])
 						if err != nil {
-							ec.Add(err)
-							continue
+							return nil, []error{err}
 						}
-						generatorOpts[opt.Name] = append(generatorOpts[opt.Name], opt)
+
+						info := model.GenerateInfo{
+							Pkg:        pkg,
+							Pkgs:       s.pkgs,
+							BasePath:   basePath,
+							Version:    s.version,
+							CommentMap: s.commentMaps,
+						}
+
+						option := r.Option(opt.Name, info)
+						if option == nil {
+							return nil, []error{errors.New("unknown option:" + opt.Name)}
+						}
+
+						o, err := option.Parse(opt)
+						if err != nil {
+							return nil, []error{err}
+						}
+						processor, err := r.Processor(opt.Name, info)
+						if err != nil {
+							return nil, []error{err}
+						}
+						if !processor.SetOption(o) {
+							return nil, []error{errors.New("option not suitable for processor: " + opt.Name)}
+						}
+						for _, g := range processor.Generators() {
+							if err := g.Process(s.ctx); err != nil {
+								return nil, []error{err}
+							}
+
+							outputDir := g.OutputDir()
+							if outputDir == "" {
+								outputDir = basePath
+							}
+							filename := g.Filename()
+							if filename == "" {
+								filename = "swipe_gen.go"
+							}
+
+							fileKey := outputDir + filename
+
+							f, ok := files[fileKey]
+							if !ok {
+								f = &file.File{
+									PkgName:   pkg.Name,
+									PkgPath:   pkg.PkgPath,
+									OutputDir: outputDir,
+									Filename:  filename,
+									Version:   s.version,
+								}
+								files[fileKey] = f
+							}
+
+							f.Imports = append(f.Imports, g.Imports()...)
+
+							b := g.Bytes()
+							if len(b) > 0 {
+								_, _ = f.Write(b)
+							}
+						}
+
 						continue
 					}
 				case *ast.GenDecl:
@@ -86,40 +147,39 @@ func (s *Swipe) Generate() ([]Result, []error) {
 				}
 			}
 		}
+	}
 
-		if len(generatorOpts) > 0 {
-			for name, opts := range generatorOpts {
-				if f, ok := factory[name]; ok {
-					gw := f(w)
-					for _, opt := range opts {
-						if err := gw.Write(opt); err != nil {
-							ec.Add(err)
-						}
-					}
-				}
+	for path := range basePaths {
+		files, err := filepath.Glob(filepath.Join(path, "*_gen.go"))
+		if err != nil {
+			panic(err)
+		}
+		for _, f := range files {
+			if err := os.Remove(f); err != nil {
+				return nil, []error{err}
 			}
+		}
+	}
 
-			if len(ec.Errors()) > 0 {
-				result[i].Errs = ec.Errors()
-			}
-
-			goSrc := w.Frame(false)
-
-			fmtSrc, err := format.Source(goSrc)
+	for _, f := range files {
+		if len(f.Bytes()) > 0 {
+			goSrc, err := f.Frame()
 			if err != nil {
-				result[i].Errs = append(result[i].Errs, err)
-			} else {
-				goSrc = fmtSrc
+				f.Errs = append(f.Errs, err)
 			}
-			result[i].Content = goSrc
-			result[i].OutputPath = filepath.Join(outDir, "swipe_gen.go")
+			result = append(result, Result{
+				PkgPath:    f.PkgPath,
+				OutputPath: filepath.Join(f.OutputDir, f.Filename),
+				Content:    goSrc,
+				Errs:       f.Errs,
+			})
 		}
 	}
 
 	return result, nil
 }
 
-func (s *Swipe) findInjector(info *types.Info, fn *ast.FuncDecl) (*ast.CallExpr, error) {
+func (s *Swipe) findInjector(info *stdtypes.Info, fn *ast.FuncDecl) (*ast.CallExpr, error) {
 	if fn.Body == nil {
 		return nil, nil
 	}
@@ -146,7 +206,7 @@ func (s *Swipe) findInjector(info *types.Info, fn *ast.FuncDecl) (*ast.CallExpr,
 	return nil, nil
 }
 
-func (s *Swipe) detectOutputDir(paths []string) (string, error) {
+func (s *Swipe) detectBasePath(paths []string) (string, error) {
 	if len(paths) == 0 {
 		return "", errors.New("no files to derive output directory from")
 	}
@@ -159,7 +219,7 @@ func (s *Swipe) detectOutputDir(paths []string) (string, error) {
 	return dir, nil
 }
 
-func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Package, errs []error) {
+func (s *Swipe) loadPackages() []error {
 	cfg := &packages.Config{
 		Context:    s.ctx,
 		Mode:       packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedImports | packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles,
@@ -168,22 +228,26 @@ func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Pa
 		BuildFlags: []string{"-tags=swipe"},
 	}
 
+	var (
+		errs []error
+		err  error
+	)
+
 	escaped := make([]string, len(s.patterns))
 	for i := range s.patterns {
 		escaped[i] = "pattern=" + s.patterns[i]
 	}
-	pkgs, err := packages.Load(cfg, escaped...)
+	s.pkgs, err = packages.Load(cfg, escaped...)
 	if err != nil {
-		return nil, nil, []error{err}
+		return []error{err}
 	}
 
-	seen := make(map[*packages.Package]bool)
+	seen := new(sync.Map)
 
 	var visit func(pkg *packages.Package)
 	visit = func(pkg *packages.Package) {
-		if !seen[pkg] {
-			seen[pkg] = true
-
+		if _, ok := seen.Load(pkg); !ok {
+			seen.Store(pkg, true)
 			var importPaths []string
 			for path := range pkg.Imports {
 				importPaths = append(importPaths, path)
@@ -192,30 +256,46 @@ func (s *Swipe) loadPackages() (pkgs []*packages.Package, allPkgs []*packages.Pa
 			for _, path := range importPaths {
 				visit(pkg.Imports[path])
 			}
-
-			allPkgs = append(allPkgs, pkg)
+			s.allPkgs = append(s.allPkgs, pkg)
 		}
 	}
-	for _, pkg := range pkgs {
-		for _, f := range pkg.Syntax {
-			cmap := ast.NewCommentMap(pkg.Fset, f, f.Comments)
-			if len(cmap) > 0 {
-				s.commentMaps = append(s.commentMaps, cmap)
-			}
-		}
+	for _, pkg := range s.pkgs {
 		visit(pkg)
 	}
-	for _, p := range pkgs {
+
+	types.Inspect(s.pkgs, func(p *packages.Package, n ast.Node) bool {
+		if spec, ok := n.(*ast.Field); ok {
+			t := p.TypesInfo.TypeOf(spec.Type)
+			if t != nil {
+				var comments []string
+				if spec.Doc != nil {
+					for _, comment := range spec.Doc.List {
+						comments = append(comments, stdstrings.TrimLeft(comment.Text, "/"))
+					}
+				}
+				if spec.Comment != nil {
+					for _, comment := range spec.Comment.List {
+						comments = append(comments, stdstrings.TrimLeft(comment.Text, "/"))
+					}
+				}
+				if len(comments) > 0 {
+					s.commentMaps.Set(t, comments)
+				}
+			}
+		}
+		return true
+	})
+	for _, p := range s.pkgs {
 		for _, e := range p.Errors {
 			errs = append(errs, e)
 		}
 	}
 	if len(errs) > 0 {
-		return nil, nil, errs
+		return errs
 	}
-	return pkgs, allPkgs, nil
+	return nil
 }
 
 func NewSwipe(ctx context.Context, version, wd string, env []string, patterns []string) *Swipe {
-	return &Swipe{ctx: ctx, version: version, wd: wd, env: env, patterns: patterns}
+	return &Swipe{ctx: ctx, version: version, wd: wd, env: env, patterns: patterns, commentMaps: new(typeutil.Map)}
 }

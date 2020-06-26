@@ -1,6 +1,11 @@
 package types
 
-import "go/types"
+import (
+	"go/ast"
+	"go/types"
+
+	"golang.org/x/tools/go/packages"
+)
 
 var (
 	ErrorType = types.Universe.Lookup("error").Type()
@@ -79,4 +84,39 @@ func IsNamed(t *types.Tuple) bool {
 		return t.At(0).Name() != ""
 	}
 	return false
+}
+
+func Inspect(pkgs []*packages.Package, f func(p *packages.Package, n ast.Node) bool) {
+	for _, p := range pkgs {
+		for _, syntax := range p.Syntax {
+			ast.Inspect(syntax, func(n ast.Node) bool {
+				return f(p, n)
+			})
+		}
+	}
+}
+
+func ZeroValue(t types.Type) string {
+	switch u := t.Underlying().(type) {
+	case *types.Array, *types.Struct:
+		return types.TypeString(t, func(p *types.Package) string {
+			return p.Name()
+		}) + "{}"
+	case *types.Basic:
+		info := u.Info()
+		switch {
+		case info&types.IsBoolean != 0:
+			return "false"
+		case info&(types.IsInteger|types.IsFloat|types.IsComplex) != 0:
+			return "0"
+		case info&types.IsString != 0:
+			return `""`
+		default:
+			panic("unreachable")
+		}
+	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
+		return "nil"
+	default:
+		panic("unreachable")
+	}
 }

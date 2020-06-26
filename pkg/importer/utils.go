@@ -1,4 +1,4 @@
-package writer
+package importer
 
 import (
 	"go/token"

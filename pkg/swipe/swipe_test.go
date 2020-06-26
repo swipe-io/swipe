@@ -2,11 +2,9 @@ package swipe_test
 
 import (
 	"net/http"
-	"os/user"
 
-	"github.com/go-kit/kit/log"
+	"github.com/valyala/fasthttp"
 
-	"github.com/swipe-io/swipe/fixtures/model"
 	"github.com/swipe-io/swipe/fixtures/service"
 	"github.com/swipe-io/swipe/fixtures/transport/jsonrpc"
 	"github.com/swipe-io/swipe/fixtures/transport/rest"
@@ -33,19 +31,23 @@ func ExampleFastEnable() {
 }
 
 func ExampleTransport_restListener() {
-	h, err := rest.MakeHandlerRESTServiceInterface(&service.Service{}, log.NewNopLogger())
+	h, err := rest.MakeHandlerRESTServiceInterface(&service.Service{})
 	if err != nil {
 		panic(err)
 	}
-	go http.ListenAndServe(":80", h)
+	go func() {
+		_ = fasthttp.ListenAndServe(":80", h)
+	}()
 }
 
 func ExampleTransport_jsonRPCListener() {
-	h, err := jsonrpc.MakeHandlerJSONRPCServiceInterface(&service.Service{}, log.NewNopLogger())
+	h, err := jsonrpc.MakeHandlerJSONRPCServiceInterface(&service.Service{})
 	if err != nil {
 		panic(err)
 	}
-	go http.ListenAndServe(":80", h)
+	go func() {
+		_ = http.ListenAndServe(":80", h)
+	}()
 }
 
 // Example basic use Service option.
@@ -213,23 +215,6 @@ func ExampleConfigEnv() {
 				BindAddr: ":9000",
 			},
 			FuncName("LoadConfig"),
-		),
-	)
-}
-
-func ExampleAssembly() {
-	Build(
-		Assembly(model.User{}, user.User{},
-			AssemblyMapping([]string{
-				".Point.T", ".Point.Type",
-			}),
-			AssemblyExclude([]string{"Password"}, []string{}),
-			AssemblyFormatter(".Name",
-				nil,
-				func(from user.User) string {
-					return "OK"
-				},
-			),
 		),
 	)
 }

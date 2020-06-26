@@ -1,16 +1,15 @@
-package service
+package generator
 
 import (
-	"fmt"
 	stdtypes "go/types"
 	"strconv"
 	"strings"
 
-	"github.com/swipe-io/swipe/pkg/utils"
+	"github.com/swipe-io/swipe/pkg/types"
 )
 
-func structKeyValue(vars []*stdtypes.Var, filterFn utils.FilterFn) (results []string) {
-	return utils.Params(
+func structKeyValue(vars []*stdtypes.Var, filterFn types.FilterFn) (results []string) {
+	return types.Params(
 		vars,
 		func(p *stdtypes.Var) []string {
 			name := p.Name()
@@ -37,27 +36,4 @@ func makeLogParam(name string, t stdtypes.Type) string {
 	case *stdtypes.Slice, *stdtypes.Array, *stdtypes.Map, *stdtypes.Chan:
 		return "len(" + name + ")"
 	}
-}
-
-func httpBraceIndices(s string) ([]int, error) {
-	var level, idx int
-	var idxs []int
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '{':
-			if level++; level == 1 {
-				idx = i
-			}
-		case '}':
-			if level--; level == 0 {
-				idxs = append(idxs, idx, i+1)
-			} else if level < 0 {
-				return nil, fmt.Errorf("mux: unbalanced braces in %q", s)
-			}
-		}
-	}
-	if level != 0 {
-		return nil, fmt.Errorf("mux: unbalanced braces in %q", s)
-	}
-	return idxs, nil
 }
