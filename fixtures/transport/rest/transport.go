@@ -41,10 +41,7 @@ func Swipe() {
 				),
 			),
 			Logging(),
-			Instrumenting(
-				Namespace("api"),
-				Subsystem("api"),
-			),
+			Instrumenting("api", "api"),
 		),
 	)
 }

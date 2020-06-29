@@ -8,6 +8,8 @@ package rest
 import (
 	"context"
 	"github.com/go-kit/kit/metrics"
+	prometheus2 "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/swipe-io/swipe/fixtures/service"
 	"github.com/swipe-io/swipe/fixtures/user"
 	"time"
@@ -17,14 +19,6 @@ type instrumentingMiddlewareServiceInterface struct {
 	next           service.Interface
 	requestCount   metrics.Counter
 	requestLatency metrics.Histogram
-}
-
-func (s *instrumentingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, _ error) {
-	defer func(begin time.Time) {
-		s.requestCount.With("method", "Get").Add(1)
-		s.requestLatency.With("method", "Get").Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return s.next.Get(ctx, id, name, fname, price, n)
 }
 
 func (s *instrumentingMiddlewareServiceInterface) GetAll(ctx context.Context) (_ []*user.User, _ error) {
@@ -59,6 +53,32 @@ func (s *instrumentingMiddlewareServiceInterface) Delete(ctx context.Context, id
 	return s.next.Delete(ctx, id)
 }
 
+func (s *instrumentingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, _ error) {
+	defer func(begin time.Time) {
+		s.requestCount.With("method", "Get").Add(1)
+		s.requestLatency.With("method", "Get").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return s.next.Get(ctx, id, name, fname, price, n)
+}
+
 func NewInstrumentingMiddlewareServiceInterface(s service.Interface, requestCount metrics.Counter, requestLatency metrics.Histogram) service.Interface {
+	if requestCount == nil {
+		requestCount = prometheus2.NewCounterFrom(prometheus.CounterOpts{
+			Namespace: "api",
+			Subsystem: "api",
+			Name:      "request_count",
+			Help:      "Number of requests received.",
+		}, []string{"method"})
+
+	}
+	if requestLatency == nil {
+		requestLatency = prometheus2.NewSummaryFrom(prometheus.SummaryOpts{
+			Namespace: "api",
+			Subsystem: "api",
+			Name:      "request_latency_microseconds",
+			Help:      "Total duration of requests in microseconds.",
+		}, []string{"method"})
+
+	}
 	return &instrumentingMiddlewareServiceInterface{next: s, requestCount: requestCount, requestLatency: requestLatency}
 }

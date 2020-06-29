@@ -23,7 +23,7 @@ func Swipe() {
 				),
 			),
 			Logging(),
-			Instrumenting(),
+			Instrumenting("api", "api"),
 		),
 	)
 }

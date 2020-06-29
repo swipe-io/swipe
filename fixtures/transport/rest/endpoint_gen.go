@@ -14,20 +14,20 @@ import (
 )
 
 type EndpointSet struct {
-	GetAllEndpoint     endpoint.Endpoint
-	TestMethodEndpoint endpoint.Endpoint
 	CreateEndpoint     endpoint.Endpoint
 	DeleteEndpoint     endpoint.Endpoint
 	GetEndpoint        endpoint.Endpoint
+	GetAllEndpoint     endpoint.Endpoint
+	TestMethodEndpoint endpoint.Endpoint
 }
 
 func MakeEndpointSet(s service.Interface) EndpointSet {
 	return EndpointSet{
+		GetEndpoint:        makeGetEndpoint(s),
+		GetAllEndpoint:     makeGetAllEndpoint(s),
 		TestMethodEndpoint: makeTestMethodEndpoint(s),
 		CreateEndpoint:     makeCreateEndpoint(s),
 		DeleteEndpoint:     makeDeleteEndpoint(s),
-		GetEndpoint:        makeGetEndpoint(s),
-		GetAllEndpoint:     makeGetAllEndpoint(s),
 	}
 }
 
@@ -124,15 +124,6 @@ func makeTestMethodEndpoint(s service.Interface) endpoint.Endpoint {
 	return w
 }
 
-func TestMethodEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
-	s, err := NewClientRESTServiceInterface(instance)
-	if err != nil {
-		return nil, nil, err
-	}
-	return makeTestMethodEndpoint(s), nil, nil
-
-}
-
 func CreateEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
 	s, err := NewClientRESTServiceInterface(instance)
 	if err != nil {
@@ -166,5 +157,14 @@ func GetAllEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error
 		return nil, nil, err
 	}
 	return makeGetAllEndpoint(s), nil, nil
+
+}
+
+func TestMethodEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
+	s, err := NewClientRESTServiceInterface(instance)
+	if err != nil {
+		return nil, nil, err
+	}
+	return makeTestMethodEndpoint(s), nil, nil
 
 }

@@ -49,16 +49,16 @@ type ServiceInterfaceServerOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
 	genericServerOption          []fasthttp.ServerOption
 	genericEndpointMiddleware    []endpoint.Middleware
-	createServerOption           []fasthttp.ServerOption
-	createEndpointMiddleware     []endpoint.Middleware
-	deleteServerOption           []fasthttp.ServerOption
-	deleteEndpointMiddleware     []endpoint.Middleware
 	getServerOption              []fasthttp.ServerOption
 	getEndpointMiddleware        []endpoint.Middleware
 	getAllServerOption           []fasthttp.ServerOption
 	getAllEndpointMiddleware     []endpoint.Middleware
 	testMethodServerOption       []fasthttp.ServerOption
 	testMethodEndpointMiddleware []endpoint.Middleware
+	createServerOption           []fasthttp.ServerOption
+	createEndpointMiddleware     []endpoint.Middleware
+	deleteServerOption           []fasthttp.ServerOption
+	deleteEndpointMiddleware     []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...fasthttp.ServerOption) (_ ServiceInterfaceServerOption) {
@@ -67,6 +67,22 @@ func ServiceInterfaceGenericServerOptions(v ...fasthttp.ServerOption) (_ Service
 
 func ServiceInterfaceGenericServerEndpointMiddlewares(v ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
 	return func(o *serverServiceInterfaceOpts) { o.genericEndpointMiddleware = v }
+}
+
+func ServiceInterfaceCreateServerOptions(opt ...fasthttp.ServerOption) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
+}
+
+func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceDeleteServerOptions(opt ...fasthttp.ServerOption) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
+}
+
+func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetServerOptions(opt ...fasthttp.ServerOption) (_ ServiceInterfaceServerOption) {
@@ -91,20 +107,4 @@ func ServiceInterfaceTestMethodServerOptions(opt ...fasthttp.ServerOption) (_ Se
 
 func ServiceInterfaceTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
 	return func(c *serverServiceInterfaceOpts) { c.testMethodEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceCreateServerOptions(opt ...fasthttp.ServerOption) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
-}
-
-func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceDeleteServerOptions(opt ...fasthttp.ServerOption) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
-}
-
-func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }

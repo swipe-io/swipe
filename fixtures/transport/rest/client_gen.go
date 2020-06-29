@@ -29,14 +29,6 @@ func ServiceInterfaceGenericClientEndpointMiddlewares(opt ...endpoint.Middleware
 	return func(c *clientServiceInterface) { c.genericEndpointMiddleware = opt }
 }
 
-func ServiceInterfaceTestMethodClientOptions(opt ...fasthttp.ClientOption) (_ ServiceInterfaceClientOption) {
-	return func(c *clientServiceInterface) { c.testMethodClientOption = opt }
-}
-
-func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceClientOption) {
-	return func(c *clientServiceInterface) { c.testMethodEndpointMiddleware = opt }
-}
-
 func ServiceInterfaceCreateClientOptions(opt ...fasthttp.ClientOption) (_ ServiceInterfaceClientOption) {
 	return func(c *clientServiceInterface) { c.createClientOption = opt }
 }
@@ -69,7 +61,21 @@ func ServiceInterfaceGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware)
 	return func(c *clientServiceInterface) { c.getAllEndpointMiddleware = opt }
 }
 
+func ServiceInterfaceTestMethodClientOptions(opt ...fasthttp.ClientOption) (_ ServiceInterfaceClientOption) {
+	return func(c *clientServiceInterface) { c.testMethodClientOption = opt }
+}
+
+func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceClientOption) {
+	return func(c *clientServiceInterface) { c.testMethodEndpointMiddleware = opt }
+}
+
 type clientServiceInterface struct {
+	testMethodEndpoint           endpoint.Endpoint
+	testMethodClientOption       []fasthttp.ClientOption
+	testMethodEndpointMiddleware []endpoint.Middleware
+	createEndpoint               endpoint.Endpoint
+	createClientOption           []fasthttp.ClientOption
+	createEndpointMiddleware     []endpoint.Middleware
 	deleteEndpoint               endpoint.Endpoint
 	deleteClientOption           []fasthttp.ClientOption
 	deleteEndpointMiddleware     []endpoint.Middleware
@@ -79,12 +85,6 @@ type clientServiceInterface struct {
 	getAllEndpoint               endpoint.Endpoint
 	getAllClientOption           []fasthttp.ClientOption
 	getAllEndpointMiddleware     []endpoint.Middleware
-	testMethodEndpoint           endpoint.Endpoint
-	testMethodClientOption       []fasthttp.ClientOption
-	testMethodEndpointMiddleware []endpoint.Middleware
-	createEndpoint               endpoint.Endpoint
-	createClientOption           []fasthttp.ClientOption
-	createEndpointMiddleware     []endpoint.Middleware
 	genericClientOption          []fasthttp.ClientOption
 	genericEndpointMiddleware    []endpoint.Middleware
 }

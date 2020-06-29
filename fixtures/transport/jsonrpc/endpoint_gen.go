@@ -14,20 +14,20 @@ import (
 )
 
 type EndpointSet struct {
+	GetAllEndpoint     endpoint.Endpoint
 	TestMethodEndpoint endpoint.Endpoint
 	CreateEndpoint     endpoint.Endpoint
 	DeleteEndpoint     endpoint.Endpoint
 	GetEndpoint        endpoint.Endpoint
-	GetAllEndpoint     endpoint.Endpoint
 }
 
 func MakeEndpointSet(s service.Interface) EndpointSet {
 	return EndpointSet{
+		GetAllEndpoint:     makeGetAllEndpoint(s),
 		TestMethodEndpoint: makeTestMethodEndpoint(s),
 		CreateEndpoint:     makeCreateEndpoint(s),
 		DeleteEndpoint:     makeDeleteEndpoint(s),
 		GetEndpoint:        makeGetEndpoint(s),
-		GetAllEndpoint:     makeGetAllEndpoint(s),
 	}
 }
 

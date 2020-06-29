@@ -49,16 +49,16 @@ type ServiceInterfaceServerOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
 	genericServerOption          []jsonrpc.ServerOption
 	genericEndpointMiddleware    []endpoint.Middleware
+	getAllServerOption           []jsonrpc.ServerOption
+	getAllEndpointMiddleware     []endpoint.Middleware
+	testMethodServerOption       []jsonrpc.ServerOption
+	testMethodEndpointMiddleware []endpoint.Middleware
 	createServerOption           []jsonrpc.ServerOption
 	createEndpointMiddleware     []endpoint.Middleware
 	deleteServerOption           []jsonrpc.ServerOption
 	deleteEndpointMiddleware     []endpoint.Middleware
 	getServerOption              []jsonrpc.ServerOption
 	getEndpointMiddleware        []endpoint.Middleware
-	getAllServerOption           []jsonrpc.ServerOption
-	getAllEndpointMiddleware     []endpoint.Middleware
-	testMethodServerOption       []jsonrpc.ServerOption
-	testMethodEndpointMiddleware []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
@@ -67,6 +67,22 @@ func ServiceInterfaceGenericServerOptions(v ...jsonrpc.ServerOption) (_ ServiceI
 
 func ServiceInterfaceGenericServerEndpointMiddlewares(v ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
 	return func(o *serverServiceInterfaceOpts) { o.genericEndpointMiddleware = v }
+}
+
+func ServiceInterfaceCreateServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
+}
+
+func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceDeleteServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
+}
+
+func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceGetServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
@@ -91,20 +107,4 @@ func ServiceInterfaceTestMethodServerOptions(opt ...jsonrpc.ServerOption) (_ Ser
 
 func ServiceInterfaceTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
 	return func(c *serverServiceInterfaceOpts) { c.testMethodEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceCreateServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
-}
-
-func ServiceInterfaceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.createEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceDeleteServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.deleteServerOption = opt }
-}
-
-func ServiceInterfaceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.deleteEndpointMiddleware = opt }
 }

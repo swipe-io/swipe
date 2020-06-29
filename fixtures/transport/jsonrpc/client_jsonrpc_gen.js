@@ -90,14 +90,6 @@ class JSONRPCClient {
 }
 export default class extends JSONRPCClient {
   /**
-   * @param {Object.<string, *>} data
-   * @param {*} ss
-   * @return {PromiseLike<{states: Object.<string, Object.<string, Array.<string>>>}>}
-   **/
-  testMethod(data, ss) {
-    return this.__scheduleRequest("testMethod", { data: data, ss: ss });
-  }
-  /**
    *  Create new item of item.
    *
    * @param {string} name
@@ -168,6 +160,14 @@ export default class extends JSONRPCClient {
    **/
   getAll() {
     return this.__scheduleRequest("getAll", {});
+  }
+  /**
+   * @param {Object.<string, *>} data
+   * @param {*} ss
+   * @return {PromiseLike<{states: Object.<string, Object.<string, Array.<string>>>}>}
+   **/
+  testMethod(data, ss) {
+    return this.__scheduleRequest("testMethod", { data: data, ss: ss });
   }
 }
 export class ErrUnauthorizedError extends JSONRPCError {
