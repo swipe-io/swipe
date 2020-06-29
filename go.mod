@@ -13,6 +13,7 @@ require (
 	github.com/mailru/easyjson v0.7.1 // indirect
 	github.com/pborman/uuid v1.2.0
 	github.com/pquerna/ffjson v0.0.0-20190930134022-aa0246cd15f7
+	github.com/prometheus/client_golang v1.3.0
 	github.com/qiangxue/fasthttp-routing v0.0.0-20160225050629-6ccdc2a18d87
 	github.com/valyala/fasthttp v1.12.0
 	golang.org/x/mod v0.3.0
