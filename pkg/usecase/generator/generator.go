@@ -10,5 +10,4 @@ type Generator interface {
 	PkgName() string
 	OutputDir() string
 	Filename() string
-	Imports() []string
 }

@@ -15,10 +15,10 @@ import (
 
 type restServer struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	o    model.ServiceOption
-	i    *importer.Importer
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
+	i        *importer.Importer
 }
 
 func (g *restServer) Process(ctx context.Context) error {
@@ -128,7 +128,7 @@ func (g *restServer) Process(ctx context.Context) error {
 			g.W("r.To(")
 
 			if mopt.MethodName != "" {
-				g.WriteAST(mopt.Expr)
+				writer.WriteAST(g, g.i, mopt.Expr)
 			} else {
 				g.W(strconv.Quote("GET"))
 			}
@@ -147,7 +147,7 @@ func (g *restServer) Process(ctx context.Context) error {
 		} else {
 			g.W("r.Methods(")
 			if mopt.MethodName != "" {
-				g.WriteAST(mopt.Expr)
+				writer.WriteAST(g, g.i, mopt.Expr)
 			} else {
 				g.W(strconv.Quote("GET"))
 			}
@@ -170,7 +170,7 @@ func (g *restServer) Process(ctx context.Context) error {
 		)
 
 		if mopt.ServerRequestFunc.Expr != nil {
-			g.WriteAST(mopt.ServerRequestFunc.Expr)
+			writer.WriteAST(g, g.i, mopt.ServerRequestFunc.Expr)
 		} else {
 			g.W("func(ctx %s.Context, r *%s.Request) (interface{}, error) {\n", contextPkg, httpPkg)
 
@@ -217,7 +217,7 @@ func (g *restServer) Process(ctx context.Context) error {
 							} else {
 								valueID = "vars[" + strconv.Quote(pathVarName) + "]"
 							}
-							g.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
 						}
 					}
 				}
@@ -235,7 +235,7 @@ func (g *restServer) Process(ctx context.Context) error {
 							} else {
 								valueID = "q.Get(" + strconv.Quote(queryName) + ")"
 							}
-							g.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
 						}
 					}
 				}
@@ -247,7 +247,7 @@ func (g *restServer) Process(ctx context.Context) error {
 						} else {
 							valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
 						}
-						g.WriteConvertType("req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
+						g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
 					}
 				}
 				g.W("return req, nil\n")
@@ -257,7 +257,7 @@ func (g *restServer) Process(ctx context.Context) error {
 			g.W("},\n")
 		}
 		if mopt.ServerResponseFunc.Expr != nil {
-			g.WriteAST(mopt.ServerResponseFunc.Expr)
+			writer.WriteAST(g, g.i, mopt.ServerResponseFunc.Expr)
 		} else {
 			if transportOpt.JsonRPC.Enable {
 				g.W("encodeResponseJSONRPC%s", g.o.ID)
@@ -308,13 +308,13 @@ func (g *restServer) OutputDir() string {
 }
 
 func (g *restServer) Filename() string {
-	return "server_gen.go"
+	return g.filename
 }
 
-func (g *restServer) Imports() []string {
-	return g.i.SortedImports()
+func (g *restServer) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewRestServer(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
-	return &restServer{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewRestServer(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &restServer{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

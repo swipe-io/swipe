@@ -13,10 +13,10 @@ import (
 
 type jsonRPCGoClient struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	o    model.ServiceOption
-	i    *importer.Importer
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
+	i        *importer.Importer
 }
 
 func (g *jsonRPCGoClient) Process(ctx context.Context) error {
@@ -147,13 +147,13 @@ func (g *jsonRPCGoClient) OutputDir() string {
 }
 
 func (g *jsonRPCGoClient) Filename() string {
-	return "client_jsonrpc_gen.go"
+	return g.filename
 }
 
-func (g *jsonRPCGoClient) Imports() []string {
-	return g.i.SortedImports()
+func (g *jsonRPCGoClient) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewJsonRPCGoClient(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
-	return &jsonRPCGoClient{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewJsonRPCGoClient(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &jsonRPCGoClient{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

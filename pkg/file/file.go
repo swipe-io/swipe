@@ -6,6 +6,8 @@ import (
 	"go/format"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/swipe-io/swipe/pkg/importer"
 )
 
 type File struct {
@@ -16,7 +18,7 @@ type File struct {
 	OutputDir string
 	Filename  string
 	Errs      []error
-	Imports   []string
+	Importer  *importer.Importer
 }
 
 func (f *File) frameGO() ([]byte, error) {
@@ -28,9 +30,9 @@ func (f *File) frameGO() ([]byte, error) {
 	buf.WriteString(f.PkgName)
 	buf.WriteString("\n\n")
 
-	if len(f.Imports) > 0 {
+	if f.Importer.HasImports() {
 		buf.WriteString("import (\n")
-		for _, imp := range f.Imports {
+		for _, imp := range f.Importer.SortedImports() {
 			_, _ = fmt.Fprint(&buf, imp)
 		}
 		buf.WriteString(")\n\n")

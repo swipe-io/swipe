@@ -2,13 +2,9 @@ package writer
 
 import (
 	"fmt"
-	"go/ast"
-	"go/printer"
 	stdtypes "go/types"
 	"strconv"
 	stdstrings "strings"
-
-	"github.com/swipe-io/swipe/pkg/importer"
 
 	"github.com/swipe-io/swipe/pkg/strings"
 	"github.com/swipe-io/swipe/pkg/types"
@@ -16,38 +12,6 @@ import (
 
 type GoLangWriter struct {
 	BaseWriter
-	i *importer.Importer
-}
-
-func (w *GoLangWriter) FindComments(t stdtypes.Type) map[string][]string {
-	result := make(map[string][]string)
-	//w.Inspect(func(p *packages.Package, node ast.Node) bool {
-	//	if at, ok := node.(*ast.TypeSpec); ok {
-	//		if iface, ok := at.Interface.(*ast.InterfaceType); ok {
-	//			if stdtypes.Identical(p.TypesInfo.TypeOf(at.Interface), t) {
-	//
-	//				//for _, commentMap := range w.commentMaps {
-	//				//for _, field := range iface.Methods.List {
-	//				//
-	//				//fmt.Println(field.)
-	//				//
-	//				//		for _, commentGroup := range commentMap.Filter(field).Comments() {
-	//				//			for _, comment := range commentGroup.List {
-	//				//				result[field.Names[0].MethodName] = append(
-	//				//					result[field.Names[0].MethodName],
-	//				//					stdstrings.TrimLeft(comment.Text, "/"),
-	//				//				)
-	//				//			}
-	//				//		}
-	//				//	}
-	//				//}
-	//			}
-	//			return false
-	//		}
-	//	}
-	//	return true
-	//})
-	return result
 }
 
 func (w *GoLangWriter) WriteCheckErr(body func()) {
@@ -159,19 +123,8 @@ func (w *GoLangWriter) WriteFuncCall(id, name string, params []string) {
 	w.W(")\n")
 }
 
-func (w *GoLangWriter) WriteAST(node ast.Node) {
-	node = w.i.RewritePkgRefs(node)
-	if err := printer.Fprint(w, w.i.Pkg().Fset, node); err != nil {
-		panic(err)
-	}
-}
-
-func (w *GoLangWriter) getConvertFunc(kind stdtypes.BasicKind, tmpId, valueId string) string {
-	funcName := w.getConvertFuncName(kind)
-	if funcName == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s, err := %s.%s", tmpId, w.i.Import("strconv", "strconv"), fmt.Sprintf(funcName, valueId))
+func (w *GoLangWriter) getConvertFunc(funcName, strconvPkg, tmpId, valueId string) string {
+	return fmt.Sprintf("%s, err := %s.%s", tmpId, strconvPkg, fmt.Sprintf(funcName, valueId))
 }
 
 func (w *GoLangWriter) getConvertFuncName(kind stdtypes.BasicKind) string {
@@ -189,14 +142,6 @@ func (w *GoLangWriter) getConvertFuncName(kind stdtypes.BasicKind) string {
 	}
 }
 
-func (w *GoLangWriter) getFormatFunc(kind stdtypes.BasicKind, valueId string) string {
-	funcName := w.getFormatFuncName(kind)
-	if funcName == "" {
-		return valueId
-	}
-	return fmt.Sprintf("%s.%s", w.i.Import("strconv", "strconv"), fmt.Sprintf(funcName, valueId))
-}
-
 func (w *GoLangWriter) getFormatFuncName(kind stdtypes.BasicKind) string {
 	switch kind {
 	case stdtypes.Int, stdtypes.Int8, stdtypes.Int16, stdtypes.Int32, stdtypes.Int64:
@@ -212,23 +157,26 @@ func (w *GoLangWriter) getFormatFuncName(kind stdtypes.BasicKind) string {
 	}
 }
 
-func (w *GoLangWriter) GetFormatType(valueId string, f *stdtypes.Var) string {
+func (w *GoLangWriter) GetFormatType(importFn func(string, string) string, valueId string, f *stdtypes.Var) string {
 	switch t := f.Type().(type) {
 	case *stdtypes.Basic:
-		return w.getFormatFunc(t.Kind(), valueId)
+		funcName := w.getFormatFuncName(t.Kind())
+		if funcName != "" {
+			return fmt.Sprintf("%s.%s", importFn("strconv", "strconv"), fmt.Sprintf(funcName, valueId))
+		}
 	}
 	return valueId
 }
 
-func (w *GoLangWriter) writeConvertBasicType(name, assignId, valueId string, t *stdtypes.Basic, sliceErr string, declareVar bool, msgErrTemplate string) {
+func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) string, name, assignId, valueId string, t *stdtypes.Basic, sliceErr string, declareVar bool, msgErrTemplate string) {
 	useCheckErr := true
 
-	fmtPkg := w.i.Import("fmt", "fmt")
+	fmtPkg := importFn("fmt", "fmt")
 	tmpId := stdstrings.ToLower(name) + strings.UcFirst(t.String())
 
-	convertFunc := w.getConvertFunc(t.Kind(), tmpId, valueId)
-	if convertFunc != "" {
-		w.W("%s\n", convertFunc)
+	funcName := w.getConvertFuncName(t.Kind())
+	if funcName != "" {
+		w.W("%s\n", w.getConvertFunc(funcName, importFn("strconv", "strconv"), tmpId, valueId))
 	} else {
 		useCheckErr = false
 		tmpId = valueId
@@ -262,15 +210,15 @@ func (w *GoLangWriter) writeConvertBasicType(name, assignId, valueId string, t *
 }
 
 func (w *GoLangWriter) WriteConvertType(
-	assignId, valueId string, f *stdtypes.Var, sliceErr string, declareVar bool, msgErrTemplate string,
+	importFn func(string, string) string, assignId, valueId string, f *stdtypes.Var, sliceErr string, declareVar bool, msgErrTemplate string,
 ) {
 	var tmpId string
 
 	switch t := f.Type().(type) {
 	case *stdtypes.Basic:
-		w.writeConvertBasicType(f.Name(), assignId, valueId, t, sliceErr, declareVar, msgErrTemplate)
+		w.writeConvertBasicType(importFn, f.Name(), assignId, valueId, t, sliceErr, declareVar, msgErrTemplate)
 	case *stdtypes.Slice:
-		stringsPkg := w.i.Import("strings", "strings")
+		stringsPkg := importFn("strings", "strings")
 		switch t := t.Elem().(type) {
 		case *stdtypes.Basic:
 			switch t.Kind() {
@@ -295,13 +243,13 @@ func (w *GoLangWriter) WriteConvertType(
 				}
 				w.W("%s = make([]%s, len(%s))\n", assignId, t.String(), tmpId)
 				w.W("for i, s := range %s {\n", tmpId)
-				w.writeConvertBasicType("tmp", assignId+"[i]", "s", t, sliceErr, false, msgErrTemplate)
+				w.writeConvertBasicType(importFn, "tmp", assignId+"[i]", "s", t, sliceErr, false, msgErrTemplate)
 				w.W("}\n")
 			}
 		}
 	case *stdtypes.Pointer:
 		if t.Elem().String() == "net/url.URL" {
-			urlPkg := w.i.Import("url", "net/url")
+			urlPkg := importFn("url", "net/url")
 			tmpId := stdstrings.ToLower(f.Name()) + "URL"
 			w.W("%s, err := %s.Parse(%s)\n", tmpId, urlPkg, valueId)
 			w.W("if err != nil {\n")
@@ -318,7 +266,7 @@ func (w *GoLangWriter) WriteConvertType(
 		}
 	case *stdtypes.Named:
 		if t.Obj().Pkg().Path() == "github.com/satori/go.uuid" {
-			uuidPkg := w.i.Import("", t.Obj().Pkg().Path())
+			uuidPkg := importFn("", t.Obj().Pkg().Path())
 			if declareVar {
 				w.W("var ")
 			}
@@ -334,6 +282,6 @@ func (w *GoLangWriter) WriteConvertType(
 	}
 }
 
-func NewGoLangWriter(i *importer.Importer) *GoLangWriter {
-	return &GoLangWriter{i: i}
+func NewGoLangWriter() *GoLangWriter {
+	return &GoLangWriter{}
 }

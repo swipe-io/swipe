@@ -43,7 +43,7 @@ func (g *config) Process(ctx context.Context) error {
 
 	g.W("func %s() (cfg %s, errs []error) {\n", o.FuncName, structTypeStr)
 	g.W("cfg = ")
-	g.WriteAST(o.StructExpr)
+	writer.WriteAST(g, g.i, o.StructExpr)
 	g.W("\n")
 
 	envs := g.writeConfigStruct("cfg", "", structType, false, "errs")
@@ -105,7 +105,7 @@ func (g *config) writeConfigBasic(name, fldName string, f *stdtypes.Var, desc st
 		tmpVar := strcase.ToLowerCamel(name) + "Tmp"
 		g.W("%s, ok := %s.LookupEnv(%s)\n", tmpVar, g.i.Import("os", "os"), strconv.Quote(fldName))
 		g.W("if ok {\n")
-		g.WriteConvertType(name, tmpVar, f, "errs", false, "convert "+fldName+" error")
+		g.WriteConvertType(g.i.Import, name, tmpVar, f, "errs", false, "convert "+fldName+" error")
 		g.W("}\n")
 	} else {
 		g.writeConfigFlagBasic(name, fldName, desc, f)
@@ -211,5 +211,5 @@ func (g *config) Imports() []string {
 }
 
 func NewConfig(o model.ConfigOption, i *importer.Importer) *config {
-	return &config{o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+	return &config{o: o, i: i, GoLangWriter: writer.NewGoLangWriter()}
 }

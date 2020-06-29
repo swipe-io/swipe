@@ -13,10 +13,10 @@ import (
 
 type instrumenting struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	o    model.ServiceOption
-	i    *importer.Importer
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
+	i        *importer.Importer
 }
 
 func (g *instrumenting) Process(ctx context.Context) error {
@@ -85,13 +85,13 @@ func (g *instrumenting) OutputDir() string {
 }
 
 func (g *instrumenting) Filename() string {
-	return "instrumenting_gen.go"
+	return g.filename
 }
 
-func (g *instrumenting) Imports() []string {
-	return g.i.SortedImports()
+func (g *instrumenting) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewInstrumenting(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
-	return &instrumenting{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewInstrumenting(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &instrumenting{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

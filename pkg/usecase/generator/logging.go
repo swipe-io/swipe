@@ -15,10 +15,10 @@ import (
 
 type logging struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	o    model.ServiceOption
-	i    *importer.Importer
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
+	i        *importer.Importer
 }
 
 func (g *logging) Process(ctx context.Context) error {
@@ -111,13 +111,13 @@ func (g *logging) OutputDir() string {
 }
 
 func (g *logging) Filename() string {
-	return "logging_gen.go"
+	return g.filename
 }
 
-func (g *logging) Imports() []string {
-	return g.i.SortedImports()
+func (g *logging) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewLogging(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
-	return &logging{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewLogging(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &logging{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

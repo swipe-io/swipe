@@ -11,10 +11,10 @@ import (
 
 type httpTransport struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	i    *importer.Importer
-	o    model.ServiceOption
+	filename string
+	info     model.GenerateInfo
+	i        *importer.Importer
+	o        model.ServiceOption
 }
 
 func (g *httpTransport) Process(ctx context.Context) error {
@@ -154,13 +154,13 @@ func (g *httpTransport) OutputDir() string {
 }
 
 func (g *httpTransport) Filename() string {
-	return "http_gen.go"
+	return g.filename
 }
 
-func (g *httpTransport) Imports() []string {
-	return g.i.SortedImports()
+func (g *httpTransport) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewHttpTransport(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) *httpTransport {
-	return &httpTransport{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewHttpTransport(filename string, info model.GenerateInfo, o model.ServiceOption) *httpTransport {
+	return &httpTransport{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

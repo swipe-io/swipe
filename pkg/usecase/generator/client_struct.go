@@ -15,10 +15,10 @@ import (
 
 type clientStruct struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	i    *importer.Importer
-	o    model.ServiceOption
+	filename string
+	info     model.GenerateInfo
+	i        *importer.Importer
+	o        model.ServiceOption
 }
 
 func (g *clientStruct) Process(ctx context.Context) error {
@@ -201,13 +201,13 @@ func (g *clientStruct) OutputDir() string {
 }
 
 func (g *clientStruct) Filename() string {
-	return "client_gen.go"
+	return g.filename
 }
 
-func (g *clientStruct) Imports() []string {
-	return g.i.SortedImports()
+func (g *clientStruct) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewClientStruct(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
-	return &clientStruct{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewClientStruct(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &clientStruct{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

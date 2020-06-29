@@ -13,18 +13,22 @@ import (
 	stdstrings "strings"
 	"sync"
 
-	"golang.org/x/tools/go/types/typeutil"
-
-	"github.com/swipe-io/swipe/pkg/types"
-
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/file"
+	"github.com/swipe-io/swipe/pkg/importer"
 	"github.com/swipe-io/swipe/pkg/parser"
 	"github.com/swipe-io/swipe/pkg/registry"
+	"github.com/swipe-io/swipe/pkg/types"
+	"github.com/swipe-io/swipe/pkg/usecase/processor"
 	"github.com/swipe-io/swipe/pkg/value"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/types/typeutil"
 )
+
+type importerer interface {
+	SetImporter(*importer.Importer)
+}
 
 type Result struct {
 	PkgPath    string
@@ -57,6 +61,8 @@ func (s *Swipe) Generate() ([]Result, []error) {
 	basePaths := map[string]struct{}{}
 
 	for _, pkg := range s.pkgs {
+		importerFactory := processor.NewImporterFactory(pkg)
+
 		basePath, err := s.detectBasePath(pkg.GoFiles)
 		if err != nil {
 			return nil, []error{err}
@@ -103,10 +109,6 @@ func (s *Swipe) Generate() ([]Result, []error) {
 							return nil, []error{errors.New("option not suitable for processor: " + opt.Name)}
 						}
 						for _, g := range processor.Generators() {
-							if err := g.Process(s.ctx); err != nil {
-								return nil, []error{err}
-							}
-
 							outputDir := g.OutputDir()
 							if outputDir == "" {
 								outputDir = basePath
@@ -118,6 +120,15 @@ func (s *Swipe) Generate() ([]Result, []error) {
 
 							fileKey := outputDir + filename
 
+							i := importerFactory.Instance(fileKey)
+							if is, ok := g.(importerer); ok {
+								is.SetImporter(i)
+							}
+
+							if err := g.Process(s.ctx); err != nil {
+								return nil, []error{err}
+							}
+
 							f, ok := files[fileKey]
 							if !ok {
 								f = &file.File{
@@ -126,11 +137,10 @@ func (s *Swipe) Generate() ([]Result, []error) {
 									OutputDir: outputDir,
 									Filename:  filename,
 									Version:   s.version,
+									Importer:  i,
 								}
 								files[fileKey] = f
 							}
-
-							f.Imports = append(f.Imports, g.Imports()...)
 
 							b := g.Bytes()
 							if len(b) > 0 {
@@ -150,7 +160,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 	}
 
 	for path := range basePaths {
-		files, err := filepath.Glob(filepath.Join(path, "*_gen.go"))
+		files, err := filepath.Glob(filepath.Join(path, "*_gen.*"))
 		if err != nil {
 			panic(err)
 		}

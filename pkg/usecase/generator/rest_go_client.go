@@ -15,10 +15,10 @@ import (
 
 type restGoClient struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	o    model.ServiceOption
-	i    *importer.Importer
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
+	i        *importer.Importer
 }
 
 func (g *restGoClient) Process(ctx context.Context) error {
@@ -91,25 +91,25 @@ func (g *restGoClient) Process(ctx context.Context) error {
 					regexp = ":" + regexp
 				}
 				pathStr = stdstrings.Replace(pathStr, "{"+name+regexp+"}", "%s", -1)
-				pathVars = append(pathVars, g.GetFormatType("req."+strings.UcFirst(p.Name()), p))
+				pathVars = append(pathVars, g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 			}
 		}
 		queryVars := []string{}
 		for fName, qName := range mopt.QueryVars {
 			if p := m.Params.LookupField(fName); p != nil {
-				queryVars = append(queryVars, strconv.Quote(qName), g.GetFormatType("req."+strings.UcFirst(p.Name()), p))
+				queryVars = append(queryVars, strconv.Quote(qName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 			}
 		}
 		headerVars := []string{}
 		for fName, hName := range mopt.HeaderVars {
 			if p := m.Params.LookupField(fName); p != nil {
-				headerVars = append(headerVars, strconv.Quote(hName), g.GetFormatType("req."+strings.UcFirst(p.Name()), p))
+				headerVars = append(headerVars, strconv.Quote(hName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 			}
 		}
 
 		g.W("c.%s = %s.NewClient(\n", epName, kithttpPkg)
 		if mopt.Expr != nil {
-			g.WriteAST(mopt.Expr)
+			writer.WriteAST(g, g.i, mopt.Expr)
 		} else {
 			g.W(strconv.Quote(httpMethod))
 		}
@@ -117,7 +117,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 		g.W("u,\n")
 
 		if mopt.ClientRequestFunc.Expr != nil {
-			g.WriteAST(mopt.ClientRequestFunc.Expr)
+			writer.WriteAST(g, g.i, mopt.ClientRequestFunc.Expr)
 		} else {
 			g.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
@@ -134,7 +134,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 				g.W("r.Method = ")
 			}
 			if mopt.Expr != nil {
-				g.WriteAST(mopt.Expr)
+				writer.WriteAST(g, g.i, mopt.Expr)
 			} else {
 				g.W(strconv.Quote(httpMethod))
 			}
@@ -201,7 +201,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 		g.W(",\n")
 
 		if mopt.ClientResponseFunc.Expr != nil {
-			g.WriteAST(mopt.ClientResponseFunc.Expr)
+			writer.WriteAST(g, g.i, mopt.ClientResponseFunc.Expr)
 		} else {
 			g.W("func(_ %s.Context, r *%s.Response) (interface{}, error) {\n", contextPkg, httpPkg)
 
@@ -282,13 +282,13 @@ func (g *restGoClient) OutputDir() string {
 }
 
 func (g *restGoClient) Filename() string {
-	return "client_rest_gen.go"
+	return g.filename
 }
 
-func (g *restGoClient) Imports() []string {
-	return g.i.SortedImports()
+func (g *restGoClient) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewRestGoClient(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
-	return &restGoClient{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewRestGoClient(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &restGoClient{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

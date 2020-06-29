@@ -12,10 +12,10 @@ import (
 
 type jsonRPCServer struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	o    model.ServiceOption
-	i    *importer.Importer
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
+	i        *importer.Importer
 }
 
 func (g *jsonRPCServer) Process(ctx context.Context) error {
@@ -69,7 +69,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 		g.W("Decode: ")
 
 		if mopt.ServerRequestFunc.Expr != nil {
-			g.WriteAST(mopt.ServerRequestFunc.Expr)
+			writer.WriteAST(g, g.i, mopt.ServerRequestFunc.Expr)
 		} else {
 			fmtPkg := g.i.Import("fmt", "fmt")
 
@@ -164,13 +164,13 @@ func (g *jsonRPCServer) OutputDir() string {
 }
 
 func (g *jsonRPCServer) Filename() string {
-	return "server_gen.go"
+	return g.filename
 }
 
-func (g *jsonRPCServer) Imports() []string {
-	return g.i.SortedImports()
+func (g *jsonRPCServer) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewJsonRPCServer(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
-	return &jsonRPCServer{info: info, o: o, i: i, GoLangWriter: writer.NewGoLangWriter(i)}
+func NewJsonRPCServer(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &jsonRPCServer{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }

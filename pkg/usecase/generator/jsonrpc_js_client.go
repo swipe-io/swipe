@@ -104,8 +104,9 @@ class JSONRPCClient {
 
 type jsonRPCJSClient struct {
 	writer.BaseWriter
-	info model.GenerateInfo
-	o    model.ServiceOption
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
 }
 
 func (g *jsonRPCJSClient) Process(ctx context.Context) error {
@@ -208,7 +209,7 @@ func (g *jsonRPCJSClient) OutputDir() string {
 }
 
 func (g *jsonRPCJSClient) Filename() string {
-	return "jsonrpc_client.js"
+	return g.filename
 }
 
 func (g *jsonRPCJSClient) getJSDocType(t stdtypes.Type, nested int) string {
@@ -293,6 +294,6 @@ func (g *jsonRPCJSClient) getJSDocType(t stdtypes.Type, nested int) string {
 	}
 }
 
-func NewJsonRPCJSClient(info model.GenerateInfo, o model.ServiceOption) Generator {
-	return &jsonRPCJSClient{info: info, o: o}
+func NewJsonRPCJSClient(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
+	return &jsonRPCJSClient{filename: filename, info: info, o: o}
 }

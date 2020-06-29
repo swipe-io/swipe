@@ -5,13 +5,11 @@ import (
 	stdtypes "go/types"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/pkg/types"
-
 	"github.com/iancoleman/strcase"
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/importer"
 	"github.com/swipe-io/swipe/pkg/strings"
-
+	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/writer"
 )
 
@@ -20,14 +18,10 @@ type EndpointOption struct {
 
 type endpoint struct {
 	*writer.GoLangWriter
-
-	info model.GenerateInfo
-	o    model.ServiceOption
-	i    *importer.Importer
-}
-
-func (g *endpoint) Imports() []string {
-	return g.i.SortedImports()
+	filename string
+	info     model.GenerateInfo
+	o        model.ServiceOption
+	i        *importer.Importer
 }
 
 func (g *endpoint) Process(ctx context.Context) error {
@@ -131,7 +125,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 }
 
 func (g *endpoint) Filename() string {
-	return "endpoint_gen.go"
+	return g.filename
 }
 
 func (g *endpoint) OutputDir() string {
@@ -142,11 +136,15 @@ func (g *endpoint) PkgName() string {
 	return ""
 }
 
-func NewEndpoint(info model.GenerateInfo, o model.ServiceOption, i *importer.Importer) Generator {
+func (g *endpoint) SetImporter(i *importer.Importer) {
+	g.i = i
+}
+
+func NewEndpoint(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
 	return &endpoint{
-		GoLangWriter: writer.NewGoLangWriter(i),
+		GoLangWriter: writer.NewGoLangWriter(),
+		filename:     filename,
 		info:         info,
-		i:            i,
 		o:            o,
 	}
 }
