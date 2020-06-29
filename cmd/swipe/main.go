@@ -6,21 +6,22 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/subcommands"
 
 	"github.com/gookit/color"
-
 	"github.com/swipe-io/swipe/pkg/gen"
+	"golang.org/x/mod/modfile"
 )
 
 const version = "v1.20.0"
 
 var (
-	green = color.Green.Render
-	blue  = color.Blue.Render
-	red   = color.Red.Render
+	colorSuccess = color.Green.Render
+	colorAccent  = color.Cyan.Render
+	colorFail    = color.Red.Render
 )
 
 func main() {
@@ -103,14 +104,43 @@ func (cmd *genCmd) SetFlags(f *flag.FlagSet) {
 func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Println(red("failed to get working directory: "), red(err))
+		log.Println(colorFail("failed to get working directory: "), colorFail(err))
 		return subcommands.ExitFailure
 	}
+	modBytes, err := ioutil.ReadFile(filepath.Join(wd, "go.mod"))
+	if err != nil {
+		log.Println(colorFail("failed read go.mod file: "), colorFail(err))
+		return subcommands.ExitFailure
+	}
+	mod, err := modfile.Parse("go.mod", modBytes, nil)
+	if err != nil {
+		log.Println(colorFail("failed parse go.mod file: "), colorFail(err))
+		return subcommands.ExitFailure
+	}
+
+	if mod.Module.Mod.Path != "github.com/swipe-io/swipe" {
+		foundReplace := false
+		for _, replace := range mod.Replace {
+			if replace.Old.Path == "github.com/swipe-io/swipe" {
+				foundReplace = true
+				break
+			}
+		}
+		if !foundReplace {
+			for _, require := range mod.Require {
+				if require.Mod.Path == "github.com/swipe-io/swipe" && require.Mod.Version != version {
+					log.Println(colorFail("swipe cli version (" + version + ") does not match package version (" + require.Mod.Version + ")"))
+					return subcommands.ExitFailure
+				}
+			}
+		}
+	}
+
 	s := gen.NewSwipe(ctx, version, wd, os.Environ(), packages(f))
 	results, errs := s.Generate()
 	if len(errs) > 0 {
 		for _, err := range errs {
-			log.Println(red(err))
+			log.Println(colorFail(err))
 		}
 		return subcommands.ExitFailure
 	}
@@ -122,7 +152,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	for _, g := range results {
 		if len(g.Errs) > 0 {
 			logErrors(g.Errs)
-			log.Printf("%s: %s\n", g.PkgPath, red("generate failed"))
+			log.Printf("%s: %s\n", g.PkgPath, colorFail("generate failed"))
 			success = false
 		}
 		if len(g.Content) == 0 {
@@ -130,14 +160,14 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}
 		err := ioutil.WriteFile(g.OutputPath, g.Content, 0755)
 		if err == nil {
-			log.Printf("%s: wrote %s\n", green(g.PkgPath), blue(g.OutputPath))
+			log.Printf("%s: wrote %s\n", colorSuccess(g.PkgPath), colorAccent(g.OutputPath))
 		} else {
-			log.Printf("%s: failed to write %s: %v\n", green(g.PkgPath), blue(g.OutputPath), red(err))
+			log.Printf("%s: failed to write %s: %v\n", colorSuccess(g.PkgPath), colorAccent(g.OutputPath), colorFail(err))
 			success = false
 		}
 	}
 	if !success {
-		log.Println(red("at least one generate failure"))
+		log.Println(colorFail("at least one generate failure"))
 		return subcommands.ExitFailure
 	}
 	return subcommands.ExitSuccess
