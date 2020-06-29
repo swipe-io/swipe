@@ -1,4 +1,21 @@
 
+<a name="v1.21.0"></a>
+## [v1.21.0](https://github.com/swipe-io/swipe/compare/v1.20.1...v1.21.0) (2020-06-29)
+
+### Bug Fixes
+
+* ConfigEnv imports generation
+
+### Features
+
+* Added default generation of requestCount and requestLatency for Instrumenting.
+
+### BREAKING CHANGE
+
+
+The Namespace and Subsystem options have been removed, now the values are passed as parameters for Instrumenting.
+
+
 <a name="v1.20.1"></a>
 ## [v1.20.1](https://github.com/swipe-io/swipe/compare/v1.14.0...v1.20.1) (2020-06-29)
 
