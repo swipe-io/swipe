@@ -7,9 +7,14 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/l-vitaly/go-kit/transport/http/jsonrpc"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/swipe-io/swipe/fixtures/service"
 	"github.com/swipe-io/swipe/fixtures/user"
+	"net/url"
 )
 
 type ServiceInterfaceClientOption func(*clientServiceInterface)
@@ -20,22 +25,6 @@ func ServiceInterfaceGenericClientOptions(opt ...jsonrpc.ClientOption) (_ Servic
 
 func ServiceInterfaceGenericClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceClientOption) {
 	return func(c *clientServiceInterface) { c.genericEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceGetAllClientOptions(opt ...jsonrpc.ClientOption) (_ ServiceInterfaceClientOption) {
-	return func(c *clientServiceInterface) { c.getAllClientOption = opt }
-}
-
-func ServiceInterfaceGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceClientOption) {
-	return func(c *clientServiceInterface) { c.getAllEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceTestMethodClientOptions(opt ...jsonrpc.ClientOption) (_ ServiceInterfaceClientOption) {
-	return func(c *clientServiceInterface) { c.testMethodClientOption = opt }
-}
-
-func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceClientOption) {
-	return func(c *clientServiceInterface) { c.testMethodEndpointMiddleware = opt }
 }
 
 func ServiceInterfaceCreateClientOptions(opt ...jsonrpc.ClientOption) (_ ServiceInterfaceClientOption) {
@@ -62,7 +51,26 @@ func ServiceInterfaceGetClientEndpointMiddlewares(opt ...endpoint.Middleware) (_
 	return func(c *clientServiceInterface) { c.getEndpointMiddleware = opt }
 }
 
+func ServiceInterfaceGetAllClientOptions(opt ...jsonrpc.ClientOption) (_ ServiceInterfaceClientOption) {
+	return func(c *clientServiceInterface) { c.getAllClientOption = opt }
+}
+
+func ServiceInterfaceGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceClientOption) {
+	return func(c *clientServiceInterface) { c.getAllEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceTestMethodClientOptions(opt ...jsonrpc.ClientOption) (_ ServiceInterfaceClientOption) {
+	return func(c *clientServiceInterface) { c.testMethodClientOption = opt }
+}
+
+func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceClientOption) {
+	return func(c *clientServiceInterface) { c.testMethodEndpointMiddleware = opt }
+}
+
 type clientServiceInterface struct {
+	testMethodEndpoint           endpoint.Endpoint
+	testMethodClientOption       []jsonrpc.ClientOption
+	testMethodEndpointMiddleware []endpoint.Middleware
 	createEndpoint               endpoint.Endpoint
 	createClientOption           []jsonrpc.ClientOption
 	createEndpointMiddleware     []endpoint.Middleware
@@ -75,20 +83,8 @@ type clientServiceInterface struct {
 	getAllEndpoint               endpoint.Endpoint
 	getAllClientOption           []jsonrpc.ClientOption
 	getAllEndpointMiddleware     []endpoint.Middleware
-	testMethodEndpoint           endpoint.Endpoint
-	testMethodClientOption       []jsonrpc.ClientOption
-	testMethodEndpointMiddleware []endpoint.Middleware
 	genericClientOption          []jsonrpc.ClientOption
 	genericEndpointMiddleware    []endpoint.Middleware
-}
-
-func (c *clientServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (_ map[string]map[int][]string, _ error) {
-	resp, err := c.testMethodEndpoint(context.Background(), testMethodRequestServiceInterface{Data: data, Ss: ss})
-	if err != nil {
-		return nil, err
-	}
-	response := resp.(testMethodResponseServiceInterface)
-	return response.States, nil
 }
 
 func (c *clientServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
@@ -124,4 +120,167 @@ func (c *clientServiceInterface) GetAll(ctx context.Context) (_ []*user.User, _ 
 	}
 	response := resp.([]*user.User)
 	return response, nil
+}
+
+func (c *clientServiceInterface) TestMethod(data map[string]interface{}, ss interface{}) (_ map[string]map[int][]string, _ error) {
+	resp, err := c.testMethodEndpoint(context.Background(), testMethodRequestServiceInterface{Data: data, Ss: ss})
+	if err != nil {
+		return nil, err
+	}
+	response := resp.(testMethodResponseServiceInterface)
+	return response.States, nil
+}
+
+func NewClientJSONRPCServiceInterface(tgt string, opts ...ServiceInterfaceClientOption) (service.Interface, error) {
+	c := &clientServiceInterface{}
+	for _, o := range opts {
+		o(c)
+	}
+	u, err := url.Parse(tgt)
+	if err != nil {
+		return nil, err
+	}
+	c.testMethodClientOption = append(
+		c.testMethodClientOption,
+		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
+			req, ok := obj.(testMethodRequestServiceInterface)
+			if !ok {
+				return nil, fmt.Errorf("couldn't assert request as testMethodRequestServiceInterface, got %T", obj)
+			}
+			b, err := ffjson.Marshal(req)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't marshal request %T: %s", obj, err)
+			}
+			return b, nil
+		}),
+		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
+			if response.Error != nil {
+				return nil, ErrorDecode(response.Error.Code)
+			}
+			var resp testMethodResponseServiceInterface
+			err := ffjson.Unmarshal(response.Result, &resp)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't unmarshal body to testMethodResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		}),
+	)
+	c.testMethodEndpoint = jsonrpc.NewClient(
+		u,
+		"testMethod",
+		append(c.genericClientOption, c.testMethodClientOption...)...,
+	).Endpoint()
+	c.testMethodEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.testMethodEndpointMiddleware...))(c.testMethodEndpoint)
+	c.createClientOption = append(
+		c.createClientOption,
+		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
+			req, ok := obj.(createRequestServiceInterface)
+			if !ok {
+				return nil, fmt.Errorf("couldn't assert request as createRequestServiceInterface, got %T", obj)
+			}
+			b, err := ffjson.Marshal(req)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't marshal request %T: %s", obj, err)
+			}
+			return b, nil
+		}),
+		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
+			if response.Error != nil {
+				return nil, ErrorDecode(response.Error.Code)
+			}
+			return nil, nil
+		}),
+	)
+	c.createEndpoint = jsonrpc.NewClient(
+		u,
+		"create",
+		append(c.genericClientOption, c.createClientOption...)...,
+	).Endpoint()
+	c.createEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.createEndpointMiddleware...))(c.createEndpoint)
+	c.deleteClientOption = append(
+		c.deleteClientOption,
+		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
+			req, ok := obj.(deleteRequestServiceInterface)
+			if !ok {
+				return nil, fmt.Errorf("couldn't assert request as deleteRequestServiceInterface, got %T", obj)
+			}
+			b, err := ffjson.Marshal(req)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't marshal request %T: %s", obj, err)
+			}
+			return b, nil
+		}),
+		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
+			if response.Error != nil {
+				return nil, ErrorDecode(response.Error.Code)
+			}
+			var resp deleteResponseServiceInterface
+			err := ffjson.Unmarshal(response.Result, &resp)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't unmarshal body to deleteResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		}),
+	)
+	c.deleteEndpoint = jsonrpc.NewClient(
+		u,
+		"delete",
+		append(c.genericClientOption, c.deleteClientOption...)...,
+	).Endpoint()
+	c.deleteEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.deleteEndpointMiddleware...))(c.deleteEndpoint)
+	c.getClientOption = append(
+		c.getClientOption,
+		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
+			req, ok := obj.(getRequestServiceInterface)
+			if !ok {
+				return nil, fmt.Errorf("couldn't assert request as getRequestServiceInterface, got %T", obj)
+			}
+			b, err := ffjson.Marshal(req)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't marshal request %T: %s", obj, err)
+			}
+			return b, nil
+		}),
+		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
+			if response.Error != nil {
+				return nil, ErrorDecode(response.Error.Code)
+			}
+			var resp getResponseServiceInterface
+			err := ffjson.Unmarshal(response.Result, &resp)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't unmarshal body to getResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		}),
+	)
+	c.getEndpoint = jsonrpc.NewClient(
+		u,
+		"get",
+		append(c.genericClientOption, c.getClientOption...)...,
+	).Endpoint()
+	c.getEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.getEndpointMiddleware...))(c.getEndpoint)
+	c.getAllClientOption = append(
+		c.getAllClientOption,
+		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
+			return nil, nil
+		}),
+		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
+			if response.Error != nil {
+				return nil, ErrorDecode(response.Error.Code)
+			}
+			var resp []*user.User
+			err := ffjson.Unmarshal(response.Result, &resp)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't unmarshal body to getAllResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		}),
+	)
+	c.getAllEndpoint = jsonrpc.NewClient(
+		u,
+		"getAll",
+		append(c.genericClientOption, c.getAllClientOption...)...,
+	).Endpoint()
+	c.getAllEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.getAllEndpointMiddleware...))(c.getAllEndpoint)
+	return c, nil
 }

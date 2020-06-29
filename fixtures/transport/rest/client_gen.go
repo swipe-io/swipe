@@ -7,9 +7,16 @@ package rest
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/l-vitaly/go-kit/transport/fasthttp"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/swipe-io/swipe/fixtures/service"
 	"github.com/swipe-io/swipe/fixtures/user"
+	fasthttp2 "github.com/valyala/fasthttp"
+	"io"
+	"net/url"
+	"strconv"
 )
 
 type ServiceInterfaceClientOption func(*clientServiceInterface)
@@ -63,9 +70,6 @@ func ServiceInterfaceTestMethodClientEndpointMiddlewares(opt ...endpoint.Middlew
 }
 
 type clientServiceInterface struct {
-	getAllEndpoint               endpoint.Endpoint
-	getAllClientOption           []fasthttp.ClientOption
-	getAllEndpointMiddleware     []endpoint.Middleware
 	testMethodEndpoint           endpoint.Endpoint
 	testMethodClientOption       []fasthttp.ClientOption
 	testMethodEndpointMiddleware []endpoint.Middleware
@@ -78,6 +82,9 @@ type clientServiceInterface struct {
 	getEndpoint                  endpoint.Endpoint
 	getClientOption              []fasthttp.ClientOption
 	getEndpointMiddleware        []endpoint.Middleware
+	getAllEndpoint               endpoint.Endpoint
+	getAllClientOption           []fasthttp.ClientOption
+	getAllEndpointMiddleware     []endpoint.Middleware
 	genericClientOption          []fasthttp.ClientOption
 	genericEndpointMiddleware    []endpoint.Middleware
 }
@@ -124,4 +131,156 @@ func (c *clientServiceInterface) TestMethod(data map[string]interface{}, ss inte
 	}
 	response := resp.(testMethodResponseServiceInterface)
 	return response.States, nil
+}
+
+func NewClientRESTServiceInterface(tgt string, opts ...ServiceInterfaceClientOption) (service.Interface, error) {
+	c := &clientServiceInterface{}
+	for _, o := range opts {
+		o(c)
+	}
+	u, err := url.Parse(tgt)
+	if err != nil {
+		return nil, err
+	}
+	c.createEndpoint = fasthttp.NewClient(
+		fasthttp2.MethodPost,
+		u,
+		func(_ context.Context, r *fasthttp2.Request, request interface{}) error {
+			req, ok := request.(createRequestServiceInterface)
+			if !ok {
+				return fmt.Errorf("couldn't assert request as createRequestServiceInterface, got %T", request)
+			}
+			r.Header.SetMethod(fasthttp2.MethodPost)
+			r.SetRequestURI(fmt.Sprintf("/users"))
+			data, err := ffjson.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
+			}
+			r.SetBody(data)
+			return nil
+		},
+		func(_ context.Context, r *fasthttp2.Response) (interface{}, error) {
+			if statusCode := r.StatusCode(); statusCode != fasthttp2.StatusOK {
+				return nil, ErrorDecode(statusCode)
+			}
+			return nil, nil
+		},
+		append(c.genericClientOption, c.createClientOption...)...,
+	).Endpoint()
+	c.createEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.createEndpointMiddleware...))(c.createEndpoint)
+	c.deleteEndpoint = fasthttp.NewClient(
+		fasthttp2.MethodPost,
+		u,
+		func(_ context.Context, r *fasthttp2.Request, request interface{}) error {
+			req, ok := request.(deleteRequestServiceInterface)
+			if !ok {
+				return fmt.Errorf("couldn't assert request as deleteRequestServiceInterface, got %T", request)
+			}
+			r.Header.SetMethod(fasthttp2.MethodPost)
+			r.SetRequestURI(fmt.Sprintf("/delete"))
+			data, err := ffjson.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
+			}
+			r.SetBody(data)
+			return nil
+		},
+		func(_ context.Context, r *fasthttp2.Response) (interface{}, error) {
+			if statusCode := r.StatusCode(); statusCode != fasthttp2.StatusOK {
+				return nil, ErrorDecode(statusCode)
+			}
+			var resp deleteResponseServiceInterface
+			err := ffjson.Unmarshal(r.Body(), &resp)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to deleteResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		},
+		append(c.genericClientOption, c.deleteClientOption...)...,
+	).Endpoint()
+	c.deleteEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.deleteEndpointMiddleware...))(c.deleteEndpoint)
+	c.getEndpoint = fasthttp.NewClient(
+		fasthttp2.MethodGet,
+		u,
+		func(_ context.Context, r *fasthttp2.Request, request interface{}) error {
+			req, ok := request.(getRequestServiceInterface)
+			if !ok {
+				return fmt.Errorf("couldn't assert request as getRequestServiceInterface, got %T", request)
+			}
+			r.Header.SetMethod(fasthttp2.MethodGet)
+			r.SetRequestURI(fmt.Sprintf("/users/%s", req.Name))
+			q := r.URI().QueryArgs()
+			q.Add("price", strconv.FormatFloat(float64(req.Price), 'g', -1, 32))
+			r.URI().SetQueryString(q.String())
+			r.Header.Add("x-num", strconv.FormatInt(int64(req.N), 10))
+			return nil
+		},
+		func(_ context.Context, r *fasthttp2.Response) (interface{}, error) {
+			if statusCode := r.StatusCode(); statusCode != fasthttp2.StatusOK {
+				return nil, ErrorDecode(statusCode)
+			}
+			var resp getResponseServiceInterface
+			err := ffjson.Unmarshal(r.Body(), &resp)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to getResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		},
+		append(c.genericClientOption, c.getClientOption...)...,
+	).Endpoint()
+	c.getEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.getEndpointMiddleware...))(c.getEndpoint)
+	c.getAllEndpoint = fasthttp.NewClient(
+		fasthttp2.MethodGet,
+		u,
+		func(_ context.Context, r *fasthttp2.Request, request interface{}) error {
+			r.Header.SetMethod(fasthttp2.MethodGet)
+			r.SetRequestURI(fmt.Sprintf("/users"))
+			return nil
+		},
+		func(_ context.Context, r *fasthttp2.Response) (interface{}, error) {
+			if statusCode := r.StatusCode(); statusCode != fasthttp2.StatusOK {
+				return nil, ErrorDecode(statusCode)
+			}
+			var resp []*user.User
+			err := ffjson.Unmarshal(r.Body(), &resp)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to getAllResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		},
+		append(c.genericClientOption, c.getAllClientOption...)...,
+	).Endpoint()
+	c.getAllEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.getAllEndpointMiddleware...))(c.getAllEndpoint)
+	c.testMethodEndpoint = fasthttp.NewClient(
+		"POST",
+		u,
+		func(_ context.Context, r *fasthttp2.Request, request interface{}) error {
+			req, ok := request.(testMethodRequestServiceInterface)
+			if !ok {
+				return fmt.Errorf("couldn't assert request as testMethodRequestServiceInterface, got %T", request)
+			}
+			r.Header.SetMethod("POST")
+			r.SetRequestURI(fmt.Sprintf("/testMethod"))
+			data, err := ffjson.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
+			}
+			r.SetBody(data)
+			return nil
+		},
+		func(_ context.Context, r *fasthttp2.Response) (interface{}, error) {
+			if statusCode := r.StatusCode(); statusCode != fasthttp2.StatusOK {
+				return nil, ErrorDecode(statusCode)
+			}
+			var resp testMethodResponseServiceInterface
+			err := ffjson.Unmarshal(r.Body(), &resp)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to testMethodResponseServiceInterface: %s", err)
+			}
+			return resp, nil
+		},
+		append(c.genericClientOption, c.testMethodClientOption...)...,
+	).Endpoint()
+	c.testMethodEndpoint = middlewareChain(append(c.genericEndpointMiddleware, c.testMethodEndpointMiddleware...))(c.testMethodEndpoint)
+	return c, nil
 }

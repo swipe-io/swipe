@@ -19,14 +19,6 @@ type instrumentingMiddlewareServiceInterface struct {
 	requestLatency metrics.Histogram
 }
 
-func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
-	defer func(begin time.Time) {
-		s.requestCount.With("method", "Create").Add(1)
-		s.requestLatency.With("method", "Create").Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return s.next.Create(ctx, name, data)
-}
-
 func (s *instrumentingMiddlewareServiceInterface) Delete(ctx context.Context, id uint) (a string, b string, _ error) {
 	defer func(begin time.Time) {
 		s.requestCount.With("method", "Delete").Add(1)
@@ -57,6 +49,14 @@ func (s *instrumentingMiddlewareServiceInterface) TestMethod(data map[string]int
 		s.requestLatency.With("method", "TestMethod").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return s.next.TestMethod(data, ss)
+}
+
+func (s *instrumentingMiddlewareServiceInterface) Create(ctx context.Context, name string, data []byte) (_ error) {
+	defer func(begin time.Time) {
+		s.requestCount.With("method", "Create").Add(1)
+		s.requestLatency.With("method", "Create").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return s.next.Create(ctx, name, data)
 }
 
 func NewInstrumentingMiddlewareServiceInterface(s service.Interface, requestCount metrics.Counter, requestLatency metrics.Histogram) service.Interface {

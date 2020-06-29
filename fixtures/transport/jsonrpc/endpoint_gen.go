@@ -10,23 +10,24 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/swipe-io/swipe/fixtures/service"
 	"github.com/swipe-io/swipe/fixtures/user"
+	"io"
 )
 
 type EndpointSet struct {
-	CreateEndpoint     endpoint.Endpoint
-	DeleteEndpoint     endpoint.Endpoint
 	GetEndpoint        endpoint.Endpoint
 	GetAllEndpoint     endpoint.Endpoint
 	TestMethodEndpoint endpoint.Endpoint
+	CreateEndpoint     endpoint.Endpoint
+	DeleteEndpoint     endpoint.Endpoint
 }
 
 func MakeEndpointSet(s service.Interface) EndpointSet {
 	return EndpointSet{
+		GetAllEndpoint:     makeGetAllEndpoint(s),
 		TestMethodEndpoint: makeTestMethodEndpoint(s),
 		CreateEndpoint:     makeCreateEndpoint(s),
 		DeleteEndpoint:     makeDeleteEndpoint(s),
 		GetEndpoint:        makeGetEndpoint(s),
-		GetAllEndpoint:     makeGetAllEndpoint(s),
 	}
 }
 
@@ -121,4 +122,49 @@ func makeTestMethodEndpoint(s service.Interface) endpoint.Endpoint {
 		return result, nil
 	}
 	return w
+}
+
+func DeleteEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
+	s, err := NewClientJSONRPCServiceInterface(instance)
+	if err != nil {
+		return nil, nil, err
+	}
+	return makeDeleteEndpoint(s), nil, nil
+
+}
+
+func GetEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
+	s, err := NewClientJSONRPCServiceInterface(instance)
+	if err != nil {
+		return nil, nil, err
+	}
+	return makeGetEndpoint(s), nil, nil
+
+}
+
+func GetAllEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
+	s, err := NewClientJSONRPCServiceInterface(instance)
+	if err != nil {
+		return nil, nil, err
+	}
+	return makeGetAllEndpoint(s), nil, nil
+
+}
+
+func TestMethodEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
+	s, err := NewClientJSONRPCServiceInterface(instance)
+	if err != nil {
+		return nil, nil, err
+	}
+	return makeTestMethodEndpoint(s), nil, nil
+
+}
+
+func CreateEndpointFactory(instance string) (endpoint.Endpoint, io.Closer, error) {
+	s, err := NewClientJSONRPCServiceInterface(instance)
+	if err != nil {
+		return nil, nil, err
+	}
+	return makeCreateEndpoint(s), nil, nil
+
 }

@@ -31,18 +31,6 @@ func MakeServiceInterfaceEndpointCodecMap(ep EndpointSet, ns ...string) jsonrpc.
 		namespace += "."
 	}
 	return jsonrpc.EndpointCodecMap{
-		namespace + "create": jsonrpc.EndpointCodec{
-			Endpoint: ep.CreateEndpoint,
-			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req createRequestServiceInterface
-				err := ffjson.Unmarshal(msg, &req)
-				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to createRequestServiceInterface: %s", err)
-				}
-				return req, nil
-			},
-			Encode: encodeResponseJSONRPCServiceInterface,
-		},
 		namespace + "delete": jsonrpc.EndpointCodec{
 			Endpoint: ep.DeleteEndpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
@@ -86,6 +74,18 @@ func MakeServiceInterfaceEndpointCodecMap(ep EndpointSet, ns ...string) jsonrpc.
 			},
 			Encode: encodeResponseJSONRPCServiceInterface,
 		},
+		namespace + "create": jsonrpc.EndpointCodec{
+			Endpoint: ep.CreateEndpoint,
+			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
+				var req createRequestServiceInterface
+				err := ffjson.Unmarshal(msg, &req)
+				if err != nil {
+					return nil, fmt.Errorf("couldn't unmarshal body to createRequestServiceInterface: %s", err)
+				}
+				return req, nil
+			},
+			Encode: encodeResponseJSONRPCServiceInterface,
+		},
 	}
 }
 
@@ -96,11 +96,11 @@ func MakeHandlerJSONRPCServiceInterface(s service.Interface, opts ...ServiceInte
 		o(sopt)
 	}
 	ep := MakeEndpointSet(s)
+	ep.GetAllEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getAllEndpointMiddleware...))(ep.GetAllEndpoint)
+	ep.TestMethodEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.testMethodEndpointMiddleware...))(ep.TestMethodEndpoint)
 	ep.CreateEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.createEndpointMiddleware...))(ep.CreateEndpoint)
 	ep.DeleteEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.deleteEndpointMiddleware...))(ep.DeleteEndpoint)
 	ep.GetEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getEndpointMiddleware...))(ep.GetEndpoint)
-	ep.GetAllEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.getAllEndpointMiddleware...))(ep.GetAllEndpoint)
-	ep.TestMethodEndpoint = middlewareChain(append(sopt.genericEndpointMiddleware, sopt.testMethodEndpointMiddleware...))(ep.TestMethodEndpoint)
 	r := mux.NewRouter()
 	handler := jsonrpc.NewServer(MakeServiceInterfaceEndpointCodecMap(ep), sopt.genericServerOption...)
 	r.Methods("POST").Path("/rpc/{method}").Handler(handler)

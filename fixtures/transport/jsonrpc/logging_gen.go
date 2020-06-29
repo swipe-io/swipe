@@ -18,13 +18,6 @@ type loggingMiddlewareServiceInterface struct {
 	logger log.Logger
 }
 
-func (s *loggingMiddlewareServiceInterface) Delete(ctx context.Context, id uint) (a string, b string, err error) {
-	defer func(now time.Time) {
-		s.logger.Log("method", "Delete", "took", time.Since(now), "id", id, "a", a, "b", b, "err", err)
-	}(time.Now())
-	return s.next.Delete(ctx, id)
-}
-
 func (s *loggingMiddlewareServiceInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int) (data user.User, err error) {
 	defer func(now time.Time) {
 		s.logger.Log("method", "Get", "took", time.Since(now), "id", id, "name", name, "fname", fname, "price", price, "n", n, "data", data, "err", err)
@@ -51,6 +44,13 @@ func (s *loggingMiddlewareServiceInterface) Create(ctx context.Context, name str
 		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", err)
 	}(time.Now())
 	return s.next.Create(ctx, name, data)
+}
+
+func (s *loggingMiddlewareServiceInterface) Delete(ctx context.Context, id uint) (a string, b string, err error) {
+	defer func(now time.Time) {
+		s.logger.Log("method", "Delete", "took", time.Since(now), "id", id, "a", a, "b", b, "err", err)
+	}(time.Now())
+	return s.next.Delete(ctx, id)
 }
 
 func NewLoggingMiddlewareServiceInterface(s service.Interface, logger log.Logger) service.Interface {

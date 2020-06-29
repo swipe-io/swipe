@@ -69,22 +69,6 @@ func ServiceInterfaceGenericServerEndpointMiddlewares(v ...endpoint.Middleware) 
 	return func(o *serverServiceInterfaceOpts) { o.genericEndpointMiddleware = v }
 }
 
-func ServiceInterfaceGetAllServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.getAllServerOption = opt }
-}
-
-func ServiceInterfaceGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.getAllEndpointMiddleware = opt }
-}
-
-func ServiceInterfaceTestMethodServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.testMethodServerOption = opt }
-}
-
-func ServiceInterfaceTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
-	return func(c *serverServiceInterfaceOpts) { c.testMethodEndpointMiddleware = opt }
-}
-
 func ServiceInterfaceCreateServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
 	return func(c *serverServiceInterfaceOpts) { c.createServerOption = opt }
 }
@@ -107,4 +91,20 @@ func ServiceInterfaceGetServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInt
 
 func ServiceInterfaceGetServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
 	return func(c *serverServiceInterfaceOpts) { c.getEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceGetAllServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getAllServerOption = opt }
+}
+
+func ServiceInterfaceGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.getAllEndpointMiddleware = opt }
+}
+
+func ServiceInterfaceTestMethodServerOptions(opt ...jsonrpc.ServerOption) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.testMethodServerOption = opt }
+}
+
+func ServiceInterfaceTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) (_ ServiceInterfaceServerOption) {
+	return func(c *serverServiceInterfaceOpts) { c.testMethodEndpointMiddleware = opt }
 }

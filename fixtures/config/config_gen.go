@@ -5,15 +5,6 @@
 //go:generate swipe
 package config
 
-import (
-	"errors"
-	"flag"
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
-)
-
 func LoadConfig() (cfg *Config, errs []error) {
 	cfg = &Config{
 		Bind: "hohoho",

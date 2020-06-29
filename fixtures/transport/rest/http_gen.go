@@ -49,16 +49,16 @@ type ServiceInterfaceServerOption func(*serverServiceInterfaceOpts)
 type serverServiceInterfaceOpts struct {
 	genericServerOption          []fasthttp.ServerOption
 	genericEndpointMiddleware    []endpoint.Middleware
+	deleteServerOption           []fasthttp.ServerOption
+	deleteEndpointMiddleware     []endpoint.Middleware
+	getServerOption              []fasthttp.ServerOption
+	getEndpointMiddleware        []endpoint.Middleware
 	getAllServerOption           []fasthttp.ServerOption
 	getAllEndpointMiddleware     []endpoint.Middleware
 	testMethodServerOption       []fasthttp.ServerOption
 	testMethodEndpointMiddleware []endpoint.Middleware
 	createServerOption           []fasthttp.ServerOption
 	createEndpointMiddleware     []endpoint.Middleware
-	deleteServerOption           []fasthttp.ServerOption
-	deleteEndpointMiddleware     []endpoint.Middleware
-	getServerOption              []fasthttp.ServerOption
-	getEndpointMiddleware        []endpoint.Middleware
 }
 
 func ServiceInterfaceGenericServerOptions(v ...fasthttp.ServerOption) (_ ServiceInterfaceServerOption) {
