@@ -206,10 +206,10 @@ func (g *config) Filename() string {
 	return "config_gen.go"
 }
 
-func (g *config) Imports() []string {
-	return g.i.SortedImports()
+func (g *config) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
-func NewConfig(o model.ConfigOption, i *importer.Importer) *config {
-	return &config{o: o, i: i, GoLangWriter: writer.NewGoLangWriter()}
+func NewConfig(o model.ConfigOption) *config {
+	return &config{GoLangWriter: writer.NewGoLangWriter(), o: o}
 }
