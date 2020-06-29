@@ -122,17 +122,7 @@ func Logging(...LoggingOption) ServiceOption {
 }
 
 // Instrumenting a option enabled instrumenting (collect metrics) middleware.
-func Instrumenting(...InstrumentingOption) ServiceOption {
-	return "implementation not generated, run swipe"
-}
-
-// Namespace a namespace metric.
-func Namespace(string) InstrumentingOption {
-	return "implementation not generated, run swipe"
-}
-
-// Subsystem a subsystem metric.
-func Subsystem(string) InstrumentingOption {
+func Instrumenting(namespace, subsystem string, opts ...InstrumentingOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 

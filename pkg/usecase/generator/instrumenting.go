@@ -3,6 +3,7 @@ package generator
 import (
 	"context"
 	stdtypes "go/types"
+	"strconv"
 
 	"github.com/swipe-io/swipe/pkg/types"
 
@@ -23,6 +24,8 @@ func (g *instrumenting) Process(ctx context.Context) error {
 	metricsPkg := g.i.Import("metrics", "github.com/go-kit/kit/metrics")
 	timePkg := g.i.Import("time", "time")
 	typeStr := stdtypes.TypeString(g.o.Type, g.i.QualifyPkg)
+	stdPrometheusPkg := g.i.Import("prometheus", "github.com/prometheus/client_golang/prometheus")
+	kitPrometheusPkg := g.i.Import("prometheus", "github.com/go-kit/kit/metrics/prometheus")
 
 	name := "instrumentingMiddleware" + g.o.ID
 	constructName := "NewInstrumentingMiddleware" + g.o.ID
@@ -72,7 +75,28 @@ func (g *instrumenting) Process(ctx context.Context) error {
 			g.W(")\n")
 		})
 	}
-	g.W("func %[1]s(s %[2]s, requestCount %[4]s.Counter, requestLatency %[4]s.Histogram) %[2]s {\n return &%[3]s{next: s, requestCount: requestCount, requestLatency: requestLatency}\n}\n", constructName, typeStr, name, metricsPkg)
+
+	g.W("func %[1]s(s %[2]s, requestCount %[3]s.Counter, requestLatency %[3]s.Histogram) %[2]s {\n", constructName, typeStr, metricsPkg)
+
+	g.W("if requestCount == nil {\n")
+	g.W("requestCount = %s.NewCounterFrom(%s.CounterOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
+	g.W("Namespace: %s,\n", strconv.Quote(g.o.Instrumenting.Namespace))
+	g.W("Subsystem: %s,\n", strconv.Quote(g.o.Instrumenting.Subsystem))
+	g.W("Name: %s,\n", strconv.Quote("request_count"))
+	g.W("Help: %s,\n", strconv.Quote("Number of requests received."))
+	g.W("}, []string{\"method\"})\n")
+	g.W("\n}\n")
+
+	g.W("if requestLatency == nil {\n")
+	g.W("requestLatency = %s.NewSummaryFrom(%s.SummaryOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
+	g.W("Namespace: %s,\n", strconv.Quote(g.o.Instrumenting.Namespace))
+	g.W("Subsystem: %s,\n", strconv.Quote(g.o.Instrumenting.Subsystem))
+	g.W("Name: %s,\n", strconv.Quote("request_latency_microseconds"))
+	g.W("Help: %s,\n", strconv.Quote("Total duration of requests in microseconds."))
+	g.W("}, []string{\"method\"})\n")
+	g.W("\n}\n")
+
+	g.W("return &%s{next: s, requestCount: requestCount, requestLatency: requestLatency}\n}\n", name)
 	return nil
 }
 

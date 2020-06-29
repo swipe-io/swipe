@@ -90,10 +90,10 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 
 	if instrumentingOpt, ok := option.At("Instrumenting"); ok {
 		o.Instrumenting.Enable = true
-		if namespace, ok := instrumentingOpt.At("Namespace"); ok {
+		if namespace, ok := instrumentingOpt.At("namespace"); ok {
 			o.Instrumenting.Namespace = namespace.Value.String()
 		}
-		if subsystem, ok := instrumentingOpt.At("Subsystem"); ok {
+		if subsystem, ok := instrumentingOpt.At("subsystem"); ok {
 			o.Instrumenting.Subsystem = subsystem.Value.String()
 		}
 	}
