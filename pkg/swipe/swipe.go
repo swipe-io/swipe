@@ -52,6 +52,9 @@ type ServiceOption string
 // A InstrumentingOption is an option metrics.
 type InstrumentingOption string
 
+// A LoggingOption is an option logging.
+type LoggingOption string
+
 // A TransportOption is an option gokit transport.
 type TransportOption string
 
@@ -114,7 +117,7 @@ func Service(iface interface{}, opts ...ServiceOption) Option {
 }
 
 // Logging a option enabled logging middleware.
-func Logging() ServiceOption {
+func Logging(...LoggingOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
