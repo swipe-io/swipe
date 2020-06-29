@@ -1,10 +1,16 @@
 
-<a name="v1.20.0"></a>
-## [v1.20.0](https://github.com/swipe-io/swipe/compare/v1.14.0...v1.20.0) (2020-06-26)
+<a name="v1.20.1"></a>
+## [v1.20.1](https://github.com/swipe-io/swipe/compare/v1.14.0...v1.20.1) (2020-06-29)
 
 ### Bug Fixes
 
 * Remove Assembly option and generation
+
+### Features
+
+* The generated file name for the JSON RPC JavaScript client has been changed to jsonrpc_client_gen.js.
+* Added verification of the correspondence of the version of swipe cli and swipe package.
+* Added factory generation for gokit.Endpoint.
 
 
 <a name="v1.14.0"></a>
