@@ -1,6 +1,10 @@
 package model
 
-import stdtypes "go/types"
+import (
+	"go/ast"
+	"go/constant"
+	stdtypes "go/types"
+)
 
 type VarSlice []*stdtypes.Var
 
@@ -11,6 +15,42 @@ func (s VarSlice) LookupField(name string) *stdtypes.Var {
 		}
 	}
 	return nil
+}
+
+type ValueResult struct {
+	ID    uint32
+	Type  stdtypes.Type
+	Value constant.Value
+}
+
+type CallResult struct {
+	ID      uint32
+	FnID    uint32
+	IsIface bool
+}
+
+type ReturnStmt struct {
+	Results []interface{}
+}
+
+type BlockStmt struct {
+	Returns []*ReturnStmt
+	Blocks  []*BlockStmt
+}
+
+type DeclStmt struct {
+	Name  string
+	Block *BlockStmt
+}
+
+type DeclType struct {
+	Type     stdtypes.Type
+	DeclStmt map[uint32]*DeclStmt
+}
+
+type ReturnType struct {
+	Expr ast.Expr
+	Type stdtypes.Type
 }
 
 type InstrumentingServiceOption struct {
@@ -29,6 +69,8 @@ type ServiceMethod struct {
 	ParamCtx     *stdtypes.Var
 	ReturnErr    *stdtypes.Var
 	ResultsNamed bool
+	Errors       []ErrorHTTPTransportOption
+	T            stdtypes.Type
 }
 
 type ServiceOption struct {

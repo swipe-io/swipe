@@ -62,14 +62,14 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.WriteFunc("ErrorDecode", "", []string{"code", "int"}, []string{"", "error"}, func() {
 		g.W("switch code {\n")
 		g.W("default:\nreturn httpError{code: code}\n")
-		for _, i := range g.o.Transport.MapCodeErrors {
-			g.W("case %d:\n", i.Code)
-			pkg := g.i.Import(i.Named.Obj().Pkg().Name(), i.Named.Obj().Pkg().Path())
+		for _, e := range g.o.Transport.MapCodeErrors {
+			g.W("case %d:\n", e.Code)
+			pkg := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
 			g.W("return ")
-			if i.IsPointer {
+			if e.IsPointer {
 				g.W("&")
 			}
-			g.W("%s.%s{}\n", pkg, i.Named.Obj().Name())
+			g.W("%s.%s{}\n", pkg, e.Named.Obj().Name())
 		}
 		g.W("}\n")
 	})

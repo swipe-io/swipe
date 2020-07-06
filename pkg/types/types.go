@@ -1,8 +1,13 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
+
+	"golang.org/x/tools/go/types/typeutil"
+
+	"github.com/spaolacci/murmur3"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -12,6 +17,12 @@ var (
 	PanicType = types.Universe.Lookup("panic").Type()
 	NilType   = types.Universe.Lookup("nil").Type()
 )
+
+func HashObject(obj types.Object, hasher typeutil.Hasher) uint32 {
+	h := murmur3.New32()
+	_, _ = h.Write([]byte(fmt.Sprintf("%s::%d", obj.Name(), hasher.Hash(obj.Type()))))
+	return h.Sum32()
+}
 
 func GetBitSize(kind types.BasicKind) string {
 	switch kind {

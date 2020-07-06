@@ -60,16 +60,17 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 	g.W("namespace += \".\"\n")
 	g.W("}\n")
 
-	g.W("return %[1]s.EndpointCodecMap{\n", jsonrpcPkg)
+	g.W("ecm := %[1]s.EndpointCodecMap{}\n", jsonrpcPkg)
+
+	//g.W("return %[1]s.EndpointCodecMap{\n", jsonrpcPkg)
 
 	for _, m := range g.o.Methods {
 		mopt := transportOpt.MethodOptions[m.Name]
 
-		g.W("namespace+\"%s\": %s.EndpointCodec{\n", m.LcName, jsonrpcPkg)
-		g.W(
-			"Endpoint: ep.%sEndpoint,\n",
-			m.Name,
-		)
+		g.W("if ep.%sEndpoint != nil {\n", m.Name)
+
+		g.W("ecm[namespace+\"%s\"] = %s.EndpointCodec{\n", m.LcName, jsonrpcPkg)
+		g.W("Endpoint: ep.%sEndpoint,\n", m.Name)
 		g.W("Decode: ")
 
 		if mopt.ServerRequestFunc.Expr != nil {
@@ -105,9 +106,12 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 		} else {
 			g.W("encodeResponseJSONRPC%s,\n", g.o.ID)
 		}
-		g.W("},\n")
+		g.W("}\n}\n")
 	}
-	g.W("}\n}\n")
+
+	g.W("return ecm\n")
+
+	g.W("}\n")
 
 	g.W("// HTTP %s Transport\n", transportOpt.Prefix)
 	g.W("func MakeHandler%s%s(s %s", g.o.Transport.Prefix, g.o.ID, typeStr)

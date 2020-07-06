@@ -53,7 +53,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		swg.Components.Schemas["Error"] = getOpenapiRestErrorSchema()
 	}
 
-	for name, ei := range g.o.Transport.MapCodeErrors {
+	for _, ei := range g.o.Transport.MapCodeErrors {
 		var s *openapi.Schema
 		if g.o.Transport.JsonRPC.Enable {
 			s = &openapi.Schema{
@@ -91,7 +91,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				},
 			}
 		}
-		swg.Components.Schemas[name] = s
+		swg.Components.Schemas[ei.Named.Obj().Name()] = s
 	}
 
 	for _, m := range g.o.Methods {
@@ -100,12 +100,10 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		var (
 			o       *openapi.Operation
 			pathStr string
-			errors  = opt.DefaultMethod.Errors
 			tags    = opt.DefaultMethod.Tags
 		)
 
 		if openapiMethodOpt, ok := opt.Methods[m.Name]; ok {
-			errors = append(errors, openapiMethodOpt.Errors...)
 			tags = append(tags, openapiMethodOpt.Tags...)
 		}
 
@@ -113,19 +111,18 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			o = g.makeJSONRPCPath(opt, m)
 			pathStr = "/" + strings.LcFirst(m.Name)
 			mopt.MethodName = "POST"
-			for _, name := range errors {
-				if ei, ok := g.o.Transport.MapCodeErrors[name]; ok {
-					codeStr := strconv.FormatInt(ei.Code, 10)
-					o.Responses["x"+codeStr] = openapi.Response{
-						Description: name,
-						Content: openapi.Content{
-							"application/json": {
-								Schema: &openapi.Schema{
-									Ref: "#/components/schemas/" + name,
-								},
+
+			for _, ei := range m.Errors {
+				codeStr := strconv.FormatInt(ei.Code, 10)
+				o.Responses["x"+codeStr] = openapi.Response{
+					Description: ei.Named.Obj().Name(),
+					Content: openapi.Content{
+						"application/json": {
+							Schema: &openapi.Schema{
+								Ref: "#/components/schemas/" + ei.Named.Obj().Name(),
 							},
 						},
-					}
+					},
 				}
 			}
 		} else {

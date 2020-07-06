@@ -5,9 +5,11 @@ import (
 	"go/ast"
 	"go/constant"
 	stdtypes "go/types"
+	"path"
 	stdstrings "strings"
 
 	"github.com/iancoleman/strcase"
+	"golang.org/x/tools/go/types/typeutil"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/errors"
@@ -16,9 +18,12 @@ import (
 	"github.com/swipe-io/swipe/pkg/strings"
 	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/usecase/option"
-
-	"golang.org/x/tools/go/packages"
 )
+
+type ErrorData struct {
+	Named *stdtypes.Named
+	Code  int64
+}
 
 type serviceOption struct {
 	info model.GenerateInfo
@@ -44,19 +49,104 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 	o.ID = strcase.ToCamel(stdtypes.TypeString(ifacePtr.Elem(), func(p *stdtypes.Package) string {
 		return p.Name()
 	}))
+
+	if transportOpt, ok := option.At("Transport"); ok {
+		transportOption, err := g.loadTransport(transportOpt)
+		if err != nil {
+			return nil, err
+		}
+		o.Transport = transportOption
+	}
+
 	o.Type = ifacePtr.Elem()
 	o.Interface = iface
 
+	errorStatusMethod := "StatusCode"
+	if o.Transport.JsonRPC.Enable {
+		errorStatusMethod = "ErrorCode"
+	}
+
+	hasher := typeutil.MakeHasher()
+
+	var collectErrorReturn func(b *model.BlockStmt) []model.ErrorHTTPTransportOption
+
+	collectErrorReturn = func(b *model.BlockStmt) (result []model.ErrorHTTPTransportOption) {
+		for _, block := range b.Blocks {
+			result = append(result, collectErrorReturn(block)...)
+		}
+		for _, stmt := range b.Returns {
+			for _, e := range stmt.Results {
+				switch v := e.(type) {
+				case *model.ValueResult:
+				case *model.CallResult:
+					if v.IsIface {
+						for _, m := range g.info.MapTypes {
+							if decl, ok := m.DeclStmt[v.FnID]; ok {
+								result = append(result, collectErrorReturn(decl.Block)...)
+							}
+						}
+					}
+				}
+				if v, ok := e.(*model.ValueResult); ok {
+					if m, ok := g.info.MapTypes[v.ID]; ok {
+						for _, decl := range m.DeclStmt {
+							if decl.Name == errorStatusMethod {
+								for _, returnStmt := range decl.Block.Returns {
+									for _, i2 := range returnStmt.Results {
+										if v, ok := i2.(*model.ValueResult); ok && v.Value != nil {
+											code, _ := constant.Int64Val(v.Value)
+											var t stdtypes.Type
+											if p, ok := m.Type.(*stdtypes.Pointer); ok {
+												t = p.Elem()
+											}
+											path.Join()
+											if named, ok := t.(*stdtypes.Named); ok {
+												result = append(result, model.ErrorHTTPTransportOption{
+													Named: named,
+													Code:  code,
+												})
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return
+	}
+
 	for i := 0; i < iface.NumMethods(); i++ {
 		m := iface.Method(i)
+
 		sig := m.Type().(*stdtypes.Signature)
 		comments, _ := g.info.CommentMap.At(m.Type()).([]string)
+
 		sm := model.ServiceMethod{
 			Type:     m,
+			T:        m.Type(),
 			Name:     m.Name(),
 			LcName:   strings.LcFirst(m.Name()),
 			Comments: comments,
 		}
+
+		for _, decls := range g.info.MapTypes {
+			if decl := decls.DeclStmt[types.HashObject(stdtypes.Object(m), hasher)]; decl != nil {
+				errorExists := map[*stdtypes.Named]struct{}{}
+				for _, e := range collectErrorReturn(decl.Block) {
+					if _, ok := errorExists[e.Named]; !ok {
+						sm.Errors = append(sm.Errors, e)
+						errorExists[e.Named] = struct{}{}
+					}
+				}
+				for _, e := range sm.Errors {
+					o.Transport.MapCodeErrors[e.Named.Obj().Name()] = e
+				}
+			}
+		}
+
 		var (
 			resultOffset, paramOffset int
 		)
@@ -97,13 +187,7 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 			o.Instrumenting.Subsystem = subsystem.Value.String()
 		}
 	}
-	if transportOpt, ok := option.At("Transport"); ok {
-		transportOption, err := g.loadTransport(transportOpt)
-		if err != nil {
-			return nil, err
-		}
-		o.Transport = transportOption
-	}
+
 	return o, nil
 }
 
@@ -113,7 +197,7 @@ func (g *serviceOption) loadTransport(opt *parser.Option) (option model.Transpor
 		Protocol:      parser.MustOption(opt.At("protocol")).Value.String(),
 		FastHTTP:      fastHTTP,
 		MethodOptions: map[string]model.MethodHTTPTransportOption{},
-		MapCodeErrors: map[string]*model.ErrorDecodeInfoHTTPTransportOption{},
+		MapCodeErrors: map[string]model.ErrorHTTPTransportOption{},
 		Openapi: model.OpenapiHTTPTransportOption{
 			Methods: map[string]*model.OpenapiMethodOption{},
 		},
@@ -157,49 +241,6 @@ func (g *serviceOption) loadTransport(opt *parser.Option) (option model.Transpor
 				})
 			}
 		}
-		if openapiErrors, ok := openapiDocOpt.Slice("OpenapiErrors"); ok {
-			for _, openapiErrorsOpt := range openapiErrors {
-				var methods []string
-				if methodsOpt, ok := openapiErrorsOpt.At("methods"); ok {
-					for _, expr := range methodsOpt.Value.ExprSlice() {
-						fnSel, ok := expr.(*ast.SelectorExpr)
-						if !ok {
-							return option, errors.NotePosition(methodsOpt.Position, fmt.Errorf("the %s value must be func selector", methodsOpt.Name))
-						}
-						methods = append(methods, fnSel.Sel.Name)
-						if _, ok := option.Openapi.Methods[fnSel.Sel.Name]; !ok {
-							option.Openapi.Methods[fnSel.Sel.Name] = &model.OpenapiMethodOption{}
-						}
-					}
-				}
-				if errorsOpt, ok := openapiErrorsOpt.At("errors"); ok {
-					var errorsName []string
-					for _, expr := range errorsOpt.Value.ExprSlice() {
-						ptr, ok := g.info.Pkg.TypesInfo.TypeOf(expr).(*stdtypes.Pointer)
-						if !ok {
-							return option, errors.NotePosition(
-								openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name),
-							)
-						}
-						named, ok := ptr.Elem().(*stdtypes.Named)
-						if !ok {
-							return option, errors.NotePosition(
-								openapiErrorsOpt.Position, fmt.Errorf("the %s value must be nil pointer errors", openapiErrorsOpt.Name),
-							)
-						}
-						errorsName = append(errorsName, named.Obj().Name())
-					}
-					if len(methods) > 0 {
-						for _, method := range methods {
-							option.Openapi.Methods[method].Errors = append(option.Openapi.Methods[method].Errors, errorsName...)
-						}
-					} else {
-						option.Openapi.DefaultMethod.Errors = append(option.Openapi.DefaultMethod.Errors, errorsName...)
-					}
-				}
-			}
-		}
-
 		if openapiTags, ok := openapiDocOpt.Slice("OpenapiTags"); ok {
 			for _, openapiTagsOpt := range openapiTags {
 				var methods []string
@@ -265,70 +306,6 @@ func (g *serviceOption) loadTransport(opt *parser.Option) (option model.Transpor
 		option.Prefix = "JSONRPC"
 	}
 
-	errorStatusMethod := "StatusCode"
-	if option.JsonRPC.Enable {
-		errorStatusMethod = "ErrorCode"
-	}
-
-	types.Inspect(g.info.Pkgs, func(p *packages.Package, n ast.Node) bool {
-		if ret, ok := n.(*ast.ReturnStmt); ok {
-			for _, expr := range ret.Results {
-				if typeInfo, ok := p.TypesInfo.Types[expr]; ok {
-					retType := typeInfo.Type
-					isPointer := false
-
-					ptr, ok := retType.(*stdtypes.Pointer)
-					if ok {
-						isPointer = true
-						retType = ptr.Elem()
-					}
-					if named, ok := retType.(*stdtypes.Named); ok && named.Obj().Exported() {
-						found := 0
-						for i := 0; i < named.NumMethods(); i++ {
-							m := named.Method(i)
-							if m.Name() == errorStatusMethod || m.Name() == "Error" {
-								found++
-							}
-						}
-						if found == 2 {
-							option.MapCodeErrors[named.Obj().Name()] = &model.ErrorDecodeInfoHTTPTransportOption{IsPointer: isPointer, Named: named}
-						}
-					}
-				}
-			}
-		}
-		return true
-	})
-
-	types.Inspect(g.info.Pkgs, func(p *packages.Package, n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok {
-			if fn.Name.Name == errorStatusMethod {
-				if fn.Recv != nil && len(fn.Recv.List) > 0 {
-					recvType := p.TypesInfo.TypeOf(fn.Recv.List[0].Type)
-					ptr, ok := recvType.(*stdtypes.Pointer)
-					if ok {
-						recvType = ptr.Elem()
-					}
-					if named, ok := recvType.(*stdtypes.Named); ok {
-						if _, ok := option.MapCodeErrors[named.Obj().Name()]; ok {
-							ast.Inspect(n, func(n ast.Node) bool {
-								if ret, ok := n.(*ast.ReturnStmt); ok && len(ret.Results) == 1 {
-									if v, ok := p.TypesInfo.Types[ret.Results[0]]; ok {
-										if v.Value != nil && v.Value.Kind() == constant.Int {
-											code, _ := constant.Int64Val(v.Value)
-											option.MapCodeErrors[named.Obj().Name()].Code = code
-										}
-									}
-								}
-								return true
-							})
-						}
-					}
-				}
-			}
-		}
-		return true
-	})
 	return
 }
 

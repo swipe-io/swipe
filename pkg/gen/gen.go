@@ -45,6 +45,8 @@ type Swipe struct {
 	patterns    []string
 	commentMaps *typeutil.Map
 	pkgs        []*packages.Package
+	returnTypes map[uint32][]interface{}
+	mapTypes    map[uint32]*model.DeclType
 	allPkgs     []*packages.Package
 }
 
@@ -85,11 +87,13 @@ func (s *Swipe) Generate() ([]Result, []error) {
 						}
 
 						info := model.GenerateInfo{
-							Pkg:        pkg,
-							Pkgs:       s.pkgs,
-							BasePath:   basePath,
-							Version:    s.version,
-							CommentMap: s.commentMaps,
+							Pkg:         pkg,
+							Pkgs:        s.pkgs,
+							BasePath:    basePath,
+							Version:     s.version,
+							CommentMap:  s.commentMaps,
+							ReturnTypes: s.returnTypes,
+							MapTypes:    s.mapTypes,
 						}
 
 						option := r.Option(opt.Name, info)
@@ -276,7 +280,114 @@ func (s *Swipe) loadPackages() []error {
 		visit(pkg)
 	}
 
+	hasher := typeutil.MakeHasher()
+
+	visitReturnStmt := func(p *packages.Package, ret *ast.ReturnStmt) *model.ReturnStmt {
+		returnStmt := &model.ReturnStmt{}
+		for _, result := range ret.Results {
+			switch v := result.(type) {
+			case *ast.CallExpr:
+				if selExpr, ok := v.Fun.(*ast.SelectorExpr); ok {
+					if xSelExpr, ok := selExpr.X.(*ast.SelectorExpr); ok {
+						id := hasher.Hash(p.TypesInfo.ObjectOf(xSelExpr.Sel).Type())
+						fnID := types.HashObject(p.TypesInfo.ObjectOf(selExpr.Sel), hasher)
+						_, isIface := p.TypesInfo.ObjectOf(xSelExpr.Sel).Type().Underlying().(*stdtypes.Interface)
+						returnStmt.Results = append(returnStmt.Results, &model.CallResult{
+							ID:      id,
+							FnID:    fnID,
+							IsIface: isIface,
+						})
+					}
+				}
+			case *ast.SelectorExpr:
+			case *ast.Ident:
+			}
+			if tv, ok := p.TypesInfo.Types[result]; ok {
+				returnStmt.Results = append(returnStmt.Results, &model.ValueResult{
+					ID:    hasher.Hash(tv.Type),
+					Type:  tv.Type,
+					Value: tv.Value,
+				})
+			}
+		}
+		return returnStmt
+	}
+
+	var visitBlockStmt func(p *packages.Package, block *ast.BlockStmt) *model.BlockStmt
+	visitBlockStmt = func(p *packages.Package, block *ast.BlockStmt) *model.BlockStmt {
+		bs := &model.BlockStmt{}
+		for _, stmt := range block.List {
+			switch v := stmt.(type) {
+			case *ast.SelectStmt:
+				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
+			case *ast.RangeStmt:
+				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
+			case *ast.ForStmt:
+				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
+			case *ast.TypeSwitchStmt:
+				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
+			case *ast.SwitchStmt:
+				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
+			case *ast.IfStmt:
+				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
+			case *ast.BlockStmt:
+				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v))
+			case *ast.ReturnStmt:
+				bs.Returns = append(bs.Returns, visitReturnStmt(p, v))
+			}
+		}
+		return bs
+	}
+
 	types.Inspect(s.pkgs, func(p *packages.Package, n ast.Node) bool {
+		if declStmt, ok := n.(*ast.FuncDecl); ok {
+			if declStmt.Recv != nil {
+
+				declType := p.TypesInfo.TypeOf(declStmt.Recv.List[0].Type)
+
+				id := hasher.Hash(declType)
+
+				if _, ok := s.mapTypes[id]; !ok {
+					s.mapTypes[id] = &model.DeclType{DeclStmt: map[uint32]*model.DeclStmt{}}
+				}
+
+				fnID := types.HashObject(p.TypesInfo.ObjectOf(declStmt.Name), hasher)
+
+				s.mapTypes[id].Type = declType
+				s.mapTypes[id].DeclStmt[fnID] = &model.DeclStmt{Name: declStmt.Name.Name, Block: visitBlockStmt(p, declStmt.Body)}
+			}
+		}
+		return true
+	})
+
+	types.Inspect(s.pkgs, func(p *packages.Package, n ast.Node) bool {
+
+		//if declStmt, ok := n.(*ast.FuncDecl); ok {
+		//	if declStmt.Recv != nil {
+		//		declObj := p.TypesInfo.ObjectOf(declStmt.Name)
+		//
+		//		var nodes []interface{}
+		//
+		//		ast.Inspect(declStmt, func(nn ast.Node) bool {
+		//			if retStmt, ok := nn.(*ast.ReturnStmt); ok {
+		//				for _, expr := range retStmt.Results {
+		//					if callExpr, ok := expr.(*ast.CallExpr); ok {
+		//						obj := p.TypesInfo.ObjectOf(callExpr.Fun.(*ast.SelectorExpr).Sel)
+		//						nodes = append(nodes, types.HashObject(obj, hasher))
+		//					} else {
+		//						nodes = append(nodes, model.ReturnType{
+		//							Expr: expr,
+		//							Type: p.TypesInfo.TypeOf(expr),
+		//						})
+		//					}
+		//				}
+		//			}
+		//			return true
+		//		})
+		//		s.returnTypes[types.HashObject(declObj, hasher)] = nodes
+		//	}
+		//}
+
 		if spec, ok := n.(*ast.Field); ok {
 			t := p.TypesInfo.TypeOf(spec.Type)
 			if t != nil {
@@ -298,6 +409,7 @@ func (s *Swipe) loadPackages() []error {
 		}
 		return true
 	})
+
 	for _, p := range s.pkgs {
 		for _, e := range p.Errors {
 			errs = append(errs, e)
@@ -310,5 +422,14 @@ func (s *Swipe) loadPackages() []error {
 }
 
 func NewSwipe(ctx context.Context, version, wd string, env []string, patterns []string) *Swipe {
-	return &Swipe{ctx: ctx, version: version, wd: wd, env: env, patterns: patterns, commentMaps: new(typeutil.Map)}
+	return &Swipe{
+		ctx:         ctx,
+		version:     version,
+		wd:          wd,
+		env:         env,
+		patterns:    patterns,
+		commentMaps: new(typeutil.Map),
+		returnTypes: map[uint32][]interface{}{},
+		mapTypes:    map[uint32]*model.DeclType{},
+	}
 }

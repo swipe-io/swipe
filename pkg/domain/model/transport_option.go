@@ -17,8 +17,7 @@ type ClientHTTPTransportOption struct {
 }
 
 type OpenapiMethodOption struct {
-	Errors []string
-	Tags   []string
+	Tags []string
 }
 
 type OpenapiHTTPTransportOption struct {
@@ -54,7 +53,7 @@ type MethodHTTPTransportOption struct {
 	ClientResponseFunc ReqRespFunc
 }
 
-type ErrorDecodeInfoHTTPTransportOption struct {
+type ErrorHTTPTransportOption struct {
 	Named     *stdtypes.Named
 	Code      int64
 	IsPointer bool
@@ -70,5 +69,5 @@ type TransportOption struct {
 	JsonRPC              JsonRPCHTTPTransportOption
 	MethodOptions        map[string]MethodHTTPTransportOption
 	DefaultMethodOptions MethodHTTPTransportOption
-	MapCodeErrors        map[string]*ErrorDecodeInfoHTTPTransportOption
+	MapCodeErrors        map[string]ErrorHTTPTransportOption
 }

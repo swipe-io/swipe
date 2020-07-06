@@ -6,9 +6,11 @@ import (
 )
 
 type GenerateInfo struct {
-	Pkg        *packages.Package
-	Pkgs       []*packages.Package
-	CommentMap *typeutil.Map
-	BasePath   string
-	Version    string
+	Pkg         *packages.Package
+	Pkgs        []*packages.Package
+	CommentMap  *typeutil.Map
+	ReturnTypes map[uint32][]interface{}
+	BasePath    string
+	Version     string
+	MapTypes    map[uint32]*DeclType
 }
