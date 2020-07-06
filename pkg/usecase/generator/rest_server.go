@@ -21,6 +21,10 @@ type restServer struct {
 	i        *importer.Importer
 }
 
+func (g *restServer) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *restServer) Process(ctx context.Context) error {
 	var (
 		routerPkg  string

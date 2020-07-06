@@ -17,6 +17,10 @@ type httpTransport struct {
 	o        model.ServiceOption
 }
 
+func (g *httpTransport) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *httpTransport) Process(ctx context.Context) error {
 	var (
 		kithttpPkg string

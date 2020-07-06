@@ -18,6 +18,10 @@ type jsonRPCServer struct {
 	i        *importer.Importer
 }
 
+func (g *jsonRPCServer) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *jsonRPCServer) Process(ctx context.Context) error {
 	var (
 		routerPkg  string

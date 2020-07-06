@@ -24,6 +24,10 @@ type endpoint struct {
 	i        *importer.Importer
 }
 
+func (g *endpoint) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *endpoint) Process(ctx context.Context) error {
 	kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	contextPkg := g.i.Import("context", "context")

@@ -21,6 +21,10 @@ type logging struct {
 	i        *importer.Importer
 }
 
+func (g *logging) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *logging) Process(ctx context.Context) error {
 	loggerPkg := g.i.Import("log", "github.com/go-kit/kit/log")
 	timePkg := g.i.Import("time", "time")

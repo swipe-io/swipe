@@ -109,6 +109,9 @@ func (s *Swipe) Generate() ([]Result, []error) {
 							return nil, []error{errors.New("option not suitable for processor: " + opt.Name)}
 						}
 						for _, g := range processor.Generators() {
+							if err := g.Prepare(s.ctx); err != nil {
+								return nil, []error{err}
+							}
 							outputDir := g.OutputDir()
 							if outputDir == "" {
 								outputDir = basePath

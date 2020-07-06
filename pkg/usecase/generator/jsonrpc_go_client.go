@@ -19,6 +19,10 @@ type jsonRPCGoClient struct {
 	i        *importer.Importer
 }
 
+func (g *jsonRPCGoClient) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 	clientType := "client" + g.o.ID
 	typeStr := stdtypes.TypeString(g.o.Type, g.i.QualifyPkg)

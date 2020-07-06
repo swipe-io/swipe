@@ -33,6 +33,10 @@ type config struct {
 	o model.ConfigOption
 }
 
+func (g *config) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *config) Process(ctx context.Context) error {
 	o := g.o
 

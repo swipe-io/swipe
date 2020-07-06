@@ -21,6 +21,10 @@ type restGoClient struct {
 	i        *importer.Importer
 }
 
+func (g *restGoClient) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *restGoClient) Process(ctx context.Context) error {
 	var (
 		kithttpPkg string

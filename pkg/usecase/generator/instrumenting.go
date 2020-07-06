@@ -20,6 +20,10 @@ type instrumenting struct {
 	i        *importer.Importer
 }
 
+func (g *instrumenting) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *instrumenting) Process(ctx context.Context) error {
 	metricsPkg := g.i.Import("metrics", "github.com/go-kit/kit/metrics")
 	timePkg := g.i.Import("time", "time")

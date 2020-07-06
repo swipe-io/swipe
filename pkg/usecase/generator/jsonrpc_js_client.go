@@ -109,6 +109,10 @@ type jsonRPCJSClient struct {
 	o        model.ServiceOption
 }
 
+func (g *jsonRPCJSClient) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *jsonRPCJSClient) Process(ctx context.Context) error {
 	g.W(jsonRPCClientBase)
 

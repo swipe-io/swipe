@@ -21,6 +21,10 @@ type clientStruct struct {
 	o        model.ServiceOption
 }
 
+func (g *clientStruct) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (g *clientStruct) Process(ctx context.Context) error {
 	var (
 		kithttpPkg string

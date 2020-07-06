@@ -26,16 +26,17 @@ type openapiDoc struct {
 	outputDir string
 }
 
-func (g *openapiDoc) Process(ctx context.Context) error {
-	opt := g.o.Transport.Openapi
-
-	outputDir, err := filepath.Abs(filepath.Join(g.info.BasePath, opt.Output))
+func (g *openapiDoc) Prepare(ctx context.Context) error {
+	outputDir, err := filepath.Abs(filepath.Join(g.info.BasePath, g.o.Transport.Openapi.Output))
 	if err != nil {
 		return err
 	}
-
 	g.outputDir = outputDir
+	return nil
+}
 
+func (g *openapiDoc) Process(ctx context.Context) error {
+	opt := g.o.Transport.Openapi
 	swg := openapi.OpenAPI{
 		OpenAPI: "3.0.0",
 		Info:    opt.Info,
