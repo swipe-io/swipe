@@ -59,14 +59,13 @@ class JSONRPCClient {
 			  scheduleRequests[responses[i].id].resolve(responses[i].result);
 			}
 		  })
-		  .catch((e) => {
-			for (var key in requests) {
-			  if (!scheduleRequests.hasOwnProperty(key)) {
-				continue;
-			  }
-			  scheduleRequests[key].reject(e);
-			}
-		  });
+          .catch((e) => {
+            for (let key in requests) {
+              if (scheduleRequests.hasOwnProperty(requests[key].id)) {
+                scheduleRequests[requests[key].id].reject(e)
+              }
+            }
+          });
 	  }, 0);
 	}
 	makeJSONRPCRequest(id, method, params) {
