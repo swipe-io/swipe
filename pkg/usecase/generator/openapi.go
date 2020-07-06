@@ -128,8 +128,10 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		} else {
 			o = g.makeRestPath(opt, m)
 			pathStr = mopt.Path
-			for _, regexp := range mopt.PathVars {
-				pathStr = stdstrings.Replace(pathStr, ":"+regexp, "", -1)
+			for _, p := range m.Params {
+				if regexp, ok := mopt.PathVars[p.Name()]; ok {
+					pathStr = stdstrings.Replace(pathStr, ":"+regexp, "", -1)
+				}
 			}
 		}
 
@@ -485,44 +487,24 @@ func (g *openapiDoc) makeRestPath(opt model.OpenapiHTTPTransportOption, m model.
 			},
 		},
 	}
-
-	for name := range mopt.PathVars {
-		var schema *openapi.Schema
-		if fld := m.Params.LookupField(name); fld != nil {
-			schema = g.makeSwaggerSchema(fld.Type())
+	for _, p := range m.Params {
+		var in string
+		if _, ok := mopt.PathVars[p.Name()]; ok {
+			in = "path"
+		} else if _, ok := mopt.HeaderVars[p.Name()]; ok {
+			in = "header"
+		} else if _, ok := mopt.QueryVars[p.Name()]; ok {
+			in = "query"
 		}
-		o.Parameters = append(o.Parameters, openapi.Parameter{
-			In:       "path",
-			Name:     name,
-			Required: true,
-			Schema:   schema,
-		})
-	}
-
-	for argName, name := range mopt.QueryVars {
-		var schema *openapi.Schema
-		if fld := m.Params.LookupField(argName); fld != nil {
-			schema = g.makeSwaggerSchema(fld.Type())
+		if in != "" {
+			o.Parameters = append(o.Parameters, openapi.Parameter{
+				In:       in,
+				Name:     p.Name(),
+				Required: true,
+				Schema:   g.makeSwaggerSchema(p.Type()),
+			})
 		}
-		o.Parameters = append(o.Parameters, openapi.Parameter{
-			In:     "query",
-			Name:   name,
-			Schema: schema,
-		})
 	}
-
-	for argName, name := range mopt.HeaderVars {
-		var schema *openapi.Schema
-		if fld := m.Params.LookupField(argName); fld != nil {
-			schema = g.makeSwaggerSchema(fld.Type())
-		}
-		o.Parameters = append(o.Parameters, openapi.Parameter{
-			In:     "header",
-			Name:   name,
-			Schema: schema,
-		})
-	}
-
 	switch mopt.MethodName {
 	case "POST", "PUT", "PATCH":
 		o.RequestBody = &openapi.RequestBody{

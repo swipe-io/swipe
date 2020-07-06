@@ -88,25 +88,22 @@ func (g *restGoClient) Process(ctx context.Context) error {
 			pathStr = "/" + m.LcName
 		}
 
-		pathVars := []string{}
-		for name, regexp := range mopt.PathVars {
-			if p := m.Params.LookupField(name); p != nil {
+		var (
+			pathVars   []string
+			queryVars  []string
+			headerVars []string
+		)
+
+		for _, p := range m.Params {
+			if regexp, ok := mopt.PathVars[p.Name()]; ok {
 				if regexp != "" {
 					regexp = ":" + regexp
 				}
-				pathStr = stdstrings.Replace(pathStr, "{"+name+regexp+"}", "%s", -1)
+				pathStr = stdstrings.Replace(pathStr, "{"+p.Name()+regexp+"}", "%s", -1)
 				pathVars = append(pathVars, g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
-			}
-		}
-		queryVars := []string{}
-		for fName, qName := range mopt.QueryVars {
-			if p := m.Params.LookupField(fName); p != nil {
+			} else if qName, ok := mopt.QueryVars[p.Name()]; ok {
 				queryVars = append(queryVars, strconv.Quote(qName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
-			}
-		}
-		headerVars := []string{}
-		for fName, hName := range mopt.HeaderVars {
-			if p := m.Params.LookupField(fName); p != nil {
+			} else if hName, ok := mopt.HeaderVars[p.Name()]; ok {
 				headerVars = append(headerVars, strconv.Quote(hName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 			}
 		}

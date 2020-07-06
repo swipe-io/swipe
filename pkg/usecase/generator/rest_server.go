@@ -213,17 +213,6 @@ func (g *restServer) Process(ctx context.Context) error {
 					} else {
 						g.W("vars := %s.Vars(r)\n", routerPkg)
 					}
-					for pathVarName := range mopt.PathVars {
-						if f := m.Params.LookupField(pathVarName); f != nil {
-							var valueID string
-							if transportOpt.FastHTTP {
-								valueID = "vars.Param(" + strconv.Quote(pathVarName) + ")"
-							} else {
-								valueID = "vars[" + strconv.Quote(pathVarName) + "]"
-							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
-						}
-					}
 				}
 				if len(mopt.QueryVars) > 0 {
 					if transportOpt.FastHTTP {
@@ -231,27 +220,32 @@ func (g *restServer) Process(ctx context.Context) error {
 					} else {
 						g.W("q := r.URL.Query()\n")
 					}
-					for argName, queryName := range mopt.QueryVars {
-						if f := m.Params.LookupField(argName); f != nil {
-							var valueID string
-							if transportOpt.FastHTTP {
-								valueID = "string(q.Peek(" + strconv.Quote(queryName) + "))"
-							} else {
-								valueID = "q.Get(" + strconv.Quote(queryName) + ")"
-							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
-						}
-					}
 				}
-				for argName, headerName := range mopt.HeaderVars {
-					if f := m.Params.LookupField(argName); f != nil {
+				for _, p := range m.Params {
+					if _, ok := mopt.PathVars[p.Name()]; ok {
+						var valueID string
+						if transportOpt.FastHTTP {
+							valueID = "vars.Param(" + strconv.Quote(p.Name()) + ")"
+						} else {
+							valueID = "vars[" + strconv.Quote(p.Name()) + "]"
+						}
+						g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, "", false, "")
+					} else if queryName, ok := mopt.QueryVars[p.Name()]; ok {
+						var valueID string
+						if transportOpt.FastHTTP {
+							valueID = "string(q.Peek(" + strconv.Quote(queryName) + "))"
+						} else {
+							valueID = "q.Get(" + strconv.Quote(queryName) + ")"
+						}
+						g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, "", false, "")
+					} else if headerName, ok := mopt.HeaderVars[p.Name()]; ok {
 						var valueID string
 						if transportOpt.FastHTTP {
 							valueID = "string(r.Header.Peek(" + strconv.Quote(headerName) + "))"
 						} else {
 							valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
 						}
-						g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(f.Name()), valueID, f, "", false, "")
+						g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, "", false, "")
 					}
 				}
 				g.W("return req, nil\n")
