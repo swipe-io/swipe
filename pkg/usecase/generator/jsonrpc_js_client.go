@@ -80,7 +80,7 @@ class JSONRPCClient {
 	  };
 	}
 	__scheduleRequest(method, params) {
-	  var p = new Promise((resolve, reject) => {
+	  const p = new Promise((resolve, reject) => {
 		const request = this.makeJSONRPCRequest(
 		  this.__requestIDGenerate(),
 		  method,
