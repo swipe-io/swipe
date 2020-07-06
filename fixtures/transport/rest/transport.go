@@ -3,6 +3,8 @@
 package rest
 
 import (
+	"net/http"
+
 	"github.com/swipe-io/swipe/fixtures/service"
 	. "github.com/swipe-io/swipe/pkg/swipe"
 	"github.com/valyala/fasthttp"
@@ -23,10 +25,10 @@ func Swipe() {
 				ClientEnable(),
 
 				MethodOptions(service.Interface.Get,
-					Path("/users/{name:[a-z]}"),
+					Path("/users/{id:[0-9]}/{name:[a-z]}/{fname}"),
 					Method(fasthttp.MethodGet),
-					HeaderVars([]string{"n", "x-num"}),
-					QueryVars([]string{"price", "price"}),
+					HeaderVars([]string{"n", "x-num-n", "b", "x-num-b"}),
+					QueryVars([]string{"price", "price", "c", "c"}),
 				),
 				MethodOptions(service.Interface.GetAll,
 					Path("/users"),
@@ -38,6 +40,10 @@ func Swipe() {
 				),
 				MethodOptions(service.Interface.Delete,
 					Method(fasthttp.MethodPost),
+				),
+				MethodOptions(service.Interface.TestMethod2,
+					Path("/{ns}/auth/{utype}/{user}/{restype}/{resource}/{permission}"),
+					Method(http.MethodPut),
 				),
 			),
 			Logging(),
