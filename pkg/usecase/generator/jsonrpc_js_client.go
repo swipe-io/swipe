@@ -51,7 +51,7 @@ class JSONRPCClient {
 		}
 		this.__doRequest(requests)
 		  .then((responses) => {
-			for (var i = 0; i < responses.length; i++) {
+			for (let i = 0; i < responses.length; i++) {
 			  if (responses[i].error) {
 				scheduleRequests[responses[i].id].reject(convertError(responses[i].error));
 				continue;
