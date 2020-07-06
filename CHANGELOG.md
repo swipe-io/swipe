@@ -1,4 +1,14 @@
 
+<a name="v1.22.2"></a>
+## [v1.22.2](https://github.com/swipe-io/swipe/compare/v1.22.1...v1.22.2) (2020-07-06)
+
+### Bug Fixes
+
+* JSON RPC JS client change var to const.
+* JSON RPC JS client change var to let.
+* JSON RPC JS client added check hasOwnProperty.
+
+
 <a name="v1.22.1"></a>
 ## [v1.22.1](https://github.com/swipe-io/swipe/compare/v1.22.0...v1.22.1) (2020-07-06)
 
