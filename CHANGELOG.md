@@ -1,4 +1,12 @@
 
+<a name="v1.22.1"></a>
+## [v1.22.1](https://github.com/swipe-io/swipe/compare/v1.22.0...v1.22.1) (2020-07-06)
+
+### Bug Fixes
+
+* JSON RPC JS client generate catch block.
+
+
 <a name="v1.22.0"></a>
 ## [v1.22.0](https://github.com/swipe-io/swipe/compare/v1.21.0...v1.22.0) (2020-07-06)
 
