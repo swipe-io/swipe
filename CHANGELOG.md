@@ -1,4 +1,17 @@
 
+<a name="v1.22.0"></a>
+## [v1.22.0](https://github.com/swipe-io/swipe/compare/v1.21.0...v1.22.0) (2020-07-06)
+
+### Features
+
+* Added automatic generation error mapping for Gokit service and Openapi docs.
+
+### BREAKING CHANGE
+
+
+Remove OpenapiErrors openapi option.
+
+
 <a name="v1.21.0"></a>
 ## [v1.21.0](https://github.com/swipe-io/swipe/compare/v1.20.1...v1.21.0) (2020-06-29)
 
