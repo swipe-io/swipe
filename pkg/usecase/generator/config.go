@@ -214,6 +214,6 @@ func (g *config) SetImporter(i *importer.Importer) {
 	g.i = i
 }
 
-func NewConfig(o model.ConfigOption) *config {
+func NewConfig(o model.ConfigOption) Generator {
 	return &config{GoLangWriter: writer.NewGoLangWriter(), o: o}
 }

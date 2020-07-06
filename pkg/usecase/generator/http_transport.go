@@ -165,6 +165,6 @@ func (g *httpTransport) SetImporter(i *importer.Importer) {
 	g.i = i
 }
 
-func NewHttpTransport(filename string, info model.GenerateInfo, o model.ServiceOption) *httpTransport {
+func NewHttpTransport(filename string, info model.GenerateInfo, o model.ServiceOption) Generator {
 	return &httpTransport{GoLangWriter: writer.NewGoLangWriter(), filename: filename, info: info, o: o}
 }
