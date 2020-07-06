@@ -61,6 +61,9 @@ class JSONRPCClient {
 		  })
           .catch((e) => {
             for (let key in requests) {
+              if (!requests.hasOwnProperty(key)) {
+                continue
+              }
               if (scheduleRequests.hasOwnProperty(requests[key].id)) {
                 scheduleRequests[requests[key].id].reject(e)
               }
