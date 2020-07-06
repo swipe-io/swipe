@@ -77,7 +77,7 @@ type ServiceOption struct {
 	Transport     TransportOption
 	Instrumenting InstrumentingServiceOption
 	Logging       bool
-	Methods       map[string]ServiceMethod
+	Methods       []ServiceMethod
 	Type          stdtypes.Type
 	Interface     *stdtypes.Interface
 	ID            string

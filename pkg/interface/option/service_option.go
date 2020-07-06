@@ -30,9 +30,7 @@ type serviceOption struct {
 }
 
 func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
-	o := model.ServiceOption{
-		Methods: map[string]model.ServiceMethod{},
-	}
+	o := model.ServiceOption{}
 
 	serviceOpt := parser.MustOption(option.At("iface"))
 	ifacePtr, ok := serviceOpt.Value.Type().(*stdtypes.Pointer)
@@ -171,7 +169,7 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 		for j := 0; j < sig.Results().Len()-resultOffset; j++ {
 			sm.Results = append(sm.Results, sig.Results().At(j))
 		}
-		o.Methods[m.Name()] = sm
+		o.Methods = append(o.Methods, sm)
 	}
 
 	if _, ok := option.At("Logging"); ok {
