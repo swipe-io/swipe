@@ -1,4 +1,12 @@
 
+<a name="v1.22.3"></a>
+## [v1.22.3](https://github.com/swipe-io/swipe/compare/v1.22.2...v1.22.3) (2020-07-06)
+
+### Bug Fixes
+
+* The order of the parameters specified in the Path option was not respected.
+
+
 <a name="v1.22.2"></a>
 ## [v1.22.2](https://github.com/swipe-io/swipe/compare/v1.22.1...v1.22.2) (2020-07-06)
 
