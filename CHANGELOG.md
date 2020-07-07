@@ -1,4 +1,12 @@
 
+<a name="v1.22.4"></a>
+## [v1.22.4](https://github.com/swipe-io/swipe/compare/v1.22.3...v1.22.4) (2020-07-07)
+
+### Bug Fixes
+
+* Looping recursion when looking for error types.
+
+
 <a name="v1.22.3"></a>
 ## [v1.22.3](https://github.com/swipe-io/swipe/compare/v1.22.2...v1.22.3) (2020-07-06)
 
