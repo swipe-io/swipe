@@ -65,6 +65,8 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 
 	hasher := typeutil.MakeHasher()
 
+	visitedFnIDs := map[uint32]struct{}{}
+
 	var collectErrorReturn func(b *model.BlockStmt) []model.ErrorHTTPTransportOption
 
 	collectErrorReturn = func(b *model.BlockStmt) (result []model.ErrorHTTPTransportOption) {
@@ -75,16 +77,6 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 			for _, e := range stmt.Results {
 				switch v := e.(type) {
 				case *model.ValueResult:
-				case *model.CallResult:
-					if v.IsIface {
-						for _, m := range g.info.MapTypes {
-							if decl, ok := m.DeclStmt[v.FnID]; ok {
-								result = append(result, collectErrorReturn(decl.Block)...)
-							}
-						}
-					}
-				}
-				if v, ok := e.(*model.ValueResult); ok {
 					if m, ok := g.info.MapTypes[v.ID]; ok {
 						for _, decl := range m.DeclStmt {
 							if decl.Name == errorStatusMethod {
@@ -105,6 +97,18 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 										}
 									}
 								}
+							}
+						}
+					}
+				case *model.CallResult:
+					if v.IsIface {
+						for _, m := range g.info.MapTypes {
+							if _, ok := visitedFnIDs[v.FnID]; ok {
+								continue
+							}
+							if decl, ok := m.DeclStmt[v.FnID]; ok {
+								result = append(result, collectErrorReturn(decl.Block)...)
+								visitedFnIDs[v.FnID] = struct{}{}
 							}
 						}
 					}
