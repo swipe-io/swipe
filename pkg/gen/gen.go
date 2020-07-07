@@ -299,15 +299,14 @@ func (s *Swipe) loadPackages() []error {
 						})
 					}
 				}
-			case *ast.SelectorExpr:
-			case *ast.Ident:
-			}
-			if tv, ok := p.TypesInfo.Types[result]; ok {
-				returnStmt.Results = append(returnStmt.Results, &model.ValueResult{
-					ID:    hasher.Hash(tv.Type),
-					Type:  tv.Type,
-					Value: tv.Value,
-				})
+			default:
+				if tv, ok := p.TypesInfo.Types[result]; ok {
+					returnStmt.Results = append(returnStmt.Results, &model.ValueResult{
+						ID:    hasher.Hash(tv.Type),
+						Type:  tv.Type,
+						Value: tv.Value,
+					})
+				}
 			}
 		}
 		return returnStmt
