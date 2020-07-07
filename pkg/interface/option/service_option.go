@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/constant"
 	stdtypes "go/types"
-	"path"
 	stdstrings "strings"
 
 	"github.com/iancoleman/strcase"
@@ -97,7 +96,6 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 											if p, ok := m.Type.(*stdtypes.Pointer); ok {
 												t = p.Elem()
 											}
-											path.Join()
 											if named, ok := t.(*stdtypes.Named); ok {
 												result = append(result, model.ErrorHTTPTransportOption{
 													Named: named,
