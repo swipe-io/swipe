@@ -361,33 +361,6 @@ func (s *Swipe) loadPackages() []error {
 	})
 
 	types.Inspect(s.pkgs, func(p *packages.Package, n ast.Node) bool {
-
-		//if declStmt, ok := n.(*ast.FuncDecl); ok {
-		//	if declStmt.Recv != nil {
-		//		declObj := p.TypesInfo.ObjectOf(declStmt.Name)
-		//
-		//		var nodes []interface{}
-		//
-		//		ast.Inspect(declStmt, func(nn ast.Node) bool {
-		//			if retStmt, ok := nn.(*ast.ReturnStmt); ok {
-		//				for _, expr := range retStmt.Results {
-		//					if callExpr, ok := expr.(*ast.CallExpr); ok {
-		//						obj := p.TypesInfo.ObjectOf(callExpr.Fun.(*ast.SelectorExpr).Sel)
-		//						nodes = append(nodes, types.HashObject(obj, hasher))
-		//					} else {
-		//						nodes = append(nodes, model.ReturnType{
-		//							Expr: expr,
-		//							Type: p.TypesInfo.TypeOf(expr),
-		//						})
-		//					}
-		//				}
-		//			}
-		//			return true
-		//		})
-		//		s.returnTypes[types.HashObject(declObj, hasher)] = nodes
-		//	}
-		//}
-
 		if spec, ok := n.(*ast.Field); ok {
 			t := p.TypesInfo.TypeOf(spec.Type)
 			if t != nil {
