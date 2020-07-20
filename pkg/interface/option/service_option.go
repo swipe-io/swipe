@@ -8,7 +8,6 @@ import (
 	stdstrings "strings"
 
 	"github.com/iancoleman/strcase"
-	"golang.org/x/tools/go/types/typeutil"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/errors"
@@ -35,17 +34,19 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 	ifacePtr, ok := serviceOpt.Value.Type().(*stdtypes.Pointer)
 	if !ok {
 		return nil, errors.NotePosition(serviceOpt.Position,
-			fmt.Errorf("the Interface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(serviceOpt.Value.Type(), nil)))
+			fmt.Errorf("the Iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(serviceOpt.Value.Type(), nil)))
 	}
 	iface, ok := ifacePtr.Elem().Underlying().(*stdtypes.Interface)
 	if !ok {
 		return nil, errors.NotePosition(serviceOpt.Position,
-			fmt.Errorf("the Interface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(serviceOpt.Value.Type(), nil)))
+			fmt.Errorf("the Iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(serviceOpt.Value.Type(), nil)))
 	}
 
-	o.ID = strcase.ToCamel(stdtypes.TypeString(ifacePtr.Elem(), func(p *stdtypes.Package) string {
-		return p.Name()
-	}))
+	typeName := ifacePtr.Elem().(*stdtypes.Named)
+	rawID := stdstrings.Split(typeName.Obj().Pkg().Path(), "/")[2]
+
+	o.ID = strcase.ToCamel(rawID)
+	o.RawID = rawID
 
 	if transportOpt, ok := option.At("Transport"); ok {
 		transportOption, err := g.loadTransport(transportOpt)
@@ -56,6 +57,7 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 	}
 
 	o.Type = ifacePtr.Elem()
+	o.TypeName = typeName
 	o.Interface = iface
 
 	errorStatusMethod := "StatusCode"
