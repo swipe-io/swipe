@@ -21,6 +21,10 @@ func Swipe() {
 					OpenapiOutput("/../../docs"),
 					OpenapiInfo("Service Test", "description", "v1.0.0"),
 				),
+
+				MethodOptions(service.Interface.Create,
+					ServerDecodeRequestFunc(DecodeUploadFileRequest),
+				),
 			),
 			Logging(),
 			Instrumenting("api", "api"),

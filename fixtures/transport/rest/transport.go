@@ -29,6 +29,7 @@ func Swipe() {
 					Method(fasthttp.MethodGet),
 					HeaderVars([]string{"n", "x-num-n", "b", "x-num-b"}),
 					QueryVars([]string{"price", "price", "c", "c"}),
+					ServerDecodeRequestFunc(ServerDecodeRequestTest),
 				),
 				MethodOptions(service.Interface.GetAll,
 					Path("/users"),

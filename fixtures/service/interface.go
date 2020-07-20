@@ -6,25 +6,6 @@ import (
 	"github.com/swipe-io/swipe/fixtures/user"
 )
 
-// ErrUnauthorized unauthorized.
-type ErrUnauthorized struct{}
-
-func (*ErrUnauthorized) Error() string {
-	return "unauthorized"
-}
-
-// StatusCode error value implements StatusCoder,
-// the StatusCode will be used when encoding the error.
-func (*ErrUnauthorized) StatusCode() int {
-	return 403
-}
-
-// ErrorCode error value implements ErrorCoder,
-// the ErrorCode will be used when encoding the error.
-func (*ErrUnauthorized) ErrorCode() int {
-	return -32001
-}
-
 type Interface interface {
 	// Create new item of item.
 	Create(ctx context.Context, name string, data []byte) (err error)

@@ -6,6 +6,44 @@ import (
 	"github.com/pborman/uuid"
 )
 
+// ErrUnauthorized unauthorized.
+type ErrUnauthorized struct{}
+
+func (ErrUnauthorized) Error() string {
+	return "unauthorized"
+}
+
+// StatusCode error value implements StatusCoder,
+// the StatusCode will be used when encoding the error.
+func (ErrUnauthorized) StatusCode() int {
+	return 401
+}
+
+// ErrorCode error value implements ErrorCoder,
+// the ErrorCode will be used when encoding the error.
+func (ErrUnauthorized) ErrorCode() int {
+	return -32001
+}
+
+// ErrForbidden forbidden.
+type ErrForbidden struct{}
+
+func (ErrForbidden) Error() string {
+	return "forbidden"
+}
+
+// StatusCode error value implements StatusCoder,
+// the StatusCode will be used when encoding the error.
+func (ErrForbidden) StatusCode() int {
+	return 403
+}
+
+// ErrorCode error value implements ErrorCoder,
+// the ErrorCode will be used when encoding the error.
+func (ErrForbidden) ErrorCode() int {
+	return -32002
+}
+
 type GeoJSON struct {
 	Type        string    `json:"-"`
 	Coordinates []float64 `json:"coordinates200"`

@@ -20,7 +20,7 @@ func (s *Service) Create(ctx context.Context, name string, data []byte) (err err
 }
 
 func (s *Service) Get(ctx context.Context, id int, name, fname string, price float32, n, b, c int) (u user.User, err error) {
-	return user.User{}, &ErrUnauthorized{}
+	return user.User{}, user.ErrUnauthorized{}
 }
 
 func (s *Service) GetAll(ctx context.Context) (users []*user.User, err error) {
@@ -32,5 +32,9 @@ func (s *Service) Delete(ctx context.Context, id uint) (string, string, error) {
 }
 
 func (s *Service) TestMethod(data map[string]interface{}, ss interface{}) (map[string]map[int][]string, error) {
-	return nil, nil
+	return nil, TestErrorFn()
+}
+
+func TestErrorFn() error {
+	return user.ErrUnauthorized{}
 }
