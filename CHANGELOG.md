@@ -1,4 +1,22 @@
 
+<a name="v1.23.0"></a>
+## [v1.23.0](https://github.com/swipe-io/swipe/compare/v1.22.4...v1.23.0) (2020-07-20)
+
+### Bug Fixes
+
+* Encode/decode function was not generated correctly.
+
+### Features
+
+* Added simple gateway gokit helpers generator.
+* Changed the prefix in the generated code, instead of <packageName><serviceName>, <projectName><serviceName>is used
+
+### BREAKING CHANGE
+
+
+Generated exported functions will have different names.
+
+
 <a name="v1.22.4"></a>
 ## [v1.22.4](https://github.com/swipe-io/swipe/compare/v1.22.3...v1.22.4) (2020-07-07)
 
