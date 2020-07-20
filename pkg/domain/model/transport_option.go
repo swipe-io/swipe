@@ -54,9 +54,8 @@ type MethodHTTPTransportOption struct {
 }
 
 type ErrorHTTPTransportOption struct {
-	Named     *stdtypes.Named
-	Code      int64
-	IsPointer bool
+	Named *stdtypes.Named
+	Code  int64
 }
 
 type TransportOption struct {
@@ -69,5 +68,5 @@ type TransportOption struct {
 	JsonRPC              JsonRPCHTTPTransportOption
 	MethodOptions        map[string]MethodHTTPTransportOption
 	DefaultMethodOptions MethodHTTPTransportOption
-	MapCodeErrors        map[string]ErrorHTTPTransportOption
+	Errors               map[string]*ErrorHTTPTransportOption
 }

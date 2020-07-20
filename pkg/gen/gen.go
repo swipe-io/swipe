@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"fmt"
@@ -9,9 +10,7 @@ import (
 	stdtypes "go/types"
 	"os"
 	"path/filepath"
-	"sort"
 	stdstrings "strings"
-	"sync"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/file"
@@ -45,9 +44,7 @@ type Swipe struct {
 	patterns    []string
 	commentMaps *typeutil.Map
 	pkgs        []*packages.Package
-	returnTypes map[uint32][]interface{}
 	mapTypes    map[uint32]*model.DeclType
-	allPkgs     []*packages.Package
 }
 
 func (s *Swipe) Generate() ([]Result, []error) {
@@ -87,32 +84,29 @@ func (s *Swipe) Generate() ([]Result, []error) {
 						}
 
 						info := model.GenerateInfo{
-							Pkg:         pkg,
-							Pkgs:        s.pkgs,
-							BasePath:    basePath,
-							Version:     s.version,
-							CommentMap:  s.commentMaps,
-							ReturnTypes: s.returnTypes,
-							MapTypes:    s.mapTypes,
+							Pkg:        pkg,
+							Pkgs:       s.pkgs,
+							BasePath:   basePath,
+							Version:    s.version,
+							CommentMap: s.commentMaps,
+							MapTypes:   s.mapTypes,
 						}
-
 						option := r.Option(opt.Name, info)
 						if option == nil {
 							return nil, []error{errors.New("unknown option:" + opt.Name)}
 						}
-
 						o, err := option.Parse(opt)
 						if err != nil {
 							return nil, []error{err}
 						}
-						processor, err := r.Processor(opt.Name, info)
+						p, err := r.Processor(opt.Name, info)
 						if err != nil {
 							return nil, []error{err}
 						}
-						if !processor.SetOption(o) {
+						if !p.SetOption(o) {
 							return nil, []error{errors.New("option not suitable for processor: " + opt.Name)}
 						}
-						for _, g := range processor.Generators() {
+						for _, g := range p.Generators() {
 							if err := g.Prepare(s.ctx); err != nil {
 								return nil, []error{err}
 							}
@@ -259,105 +253,40 @@ func (s *Swipe) loadPackages() []error {
 		return []error{err}
 	}
 
-	seen := new(sync.Map)
-
-	var visit func(pkg *packages.Package)
-	visit = func(pkg *packages.Package) {
-		if _, ok := seen.Load(pkg); !ok {
-			seen.Store(pkg, true)
-			var importPaths []string
-			for path := range pkg.Imports {
-				importPaths = append(importPaths, path)
-			}
-			sort.Strings(importPaths)
-			for _, path := range importPaths {
-				visit(pkg.Imports[path])
-			}
-			s.allPkgs = append(s.allPkgs, pkg)
-		}
-	}
-	for _, pkg := range s.pkgs {
-		visit(pkg)
-	}
-
 	hasher := typeutil.MakeHasher()
 
-	visitReturnStmt := func(p *packages.Package, ret *ast.ReturnStmt) *model.ReturnStmt {
-		returnStmt := &model.ReturnStmt{}
-		for _, result := range ret.Results {
-			switch v := result.(type) {
-			case *ast.CallExpr:
-				if selExpr, ok := v.Fun.(*ast.SelectorExpr); ok {
-					if xSelExpr, ok := selExpr.X.(*ast.SelectorExpr); ok {
-						id := hasher.Hash(p.TypesInfo.ObjectOf(xSelExpr.Sel).Type())
-						fnID := types.HashObject(p.TypesInfo.ObjectOf(selExpr.Sel), hasher)
-						_, isIface := p.TypesInfo.ObjectOf(xSelExpr.Sel).Type().Underlying().(*stdtypes.Interface)
-						returnStmt.Results = append(returnStmt.Results, &model.CallResult{
-							ID:      id,
-							FnID:    fnID,
-							IsIface: isIface,
-						})
+	for _, pkg := range s.pkgs {
+		for _, syntax := range pkg.Syntax {
+			for _, decl := range syntax.Decls {
+				switch v := decl.(type) {
+				case *ast.GenDecl:
+					for _, spec := range v.Specs {
+						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+							obj := pkg.TypesInfo.ObjectOf(typeSpec.Name)
+							id := hasher.Hash(obj.Type())
+							s.mapTypes[id] = &model.DeclType{Obj: obj}
+						}
+					}
+				case *ast.FuncDecl:
+					var (
+						recvType stdtypes.Type
+						name     string
+					)
+					if v.Recv != nil {
+						recvType = pkg.TypesInfo.TypeOf(v.Recv.List[0].Type)
+						name += fmt.Sprintf("%d:", hasher.Hash(recvType))
+					}
+					fnObj := pkg.TypesInfo.ObjectOf(v.Name)
+					name += fnObj.Name()
+					id := types.Hash(name, hasher.Hash(fnObj.Type()))
+					if _, ok := s.mapTypes[id]; !ok {
+						links, values := visitBlockStmt(pkg, v.Body)
+						s.mapTypes[id] = &model.DeclType{Obj: fnObj, RecvType: recvType, Links: links, Values: values}
 					}
 				}
-			default:
-				if tv, ok := p.TypesInfo.Types[result]; ok {
-					returnStmt.Results = append(returnStmt.Results, &model.ValueResult{
-						ID:    hasher.Hash(tv.Type),
-						Type:  tv.Type,
-						Value: tv.Value,
-					})
-				}
 			}
 		}
-		return returnStmt
 	}
-
-	var visitBlockStmt func(p *packages.Package, block *ast.BlockStmt) *model.BlockStmt
-	visitBlockStmt = func(p *packages.Package, block *ast.BlockStmt) *model.BlockStmt {
-		bs := &model.BlockStmt{}
-		for _, stmt := range block.List {
-			switch v := stmt.(type) {
-			case *ast.SelectStmt:
-				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
-			case *ast.RangeStmt:
-				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
-			case *ast.ForStmt:
-				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
-			case *ast.TypeSwitchStmt:
-				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
-			case *ast.SwitchStmt:
-				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
-			case *ast.IfStmt:
-				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v.Body))
-			case *ast.BlockStmt:
-				bs.Blocks = append(bs.Blocks, visitBlockStmt(p, v))
-			case *ast.ReturnStmt:
-				bs.Returns = append(bs.Returns, visitReturnStmt(p, v))
-			}
-		}
-		return bs
-	}
-
-	types.Inspect(s.pkgs, func(p *packages.Package, n ast.Node) bool {
-		if declStmt, ok := n.(*ast.FuncDecl); ok {
-			if declStmt.Recv != nil {
-
-				declType := p.TypesInfo.TypeOf(declStmt.Recv.List[0].Type)
-
-				id := hasher.Hash(declType)
-
-				if _, ok := s.mapTypes[id]; !ok {
-					s.mapTypes[id] = &model.DeclType{DeclStmt: map[uint32]*model.DeclStmt{}}
-				}
-
-				fnID := types.HashObject(p.TypesInfo.ObjectOf(declStmt.Name), hasher)
-
-				s.mapTypes[id].Type = declType
-				s.mapTypes[id].DeclStmt[fnID] = &model.DeclStmt{Name: declStmt.Name.Name, Block: visitBlockStmt(p, declStmt.Body)}
-			}
-		}
-		return true
-	})
 
 	types.Inspect(s.pkgs, func(p *packages.Package, n ast.Node) bool {
 		if spec, ok := n.(*ast.Field); ok {
@@ -393,6 +322,82 @@ func (s *Swipe) loadPackages() []error {
 	return nil
 }
 
+func visitReturnStmt(p *packages.Package, ret *ast.ReturnStmt) (l *list.List, values []stdtypes.TypeAndValue) {
+	l = list.New()
+	hasher := typeutil.MakeHasher()
+	for _, result := range ret.Results {
+		switch v := result.(type) {
+		case *ast.FuncLit:
+			otherLinks, otherValues := visitBlockStmt(p, v.Body)
+			values = append(values, otherValues...)
+			l.PushFrontList(otherLinks)
+		case *ast.CompositeLit:
+			l.PushFront(hasher.Hash(p.TypesInfo.TypeOf(v.Type)))
+		case *ast.UnaryExpr, *ast.BasicLit:
+			values = append(values, p.TypesInfo.Types[v])
+		case *ast.CallExpr:
+			switch fv := v.Fun.(type) {
+			case *ast.SelectorExpr:
+				obj := p.TypesInfo.ObjectOf(fv.Sel)
+				l.PushFront(types.Hash(obj.Name(), hasher.Hash(obj.Type())))
+			case *ast.Ident:
+				obj := p.TypesInfo.ObjectOf(fv)
+				l.PushFront(types.Hash(obj.Name(), hasher.Hash(obj.Type())))
+			}
+		}
+	}
+	return
+}
+
+func visitBlockStmt(p *packages.Package, block *ast.BlockStmt) (l *list.List, values []stdtypes.TypeAndValue) {
+	l = list.New()
+
+	for _, stmt := range block.List {
+		switch v := stmt.(type) {
+		case *ast.SelectStmt:
+			ol, ov := visitBlockStmt(p, v.Body)
+			values = append(values, ov...)
+			l.PushFrontList(ol)
+		case *ast.RangeStmt:
+			ol, ov := visitBlockStmt(p, v.Body)
+			values = append(values, ov...)
+			l.PushFrontList(ol)
+		case *ast.ForStmt:
+			ol, ov := visitBlockStmt(p, v.Body)
+			values = append(values, ov...)
+			l.PushFrontList(ol)
+		case *ast.TypeSwitchStmt:
+			ol, ov := visitBlockStmt(p, v.Body)
+			values = append(values, ov...)
+			l.PushFrontList(ol)
+		case *ast.SwitchStmt:
+			ol, ov := visitBlockStmt(p, v.Body)
+			values = append(values, ov...)
+			l.PushFrontList(ol)
+		case *ast.IfStmt:
+			ol, ov := visitBlockStmt(p, v.Body)
+			values = append(values, ov...)
+			l.PushFrontList(ol)
+		case *ast.BlockStmt:
+			ol, ov := visitBlockStmt(p, v)
+			values = append(values, ov...)
+			l.PushFrontList(ol)
+		case *ast.ReturnStmt:
+			ol, ov := visitReturnStmt(p, v)
+
+			l.PushFrontList(ol)
+
+			values = append(values, ov...)
+
+			//l.PushFront(&model.ReturnStmt{
+			//	Links:  ol,
+			//	Values: values,
+			//})
+		}
+	}
+	return
+}
+
 func NewSwipe(ctx context.Context, version, wd string, env []string, patterns []string) *Swipe {
 	return &Swipe{
 		ctx:         ctx,
@@ -401,7 +406,6 @@ func NewSwipe(ctx context.Context, version, wd string, env []string, patterns []
 		env:         env,
 		patterns:    patterns,
 		commentMaps: new(typeutil.Map),
-		returnTypes: map[uint32][]interface{}{},
 		mapTypes:    map[uint32]*model.DeclType{},
 	}
 }

@@ -68,7 +68,7 @@ func (g *restServer) Process(ctx context.Context) error {
 		g.W("h := w.Header()\n")
 	}
 
-	g.W("h.Set(\"Content-Interface\", \"application/json; charset=utf-8\")\n")
+	g.W("h.Set(\"Content-Iface\", \"application/json; charset=utf-8\")\n")
 	g.W("if e, ok := response.(%s.Failer); ok && e.Failed() != nil {\n", kitEndpointPkg)
 	g.W("data, err := %s.Marshal(errorWrapper{Error: e.Failed().Error()})\n", jsonPkg)
 	g.W("if err != nil {\n")
@@ -252,8 +252,10 @@ func (g *restServer) Process(ctx context.Context) error {
 			} else {
 				g.W("return nil, nil\n")
 			}
-			g.W("},\n")
+			g.W("}")
 		}
+		g.W(",\n")
+
 		if mopt.ServerResponseFunc.Expr != nil {
 			writer.WriteAST(g, g.i, mopt.ServerResponseFunc.Expr)
 		} else {
@@ -275,7 +277,6 @@ func (g *restServer) Process(ctx context.Context) error {
 				}
 			}
 		}
-
 		g.W(",\n")
 
 		g.W("append(sopt.genericServerOption, sopt.%sServerOption...)...,\n", m.LcName)

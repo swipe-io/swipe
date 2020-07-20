@@ -7,6 +7,10 @@ import (
 	stdtypes "go/types"
 	stdstrings "strings"
 
+	"golang.org/x/tools/go/types/typeutil"
+
+	"github.com/swipe-io/swipe/pkg/queue"
+
 	"github.com/iancoleman/strcase"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
@@ -67,57 +71,21 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 
 	hasher := typeutil.MakeHasher()
 
-	visitedFnIDs := map[uint32]struct{}{}
+	fnMap := map[uint32]*model.DeclType{}
 
-	var collectErrorReturn func(b *model.BlockStmt) []model.ErrorHTTPTransportOption
+	for _, declType := range g.info.MapTypes {
+		q := queue.New()
+		if declType.Links != nil {
+			q.Append(declType.Links)
+		}
+		id := types.Hash(declType.Obj.Name(), hasher.Hash(declType.Obj.Type()))
+		fnMap[id] = declType
+	}
 
-	collectErrorReturn = func(b *model.BlockStmt) (result []model.ErrorHTTPTransportOption) {
-		for _, block := range b.Blocks {
-			result = append(result, collectErrorReturn(block)...)
-		}
-		for _, stmt := range b.Returns {
-			for _, e := range stmt.Results {
-				switch v := e.(type) {
-				case *model.ValueResult:
-					if m, ok := g.info.MapTypes[v.ID]; ok {
-						for _, decl := range m.DeclStmt {
-							if decl.Name == errorStatusMethod {
-								for _, returnStmt := range decl.Block.Returns {
-									for _, i2 := range returnStmt.Results {
-										if v, ok := i2.(*model.ValueResult); ok && v.Value != nil {
-											code, _ := constant.Int64Val(v.Value)
-											var t stdtypes.Type
-											if p, ok := m.Type.(*stdtypes.Pointer); ok {
-												t = p.Elem()
-											}
-											if named, ok := t.(*stdtypes.Named); ok {
-												result = append(result, model.ErrorHTTPTransportOption{
-													Named: named,
-													Code:  code,
-												})
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				case *model.CallResult:
-					if v.IsIface {
-						for _, m := range g.info.MapTypes {
-							if _, ok := visitedFnIDs[v.FnID]; ok {
-								continue
-							}
-							if decl, ok := m.DeclStmt[v.FnID]; ok {
-								result = append(result, collectErrorReturn(decl.Block)...)
-								visitedFnIDs[v.FnID] = struct{}{}
-							}
-						}
-					}
-				}
-			}
-		}
-		return
+	middlewareErrors := map[string]*model.ErrorHTTPTransportOption{}
+	for _, e := range findMiddlewareErrors(errorStatusMethod, g.info.MapTypes, hasher) {
+		middlewareErrors[e.Named.Obj().Name()] = e
+		o.Transport.Errors[e.Named.Obj().Name()] = e
 	}
 
 	for i := 0; i < iface.NumMethods(); i++ {
@@ -131,22 +99,19 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 			T:        m.Type(),
 			Name:     m.Name(),
 			LcName:   strings.LcFirst(m.Name()),
+			Errors:   map[string]*model.ErrorHTTPTransportOption{},
 			Comments: comments,
 		}
 
-		for _, decls := range g.info.MapTypes {
-			if decl := decls.DeclStmt[types.HashObject(stdtypes.Object(m), hasher)]; decl != nil {
-				errorExists := map[*stdtypes.Named]struct{}{}
-				for _, e := range collectErrorReturn(decl.Block) {
-					if _, ok := errorExists[e.Named]; !ok {
-						sm.Errors = append(sm.Errors, e)
-						errorExists[e.Named] = struct{}{}
-					}
-				}
-				for _, e := range sm.Errors {
-					o.Transport.MapCodeErrors[e.Named.Obj().Name()] = e
-				}
+		id := types.Hash(m.Name(), hasher.Hash(m.Type()))
+		if decl, ok := fnMap[id]; ok {
+			for _, e := range findErrors(decl, errorStatusMethod, g.info.MapTypes, hasher) {
+				sm.Errors[e.Named.Obj().Name()] = e
+				o.Transport.Errors[e.Named.Obj().Name()] = e
 			}
+		}
+		for name, e := range middlewareErrors {
+			sm.Errors[name] = e
 		}
 
 		var (
@@ -199,7 +164,7 @@ func (g *serviceOption) loadTransport(opt *parser.Option) (option model.Transpor
 		Protocol:      parser.MustOption(opt.At("protocol")).Value.String(),
 		FastHTTP:      fastHTTP,
 		MethodOptions: map[string]model.MethodHTTPTransportOption{},
-		MapCodeErrors: map[string]model.ErrorHTTPTransportOption{},
+		Errors:        map[string]*model.ErrorHTTPTransportOption{},
 		Openapi: model.OpenapiHTTPTransportOption{
 			Methods: map[string]*model.OpenapiMethodOption{},
 		},
@@ -292,7 +257,7 @@ func (g *serviceOption) loadTransport(opt *parser.Option) (option model.Transpor
 			signOpt := parser.MustOption(methodOpt.At("signature"))
 			fnSel, ok := signOpt.Value.Expr().(*ast.SelectorExpr)
 			if !ok {
-				return option, errors.NotePosition(signOpt.Position, fmt.Errorf("the Signature value must be func selector"))
+				return option, errors.NotePosition(signOpt.Position, fmt.Errorf("the signature must be selector"))
 			}
 			baseMethodOpts := option.MethodOptions[fnSel.Sel.Name]
 			mopt, err := getMethodOptions(methodOpt, baseMethodOpts)
@@ -382,6 +347,68 @@ func getMethodOptions(methodOpt *parser.Option, baseMethodOpts model.MethodHTTPT
 		}
 	}
 	return baseMethodOpts, nil
+}
+
+func findMiddlewareErrors(errorStatusMethod string, mapTypes map[uint32]*model.DeclType, hasher typeutil.Hasher) (result []*model.ErrorHTTPTransportOption) {
+	existsError := map[string]struct{}{}
+	for _, declType := range mapTypes {
+		if sig, ok := declType.Obj.Type().(*stdtypes.Signature); ok {
+			if sig.Results().Len() == 1 {
+				if stdtypes.TypeString(sig.Results().At(0).Type(), nil) == "github.com/go-kit/kit/endpoint.Middleware" {
+					for _, e := range findErrors(declType, errorStatusMethod, mapTypes, hasher) {
+						id := e.Named.Obj().Name() + errorStatusMethod
+						if _, ok := existsError[id]; ok {
+							continue
+						}
+						result = append(result, e)
+						existsError[id] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+	return
+}
+
+func findErrors(decl *model.DeclType, errorStatusMethod string, mapTypes map[uint32]*model.DeclType, hasher typeutil.Hasher) (result []*model.ErrorHTTPTransportOption) {
+	q := queue.New()
+	if decl.Links != nil {
+		q.Append(decl.Links)
+	}
+	for {
+		v := q.Pop()
+		if v == nil {
+			break
+		}
+		if r, ok := v.(*model.DeclType); ok {
+			q.Append(r.Links)
+		} else if id, ok := v.(uint32); ok {
+			if decl, ok := mapTypes[id]; ok {
+				if named, ok := decl.Obj.Type().(*stdtypes.Named); ok {
+					for i := 0; i < named.NumMethods(); i++ {
+						m := named.Method(i)
+						if m.Name() == errorStatusMethod {
+							name := fmt.Sprintf("%d:%s", hasher.Hash(named.Obj().Type()), named.Method(i).Name())
+							if e := mapTypes[types.Hash(name, hasher.Hash(named.Method(i).Type()))]; ok {
+								if len(e.Values) > 0 {
+									if code, ok := constant.Int64Val(e.Values[0].Value); ok {
+										result = append(result, &model.ErrorHTTPTransportOption{
+											Named: e.RecvType.(*stdtypes.Named),
+											Code:  code,
+										})
+									}
+								}
+							}
+						}
+					}
+				}
+				if decl.Links != nil {
+					q.Append(mapTypes[id].Links)
+				}
+			}
+		}
+	}
+	return
 }
 
 func httpBraceIndices(s string) ([]int, error) {

@@ -186,15 +186,18 @@ func (g *jsonRPCJSClient) Process(ctx context.Context) error {
 
 	g.W("}\n")
 
-	for _, e := range g.o.Transport.MapCodeErrors {
-		g.W("export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %d, data);\n}\n}\n", e.Named.Obj().Name(), e.Code)
+	for _, e := range g.o.Transport.Errors {
+		g.W(
+			"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %d, data);\n}\n}\n",
+			e.Named.Obj().Name(), e.Code,
+		)
 	}
 	g.W("function convertError(e) {\n")
 	g.W("switch(e.code) {\n")
 	g.W("default:\n")
 	g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
 
-	for _, e := range g.o.Transport.MapCodeErrors {
+	for _, e := range g.o.Transport.Errors {
 		g.W("case %d:\n", e.Code)
 		g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
 

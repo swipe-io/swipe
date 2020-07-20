@@ -53,7 +53,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		swg.Components.Schemas["Error"] = getOpenapiRestErrorSchema()
 	}
 
-	for _, ei := range g.o.Transport.MapCodeErrors {
+	for _, ei := range g.o.Transport.Errors {
 		var s *openapi.Schema
 		if g.o.Transport.JsonRPC.Enable {
 			s = &openapi.Schema{
