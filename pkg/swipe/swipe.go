@@ -76,6 +76,12 @@ type OpenapiServersOption string
 // A OpenapiServerOption is an openapi concrete server option.
 type OpenapiServerOption string
 
+type GatewayOption string
+
+type GatewayServiceOption string
+
+type GatewayServiceMethodOption string
+
 // Build the basic option for defining the generation.
 func Build(Option) {
 }
@@ -111,7 +117,7 @@ func FuncName(string) ConfigEnvOption {
 
 // Service a option that defines the generation of transport, metrics, tracing, and logging for gokit.
 // Given iface is nil pointer interface, for example:
-//  (*pkg.Interface)(nil)
+//  (*pkg.Iface)(nil)
 func Service(iface interface{}, opts ...ServiceOption) Option {
 	return "implementation not generated, run swipe"
 }
@@ -131,7 +137,7 @@ func Instrumenting(namespace, subsystem string, opts ...InstrumentingOption) Ser
 // Swipe generates a method for creating an transport handler using the
 // following template:
 //
-//  MakeHandler<transportType><packageName><serviceName>
+//  MakeHandler<transportType><projectName><serviceName>
 //
 // <transportType> is REST or JSONRPC.
 func Transport(protocol string, opts ...TransportOption) ServiceOption {
@@ -147,7 +153,7 @@ func FastEnable() TransportOption {
 
 // MethodOptions option for defining method settings.
 // Given signature is interface method, for example:
-//  pkg.Interface.Create
+//  pkg.Iface.Create
 func MethodOptions(signature interface{}, opts ...MethodOption) TransportOption {
 	return "implementation not generated, run swipe"
 }
@@ -272,5 +278,21 @@ func OpenapiLicence(name, url string) OpenapiOption {
 
 // OpenapiServer sets openapi server.
 func OpenapiServer(description, url string) OpenapiOption {
+	return "implementation not generated, run swipe"
+}
+
+func Gateway(services ...GatewayOption) Option {
+	return "implementation not generated, run swipe"
+}
+
+func GatewayService(iface interface{}, opts ...GatewayServiceOption) GatewayOption {
+	return "implementation not generated, run swipe"
+}
+
+func GatewayServiceMethod(signature interface{}, opts ...GatewayServiceMethodOption) GatewayServiceOption {
+	return "implementation not generated, run swipe"
+}
+
+func GatewayBalancer(string) GatewayServiceMethodOption {
 	return "implementation not generated, run swipe"
 }

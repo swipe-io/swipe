@@ -12,6 +12,8 @@ type Registry struct {
 
 func (r *Registry) Option(name string, info model.GenerateInfo) uo.Option {
 	switch name {
+	case "Gateway":
+		return io.NewGatewayOption(info)
 	case "ConfigEnv":
 		return io.NewConfigOption()
 	case "Service":
@@ -22,6 +24,8 @@ func (r *Registry) Option(name string, info model.GenerateInfo) uo.Option {
 
 func (r *Registry) Processor(name string, info model.GenerateInfo) (up.Processor, error) {
 	switch name {
+	case "Gateway":
+		return up.NewGatewayProcessor(info), nil
 	case "ConfigEnv":
 		return up.NewConfig(info), nil
 	case "Service":
