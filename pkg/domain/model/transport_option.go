@@ -68,5 +68,5 @@ type TransportOption struct {
 	JsonRPC              JsonRPCHTTPTransportOption
 	MethodOptions        map[string]MethodHTTPTransportOption
 	DefaultMethodOptions MethodHTTPTransportOption
-	Errors               map[string]*ErrorHTTPTransportOption
+	Errors               map[uint32]*ErrorHTTPTransportOption
 }

@@ -39,7 +39,7 @@ type ServiceMethod struct {
 	ParamCtx     *stdtypes.Var
 	ReturnErr    *stdtypes.Var
 	ResultsNamed bool
-	Errors       map[string]*ErrorHTTPTransportOption
+	Errors       map[uint32]*ErrorHTTPTransportOption
 	T            stdtypes.Type
 }
 

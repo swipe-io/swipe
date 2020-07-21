@@ -8,21 +8,21 @@ type Queue struct {
 	l *list.List
 }
 
-func (q *Queue) Append(l *list.List) {
-	q.l.PushFrontList(l)
+func (q *Queue) IsEmpty() bool {
+	return q.l.Len() == 0
 }
 
-func (q *Queue) Len() int {
-	return q.l.Len()
-}
-
-func (q *Queue) Pop() interface{} {
-
+func (q *Queue) Dequeue() interface{} {
 	e := q.l.Front()
 	if e != nil {
 		return q.l.Remove(e)
 	}
 	return nil
+}
+
+func (q *Queue) Enqueue(e interface{}) {
+	q.l.PushFront(e)
+
 }
 
 func New() *Queue {

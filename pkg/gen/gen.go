@@ -1,7 +1,6 @@
 package gen
 
 import (
-	"container/list"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	stdstrings "strings"
+
+	"github.com/swipe-io/swipe/pkg/graph"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/file"
@@ -44,7 +45,7 @@ type Swipe struct {
 	patterns    []string
 	commentMaps *typeutil.Map
 	pkgs        []*packages.Package
-	mapTypes    map[uint32]*model.DeclType
+	graphTypes  *graph.Graph
 }
 
 func (s *Swipe) Generate() ([]Result, []error) {
@@ -89,7 +90,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 							BasePath:   basePath,
 							Version:    s.version,
 							CommentMap: s.commentMaps,
-							MapTypes:   s.mapTypes,
+							GraphTypes: s.graphTypes,
 						}
 						option := r.Option(opt.Name, info)
 						if option == nil {
@@ -230,6 +231,11 @@ func (s *Swipe) detectBasePath(paths []string) (string, error) {
 	return dir, nil
 }
 
+type nodeInfo struct {
+	node    *graph.Node
+	objects []stdtypes.Object
+}
+
 func (s *Swipe) loadPackages() []error {
 	cfg := &packages.Config{
 		Context:    s.ctx,
@@ -253,7 +259,7 @@ func (s *Swipe) loadPackages() []error {
 		return []error{err}
 	}
 
-	hasher := typeutil.MakeHasher()
+	astNodes := []nodeInfo{}
 
 	for _, pkg := range s.pkgs {
 		for _, syntax := range pkg.Syntax {
@@ -263,27 +269,47 @@ func (s *Swipe) loadPackages() []error {
 					for _, spec := range v.Specs {
 						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
 							obj := pkg.TypesInfo.ObjectOf(typeSpec.Name)
-							id := hasher.Hash(obj.Type())
-							s.mapTypes[id] = &model.DeclType{Obj: obj}
+							s.graphTypes.Add(&graph.Node{Object: obj})
 						}
 					}
 				case *ast.FuncDecl:
-					var (
-						recvType stdtypes.Type
-						name     string
-					)
-					if v.Recv != nil {
-						recvType = pkg.TypesInfo.TypeOf(v.Recv.List[0].Type)
-						name += fmt.Sprintf("%d:", hasher.Hash(recvType))
-					}
-					fnObj := pkg.TypesInfo.ObjectOf(v.Name)
-					name += fnObj.Name()
-					id := types.Hash(name, hasher.Hash(fnObj.Type()))
-					if _, ok := s.mapTypes[id]; !ok {
-						links, values := visitBlockStmt(pkg, v.Body)
-						s.mapTypes[id] = &model.DeclType{Obj: fnObj, RecvType: recvType, Links: links, Values: values}
+					obj := pkg.TypesInfo.ObjectOf(v.Name)
+
+					n := &graph.Node{Object: obj}
+
+					s.graphTypes.Add(n)
+
+					values, objects := visitBlockStmt(pkg, v.Body)
+
+					n.AddValue(values...)
+
+					astNodes = append(astNodes, nodeInfo{
+						node:    n,
+						objects: objects,
+					})
+				}
+			}
+		}
+	}
+	for _, ni := range astNodes {
+		for _, obj := range ni.objects {
+			if sig, ok := obj.Type().(*stdtypes.Signature); ok {
+				if sig.Recv() != nil {
+					if _, ok := sig.Recv().Type().Underlying().(*stdtypes.Interface); ok {
+						s.graphTypes.Iterate(func(n *graph.Node) {
+							s.graphTypes.Traverse(n, func(n *graph.Node) bool {
+								if n.Object.Name() == obj.Name() && stdtypes.Identical(n.Object.Type(), obj.Type()) {
+									s.graphTypes.AddEdge(ni.node, n)
+								}
+								return true
+							})
+						})
+						continue
 					}
 				}
+			}
+			if nn := s.graphTypes.Node(obj); nn != nil {
+				s.graphTypes.AddEdge(ni.node, nn)
 			}
 		}
 	}
@@ -322,77 +348,60 @@ func (s *Swipe) loadPackages() []error {
 	return nil
 }
 
-func visitReturnStmt(p *packages.Package, ret *ast.ReturnStmt) (l *list.List, values []stdtypes.TypeAndValue) {
-	l = list.New()
-	hasher := typeutil.MakeHasher()
-	for _, result := range ret.Results {
-		switch v := result.(type) {
-		case *ast.FuncLit:
-			otherLinks, otherValues := visitBlockStmt(p, v.Body)
-			values = append(values, otherValues...)
-			l.PushFrontList(otherLinks)
-		case *ast.CompositeLit:
-			l.PushFront(hasher.Hash(p.TypesInfo.TypeOf(v.Type)))
-		case *ast.UnaryExpr, *ast.BasicLit:
-			values = append(values, p.TypesInfo.Types[v])
-		case *ast.CallExpr:
-			switch fv := v.Fun.(type) {
-			case *ast.SelectorExpr:
-				obj := p.TypesInfo.ObjectOf(fv.Sel)
-				l.PushFront(types.Hash(obj.Name(), hasher.Hash(obj.Type())))
-			case *ast.Ident:
-				obj := p.TypesInfo.ObjectOf(fv)
-				l.PushFront(types.Hash(obj.Name(), hasher.Hash(obj.Type())))
-			}
-		}
-	}
-	return
-}
-
-func visitBlockStmt(p *packages.Package, block *ast.BlockStmt) (l *list.List, values []stdtypes.TypeAndValue) {
-	l = list.New()
-
+func visitBlockStmt(p *packages.Package, block *ast.BlockStmt) (values []stdtypes.TypeAndValue, objects []stdtypes.Object) {
 	for _, stmt := range block.List {
 		switch v := stmt.(type) {
 		case *ast.SelectStmt:
-			ol, ov := visitBlockStmt(p, v.Body)
-			values = append(values, ov...)
-			l.PushFrontList(ol)
+			otherValues, otherObjects := visitBlockStmt(p, v.Body)
+			values = append(values, otherValues...)
+			objects = append(objects, otherObjects...)
+
 		case *ast.RangeStmt:
-			ol, ov := visitBlockStmt(p, v.Body)
-			values = append(values, ov...)
-			l.PushFrontList(ol)
+			otherValues, otherObjects := visitBlockStmt(p, v.Body)
+			values = append(values, otherValues...)
+			objects = append(objects, otherObjects...)
 		case *ast.ForStmt:
-			ol, ov := visitBlockStmt(p, v.Body)
-			values = append(values, ov...)
-			l.PushFrontList(ol)
+			otherValues, otherObjects := visitBlockStmt(p, v.Body)
+			values = append(values, otherValues...)
+			objects = append(objects, otherObjects...)
 		case *ast.TypeSwitchStmt:
-			ol, ov := visitBlockStmt(p, v.Body)
-			values = append(values, ov...)
-			l.PushFrontList(ol)
+			otherValues, otherObjects := visitBlockStmt(p, v.Body)
+			values = append(values, otherValues...)
+			objects = append(objects, otherObjects...)
 		case *ast.SwitchStmt:
-			ol, ov := visitBlockStmt(p, v.Body)
-			values = append(values, ov...)
-			l.PushFrontList(ol)
+			otherValues, otherObjects := visitBlockStmt(p, v.Body)
+			values = append(values, otherValues...)
+			objects = append(objects, otherObjects...)
 		case *ast.IfStmt:
-			ol, ov := visitBlockStmt(p, v.Body)
-			values = append(values, ov...)
-			l.PushFrontList(ol)
+			otherValues, otherObjects := visitBlockStmt(p, v.Body)
+			values = append(values, otherValues...)
+			objects = append(objects, otherObjects...)
 		case *ast.BlockStmt:
-			ol, ov := visitBlockStmt(p, v)
-			values = append(values, ov...)
-			l.PushFrontList(ol)
+			otherValues, otherObjects := visitBlockStmt(p, v)
+			values = append(values, otherValues...)
+			objects = append(objects, otherObjects...)
 		case *ast.ReturnStmt:
-			ol, ov := visitReturnStmt(p, v)
-
-			l.PushFrontList(ol)
-
-			values = append(values, ov...)
-
-			//l.PushFront(&model.ReturnStmt{
-			//	Links:  ol,
-			//	Values: values,
-			//})
+			for _, result := range v.Results {
+				switch vv := result.(type) {
+				case *ast.FuncLit:
+					otherValues, otherObjects := visitBlockStmt(p, vv.Body)
+					values = append(values, otherValues...)
+					objects = append(objects, otherObjects...)
+				case *ast.CompositeLit:
+					if named, ok := p.TypesInfo.TypeOf(vv.Type).(*stdtypes.Named); ok {
+						objects = append(objects, named.Obj())
+					}
+				case *ast.UnaryExpr, *ast.BasicLit:
+					values = append(values, p.TypesInfo.Types[vv])
+				case *ast.CallExpr:
+					switch fv := vv.Fun.(type) {
+					case *ast.SelectorExpr:
+						objects = append(objects, p.TypesInfo.ObjectOf(fv.Sel))
+					case *ast.Ident:
+						objects = append(objects, p.TypesInfo.ObjectOf(fv))
+					}
+				}
+			}
 		}
 	}
 	return
@@ -406,6 +415,6 @@ func NewSwipe(ctx context.Context, version, wd string, env []string, patterns []
 		env:         env,
 		patterns:    patterns,
 		commentMaps: new(typeutil.Map),
-		mapTypes:    map[uint32]*model.DeclType{},
+		graphTypes:  graph.NewGraph(),
 	}
 }
