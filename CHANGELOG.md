@@ -1,4 +1,12 @@
 
+<a name="v1.24.0"></a>
+## [v1.24.0](https://github.com/swipe-io/swipe/compare/v1.23.0...v1.24.0) (2020-07-21)
+
+### Features
+
+* Implement new graph type for graph types and optimize performance.
+
+
 <a name="v1.23.0"></a>
 ## [v1.23.0](https://github.com/swipe-io/swipe/compare/v1.22.4...v1.23.0) (2020-07-20)
 
