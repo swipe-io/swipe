@@ -71,12 +71,12 @@ func (f *File) frameJS() ([]byte, error) {
 func (f *File) Frame() ([]byte, error) {
 	ext := filepath.Ext(f.Filename)
 	switch ext {
+	default:
+		return f.Bytes(), nil
 	case ".go":
 		return f.frameGO()
 	case ".js":
 		return f.frameJS()
-	case ".json":
-		return f.Bytes(), nil
+
 	}
-	panic("unknown frame file extension: " + ext)
 }
