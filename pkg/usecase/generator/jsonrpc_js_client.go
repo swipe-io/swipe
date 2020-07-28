@@ -111,11 +111,11 @@ type jsonRPCJSClient struct {
 	o        model.ServiceOption
 }
 
-func (g *jsonRPCJSClient) Prepare(ctx context.Context) error {
+func (g *jsonRPCJSClient) Prepare(_ context.Context) error {
 	return nil
 }
 
-func (g *jsonRPCJSClient) Process(ctx context.Context) error {
+func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	g.W(jsonRPCClientBase)
 
 	g.W("export default class extends JSONRPCClient {\n")
@@ -245,7 +245,7 @@ func (g *jsonRPCJSClient) getJSDocType(t stdtypes.Type, nested int) string {
 		return g.getJSDocType(v.Obj().Type().Underlying(), nested)
 	case *stdtypes.Struct:
 		buf := new(bytes.Buffer)
-		fmt.Fprintf(buf, "{\n")
+		_, _ = fmt.Fprintf(buf, "{\n")
 
 		var j int
 		for i := 0; i < v.NumFields(); i++ {
@@ -267,19 +267,19 @@ func (g *jsonRPCJSClient) getJSDocType(t stdtypes.Type, nested int) string {
 				continue
 			}
 			if j > 0 {
-				fmt.Fprint(buf, ",\n")
+				_, _ = fmt.Fprint(buf, ",\n")
 			}
-			fmt.Fprintf(buf, "* %s %s: %s", strings.Repeat("  ", nested), name, g.getJSDocType(f.Type(), nested+1))
+			_, _ = fmt.Fprintf(buf, "* %s %s: %s", strings.Repeat("  ", nested), name, g.getJSDocType(f.Type(), nested+1))
 			j++
 		}
-		fmt.Fprintln(buf)
+		_, _ = fmt.Fprintln(buf)
 
 		endNested := nested - 2
 		if endNested < 0 {
 			endNested = 0
 		}
 
-		fmt.Fprintf(buf, "* %s }", strings.Repeat("  ", endNested))
+		_, _ = fmt.Fprintf(buf, "* %s }", strings.Repeat("  ", endNested))
 		return buf.String()
 	case *stdtypes.Basic:
 		switch v.Kind() {
