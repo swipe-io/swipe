@@ -1,4 +1,12 @@
 
+<a name="v1.24.3"></a>
+## [v1.24.3](https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.3) (2020-07-28)
+
+### Bug Fixes
+
+* Change enums JSON RPC client generate format.
+
+
 <a name="v1.24.2"></a>
 ## [v1.24.2](https://github.com/swipe-io/swipe/compare/v1.24.1...v1.24.2) (2020-07-28)
 
