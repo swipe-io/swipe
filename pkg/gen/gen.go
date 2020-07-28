@@ -9,6 +9,7 @@ import (
 	stdtypes "go/types"
 	"os"
 	"path/filepath"
+	"strconv"
 	stdstrings "strings"
 
 	"github.com/swipe-io/swipe/pkg/graph"
@@ -46,6 +47,7 @@ type Swipe struct {
 	commentMaps *typeutil.Map
 	pkgs        []*packages.Package
 	graphTypes  *graph.Graph
+	enums       *typeutil.Map
 }
 
 func (s *Swipe) Generate() ([]Result, []error) {
@@ -91,6 +93,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 							Version:    s.version,
 							CommentMap: s.commentMaps,
 							GraphTypes: s.graphTypes,
+							Enums:      s.enums,
 						}
 						option := r.Option(opt.Name, info)
 						if option == nil {
@@ -266,23 +269,66 @@ func (s *Swipe) loadPackages() []error {
 			for _, decl := range syntax.Decls {
 				switch v := decl.(type) {
 				case *ast.GenDecl:
-					for _, spec := range v.Specs {
-						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-							obj := pkg.TypesInfo.ObjectOf(typeSpec.Name)
+					switch v.Tok {
+					case token.TYPE:
+						for _, spec := range v.Specs {
+							sp := spec.(*ast.TypeSpec)
+							obj := pkg.TypesInfo.ObjectOf(sp.Name)
 							s.graphTypes.Add(&graph.Node{Object: obj})
+						}
+					case token.CONST:
+						var (
+							iotaValue int
+							iotaIncr  int
+							enums     []model.Enum
+						)
+						if len(v.Specs) > 1 {
+							vs := v.Specs[0].(*ast.ValueSpec)
+							ti := pkg.TypesInfo.TypeOf(vs.Type.(*ast.Ident))
+							if ti != nil {
+								if named, ok := ti.(*stdtypes.Named); ok && !named.Obj().Exported() {
+									continue
+								}
+
+								if b, ok := ti.Underlying().(*stdtypes.Basic); ok {
+									switch b.Info() {
+									case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
+										for _, spec := range v.Specs {
+											vs := spec.(*ast.ValueSpec)
+											if len(vs.Values) == 1 {
+												iotaValue, iotaIncr = types.EvalInt(vs.Values[0])
+											} else {
+												iotaValue += iotaIncr
+											}
+											enums = append(enums, model.Enum{
+												Name:  vs.Names[0].Name,
+												Value: strconv.Itoa(iotaValue),
+											})
+										}
+									case stdtypes.IsString:
+										for _, spec := range v.Specs {
+											vs := spec.(*ast.ValueSpec)
+											if len(vs.Values) == 1 {
+												lit := vs.Values[0].(*ast.BasicLit)
+												s, _ := strconv.Unquote(lit.Value)
+												enums = append(enums, model.Enum{
+													Name:  vs.Names[0].Name,
+													Value: s,
+												})
+											}
+										}
+									}
+								}
+								s.enums.Set(ti, enums)
+							}
 						}
 					}
 				case *ast.FuncDecl:
 					obj := pkg.TypesInfo.ObjectOf(v.Name)
-
 					n := &graph.Node{Object: obj}
-
 					s.graphTypes.Add(n)
-
 					values, objects := visitBlockStmt(pkg, v.Body)
-
 					n.AddValue(values...)
-
 					astNodes = append(astNodes, nodeInfo{
 						node:    n,
 						objects: objects,
@@ -315,7 +361,22 @@ func (s *Swipe) loadPackages() []error {
 	}
 
 	types.Inspect(s.pkgs, func(p *packages.Package, n ast.Node) bool {
-		if spec, ok := n.(*ast.Field); ok {
+		if st, ok := n.(*ast.StructType); ok {
+			t := p.TypesInfo.TypeOf(st)
+			if t != nil {
+				comments := map[string]string{}
+				for _, field := range st.Fields.List {
+					if field.Comment != nil {
+						if len(field.Comment.List) > 0 {
+							for _, name := range field.Names {
+								comments[name.Name] = stdstrings.TrimLeft(field.Comment.List[0].Text, "/")
+							}
+						}
+					}
+					s.commentMaps.Set(t, comments)
+				}
+			}
+		} else if spec, ok := n.(*ast.Field); ok {
 			t := p.TypesInfo.TypeOf(spec.Type)
 			if t != nil {
 				var comments []string
@@ -415,6 +476,7 @@ func NewSwipe(ctx context.Context, version, wd string, env []string, patterns []
 		env:         env,
 		patterns:    patterns,
 		commentMaps: new(typeutil.Map),
+		enums:       new(typeutil.Map),
 		graphTypes:  graph.NewGraph(),
 	}
 }

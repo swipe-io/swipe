@@ -29,6 +29,12 @@ type InstrumentingServiceOption struct {
 	Subsystem string
 }
 
+type ServiceReadme struct {
+	Enable       bool
+	OutputDir    string
+	TemplatePath string
+}
+
 type ServiceMethod struct {
 	Type         *stdtypes.Func
 	Name         string
@@ -53,4 +59,5 @@ type ServiceOption struct {
 	Type          stdtypes.Type
 	TypeName      *stdtypes.Named
 	Interface     *stdtypes.Interface
+	Readme        ServiceReadme
 }

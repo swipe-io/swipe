@@ -23,6 +23,12 @@ func (p *service) Generators() []ug.Generator {
 		ug.NewEndpoint("endpoint_gen.go", p.info, p.option),
 		ug.NewEndpointFactory("endpoint_gen.go", p.info, p.option),
 	}
+	if p.option.Readme.Enable {
+		generators = append(generators, ug.NewReadme(p.info, p.option))
+	}
+	if p.option.Transport.MarkdownDoc.Enable {
+		generators = append(generators, ug.NewJsonrpcMarkdownDoc(p.info, p.option))
+	}
 	if p.option.Transport.Protocol == "http" {
 		generators = append(generators, ug.NewHttpTransport("http_gen.go", p.info, p.option))
 		if p.option.Logging {
@@ -52,7 +58,6 @@ func (p *service) Generators() []ug.Generator {
 	if p.option.Transport.Openapi.Enable {
 		generators = append(generators, ug.NewOpenapi(p.info, p.option))
 	}
-
 	return generators
 }
 

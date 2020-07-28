@@ -82,6 +82,8 @@ type GatewayServiceOption string
 
 type GatewayServiceMethodOption string
 
+type ReadmeOption string
+
 // Build the basic option for defining the generation.
 func Build(Option) {
 }
@@ -144,10 +146,24 @@ func Transport(protocol string, opts ...TransportOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
+// Readme enable for generate readme markdown for service.
+func Readme(outputDir string, opts ...ReadmeOption) ServiceOption {
+	return "implementation not generated, run swipe"
+}
+
+func ReadmeTemplate(path string) ReadmeOption {
+	return "implementation not generated, run swipe"
+}
+
 // FastEnable enable use valyala/fasthttp instead net/http package.
 //
 // Supported in both REST and JSON RPC.
 func FastEnable() TransportOption {
+	return "implementation not generated, run swipe"
+}
+
+// MarkdownDoc enable for generate markdown JSON RPC doc for JS client.
+func MarkdownDoc(outputDir string) TransportOption {
 	return "implementation not generated, run swipe"
 }
 

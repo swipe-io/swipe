@@ -59,7 +59,14 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 		}
 		o.Transport = transportOption
 	}
+	if opt, ok := option.At("Readme"); ok {
+		o.Readme.Enable = true
+		if readmeTemplateOpt, ok := opt.At("ReadmeTemplate"); ok {
+			o.Readme.TemplatePath = readmeTemplateOpt.Value.String()
+		}
+		o.Readme.OutputDir = parser.MustOption(opt.At("outputDir")).Value.String()
 
+	}
 	o.Type = ifacePtr.Elem()
 	o.TypeName = typeName
 	o.Interface = iface
@@ -223,6 +230,10 @@ func (g *serviceOption) loadTransport(opt *parser.Option) (option model.Transpor
 		Openapi: model.OpenapiHTTPTransportOption{
 			Methods: map[string]*model.OpenapiMethodOption{},
 		},
+	}
+	if v, ok := opt.At("MarkdownDoc"); ok {
+		option.MarkdownDoc.Enable = true
+		option.MarkdownDoc.OutputDir = v.Value.String()
 	}
 	if _, ok := opt.At("ClientEnable"); ok {
 		option.Client.Enable = true

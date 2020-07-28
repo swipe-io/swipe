@@ -15,4 +15,10 @@ type GenerateInfo struct {
 	Version     string
 	GraphTypes  *graph.Graph
 	MapTypes    map[uint32]*DeclType
+	Enums       *typeutil.Map
+}
+
+type Enum struct {
+	Name  string
+	Value string
 }

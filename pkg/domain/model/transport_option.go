@@ -58,12 +58,18 @@ type ErrorHTTPTransportOption struct {
 	Code  int64
 }
 
+type MarkdownDocHTTPTransportOption struct {
+	Enable    bool
+	OutputDir string
+}
+
 type TransportOption struct {
 	Protocol             string
 	Prefix               string
 	ServerDisabled       bool
 	Client               ClientHTTPTransportOption
 	Openapi              OpenapiHTTPTransportOption
+	MarkdownDoc          MarkdownDocHTTPTransportOption
 	FastHTTP             bool
 	JsonRPC              JsonRPCHTTPTransportOption
 	MethodOptions        map[string]MethodHTTPTransportOption
