@@ -3,7 +3,9 @@ package types
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
+	"strconv"
 
 	"github.com/spaolacci/murmur3"
 
@@ -128,4 +130,40 @@ func ZeroValue(t types.Type) string {
 	default:
 		panic("unreachable")
 	}
+}
+
+func EvalBinaryExpr(expr *ast.BinaryExpr) (n, iotas int) {
+	x, iotasX := EvalInt(expr.X)
+	y, iotasY := EvalInt(expr.Y)
+	iotas = iotas + iotasX + iotasY
+	switch expr.Op {
+	case token.ADD:
+		n = x + y
+	case token.SUB:
+		n = x - y
+	case token.MUL:
+		n = x * y
+	case token.QUO:
+		n = x / y
+	case token.REM:
+		n = x % y
+	}
+	return
+}
+
+func EvalInt(expr ast.Expr) (n, iotas int) {
+	switch exp := expr.(type) {
+	case *ast.Ident:
+		if exp.Name == "iota" {
+			iotas++
+		}
+	case *ast.ParenExpr:
+		return EvalInt(exp.X)
+	case *ast.BasicLit:
+		n, _ = strconv.Atoi(exp.Value)
+		return
+	case *ast.BinaryExpr:
+		return EvalBinaryExpr(exp)
+	}
+	return
 }
