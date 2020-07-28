@@ -1,4 +1,12 @@
 
+<a name="v1.24.4"></a>
+## [v1.24.4](https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.4) (2020-07-28)
+
+### Bug Fixes
+
+* Incorrect generate enum name for markdown docs.
+
+
 <a name="v1.24.3"></a>
 ## [v1.24.3](https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.3) (2020-07-28)
 
