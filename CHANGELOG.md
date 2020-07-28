@@ -1,4 +1,12 @@
 
+<a name="v1.24.1"></a>
+## [v1.24.1](https://github.com/swipe-io/swipe/compare/v1.24.0...v1.24.1) (2020-07-28)
+
+### Features
+
+* Added readme markdown and JSON RPC client markdown documentation.
+
+
 <a name="v1.24.0"></a>
 ## [v1.24.0](https://github.com/swipe-io/swipe/compare/v1.23.0...v1.24.0) (2020-07-21)
 
