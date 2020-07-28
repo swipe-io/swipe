@@ -16,7 +16,7 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-const version = "v1.24.1"
+const version = "v1.24.2"
 
 var (
 	colorSuccess = color.Green.Render
