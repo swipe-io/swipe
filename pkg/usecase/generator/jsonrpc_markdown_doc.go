@@ -156,8 +156,7 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 					typeName = "number"
 				}
 			}
-			g.W("### <a name=\"%[1]s\"></a> %[1]s <code>%[2]s</code>\n\n", named.Obj().Name(), typeName)
-
+			g.W("### <a name=\"%[1]s\"></a> %[1]s <code>%[2]sEnum</code>\n\n", named.Obj().Name(), typeName)
 			g.W("| Name | Value | Description |\n|------|------|------|\n")
 			for _, enum := range value.([]model.Enum) {
 				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")

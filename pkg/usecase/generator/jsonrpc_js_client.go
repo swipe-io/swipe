@@ -211,15 +211,19 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 			if !ok {
 				return
 			}
+			g.W("export const %sEnum = Object.freeze({\n", named.Obj().Name())
+
 			for _, enum := range value.([]model.Enum) {
 				value := enum.Value
 				if b.Info() == stdtypes.IsString {
 					value = strconv.Quote(value)
 				}
-				g.W("export const %s_%s = %s\n", named.Obj().Name(), enum.Name, value)
+				g.W("%s: %s,\n", strconv.Quote(enum.Name), value)
 			}
+			g.W("});\n")
 		}
 	})
+
 	return nil
 }
 
