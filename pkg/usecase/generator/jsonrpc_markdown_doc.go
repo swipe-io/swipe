@@ -156,7 +156,7 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 					typeName = "number"
 				}
 			}
-			g.W("### <a name=\"%[1]s\"></a> %[1]s <code>%[2]sEnum</code>\n\n", named.Obj().Name(), typeName)
+			g.W("### <a name=\"%[1]s\"></a> %[1]sEnum <code>%[2]s</code>\n\n", named.Obj().Name(), typeName)
 			g.W("| Name | Value | Description |\n|------|------|------|\n")
 			for _, enum := range value.([]model.Enum) {
 				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")
@@ -210,7 +210,11 @@ func (g *jsonrpcMarkdownDoc) getJSType(t stdtypes.Type) string {
 	case *stdtypes.Named:
 		switch stdtypes.TypeString(v.Obj().Type(), nil) {
 		default:
-			return fmt.Sprintf("<a href=\"#%[1]s\">%[1]s</a>", v.Obj().Name())
+			var postfix string
+			if g.info.Enums.At(v) != nil {
+				postfix = "Enum"
+			}
+			return fmt.Sprintf("<a href=\"#%[1]s\">%[1]s%[2]s</a>", v.Obj().Name(), postfix)
 		case "github.com/pborman/uuid.UUID",
 			"github.com/google/uuid.UUID":
 			return "string"
