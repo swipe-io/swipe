@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	stdtypes "go/types"
+	"strconv"
 	"strings"
 
 	"github.com/fatih/structtag"
@@ -203,6 +204,22 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 
 	}
 	g.W("}\n}\n")
+
+	g.info.Enums.Iterate(func(key stdtypes.Type, value interface{}) {
+		if named, ok := key.(*stdtypes.Named); ok {
+			b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic)
+			if !ok {
+				return
+			}
+			for _, enum := range value.([]model.Enum) {
+				value := enum.Value
+				if b.Info() == stdtypes.IsString {
+					value = strconv.Quote(value)
+				}
+				g.W("export const %s_%s = %s\n", named.Obj().Name(), enum.Name, value)
+			}
+		}
+	})
 	return nil
 }
 
