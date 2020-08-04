@@ -1,4 +1,19 @@
 
+<a name="v1.24.5"></a>
+## [v1.24.5](https://github.com/swipe-io/swipe/compare/v1.24.4...v1.24.5) (2020-08-04)
+
+### Bug Fixes
+
+* Generate section Members ans Enums if exists items.
+* Added annotation for encoding/json.RawMessage in markdown JS client documentation.
+* Added annotation for encoding/json.RawMessage in JS client.
+* Invalid path definition for JSON RPC client documentation.
+
+### Features
+
+* Added command for generate CRUD service structure.
+
+
 <a name="v1.24.4"></a>
 ## [v1.24.4](https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.4) (2020-07-28)
 
