@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/iancoleman/strcase"
 	"github.com/swipe-io/swipe/pkg/astloader"
 	"github.com/swipe-io/swipe/pkg/gen"
+	"github.com/swipe-io/swipe/pkg/stcreator"
 	"golang.org/x/mod/modfile"
 )
 
@@ -31,6 +33,7 @@ func main() {
 	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(&versionCmd{}, "")
 	subcommands.Register(&genCmd{}, "")
+	subcommands.Register(&crudServiceCmd{}, "")
 
 	flag.Parse()
 
@@ -39,12 +42,13 @@ func main() {
 	log.SetOutput(os.Stderr)
 
 	allCmds := map[string]bool{
-		"commands": true,
-		"version":  true,
-		"help":     true,
-		"flags":    true,
-		"gen":      true,
-		"show":     true,
+		"commands":     true,
+		"crud-service": true,
+		"version":      true,
+		"help":         true,
+		"flags":        true,
+		"gen":          true,
+		"show":         true,
 	}
 	if args := flag.Args(); len(args) == 0 || !allCmds[args[0]] {
 		genCmd := &genCmd{}
@@ -79,9 +83,7 @@ func (c *versionCmd) SetFlags(_ *flag.FlagSet) {
 
 // Execute executes the command and returns an ExitStatus.
 func (c *versionCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-
 	log.Println(version)
-
 	return subcommands.ExitSuccess
 }
 
@@ -169,6 +171,68 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	}
 	if !success {
 		log.Println(colorFail("at least one generate failure"))
+		return subcommands.ExitFailure
+	}
+	return subcommands.ExitSuccess
+}
+
+type crudServiceCmd struct {
+}
+
+func (cmd *crudServiceCmd) Name() string { return "crud-service" }
+
+func (cmd *crudServiceCmd) Synopsis() string {
+	return "generate CRUD service structure"
+}
+
+func (cmd *crudServiceCmd) Usage() string {
+	return `swipe crud-service [packages]`
+}
+
+func (cmd *crudServiceCmd) SetFlags(set *flag.FlagSet) {
+
+}
+
+func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+	srcPath := filepath.Join(build.Default.GOPATH, "src")
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Println(colorFail("failed to get working directory: "), colorFail(err))
+		return subcommands.ExitFailure
+	}
+	basePkgName := strings.Replace(wd, srcPath+"/", "", -1)
+	projectName := f.Arg(0)
+	if projectName == "" {
+		log.Println(colorFail("project name required"))
+		return subcommands.ExitFailure
+	}
+
+	projectID := strcase.ToKebab(projectName)
+	pkgName := filepath.Join(basePkgName, projectID)
+	templatePath := f.Arg(1)
+	if templatePath == "" {
+		log.Println(colorFail("template path required"))
+		return subcommands.ExitFailure
+	}
+	entitiesConfigPath := f.Arg(2)
+	if entitiesConfigPath == "" {
+		log.Println(colorFail("config entities path required"))
+		return subcommands.ExitFailure
+	}
+	templatePath, err = filepath.Abs(templatePath)
+	if err != nil {
+		log.Println(colorFail(err.Error()))
+		return subcommands.ExitFailure
+	}
+	entitiesConfigPath, err = filepath.Abs(entitiesConfigPath)
+	if err != nil {
+		log.Println(colorFail(err.Error()))
+		return subcommands.ExitFailure
+	}
+	stl := stcreator.NewProjectLoader(projectName, projectID, pkgName, wd)
+	_, err = stl.Load(templatePath, entitiesConfigPath)
+	if err != nil {
+		log.Println(colorFail(err.Error()))
 		return subcommands.ExitFailure
 	}
 	return subcommands.ExitSuccess
