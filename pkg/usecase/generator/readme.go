@@ -2,7 +2,6 @@ package generator
 
 import (
 	"context"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -31,7 +30,7 @@ go run ./cmd/service
 ToDo.
 
 {{ if .JSONRPCDoc.Enabled }}
-[JSON RPC Client Doc]({{ .JSONRPCDoc.RelPath }})
+[JSON RPC Client Doc]({{ .JSONRPCDoc.Path }})
 {{ end }}
 
 ## Contributing
@@ -59,12 +58,13 @@ type Tag struct {
 
 type readme struct {
 	writer.BaseWriter
-	info      model.GenerateInfo
-	o         model.ServiceOption
-	outputDir string
-	t         *template.Template
-	tags      []Tag
-	lastTag   Tag
+	info           model.GenerateInfo
+	o              model.ServiceOption
+	outputDir      string
+	markdownOutput string
+	t              *template.Template
+	tags           []Tag
+	lastTag        Tag
 }
 
 func (g *readme) prepareGitTags() ([]Tag, error) {
@@ -115,21 +115,18 @@ func (g *readme) Prepare(ctx context.Context) error {
 		return err
 	}
 	g.tags = tags
-
 	if len(g.tags) > 0 {
 		g.lastTag = g.tags[0]
 	}
-
-	fmt.Println()
-
-	outputDir, err := filepath.Abs(filepath.Join(g.info.BasePath, g.o.Readme.OutputDir))
+	g.outputDir, err = filepath.Abs(filepath.Join(g.info.BasePath, g.o.Readme.OutputDir))
 	if err != nil {
 		return err
 	}
-	g.outputDir = outputDir
-
+	g.markdownOutput, err = filepath.Abs(filepath.Join(g.info.BasePath, g.o.Transport.MarkdownDoc.OutputDir))
+	if err != nil {
+		return err
+	}
 	templatePath := g.o.Readme.TemplatePath
-
 	if templatePath == "" {
 		templatePath, err = filepath.Abs(filepath.Join(g.info.BasePath, ".swipe"))
 		if err != nil {
@@ -160,17 +157,20 @@ func (g *readme) Prepare(ctx context.Context) error {
 	return nil
 }
 
-func (g *readme) Process(ctx context.Context) error {
-	relPath, err := filepath.Rel(g.o.Readme.OutputDir, g.o.Transport.MarkdownDoc.OutputDir)
-	if err != nil {
-		return err
+func (g *readme) Process(ctx context.Context) (err error) {
+	var relPath string
+	if g.o.Transport.MarkdownDoc.Enable {
+		relPath, err = filepath.Rel(g.outputDir, g.markdownOutput)
+		if err != nil {
+			return err
+		}
 	}
 	return g.t.Execute(g, map[string]interface{}{
 		"ID":          g.o.RawID,
 		"ServiceName": g.o.ID,
 		"JSONRPCDoc": map[string]interface{}{
 			"Enabled": g.o.Transport.MarkdownDoc.Enable,
-			"RelPath": filepath.Join(relPath, "jsonrpc_"+strings.ToLower(g.o.ID)+"_doc.md"),
+			"Path":    filepath.Join(relPath, "jsonrpc_"+strings.ToLower(g.o.ID)+"_doc.md"),
 		},
 		"GIT": map[string]interface{}{
 			"Tags":    g.tags,
