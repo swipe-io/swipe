@@ -117,52 +117,57 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 		}
 	}
 
-	g.W("## Members\n\n")
+	if existsTypes.Len() > 0 {
+		g.W("## Members\n\n")
 
-	existsTypes.Iterate(func(key stdtypes.Type, value interface{}) {
-		if named, ok := key.(*stdtypes.Named); ok {
-			st := named.Obj().Type().Underlying().(*stdtypes.Struct)
-			comments, ok := g.info.CommentMap.At(st).(map[string]string)
-			if !ok {
-				comments = map[string]string{}
+		existsTypes.Iterate(func(key stdtypes.Type, value interface{}) {
+			if named, ok := key.(*stdtypes.Named); ok {
+				st := named.Obj().Type().Underlying().(*stdtypes.Struct)
+				comments, ok := g.info.CommentMap.At(st).(map[string]string)
+				if !ok {
+					comments = map[string]string{}
+				}
+
+				g.W("### %s\n\n", named.Obj().Name())
+
+				g.W("| Field | Type | Description |\n|------|------|------|\n")
+
+				for i := 0; i < st.NumFields(); i++ {
+					f := st.Field(i)
+					name := f.Name()
+					if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+						if tag, err := tags.Get("json"); err == nil {
+							name = tag.Name
+						}
+					}
+					g.W("|%s|<code>%s</code>|%s|\n", name, g.getJSType(f.Type()), comments[f.Name()])
+				}
 			}
+		})
+	}
 
-			g.W("### %s\n\n", named.Obj().Name())
-
-			g.W("| Field | Type | Description |\n|------|------|------|\n")
-
-			for i := 0; i < st.NumFields(); i++ {
-				f := st.Field(i)
-				name := f.Name()
-				if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-					if tag, err := tags.Get("json"); err == nil {
-						name = tag.Name
+	if g.info.Enums.Len() > 0 {
+		g.W("## Enums\n")
+		g.info.Enums.Iterate(func(key stdtypes.Type, value interface{}) {
+			if named, ok := key.(*stdtypes.Named); ok {
+				typeName := ""
+				if b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic); ok {
+					switch b.Info() {
+					default:
+						typeName = "string"
+					case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
+						typeName = "number"
 					}
 				}
-				g.W("|%s|<code>%s</code>|%s|\n", name, g.getJSType(f.Type()), comments[f.Name()])
-			}
-		}
-	})
-
-	g.W("## Enums\n")
-	g.info.Enums.Iterate(func(key stdtypes.Type, value interface{}) {
-		if named, ok := key.(*stdtypes.Named); ok {
-			typeName := ""
-			if b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic); ok {
-				switch b.Info() {
-				default:
-					typeName = "string"
-				case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
-					typeName = "number"
+				g.W("### <a name=\"%[1]s\"></a> %[1]sEnum <code>%[2]s</code>\n\n", named.Obj().Name(), typeName)
+				g.W("| Name | Value | Description |\n|------|------|------|\n")
+				for _, enum := range value.([]model.Enum) {
+					g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")
 				}
 			}
-			g.W("### <a name=\"%[1]s\"></a> %[1]sEnum <code>%[2]s</code>\n\n", named.Obj().Name(), typeName)
-			g.W("| Name | Value | Description |\n|------|------|------|\n")
-			for _, enum := range value.([]model.Enum) {
-				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")
-			}
-		}
-	})
+		})
+	}
+
 	return nil
 }
 
