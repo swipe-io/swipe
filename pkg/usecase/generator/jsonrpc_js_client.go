@@ -257,6 +257,8 @@ func (g *jsonRPCJSClient) getJSDocType(t stdtypes.Type, nested int) string {
 		return fmt.Sprintf("Object.<string, %s>", g.getJSDocType(v.Elem(), nested))
 	case *stdtypes.Named:
 		switch stdtypes.TypeString(v.Obj().Type(), nil) {
+		case "encoding/json.RawMessage":
+			return "*"
 		case "github.com/pborman/uuid.UUID",
 			"github.com/google/uuid.UUID":
 			return "string"
