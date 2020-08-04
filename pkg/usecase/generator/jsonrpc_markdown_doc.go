@@ -215,6 +215,8 @@ func (g *jsonrpcMarkdownDoc) getJSType(t stdtypes.Type) string {
 				postfix = "Enum"
 			}
 			return fmt.Sprintf("<a href=\"#%[1]s\">%[1]s%[2]s</a>", v.Obj().Name(), postfix)
+		case "encoding/json.RawMessage":
+			return "*"
 		case "github.com/pborman/uuid.UUID",
 			"github.com/google/uuid.UUID":
 			return "string"
