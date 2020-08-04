@@ -10,8 +10,9 @@ import (
 	"strings"
 
 	"github.com/google/subcommands"
-
 	"github.com/gookit/color"
+	"github.com/iancoleman/strcase"
+	"github.com/swipe-io/swipe/pkg/astloader"
 	"github.com/swipe-io/swipe/pkg/gen"
 	"golang.org/x/mod/modfile"
 )
@@ -135,8 +136,8 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 			}
 		}
 	}
-
-	s := gen.NewSwipe(ctx, version, wd, os.Environ(), packages(f))
+	l := astloader.NewLoader(wd, os.Environ(), packages(f))
+	s := gen.NewSwipe(ctx, version, l)
 	results, errs := s.Generate()
 	if len(errs) > 0 {
 		for _, err := range errs {
