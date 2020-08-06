@@ -213,9 +213,15 @@ func (l *ProjectLoader) executeTemplate(data []byte, varsMap interface{}) ([]byt
 }
 
 func (l *ProjectLoader) Load(dir, entitiesFile string) (*Project, error) {
-	structs, err := l.loadEntities(entitiesFile)
-	if err != nil {
-		return nil, err
+	var (
+		structs []StructMetadata
+		err     error
+	)
+	if entitiesFile != "" {
+		structs, err = l.loadEntities(entitiesFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 	wd := filepath.Join(l.wd, l.projectID)
 	varsMap := map[string]interface{}{
