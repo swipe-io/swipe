@@ -9,6 +9,7 @@ import (
 	stdtypes "go/types"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/swipe-io/swipe/pkg/git"
 
@@ -54,6 +55,8 @@ func (s *Swipe) Generate() ([]Result, []error) {
 	files := make(map[string]*file.File)
 	basePaths := map[string]struct{}{}
 
+	basePkgPath := strings.Split(astData.WorkDir, filepath.Join(build.Default.GOPATH, "src")+"/")[1]
+
 	for _, pkg := range astData.Pkgs {
 		importerFactory := processor.NewImporterFactory(pkg)
 
@@ -79,14 +82,15 @@ func (s *Swipe) Generate() ([]Result, []error) {
 						}
 
 						info := model.GenerateInfo{
-							Pkg:        pkg,
-							Pkgs:       astData.Pkgs,
-							BasePath:   basePath,
-							Version:    s.version,
-							CommentMap: astData.CommentMaps,
-							GraphTypes: astData.GraphTypes,
-							Enums:      astData.Enums,
-							GitTags:    gitTags,
+							Pkg:         pkg,
+							BasePkgPath: basePkgPath,
+							Pkgs:        astData.Pkgs,
+							BasePath:    basePath,
+							Version:     s.version,
+							CommentMap:  astData.CommentMaps,
+							GraphTypes:  astData.GraphTypes,
+							Enums:       astData.Enums,
+							GitTags:     gitTags,
 						}
 						option := r.Option(opt.Name, info)
 						if option == nil {

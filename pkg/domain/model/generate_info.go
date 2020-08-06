@@ -9,6 +9,7 @@ import (
 
 type GenerateInfo struct {
 	Pkg         *packages.Package
+	BasePkgPath string
 	Pkgs        []*packages.Package
 	CommentMap  *typeutil.Map
 	ReturnTypes map[uint32][]interface{}
