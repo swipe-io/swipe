@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/swipe-io/swipe/pkg/git"
+
 	"github.com/swipe-io/swipe/pkg/astloader"
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/file"
@@ -43,7 +45,10 @@ func (s *Swipe) Generate() ([]Result, []error) {
 		return nil, errs
 	}
 
+	g := git.NewGIT()
 	r := registry.NewRegistry()
+
+	gitTags, _ := g.GetTags()
 
 	var result []Result
 	files := make(map[string]*file.File)
@@ -81,6 +86,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 							CommentMap: astData.CommentMaps,
 							GraphTypes: astData.GraphTypes,
 							Enums:      astData.Enums,
+							GitTags:    gitTags,
 						}
 						option := r.Option(opt.Name, info)
 						if option == nil {

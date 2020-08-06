@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/swipe-io/swipe/pkg/git"
 	"github.com/swipe-io/swipe/pkg/graph"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
@@ -16,6 +17,7 @@ type GenerateInfo struct {
 	GraphTypes  *graph.Graph
 	MapTypes    map[uint32]*DeclType
 	Enums       *typeutil.Map
+	GitTags     []git.Tag
 }
 
 type Enum struct {

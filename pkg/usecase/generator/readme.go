@@ -6,11 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-	"time"
-
-	"github.com/tsuyoshiwada/go-gitcmd"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/writer"
@@ -50,12 +46,6 @@ ToDo.
 ToDo.
 `
 
-type Tag struct {
-	Name    string
-	Subject string
-	Date    time.Time
-}
-
 type readme struct {
 	writer.BaseWriter
 	info           model.GenerateInfo
@@ -63,61 +53,9 @@ type readme struct {
 	outputDir      string
 	markdownOutput string
 	t              *template.Template
-	tags           []Tag
-	lastTag        Tag
 }
 
-func (g *readme) prepareGitTags() ([]Tag, error) {
-	git := gitcmd.New(nil)
-
-	separator := "@@__SWIPE__@@"
-
-	out, err := git.Exec("for-each-ref",
-		"--format",
-		"%(refname)"+separator+"%(subject)"+separator+"%(taggerdate)"+separator+"%(authordate)",
-		"refs/tags",
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	lines := strings.Split(out, "\n")
-	var tags []Tag
-	for _, line := range lines {
-		tokens := strings.Split(line, separator)
-		if len(tokens) != 4 {
-			continue
-		}
-		name := strings.Replace(tokens[0], "refs/tags/", "", 1)
-		subject := strings.TrimSpace(tokens[1])
-		date, err := time.Parse("Mon Jan 2 15:04:05 2006 -0700", tokens[2])
-		if err != nil {
-			date, err = time.Parse("Mon Jan 2 15:04:05 2006 -0700", tokens[2])
-			if err != nil {
-				return nil, err
-			}
-		}
-		tags = append(tags, Tag{
-			Name:    name,
-			Subject: subject,
-			Date:    date,
-		})
-	}
-	sort.Slice(tags, func(i, j int) bool {
-		return !tags[i].Date.Before(tags[j].Date)
-	})
-	return tags, nil
-}
-
-func (g *readme) Prepare(ctx context.Context) error {
-	tags, err := g.prepareGitTags()
-	if err != nil {
-		return err
-	}
-	g.tags = tags
-	if len(g.tags) > 0 {
-		g.lastTag = g.tags[0]
-	}
+func (g *readme) Prepare(ctx context.Context) (err error) {
 	g.outputDir, err = filepath.Abs(filepath.Join(g.info.BasePath, g.o.Readme.OutputDir))
 	if err != nil {
 		return err
@@ -126,7 +64,7 @@ func (g *readme) Prepare(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	templatePath := g.o.Readme.TemplatePath
+	var templatePath string
 	if templatePath == "" {
 		templatePath, err = filepath.Abs(filepath.Join(g.info.BasePath, ".swipe"))
 		if err != nil {
@@ -137,7 +75,13 @@ func (g *readme) Prepare(ctx context.Context) error {
 				return err
 			}
 		}
+	} else {
+		templatePath, err = filepath.Abs(filepath.Join(g.info.BasePath, g.o.Readme.TemplatePath))
+		if err != nil {
+			return err
+		}
 	}
+
 	templateFilepath := filepath.Join(templatePath, "README.tpl.md")
 	if _, err := os.Stat(templateFilepath); err != nil {
 		err = ioutil.WriteFile(templateFilepath, []byte(defaultTemplate), 0755)
@@ -173,8 +117,7 @@ func (g *readme) Process(ctx context.Context) (err error) {
 			"Path":    filepath.Join(relPath, "jsonrpc_"+strings.ToLower(g.o.ID)+"_doc.md"),
 		},
 		"GIT": map[string]interface{}{
-			"Tags":    g.tags,
-			"LastTag": g.lastTag,
+			"Tags": g.info.GitTags,
 		},
 	})
 }
