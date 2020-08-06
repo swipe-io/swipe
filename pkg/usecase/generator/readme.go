@@ -44,6 +44,13 @@ ToDo.
 ## Changelog
 
 ToDo.
+
+## Versions
+
+{{range $index, $tag := .GIT.Tags -}}
+    {{if gt $index 0 -}}, {{end -}}
+    [{{$tag.Name}}](https://{{$.BasePkgPath}}/tree/{{$tag.Name}})
+{{end -}}
 `
 
 type readme struct {
@@ -81,15 +88,14 @@ func (g *readme) Prepare(ctx context.Context) (err error) {
 			return err
 		}
 	}
-
-	templateFilepath := filepath.Join(templatePath, "README.tpl.md")
+	templateFilepath := filepath.Join(templatePath, "README.md.tpl")
 	if _, err := os.Stat(templateFilepath); err != nil {
 		err = ioutil.WriteFile(templateFilepath, []byte(defaultTemplate), 0755)
 		if err != nil {
 			return err
 		}
 	}
-	data, err := ioutil.ReadFile(filepath.Join(templatePath, "README.tpl.md"))
+	data, err := ioutil.ReadFile(templateFilepath)
 	if err != nil {
 		return err
 	}
@@ -112,6 +118,7 @@ func (g *readme) Process(ctx context.Context) (err error) {
 	return g.t.Execute(g, map[string]interface{}{
 		"ID":          g.o.RawID,
 		"ServiceName": g.o.ID,
+		"BasePkgPath": g.info.BasePkgPath,
 		"JSONRPCDoc": map[string]interface{}{
 			"Enabled": g.o.Transport.MarkdownDoc.Enable,
 			"Path":    filepath.Join(relPath, "jsonrpc_"+strings.ToLower(g.o.ID)+"_doc.md"),
