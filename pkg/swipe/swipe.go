@@ -151,6 +151,7 @@ func Readme(outputDir string, opts ...ReadmeOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
+// ReadmeTemplate set markdown template path.
 func ReadmeTemplate(path string) ReadmeOption {
 	return "implementation not generated, run swipe"
 }
@@ -224,30 +225,26 @@ func QueryVars([]string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
-// ServerEncodeResponseFunc it is intended for use in servers, for server-side endpoints.
-// One of the simple functions of encoding a response is that JSON encodes
-// an object directly into the response body.
+// ServerEncodeResponseFunc sets the encoding function of the passed
+// response object to the response writer.
 func ServerEncodeResponseFunc(interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
-// ServerDecodeRequestFunc it is intended for use in servers, for server-side endpoints.
-// One of the simple methods of DecodeRequestFunc can be that JSON decodes
-// from the request body to a specific request type.
+// ServerDecodeRequestFunc sets a function to extract the user's domain
+// request object from the request object.
 func ServerDecodeRequestFunc(interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
-// ClientEncodeRequestFunc it is intended for use in clients, for client-side endpoints.
-// One of the simple functions of an encoding request is that JSON encodes
-// an object directly into the request body.
+// ClientEncodeRequestFunc sets the function to encode the passed
+// request object into an object.
 func ClientEncodeRequestFunc(interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
-// ClientDecodeResponseFunc it is intended for use in clients, for client-side endpoints.
-// One of the simple response decoding functions can be that JSON decodes
-// from the response body to a specific response type.
+// ClientDecodeResponseFunc sets a function to extract the user's domain
+// response object from the response object.
 func ClientDecodeResponseFunc(interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
