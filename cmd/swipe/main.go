@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -177,6 +179,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 }
 
 type crudServiceCmd struct {
+	entitiesFile string
 }
 
 func (cmd *crudServiceCmd) Name() string { return "crud-service" }
@@ -190,7 +193,7 @@ func (cmd *crudServiceCmd) Usage() string {
 }
 
 func (cmd *crudServiceCmd) SetFlags(set *flag.FlagSet) {
-
+	set.StringVar(&cmd.entitiesFile, "entities", "", "entities config file path")
 }
 
 func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
@@ -214,27 +217,45 @@ func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ..
 		log.Println(colorFail("template path required"))
 		return subcommands.ExitFailure
 	}
-	entitiesConfigPath := f.Arg(2)
-	if entitiesConfigPath == "" {
-		log.Println(colorFail("config entities path required"))
-		return subcommands.ExitFailure
+	if cmd.entitiesFile != "" {
+		cmd.entitiesFile, err = filepath.Abs(cmd.entitiesFile)
+		if err != nil {
+			log.Println(colorFail(err.Error()))
+			return subcommands.ExitFailure
+		}
 	}
 	templatePath, err = filepath.Abs(templatePath)
 	if err != nil {
 		log.Println(colorFail(err.Error()))
 		return subcommands.ExitFailure
 	}
-	entitiesConfigPath, err = filepath.Abs(entitiesConfigPath)
-	if err != nil {
-		log.Println(colorFail(err.Error()))
-		return subcommands.ExitFailure
-	}
 	stl := stcreator.NewProjectLoader(projectName, projectID, pkgName, wd)
-	_, err = stl.Load(templatePath, entitiesConfigPath)
+	_, err = stl.Load(templatePath, cmd.entitiesFile)
 	if err != nil {
 		log.Println(colorFail(err.Error()))
 		return subcommands.ExitFailure
 	}
+
+	projectPath := filepath.Join(wd, projectID)
+	log.Println(colorSuccess(fmt.Sprintf("success create: %s", projectPath)))
+
+	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = projectPath
+
+	if err := tidyCmd.Run(); err != nil {
+		log.Println(colorFail(err.Error()))
+
+		output, err := tidyCmd.Output()
+		if err != nil {
+			log.Println(colorFail(err.Error()))
+			return subcommands.ExitFailure
+		}
+
+		log.Println(colorFail(string(output)))
+
+		return subcommands.ExitFailure
+	}
+
 	return subcommands.ExitSuccess
 }
 
