@@ -230,6 +230,12 @@ func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ..
 		return subcommands.ExitFailure
 	}
 	stl := stcreator.NewProjectLoader(projectName, projectID, pkgName, wd)
+
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		log.Println(colorFail("template path do not exists: ", templatePath))
+		return subcommands.ExitFailure
+	}
+
 	_, err = stl.Load(templatePath, cmd.entitiesFile)
 	if err != nil {
 		log.Println(colorFail(err.Error()))
