@@ -27,14 +27,20 @@ func (g *clientStruct) Prepare(ctx context.Context) error {
 
 func (g *clientStruct) Process(ctx context.Context) error {
 	var (
-		kithttpPkg string
+		kithttpPkg  string
+		contextPkg  string
+		endpointPkg string
 	)
 	transportOpt := g.o.Transport
 
-	contextPkg := g.i.Import("context", "context")
-	endpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	clientType := fmt.Sprintf("client%s", g.o.ID)
 	clientOptionType := fmt.Sprintf("%sClientOption", g.o.ID)
+
+	if len(g.o.Methods) > 0 {
+		contextPkg = g.i.Import("context", "context")
+	}
+
+	endpointPkg = g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 
 	if transportOpt.JsonRPC.Enable {
 		if transportOpt.FastHTTP {

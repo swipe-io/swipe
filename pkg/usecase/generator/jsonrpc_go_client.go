@@ -43,24 +43,32 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 
 	var (
 		jsonrpcPkg string
+		contextPkg string
+		ffjsonPkg  string
+		jsonPkg    string
+		fmtPkg     string
+		urlPkg     string
 	)
-	if transportOpt.FastHTTP {
-		jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
-	} else {
-		jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
+
+	if len(g.o.Methods) > 0 {
+		if transportOpt.FastHTTP {
+			jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
+		} else {
+			jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
+		}
+		urlPkg = g.i.Import("url", "net/url")
+		contextPkg = g.i.Import("context", "context")
+		ffjsonPkg = g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+		jsonPkg = g.i.Import("json", "encoding/json")
+		fmtPkg = g.i.Import("fmt", "fmt")
 	}
 
-	urlPkg := g.i.Import("url", "net/url")
-	contextPkg := g.i.Import("context", "context")
-	ffjsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-	jsonPkg := g.i.Import("json", "encoding/json")
-	fmtPkg := g.i.Import("fmt", "fmt")
-
-	g.W("u, err := %s.Parse(tgt)\n", urlPkg)
-
-	g.WriteCheckErr(func() {
-		g.W("return nil, err")
-	})
+	if len(g.o.Methods) > 0 {
+		g.W("u, err := %s.Parse(tgt)\n", urlPkg)
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
+	}
 
 	for _, m := range g.o.Methods {
 		mopt := transportOpt.MethodOptions[m.Name]

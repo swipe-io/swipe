@@ -21,21 +21,23 @@ func (g *endpointFactory) Prepare(ctx context.Context) error {
 }
 
 func (g *endpointFactory) Process(ctx context.Context) error {
-	kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-	ioPkg := g.i.Import("io", "io")
-
 	g.W("type EndpointFactory struct{\n")
 	g.W("Options []%sClientOption\n", g.o.ID)
 	g.W("}\n\n")
 
-	for _, m := range g.o.Methods {
-		g.W("func (f *EndpointFactory) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", m.Name, kitEndpointPkg, ioPkg)
-		g.W("s, err := NewClient%s%s(instance, f.Options...)\n", g.o.Transport.Prefix, g.o.ID)
-		g.WriteCheckErr(func() {
-			g.W("return nil, nil, err\n")
-		})
-		g.W("return make%sEndpoint(s), nil, nil\n", m.Name)
-		g.W("\n}\n\n")
+	if len(g.o.Methods) > 0 {
+		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
+		ioPkg := g.i.Import("io", "io")
+
+		for _, m := range g.o.Methods {
+			g.W("func (f *EndpointFactory) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", m.Name, kitEndpointPkg, ioPkg)
+			g.W("s, err := NewClient%s%s(instance, f.Options...)\n", g.o.Transport.Prefix, g.o.ID)
+			g.WriteCheckErr(func() {
+				g.W("return nil, nil, err\n")
+			})
+			g.W("return make%sEndpoint(s), nil, nil\n", m.Name)
+			g.W("\n}\n\n")
+		}
 	}
 	return nil
 }

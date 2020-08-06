@@ -29,14 +29,22 @@ func (g *endpoint) Prepare(ctx context.Context) error {
 }
 
 func (g *endpoint) Process(ctx context.Context) error {
-	kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-	contextPkg := g.i.Import("context", "context")
+	var (
+		contextPkg     string
+		kitEndpointPkg string
+	)
 	typeStr := stdtypes.TypeString(g.o.Type, g.i.QualifyPkg)
+	if len(g.o.Methods) > 0 {
+		contextPkg = g.i.Import("context", "context")
+		kitEndpointPkg = g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
+	}
 
 	g.W("type EndpointSet struct {\n")
+
 	for _, m := range g.o.Methods {
 		g.W("%sEndpoint %s.Endpoint\n", m.Name, kitEndpointPkg)
 	}
+
 	g.W("}\n")
 
 	g.W("func MakeEndpointSet(s %s) EndpointSet {\n", typeStr)

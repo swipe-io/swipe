@@ -25,8 +25,13 @@ func (g *instrumenting) Prepare(ctx context.Context) error {
 }
 
 func (g *instrumenting) Process(ctx context.Context) error {
+	var (
+		timePkg string
+	)
+	if len(g.o.Methods) > 0 {
+		timePkg = g.i.Import("time", "time")
+	}
 	metricsPkg := g.i.Import("metrics", "github.com/go-kit/kit/metrics")
-	timePkg := g.i.Import("time", "time")
 	typeStr := stdtypes.TypeString(g.o.Type, g.i.QualifyPkg)
 	stdPrometheusPkg := g.i.Import("prometheus", "github.com/prometheus/client_golang/prometheus")
 	kitPrometheusPkg := g.i.Import("prometheus", "github.com/go-kit/kit/metrics/prometheus")

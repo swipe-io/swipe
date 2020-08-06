@@ -26,8 +26,13 @@ func (g *logging) Prepare(ctx context.Context) error {
 }
 
 func (g *logging) Process(ctx context.Context) error {
+	var (
+		timePkg string
+	)
+	if len(g.o.Methods) > 0 {
+		timePkg = g.i.Import("time", "time")
+	}
 	loggerPkg := g.i.Import("log", "github.com/go-kit/kit/log")
-	timePkg := g.i.Import("time", "time")
 	typeStr := stdtypes.TypeString(g.o.Type, g.i.QualifyPkg)
 
 	name := "loggingMiddleware" + g.o.ID
