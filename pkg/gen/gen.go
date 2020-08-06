@@ -12,11 +12,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/swipe-io/swipe/pkg/git"
-
 	"github.com/swipe-io/swipe/pkg/astloader"
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/file"
+	"github.com/swipe-io/swipe/pkg/git"
 	"github.com/swipe-io/swipe/pkg/importer"
 	"github.com/swipe-io/swipe/pkg/parser"
 	"github.com/swipe-io/swipe/pkg/registry"

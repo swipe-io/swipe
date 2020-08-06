@@ -3,12 +3,9 @@ package generator
 import (
 	"context"
 
-	"github.com/swipe-io/swipe/pkg/strings"
-
-	"github.com/swipe-io/swipe/pkg/importer"
-
 	"github.com/swipe-io/swipe/pkg/domain/model"
-
+	"github.com/swipe-io/swipe/pkg/importer"
+	"github.com/swipe-io/swipe/pkg/strings"
 	"github.com/swipe-io/swipe/pkg/writer"
 )
 

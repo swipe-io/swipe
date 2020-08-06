@@ -9,8 +9,10 @@ import (
 	"strings"
 
 	"github.com/fatih/structtag"
+
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/writer"
+
 	"golang.org/x/tools/go/types/typeutil"
 )
 

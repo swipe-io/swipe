@@ -6,6 +6,7 @@ import (
 	stdstrings "strings"
 
 	"github.com/iancoleman/strcase"
+
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/importer"
 	"github.com/swipe-io/swipe/pkg/strings"

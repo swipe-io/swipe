@@ -2,6 +2,7 @@ package processor
 
 import (
 	"github.com/swipe-io/swipe/pkg/importer"
+
 	"golang.org/x/tools/go/packages"
 )
 

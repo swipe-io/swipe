@@ -7,19 +7,18 @@ import (
 	stdtypes "go/types"
 	stdstrings "strings"
 
-	"golang.org/x/tools/go/types/typeutil"
-
-	"github.com/swipe-io/swipe/pkg/graph"
-
 	"github.com/iancoleman/strcase"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/errors"
+	"github.com/swipe-io/swipe/pkg/graph"
 	"github.com/swipe-io/swipe/pkg/openapi"
 	"github.com/swipe-io/swipe/pkg/parser"
 	"github.com/swipe-io/swipe/pkg/strings"
 	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/usecase/option"
+
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 type ErrorData struct {

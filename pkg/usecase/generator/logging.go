@@ -6,10 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/swipe-io/swipe/pkg/types"
-
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/importer"
+	"github.com/swipe-io/swipe/pkg/types"
 	"github.com/swipe-io/swipe/pkg/writer"
 )
 

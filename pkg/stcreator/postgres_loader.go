@@ -3,10 +3,8 @@ package stcreator
 import (
 	"database/sql"
 
-	"github.com/iancoleman/strcase"
-
 	"github.com/achiku/varfmt"
-
+	"github.com/iancoleman/strcase"
 	_ "github.com/lib/pq"
 )
 

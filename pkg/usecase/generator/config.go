@@ -6,11 +6,10 @@ import (
 	stdtypes "go/types"
 	"strconv"
 
-	"github.com/swipe-io/swipe/pkg/domain/model"
-
 	"github.com/fatih/structtag"
 	"github.com/iancoleman/strcase"
 
+	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/importer"
 	"github.com/swipe-io/swipe/pkg/strings"
 	"github.com/swipe-io/swipe/pkg/types"
