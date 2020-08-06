@@ -1,4 +1,17 @@
 
+<a name="v1.24.6"></a>
+## [v1.24.6](https://github.com/swipe-io/swipe/compare/v1.24.5...v1.24.6) (2020-08-06)
+
+### Bug Fixes
+
+* Generation of service transport if there are no interface methods.
+* To generate the CRUD service, the argument for setting the path to the entity description file has been changed to the -entities flag.
+
+### Features
+
+* For default readme template added git versions section.
+
+
 <a name="v1.24.5"></a>
 ## [v1.24.5](https://github.com/swipe-io/swipe/compare/v1.24.4...v1.24.5) (2020-08-04)
 
