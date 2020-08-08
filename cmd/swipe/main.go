@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -179,21 +177,19 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 }
 
 type crudServiceCmd struct {
-	entitiesFile string
+	configFilepath string
 }
 
 func (cmd *crudServiceCmd) Name() string { return "crud-service" }
 
-func (cmd *crudServiceCmd) Synopsis() string {
-	return "generate CRUD service structure"
-}
+func (cmd *crudServiceCmd) Synopsis() string { return "generate CRUD service structure" }
 
 func (cmd *crudServiceCmd) Usage() string {
-	return `swipe crud-service [packages]`
+	return `swipe crud-service [-config] projectName templatesPath`
 }
 
 func (cmd *crudServiceCmd) SetFlags(set *flag.FlagSet) {
-	set.StringVar(&cmd.entitiesFile, "entities", "", "entities config file path")
+	set.StringVar(&cmd.configFilepath, "config", "", "config file path")
 }
 
 func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
@@ -217,8 +213,9 @@ func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ..
 		log.Println(colorFail("template path required"))
 		return subcommands.ExitFailure
 	}
-	if cmd.entitiesFile != "" {
-		cmd.entitiesFile, err = filepath.Abs(cmd.entitiesFile)
+
+	if cmd.configFilepath != "" {
+		cmd.configFilepath, err = filepath.Abs(cmd.configFilepath)
 		if err != nil {
 			log.Println(colorFail(err.Error()))
 			return subcommands.ExitFailure
@@ -230,38 +227,15 @@ func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ..
 		return subcommands.ExitFailure
 	}
 	stl := stcreator.NewProjectLoader(projectName, projectID, pkgName, wd)
-
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
 		log.Println(colorFail("template path do not exists: ", templatePath))
 		return subcommands.ExitFailure
 	}
-
-	_, err = stl.Load(templatePath, cmd.entitiesFile)
+	_, err = stl.Process(templatePath, cmd.configFilepath)
 	if err != nil {
 		log.Println(colorFail(err.Error()))
 		return subcommands.ExitFailure
 	}
-
-	projectPath := filepath.Join(wd, projectID)
-	log.Println(colorSuccess(fmt.Sprintf("success create: %s", projectPath)))
-
-	tidyCmd := exec.Command("go", "mod", "tidy")
-	tidyCmd.Dir = projectPath
-
-	if err := tidyCmd.Run(); err != nil {
-		log.Println(colorFail(err.Error()))
-
-		output, err := tidyCmd.Output()
-		if err != nil {
-			log.Println(colorFail(err.Error()))
-			return subcommands.ExitFailure
-		}
-
-		log.Println(colorFail(string(output)))
-
-		return subcommands.ExitFailure
-	}
-
 	return subcommands.ExitSuccess
 }
 
