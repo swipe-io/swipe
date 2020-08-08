@@ -13,9 +13,11 @@ import (
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
 	"github.com/iancoleman/strcase"
+
 	"github.com/swipe-io/swipe/pkg/astloader"
 	"github.com/swipe-io/swipe/pkg/gen"
 	"github.com/swipe-io/swipe/pkg/stcreator"
+
 	"golang.org/x/mod/modfile"
 )
 
