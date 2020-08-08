@@ -1,4 +1,16 @@
 
+<a name="v1.24.7"></a>
+## [v1.24.7](https://github.com/swipe-io/swipe/compare/v1.24.6...v1.24.7) (2020-08-08)
+
+### Bug Fixes
+
+* Added check if template path not exists in crud-service command.
+
+### Features
+
+* Removed the -entities flag from the crud-service command and added the -config flag, moved the entity loader to the config.
+
+
 <a name="v1.24.6"></a>
 ## [v1.24.6](https://github.com/swipe-io/swipe/compare/v1.24.5...v1.24.6) (2020-08-06)
 
@@ -13,7 +25,7 @@
 
 
 <a name="v1.24.5"></a>
-## [v1.24.5](https://github.com/swipe-io/swipe/compare/v1.24.4...v1.24.5) (2020-08-04)
+## [v1.24.5](https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.5) (2020-08-04)
 
 ### Bug Fixes
 
@@ -21,33 +33,29 @@
 * Added annotation for encoding/json.RawMessage in markdown JS client documentation.
 * Added annotation for encoding/json.RawMessage in JS client.
 * Invalid path definition for JSON RPC client documentation.
+* Incorrect generate enum name for markdown docs.
+* Change enums JSON RPC client generate format.
 
 ### Features
 
 * Added command for generate CRUD service structure.
 
 
+<a name="v1.24.2"></a>
+## [v1.24.2](https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.2) (2020-07-28)
+
+
+<a name="v1.24.3"></a>
+## [v1.24.3](https://github.com/swipe-io/swipe/compare/v1.24.4...v1.24.3) (2020-07-28)
+
+
 <a name="v1.24.4"></a>
-## [v1.24.4](https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.4) (2020-07-28)
+## [v1.24.4](https://github.com/swipe-io/swipe/compare/v1.24.1...v1.24.4) (2020-07-28)
 
 ### Bug Fixes
 
 * Incorrect generate enum name for markdown docs.
-
-
-<a name="v1.24.3"></a>
-## [v1.24.3](https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.3) (2020-07-28)
-
-### Bug Fixes
-
 * Change enums JSON RPC client generate format.
-
-
-<a name="v1.24.2"></a>
-## [v1.24.2](https://github.com/swipe-io/swipe/compare/v1.24.1...v1.24.2) (2020-07-28)
-
-### Bug Fixes
-
 * Added generate enum constants for JSON RPC client.
 
 
@@ -72,7 +80,7 @@
 
 ### Bug Fixes
 
-* Encode/decode function was not generated correctly.
+* Encode/decode function was not is generated correctly.
 
 ### Features
 
