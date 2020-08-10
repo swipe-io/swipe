@@ -51,6 +51,11 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 	o.ID = strcase.ToCamel(rawID)
 	o.RawID = rawID
 
+	if nameOpt, ok := option.At("Name"); ok {
+		if name := nameOpt.Value.String(); name != "" {
+			o.ID = strcase.ToCamel(name)
+		}
+	}
 	if transportOpt, ok := option.At("Transport"); ok {
 		transportOption, err := g.loadTransport(transportOpt)
 		if err != nil {

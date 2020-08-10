@@ -124,6 +124,11 @@ func Service(iface interface{}, opts ...ServiceOption) Option {
 	return "implementation not generated, run swipe"
 }
 
+// Name override service name prefix.
+func Name(string) ServiceOption {
+	return "implementation not generated, run swipe"
+}
+
 // Logging a option enabled logging middleware.
 func Logging(...LoggingOption) ServiceOption {
 	return "implementation not generated, run swipe"
