@@ -112,6 +112,11 @@ func ConfigEnv(optionsStruct interface{}, opts ...ConfigEnvOption) Option {
 	return "implementation not generated, run swipe"
 }
 
+// ConfigMarkdownDoc enable markdown doc generate.
+func ConfigMarkdownDoc(string) ConfigEnvOption {
+	return "implementation not generated, run swipe"
+}
+
 // FuncName sets name of the function to load the configuration, default is "LoadConfig".
 func FuncName(string) ConfigEnvOption {
 	return "implementation not generated, run swipe"

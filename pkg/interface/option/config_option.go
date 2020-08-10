@@ -28,6 +28,10 @@ func (g *configOption) Parse(option *parser.Option) (interface{}, error) {
 	if funcNameOpt, ok := option.At("FuncName"); ok {
 		o.FuncName = funcNameOpt.Value.String()
 	}
+	if markdownDocOpt, ok := option.At("ConfigMarkdownDoc"); ok {
+		o.Doc.Enable = true
+		o.Doc.OutputDir = markdownDocOpt.Value.String()
+	}
 	return o, nil
 }
 

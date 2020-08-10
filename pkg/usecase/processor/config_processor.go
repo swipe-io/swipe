@@ -17,9 +17,13 @@ func (p *config) SetOption(option interface{}) bool {
 }
 
 func (p *config) Generators() []ug.Generator {
-	return []ug.Generator{
+	generators := []ug.Generator{
 		ug.NewConfig(p.option),
 	}
+	if p.option.Doc.Enable {
+		generators = append(generators, ug.NewConfigMarkdownDoc(p.option, p.info))
+	}
+	return generators
 }
 
 func NewConfig(info model.GenerateInfo) Processor {

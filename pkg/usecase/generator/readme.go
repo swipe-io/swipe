@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/writer"
@@ -24,10 +23,6 @@ go run ./cmd/service
 ## Docs
 
 ToDo.
-
-{{ if .JSONRPCDoc.Enabled }}
-[JSON RPC Client Doc]({{ .JSONRPCDoc.Path }})
-{{ end }}
 
 ## Contributing
 
@@ -108,21 +103,10 @@ func (g *readme) Prepare(ctx context.Context) (err error) {
 }
 
 func (g *readme) Process(ctx context.Context) (err error) {
-	var relPath string
-	if g.o.Transport.MarkdownDoc.Enable {
-		relPath, err = filepath.Rel(g.outputDir, g.markdownOutput)
-		if err != nil {
-			return err
-		}
-	}
 	return g.t.Execute(g, map[string]interface{}{
 		"ID":          g.o.RawID,
 		"ServiceName": g.o.ID,
 		"BasePkgPath": g.info.BasePkgPath,
-		"JSONRPCDoc": map[string]interface{}{
-			"Enabled": g.o.Transport.MarkdownDoc.Enable,
-			"Path":    filepath.Join(relPath, "jsonrpc_"+strings.ToLower(g.o.ID)+"_doc.md"),
-		},
 		"GIT": map[string]interface{}{
 			"Tags": g.info.GitTags,
 		},
