@@ -1,4 +1,13 @@
 
+<a name="v1.25.0"></a>
+## [v1.25.0](https://github.com/swipe-io/swipe/compare/v1.24.7...v1.25.0) (2020-08-10)
+
+### Features
+
+* Added config markdown generate option ConfigMarkdownDoc.
+* Added Name option for override service name prefix.
+
+
 <a name="v1.24.7"></a>
 ## [v1.24.7](https://github.com/swipe-io/swipe/compare/v1.24.6...v1.24.7) (2020-08-08)
 
