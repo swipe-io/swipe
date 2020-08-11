@@ -43,7 +43,9 @@ func (g *jsonrpcMarkdownDoc) appendExistsTypes(m *typeutil.Map, t stdtypes.Type)
 		if st, ok := named.Obj().Type().Underlying().(*stdtypes.Struct); ok {
 			m.Set(named, st)
 			for i := 0; i < st.NumFields(); i++ {
-				g.appendExistsTypes(m, st.Field(i).Type())
+				if !st.Field(i).Embedded() {
+					g.appendExistsTypes(m, st.Field(i).Type())
+				}
 			}
 		}
 	}
@@ -57,10 +59,11 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 	existsTypes := new(typeutil.Map)
 
 	for _, method := range g.o.Methods {
-		if len(method.Results) > 0 {
-			for _, result := range method.Results {
-				g.appendExistsTypes(existsTypes, result.Type())
-			}
+		for _, param := range method.Params {
+			g.appendExistsTypes(existsTypes, param.Type())
+		}
+		for _, result := range method.Results {
+			g.appendExistsTypes(existsTypes, result.Type())
 		}
 		g.W("<a href=\"#%[1]s\">%[1]s</a>\n\n", method.Name)
 	}
@@ -134,16 +137,45 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 
 				g.W("| Field | Type | Description |\n|------|------|------|\n")
 
-				for i := 0; i < st.NumFields(); i++ {
-					f := st.Field(i)
-					name := f.Name()
-					if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-						if tag, err := tags.Get("json"); err == nil {
-							name = tag.Name
+				var writeStructInfo func(st *stdtypes.Struct)
+				writeStructInfo = func(st *stdtypes.Struct) {
+					for i := 0; i < st.NumFields(); i++ {
+						f := st.Field(i)
+						var (
+							skip bool
+							name = f.Name()
+						)
+						if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+							if jsonTag, err := tags.Get("json"); err == nil {
+								if jsonTag.Name == "-" {
+									skip = true
+								} else {
+									name = jsonTag.Name
+								}
+							}
+						}
+						if skip {
+							continue
+						}
+						if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+							if tag, err := tags.Get("json"); err == nil {
+								name = tag.Name
+							}
+						}
+						if !f.Embedded() {
+							g.W("|%s|<code>%s</code>|%s|\n", name, g.getJSType(f.Type()), comments[f.Name()])
+						} else {
+							var st *stdtypes.Struct
+							if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
+								st = ptr.Elem().Underlying().(*stdtypes.Struct)
+							} else {
+								st = f.Type().Underlying().(*stdtypes.Struct)
+							}
+							writeStructInfo(st)
 						}
 					}
-					g.W("|%s|<code>%s</code>|%s|\n", name, g.getJSType(f.Type()), comments[f.Name()])
 				}
+				writeStructInfo(st)
 			}
 		})
 	}

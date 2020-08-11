@@ -392,10 +392,24 @@ func (g *openapiDoc) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Schema)
 		schema.Type = "object"
 		schema.Properties = openapi.Properties{}
 
-		for i := 0; i < v.NumFields(); i++ {
-			f := v.Field(i)
-			schema.Properties[strcase.ToLowerCamel(f.Name())] = g.makeSwaggerSchema(f.Type())
+		var populateSchema func(st *stdtypes.Struct)
+		populateSchema = func(st *stdtypes.Struct) {
+			for i := 0; i < st.NumFields(); i++ {
+				f := st.Field(i)
+				if !f.Embedded() {
+					schema.Properties[strcase.ToLowerCamel(f.Name())] = g.makeSwaggerSchema(f.Type())
+				} else {
+					var st *stdtypes.Struct
+					if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
+						st = ptr.Elem().Underlying().(*stdtypes.Struct)
+					} else {
+						st = f.Type().Underlying().(*stdtypes.Struct)
+					}
+					populateSchema(st)
+				}
+			}
 		}
+		populateSchema(v)
 	case *stdtypes.Named:
 		switch stdtypes.TypeString(v, nil) {
 		case "encoding/json.RawMessage":

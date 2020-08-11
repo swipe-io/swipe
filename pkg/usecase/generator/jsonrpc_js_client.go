@@ -270,31 +270,48 @@ func (g *jsonRPCJSClient) getJSDocType(t stdtypes.Type, nested int) string {
 		buf := new(bytes.Buffer)
 		_, _ = fmt.Fprintf(buf, "{\n")
 
-		var j int
-		for i := 0; i < v.NumFields(); i++ {
-			f := v.Field(i)
-			var (
-				skip bool
-				name = f.Name()
-			)
-			if tags, err := structtag.Parse(v.Tag(i)); err == nil {
-				if jsonTag, err := tags.Get("json"); err == nil {
-					if jsonTag.Name == "-" {
-						skip = true
+		var writeStruct func(st *stdtypes.Struct)
+		writeStruct = func(st *stdtypes.Struct) {
+			var j int
+			for i := 0; i < st.NumFields(); i++ {
+				f := st.Field(i)
+				if f.Embedded() {
+					var st *stdtypes.Struct
+					if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
+						st = ptr.Elem().Underlying().(*stdtypes.Struct)
 					} else {
-						name = jsonTag.Name
+						st = f.Type().Underlying().(*stdtypes.Struct)
+					}
+					writeStruct(st)
+					_, _ = fmt.Fprint(buf, ",\n")
+					continue
+				}
+				var (
+					skip bool
+					name = f.Name()
+				)
+				if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+					if jsonTag, err := tags.Get("json"); err == nil {
+						if jsonTag.Name == "-" {
+							skip = true
+						} else {
+							name = jsonTag.Name
+						}
 					}
 				}
+				if skip {
+					continue
+				}
+				if j > 0 {
+					_, _ = fmt.Fprint(buf, ",\n")
+				}
+				_, _ = fmt.Fprintf(buf, "* %s %s: %s", strings.Repeat("  ", nested), name, g.getJSDocType(f.Type(), nested+1))
+				j++
 			}
-			if skip {
-				continue
-			}
-			if j > 0 {
-				_, _ = fmt.Fprint(buf, ",\n")
-			}
-			_, _ = fmt.Fprintf(buf, "* %s %s: %s", strings.Repeat("  ", nested), name, g.getJSDocType(f.Type(), nested+1))
-			j++
 		}
+
+		writeStruct(v)
+
 		_, _ = fmt.Fprintln(buf)
 
 		endNested := nested - 2
