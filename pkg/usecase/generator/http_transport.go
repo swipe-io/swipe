@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gogo/protobuf/sortkeys"
+
 	"github.com/swipe-io/swipe/pkg/domain/model"
 	"github.com/swipe-io/swipe/pkg/importer"
 	"github.com/swipe-io/swipe/pkg/writer"
@@ -62,7 +64,14 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.WriteFunc("ErrorDecode", "", []string{"code", "int"}, []string{"", "error"}, func() {
 		g.W("switch code {\n")
 		g.W("default:\nreturn httpError{code: code}\n")
-		for _, e := range g.o.Transport.Errors {
+
+		var errorKeys []uint32
+		for key := range g.o.Transport.Errors {
+			errorKeys = append(errorKeys, key)
+		}
+		sortkeys.Uint32s(errorKeys)
+		for _, key := range errorKeys {
+			e := g.o.Transport.Errors[key]
 			g.W("case %d:\n", e.Code)
 			pkg := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
 			g.W("return %s.%s{}\n", pkg, e.Named.Obj().Name())
