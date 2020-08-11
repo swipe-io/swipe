@@ -1,461 +1,410 @@
+<a name="unreleased"></a>
+## [Unreleased]
+
 
 <a name="v1.25.0"></a>
-## [v1.25.0](https://github.com/swipe-io/swipe/compare/v1.24.7...v1.25.0) (2020-08-10)
-
+## [v1.25.0] - 2020-08-10
 ### Features
-
-* Added config markdown generate option ConfigMarkdownDoc.
-* Added Name option for override service name prefix.
+- Added config markdown generate option ConfigMarkdownDoc.
+- Added Name option for override service name prefix.
 
 
 <a name="v1.24.7"></a>
-## [v1.24.7](https://github.com/swipe-io/swipe/compare/v1.24.6...v1.24.7) (2020-08-08)
-
+## [v1.24.7] - 2020-08-08
 ### Bug Fixes
-
-* Added check if template path not exists in crud-service command.
+- Added check if template path not exists in crud-service command.
 
 ### Features
-
-* Removed the -entities flag from the crud-service command and added the -config flag, moved the entity loader to the config.
+- Removed the -entities flag from the crud-service command and added the -config flag, moved the entity loader to the config.
 
 
 <a name="v1.24.6"></a>
-## [v1.24.6](https://github.com/swipe-io/swipe/compare/v1.24.5...v1.24.6) (2020-08-06)
-
+## [v1.24.6] - 2020-08-06
 ### Bug Fixes
-
-* Generation of service transport if there are no interface methods.
-* To generate the CRUD service, the argument for setting the path to the entity description file has been changed to the -entities flag.
+- Generation of service transport if there are no interface methods.
+- To generate the CRUD service, the argument for setting the path to the entity description file has been changed to the -entities flag.
 
 ### Features
-
-* For default readme template added git versions section.
+- For default readme template added git versions section.
 
 
 <a name="v1.24.5"></a>
-## [v1.24.5](https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.5) (2020-08-04)
-
+## [v1.24.5] - 2020-08-04
 ### Bug Fixes
-
-* Generate section Members ans Enums if exists items.
-* Added annotation for encoding/json.RawMessage in markdown JS client documentation.
-* Added annotation for encoding/json.RawMessage in JS client.
-* Invalid path definition for JSON RPC client documentation.
-* Incorrect generate enum name for markdown docs.
-* Change enums JSON RPC client generate format.
+- Generate section Members ans Enums if exists items.
+- Added annotation for encoding/json.RawMessage in markdown JS client documentation.
+- Added annotation for encoding/json.RawMessage in JS client.
+- Invalid path definition for JSON RPC client documentation.
+- Incorrect generate enum name for markdown docs.
+- Change enums JSON RPC client generate format.
+- Added generate enum constants for JSON RPC client.
 
 ### Features
-
-* Added command for generate CRUD service structure.
-
-
-<a name="v1.24.2"></a>
-## [v1.24.2](https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.2) (2020-07-28)
-
-
-<a name="v1.24.3"></a>
-## [v1.24.3](https://github.com/swipe-io/swipe/compare/v1.24.4...v1.24.3) (2020-07-28)
-
-
-<a name="v1.24.4"></a>
-## [v1.24.4](https://github.com/swipe-io/swipe/compare/v1.24.1...v1.24.4) (2020-07-28)
-
-### Bug Fixes
-
-* Incorrect generate enum name for markdown docs.
-* Change enums JSON RPC client generate format.
-* Added generate enum constants for JSON RPC client.
+- Added command for generate CRUD service structure.
 
 
 <a name="v1.24.1"></a>
-## [v1.24.1](https://github.com/swipe-io/swipe/compare/v1.24.0...v1.24.1) (2020-07-28)
+## [v1.24.1] - 2020-07-28
+
+<a name="v1.24.3"></a>
+## [v1.24.3] - 2020-07-28
+
+<a name="v1.24.4"></a>
+## [v1.24.4] - 2020-07-28
+### Bug Fixes
+- Incorrect generate enum name for markdown docs.
+- Change enums JSON RPC client generate format.
+
+
+<a name="v1.24.2"></a>
+## [v1.24.2] - 2020-07-28
+### Bug Fixes
+- Added generate enum constants for JSON RPC client.
 
 ### Features
-
-* Added readme markdown and JSON RPC client markdown documentation.
+- Added readme markdown and JSON RPC client markdown documentation.
 
 
 <a name="v1.24.0"></a>
-## [v1.24.0](https://github.com/swipe-io/swipe/compare/v1.23.0...v1.24.0) (2020-07-21)
-
+## [v1.24.0] - 2020-07-21
 ### Features
-
-* Implement new graph type for graph types and optimize performance.
+- Implement new graph type for graph types and optimize performance.
 
 
 <a name="v1.23.0"></a>
-## [v1.23.0](https://github.com/swipe-io/swipe/compare/v1.22.4...v1.23.0) (2020-07-20)
-
+## [v1.23.0] - 2020-07-20
 ### Bug Fixes
-
-* Encode/decode function was not is generated correctly.
+- Encode/decode function was not is generated correctly.
 
 ### Features
-
-* Added simple gateway gokit helpers generator.
-* Changed the prefix in the generated code, instead of <packageName><serviceName>, <projectName><serviceName>is used
+- Added simple gateway gokit helpers generator.
+- Changed the prefix in the generated code, instead of <packageName><serviceName>, <projectName><serviceName>is used
 
 ### BREAKING CHANGE
-
 
 Generated exported functions will have different names.
 
 
 <a name="v1.22.4"></a>
-## [v1.22.4](https://github.com/swipe-io/swipe/compare/v1.22.3...v1.22.4) (2020-07-07)
-
+## [v1.22.4] - 2020-07-07
 ### Bug Fixes
-
-* Looping recursion when looking for error types.
+- Looping recursion when looking for error types.
 
 
 <a name="v1.22.3"></a>
-## [v1.22.3](https://github.com/swipe-io/swipe/compare/v1.22.2...v1.22.3) (2020-07-06)
-
+## [v1.22.3] - 2020-07-06
 ### Bug Fixes
-
-* The order of the parameters specified in the Path option was not respected.
+- The order of the parameters specified in the Path option was not respected.
 
 
 <a name="v1.22.2"></a>
-## [v1.22.2](https://github.com/swipe-io/swipe/compare/v1.22.1...v1.22.2) (2020-07-06)
-
+## [v1.22.2] - 2020-07-06
 ### Bug Fixes
-
-* JSON RPC JS client change var to const.
-* JSON RPC JS client change var to let.
-* JSON RPC JS client added check hasOwnProperty.
+- JSON RPC JS client change var to const.
+- JSON RPC JS client change var to let.
+- JSON RPC JS client added check hasOwnProperty.
 
 
 <a name="v1.22.1"></a>
-## [v1.22.1](https://github.com/swipe-io/swipe/compare/v1.22.0...v1.22.1) (2020-07-06)
-
+## [v1.22.1] - 2020-07-06
 ### Bug Fixes
-
-* JSON RPC JS client generate catch block.
+- JSON RPC JS client generate catch block.
 
 
 <a name="v1.22.0"></a>
-## [v1.22.0](https://github.com/swipe-io/swipe/compare/v1.21.0...v1.22.0) (2020-07-06)
-
+## [v1.22.0] - 2020-07-06
 ### Features
-
-* Added automatic generation error mapping for Gokit service and Openapi docs.
+- Added automatic generation error mapping for Gokit service and Openapi docs.
 
 ### BREAKING CHANGE
-
 
 Remove OpenapiErrors openapi option.
 
 
 <a name="v1.21.0"></a>
-## [v1.21.0](https://github.com/swipe-io/swipe/compare/v1.20.1...v1.21.0) (2020-06-29)
-
+## [v1.21.0] - 2020-06-29
 ### Bug Fixes
-
-* ConfigEnv imports generation
+- ConfigEnv imports generation
 
 ### Features
-
-* Added default generation of requestCount and requestLatency for Instrumenting.
+- Added default generation of requestCount and requestLatency for Instrumenting.
 
 ### BREAKING CHANGE
-
 
 The Namespace and Subsystem options have been removed, now the values are passed as parameters for Instrumenting.
 
 
 <a name="v1.20.1"></a>
-## [v1.20.1](https://github.com/swipe-io/swipe/compare/v1.14.0...v1.20.1) (2020-06-29)
-
+## [v1.20.1] - 2020-06-29
 ### Bug Fixes
-
-* Remove Assembly option and generation
+- Remove Assembly option and generation
 
 ### Features
-
-* The generated file name for the JSON RPC JavaScript client has been changed to jsonrpc_client_gen.js.
-* Added verification of the correspondence of the version of swipe cli and swipe package.
-* Added factory generation for gokit.Endpoint.
+- The generated file name for the JSON RPC JavaScript client has been changed to jsonrpc_client_gen.js.
+- Added verification of the correspondence of the version of swipe cli and swipe package.
+- Added factory generation for gokit.Endpoint.
 
 
 <a name="v1.14.0"></a>
-## [v1.14.0](https://github.com/swipe-io/swipe/compare/v1.13.4...v1.14.0) (2020-06-24)
-
+## [v1.14.0] - 2020-06-24
 ### Features
-
-* Added comment generation from the service interface for openapi documentation and JS client
+- Added comment generation from the service interface for openapi documentation and JS client
 
 
 <a name="v1.13.4"></a>
-## [v1.13.4](https://github.com/swipe-io/swipe/compare/v1.13.3...v1.13.4) (2020-06-23)
-
+## [v1.13.4] - 2020-06-23
 ### Bug Fixes
-
-* An extra wrapper was added for the returned parameter
+- An extra wrapper was added for the returned parameter
 
 
 <a name="v1.13.3"></a>
-## [v1.13.3](https://github.com/swipe-io/swipe/compare/v1.13.2...v1.13.3) (2020-06-23)
-
+## [v1.13.3] - 2020-06-23
 ### Bug Fixes
-
-* Added map type for Openapi and JS client generate
+- Added map type for Openapi and JS client generate
 
 
 <a name="v1.13.2"></a>
-## [v1.13.2](https://github.com/swipe-io/swipe/compare/v1.13.1...v1.13.2) (2020-06-23)
-
+## [v1.13.2] - 2020-06-23
 ### Bug Fixes
-
-* generate JS client for wrapped data
-* openapi and JS client generate pointer type
+- generate JS client for wrapped data
+- openapi and JS client generate pointer type
 
 
 <a name="v1.13.1"></a>
-## [v1.13.1](https://github.com/swipe-io/swipe/compare/v1.13.0...v1.13.1) (2020-06-23)
-
+## [v1.13.1] - 2020-06-23
 ### Bug Fixes
-
-* Type cast response for rest/jsonrpc
-* Added ignore unexported errors
+- Type cast response for rest/jsonrpc
+- Added ignore unexported errors
 
 
 <a name="v1.13.0"></a>
-## [v1.13.0](https://github.com/swipe-io/swipe/compare/v1.12.1...v1.13.0) (2020-06-17)
-
+## [v1.13.0] - 2020-06-17
 ### Features
-
-* Transport moved to external dependency in JS client generation
-* For REST transport, added default error generation with implementation of the StatusCoder interface
+- Transport moved to external dependency in JS client generation
+- For REST transport, added default error generation with implementation of the StatusCoder interface
 
 
 <a name="v1.12.1"></a>
-## [v1.12.1](https://github.com/swipe-io/swipe/compare/v1.12.0...v1.12.1) (2020-06-15)
-
+## [v1.12.1] - 2020-06-15
 ### Bug Fixes
-
-* added ints types
-* generate config for []string type
+- added ints types
+- generate config for []string type
 
 
 <a name="v1.12.0"></a>
-## [v1.12.0](https://github.com/swipe-io/swipe/compare/v1.11.4...v1.12.0) (2020-06-15)
-
+## [v1.12.0] - 2020-06-15
 ### Bug Fixes
-
-* openapi generation adds Uint, Uint8, Uint16, Uint32, Uint64 types
-* added Interface and Map type for make openapi schema
-* added check for named results greater than 1
-* the absence of a comma in the named result of the method in the generation of endpoints
+- openapi generation adds Uint, Uint8, Uint16, Uint32, Uint64 types
+- added Interface and Map type for make openapi schema
+- added check for named results greater than 1
+- the absence of a comma in the named result of the method in the generation of endpoints
 
 ### Features
-
-* added js client generation for jsonrpc
+- added js client generation for jsonrpc
 
 
 <a name="v1.11.4"></a>
-## [v1.11.4](https://github.com/swipe-io/swipe/compare/v1.11.2...v1.11.4) (2020-06-10)
-
+## [v1.11.4] - 2020-06-10
 ### Bug Fixes
-
-* an example was added to the openapi documentation generation for the []byte type
-* added for openapi encoding/json.RawMessage type, interpretate as object
+- an example was added to the openapi documentation generation for the []byte type
+- added for openapi encoding/json.RawMessage type, interpretate as object
 
 
 <a name="v1.11.2"></a>
-## [v1.11.2](https://github.com/swipe-io/swipe/compare/v1.11.0...v1.11.2) (2020-06-10)
-
+## [v1.11.2] - 2020-06-10
 ### Bug Fixes
-
-* default return name field for makeLogParam, and added Chan type
-* generate endpoint for non named results
+- default return name field for makeLogParam, and added Chan type
+- generate endpoint for non named results
 
 
 <a name="v1.11.0"></a>
-## [v1.11.0](https://github.com/swipe-io/swipe/compare/v1.10.0...v1.11.0) (2020-06-10)
-
+## [v1.11.0] - 2020-06-10
 ### Bug Fixes
-
-* generate precision is -1 for FormatFloat
-* WrapResponse option type changed to MethodOption
-* MethodDefaultOptions not work if the MethodOptions option has not been set
-* generating a value for the request/response if there are no values/result for the method
+- generate precision is -1 for FormatFloat
+- WrapResponse option type changed to MethodOption
+- MethodDefaultOptions not work if the MethodOptions option has not been set
+- generating a value for the request/response if there are no values/result for the method
 
 ### BREAKING CHANGE
-
 
 with version <= 1.10.0
 
 
 <a name="v1.10.0"></a>
-## [v1.10.0](https://github.com/swipe-io/swipe/compare/v1.9.0...v1.10.0) (2020-06-08)
-
+## [v1.10.0] - 2020-06-08
 ### Bug Fixes
-
-* FormatFloat incorrect fmt arg generate
-* the base path in the client's request was erased
-* not generate middlewareChain if server generate disabled
-* not generate request typecast for rest client bug
-* make query vars mapping using incorrect index
+- FormatFloat incorrect fmt arg generate
+- the base path in the client's request was erased
+- not generate middlewareChain if server generate disabled
+- not generate request typecast for rest client bug
+- make query vars mapping using incorrect index
 
 ### Features
-
-* renamed NotWrapBody option to WrapResponse, documentation added
+- renamed NotWrapBody option to WrapResponse, documentation added
 
 ### BREAKING CHANGE
-
 
 NotWrapBody is not compatible with version <= 1.9.0
 
 
 <a name="v1.9.0"></a>
-## [v1.9.0](https://github.com/swipe-io/swipe/compare/v1.8.0...v1.9.0) (2020-06-03)
-
+## [v1.9.0] - 2020-06-03
 ### Bug Fixes
-
-* Moved OpenapiTags, OpenapiErrors from MethodOptions to Openapi
+- Moved OpenapiTags, OpenapiErrors from MethodOptions to Openapi
 
 ### BREAKING CHANGE
-
 
 Changes for OpenapiTags, OpenapiErrors are not compatible with versions <v1.9.0
 
 
 <a name="v1.8.0"></a>
-## [v1.8.0](https://github.com/swipe-io/swipe/compare/v1.7.2...v1.8.0) (2020-06-03)
-
+## [v1.8.0] - 2020-06-03
 ### Features
-
-* removed copy code from swipe generation file
+- removed copy code from swipe generation file
 
 ### BREAKING CHANGE
-
 
 if you used the ability to use the code in the generation description file, then the update will not work
 
 
 <a name="v1.7.2"></a>
-## [v1.7.2](https://github.com/swipe-io/swipe/compare/v1.6.0...v1.7.2) (2020-06-02)
-
+## [v1.7.2] - 2020-06-02
 ### Bug Fixes
-
-* remove unused constants
-* added to generate file swipe version
+- remove unused constants
+- added to generate file swipe version
 
 ### Features
-
-* added MethodDefaultOptions for sets default methods options
+- added MethodDefaultOptions for sets default methods options
 
 
 <a name="v1.6.0"></a>
-## [v1.6.0](https://github.com/swipe-io/swipe/compare/v1.3.0...v1.6.0) (2020-06-02)
-
+## [v1.6.0] - 2020-06-02
 ### Bug Fixes
-
-* doc generation with NotWrapBody option
+- doc generation with NotWrapBody option
 
 ### Features
-
-* added OpenapiTags option for set tags method on openapi doc generation
-* added OpenapiErrors for maping errors to method on openapi docs
-* added notWrapBody for JSON RPC generation
+- added OpenapiTags option for set tags method on openapi doc generation
+- added OpenapiErrors for maping errors to method on openapi docs
+- added notWrapBody for JSON RPC generation
 
 
 <a name="v1.3.0"></a>
-## [v1.3.0](https://github.com/swipe-io/swipe/compare/v1.2.2...v1.3.0) (2020-05-31)
-
+## [v1.3.0] - 2020-05-31
 ### Features
-
-* update gokit jsonrpc transport to v1.10.0, added batch requests
+- update gokit jsonrpc transport to v1.10.0, added batch requests
 
 
 <a name="v1.2.2"></a>
-## [v1.2.2](https://github.com/swipe-io/swipe/compare/v1.1.5...v1.2.2) (2020-05-29)
-
+## [v1.2.2] - 2020-05-29
 ### Bug Fixes
-
-* not worked options ServerEncodeResponseFunc, ServerDecodeRequestFunc, ClientEncodeRequestFunc, ClientDecodeResponseFunc
-* generate return error for endpoint and encode/decode func
+- not worked options ServerEncodeResponseFunc, ServerDecodeRequestFunc, ClientEncodeRequestFunc, ClientDecodeResponseFunc
+- generate return error for endpoint and encode/decode func
 
 ### Features
-
-* added generate set generic endpoint middlewares option
+- added generate set generic endpoint middlewares option
 
 
 <a name="v1.1.5"></a>
-## [v1.1.5](https://github.com/swipe-io/swipe/compare/v1.1.4...v1.1.5) (2020-05-27)
-
+## [v1.1.5] - 2020-05-27
 ### Bug Fixes
-
-* in transport generation, error handling in endpoint
+- in transport generation, error handling in endpoint
 
 
 <a name="v1.1.4"></a>
-## [v1.1.4](https://github.com/swipe-io/swipe/compare/v1.1.3...v1.1.4) (2020-05-22)
-
+## [v1.1.4] - 2020-05-22
 ### Bug Fixes
-
-* invalid type generation in the example field. added generation of standard JSON RPC errors
+- invalid type generation in the example field. added generation of standard JSON RPC errors
 
 
 <a name="v1.1.3"></a>
-## [v1.1.3](https://github.com/swipe-io/swipe/compare/v1.1.2...v1.1.3) (2020-05-21)
-
+## [v1.1.3] - 2020-05-21
 ### Bug Fixes
-
-* search for errors to generate error mapping codes
+- search for errors to generate error mapping codes
 
 
 <a name="v1.1.2"></a>
-## [v1.1.2](https://github.com/swipe-io/swipe/compare/v1.1.1...v1.1.2) (2020-05-21)
-
+## [v1.1.2] - 2020-05-21
 ### Bug Fixes
-
-* generate server middileware option funcs
+- generate server middileware option funcs
 
 
 <a name="v1.1.1"></a>
-## [v1.1.1](https://github.com/swipe-io/swipe/compare/v1.1.0...v1.1.1) (2020-05-21)
-
+## [v1.1.1] - 2020-05-21
 
 <a name="v1.1.0"></a>
-## [v1.1.0](https://github.com/swipe-io/swipe/compare/v1.0.5...v1.1.0) (2020-05-21)
-
+## [v1.1.0] - 2020-05-21
 ### Features
-
-* implement generate endpoint middleware option
+- implement generate endpoint middleware option
 
 
 <a name="v1.0.5"></a>
-## [v1.0.5](https://github.com/swipe-io/swipe/compare/v1.0.4...v1.0.5) (2020-05-21)
-
+## [v1.0.5] - 2020-05-21
 
 <a name="v1.0.4"></a>
-## [v1.0.4](https://github.com/swipe-io/swipe/compare/v1.0.3...v1.0.4) (2020-05-21)
-
+## [v1.0.4] - 2020-05-21
 ### Bug Fixes
-
-* openapi doc generated bugs, replace options OpenapiVersion, OpenapiTitle, OpenapiDescription to OpenapiInfo(title, description, version)
+- openapi doc generated bugs, replace options OpenapiVersion, OpenapiTitle, OpenapiDescription to OpenapiInfo(title, description, version)
 
 
 <a name="v1.0.3"></a>
-## [v1.0.3](https://github.com/swipe-io/swipe/compare/v1.0.2...v1.0.3) (2020-05-20)
-
+## [v1.0.3] - 2020-05-20
 ### Bug Fixes
-
-* not ignore no error types
+- not ignore no error types
 
 
 <a name="v1.0.2"></a>
-## [v1.0.2](https://github.com/swipe-io/swipe/compare/v1.0.1...v1.0.2) (2020-05-20)
-
+## [v1.0.2] - 2020-05-20
 
 <a name="v1.0.1"></a>
-## [v1.0.1](https://github.com/swipe-io/swipe/compare/v1.0.0...v1.0.1) (2020-05-20)
-
+## [v1.0.1] - 2020-05-20
 
 <a name="v1.0.0"></a>
-## v1.0.0 (2020-05-19)
+## v1.0.0 - 2020-05-19
 
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.25.0...HEAD
+[v1.25.0]: https://github.com/swipe-io/swipe/compare/v1.24.7...v1.25.0
+[v1.24.7]: https://github.com/swipe-io/swipe/compare/v1.24.6...v1.24.7
+[v1.24.6]: https://github.com/swipe-io/swipe/compare/v1.24.5...v1.24.6
+[v1.24.5]: https://github.com/swipe-io/swipe/compare/v1.24.1...v1.24.5
+[v1.24.1]: https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.1
+[v1.24.3]: https://github.com/swipe-io/swipe/compare/v1.24.4...v1.24.3
+[v1.24.4]: https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.4
+[v1.24.2]: https://github.com/swipe-io/swipe/compare/v1.24.0...v1.24.2
+[v1.24.0]: https://github.com/swipe-io/swipe/compare/v1.23.0...v1.24.0
+[v1.23.0]: https://github.com/swipe-io/swipe/compare/v1.22.4...v1.23.0
+[v1.22.4]: https://github.com/swipe-io/swipe/compare/v1.22.3...v1.22.4
+[v1.22.3]: https://github.com/swipe-io/swipe/compare/v1.22.2...v1.22.3
+[v1.22.2]: https://github.com/swipe-io/swipe/compare/v1.22.1...v1.22.2
+[v1.22.1]: https://github.com/swipe-io/swipe/compare/v1.22.0...v1.22.1
+[v1.22.0]: https://github.com/swipe-io/swipe/compare/v1.21.0...v1.22.0
+[v1.21.0]: https://github.com/swipe-io/swipe/compare/v1.20.1...v1.21.0
+[v1.20.1]: https://github.com/swipe-io/swipe/compare/v1.14.0...v1.20.1
+[v1.14.0]: https://github.com/swipe-io/swipe/compare/v1.13.4...v1.14.0
+[v1.13.4]: https://github.com/swipe-io/swipe/compare/v1.13.3...v1.13.4
+[v1.13.3]: https://github.com/swipe-io/swipe/compare/v1.13.2...v1.13.3
+[v1.13.2]: https://github.com/swipe-io/swipe/compare/v1.13.1...v1.13.2
+[v1.13.1]: https://github.com/swipe-io/swipe/compare/v1.13.0...v1.13.1
+[v1.13.0]: https://github.com/swipe-io/swipe/compare/v1.12.1...v1.13.0
+[v1.12.1]: https://github.com/swipe-io/swipe/compare/v1.12.0...v1.12.1
+[v1.12.0]: https://github.com/swipe-io/swipe/compare/v1.11.4...v1.12.0
+[v1.11.4]: https://github.com/swipe-io/swipe/compare/v1.11.2...v1.11.4
+[v1.11.2]: https://github.com/swipe-io/swipe/compare/v1.11.0...v1.11.2
+[v1.11.0]: https://github.com/swipe-io/swipe/compare/v1.10.0...v1.11.0
+[v1.10.0]: https://github.com/swipe-io/swipe/compare/v1.9.0...v1.10.0
+[v1.9.0]: https://github.com/swipe-io/swipe/compare/v1.8.0...v1.9.0
+[v1.8.0]: https://github.com/swipe-io/swipe/compare/v1.7.2...v1.8.0
+[v1.7.2]: https://github.com/swipe-io/swipe/compare/v1.6.0...v1.7.2
+[v1.6.0]: https://github.com/swipe-io/swipe/compare/v1.3.0...v1.6.0
+[v1.3.0]: https://github.com/swipe-io/swipe/compare/v1.2.2...v1.3.0
+[v1.2.2]: https://github.com/swipe-io/swipe/compare/v1.1.5...v1.2.2
+[v1.1.5]: https://github.com/swipe-io/swipe/compare/v1.1.4...v1.1.5
+[v1.1.4]: https://github.com/swipe-io/swipe/compare/v1.1.3...v1.1.4
+[v1.1.3]: https://github.com/swipe-io/swipe/compare/v1.1.2...v1.1.3
+[v1.1.2]: https://github.com/swipe-io/swipe/compare/v1.1.1...v1.1.2
+[v1.1.1]: https://github.com/swipe-io/swipe/compare/v1.1.0...v1.1.1
+[v1.1.0]: https://github.com/swipe-io/swipe/compare/v1.0.5...v1.1.0
+[v1.0.5]: https://github.com/swipe-io/swipe/compare/v1.0.4...v1.0.5
+[v1.0.4]: https://github.com/swipe-io/swipe/compare/v1.0.3...v1.0.4
+[v1.0.3]: https://github.com/swipe-io/swipe/compare/v1.0.2...v1.0.3
+[v1.0.2]: https://github.com/swipe-io/swipe/compare/v1.0.1...v1.0.2
+[v1.0.1]: https://github.com/swipe-io/swipe/compare/v1.0.0...v1.0.1
