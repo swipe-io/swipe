@@ -9,6 +9,7 @@ import (
 	stdstrings "strings"
 
 	"github.com/swipe-io/swipe/pkg/domain/model"
+
 	"github.com/swipe-io/swipe/pkg/graph"
 	"github.com/swipe-io/swipe/pkg/types"
 	"golang.org/x/tools/go/packages"
@@ -92,45 +93,51 @@ func (l *Loader) Process() (data Data, errs []error) {
 							iotaIncr  int
 							enums     []model.Enum
 						)
-						if len(v.Specs) > 1 {
-							vs := v.Specs[0].(*ast.ValueSpec)
-							ti := pkg.TypesInfo.TypeOf(vs.Type.(*ast.Ident))
-							if ti != nil {
-								if named, ok := ti.(*stdtypes.Named); ok && !named.Obj().Exported() {
-									continue
-								}
-
-								if b, ok := ti.Underlying().(*stdtypes.Basic); ok {
-									switch b.Info() {
-									case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
-										for _, spec := range v.Specs {
-											vs := spec.(*ast.ValueSpec)
-											if len(vs.Values) == 1 {
-												iotaValue, iotaIncr = types.EvalInt(vs.Values[0])
-											} else {
-												iotaValue += iotaIncr
-											}
+						if len(v.Specs) < 1 {
+							continue
+						}
+						vs, ok := v.Specs[0].(*ast.ValueSpec)
+						if !ok {
+							continue
+						}
+						if vs.Type == nil {
+							continue
+						}
+						ti := pkg.TypesInfo.TypeOf(vs.Type.(*ast.Ident))
+						if ti != nil {
+							if named, ok := ti.(*stdtypes.Named); ok && !named.Obj().Exported() {
+								continue
+							}
+							if b, ok := ti.Underlying().(*stdtypes.Basic); ok {
+								switch b.Info() {
+								case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
+									for _, spec := range v.Specs {
+										vs := spec.(*ast.ValueSpec)
+										if len(vs.Values) == 1 {
+											iotaValue, iotaIncr = types.EvalInt(vs.Values[0])
+										} else {
+											iotaValue += iotaIncr
+										}
+										enums = append(enums, model.Enum{
+											Name:  vs.Names[0].Name,
+											Value: strconv.Itoa(iotaValue),
+										})
+									}
+								case stdtypes.IsString:
+									for _, spec := range v.Specs {
+										vs := spec.(*ast.ValueSpec)
+										if len(vs.Values) == 1 {
+											lit := vs.Values[0].(*ast.BasicLit)
+											s, _ := strconv.Unquote(lit.Value)
 											enums = append(enums, model.Enum{
 												Name:  vs.Names[0].Name,
-												Value: strconv.Itoa(iotaValue),
+												Value: s,
 											})
-										}
-									case stdtypes.IsString:
-										for _, spec := range v.Specs {
-											vs := spec.(*ast.ValueSpec)
-											if len(vs.Values) == 1 {
-												lit := vs.Values[0].(*ast.BasicLit)
-												s, _ := strconv.Unquote(lit.Value)
-												enums = append(enums, model.Enum{
-													Name:  vs.Names[0].Name,
-													Value: s,
-												})
-											}
 										}
 									}
 								}
-								data.Enums.Set(ti, enums)
 							}
+							data.Enums.Set(ti, enums)
 						}
 					}
 				case *ast.FuncDecl:
