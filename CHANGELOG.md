@@ -2,6 +2,13 @@
 ## [Unreleased]
 
 
+<a name="v1.25.1"></a>
+## [v1.25.1] - 2020-08-11
+### Bug Fixes
+- Added sorting for errors in the ErrorDecode method.
+- Added check type when searching enums.
+
+
 <a name="v1.25.0"></a>
 ## [v1.25.0] - 2020-08-10
 ### Features
@@ -361,7 +368,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.25.0...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.25.1...HEAD
+[v1.25.1]: https://github.com/swipe-io/swipe/compare/v1.25.0...v1.25.1
 [v1.25.0]: https://github.com/swipe-io/swipe/compare/v1.24.7...v1.25.0
 [v1.24.7]: https://github.com/swipe-io/swipe/compare/v1.24.6...v1.24.7
 [v1.24.6]: https://github.com/swipe-io/swipe/compare/v1.24.5...v1.24.6
