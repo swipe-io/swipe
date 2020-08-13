@@ -124,7 +124,11 @@ func (g *config) Process(ctx context.Context) error {
 				g.writeEnv(f, opts)
 			}
 		case *stdtypes.Basic, *stdtypes.Slice:
-			g.writeEnv(f, opts)
+			if opts.isFlag {
+				g.writeFlag(f, opts)
+			} else {
+				g.writeEnv(f, opts)
+			}
 		}
 
 		if opts.required {
@@ -175,20 +179,20 @@ func (g *config) Process(ctx context.Context) error {
 	return nil
 }
 
-func (g *config) writeConfigFlagBasic(name, fldName string, desc string, f *stdtypes.Var) {
+func (g *config) writeFlag(f *stdtypes.Var, opts fldOpts) {
 	if t, ok := f.Type().(*stdtypes.Basic); ok {
 		flagPkg := g.i.Import("flag", "flag")
 		switch t.Kind() {
 		case stdtypes.String:
-			g.W("%[1]s.StringVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
+			g.W("%[1]s.StringVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		case stdtypes.Int:
-			g.W("%[1]s.IntVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
+			g.W("%[1]s.IntVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		case stdtypes.Int64:
-			g.W("%[1]s.Int64Var(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
+			g.W("%[1]s.Int64Var(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		case stdtypes.Float64:
-			g.W("%[1]s.Float64Var(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
+			g.W("%[1]s.Float64Var(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		case stdtypes.Bool:
-			g.W("%[1]s.BoolVar(&%[2]s, \"%[3]s\", %[2]s, \"%[4]s\")\n", flagPkg, name, fldName, desc)
+			g.W("%[1]s.BoolVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		}
 	}
 }
