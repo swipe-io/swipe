@@ -419,7 +419,7 @@ func (g *openapiDoc) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Schema)
 		case "time.Time":
 			schema.Type = "string"
 			schema.Format = "date-time"
-			schema.Example = "1985-02-04T00:00:00.00Z"
+			schema.Example = "1985-04-02T01:30:00.00Z"
 			return
 		case "github.com/pborman/uuid.UUID",
 			"github.com/google/uuid.UUID":
