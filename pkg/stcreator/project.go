@@ -3,7 +3,7 @@ package stcreator
 import (
 	"bytes"
 	"fmt"
-	"go/format"
+
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,6 +13,8 @@ import (
 	"text/template"
 
 	"github.com/iancoleman/strcase"
+
+	"github.com/swipe-io/swipe/pkg/format"
 
 	"gopkg.in/yaml.v3"
 )

@@ -3,10 +3,10 @@ package file
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/swipe-io/swipe/pkg/format"
 	"github.com/swipe-io/swipe/pkg/importer"
 )
 
