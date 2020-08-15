@@ -75,6 +75,7 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 
 	if pkgImport != "" {
 		g.W("## Getting Started\n\n")
+		g.W("You can install this with:\n\n```shell script\nnpm install --save-dev %s\n```\n\n", pkgImport)
 		g.W("Import the package with the client:\n\n")
 		g.W("```javascript\nimport API from \"%s\"\n```\n\n", pkgImport)
 		g.W("Create a transport, only one method needs to be implemented: `doRequest(Array.<Object>) PromiseLike<Object>`.\n\n")
