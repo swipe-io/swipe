@@ -264,7 +264,7 @@ func visitBlockStmt(p *packages.Package, block *ast.BlockStmt) (values []stdtype
 					values = append(values, otherValues...)
 					objects = append(objects, otherObjects...)
 				case *ast.CompositeLit:
-					if named, ok := p.TypesInfo.TypeOf(vv.Type).(*stdtypes.Named); ok {
+					if named, ok := p.TypesInfo.TypeOf(vv.Type).(*stdtypes.Named); ok && named.Obj() != nil {
 						objects = append(objects, named.Obj())
 					}
 				case *ast.UnaryExpr, *ast.BasicLit:
@@ -272,9 +272,13 @@ func visitBlockStmt(p *packages.Package, block *ast.BlockStmt) (values []stdtype
 				case *ast.CallExpr:
 					switch fv := vv.Fun.(type) {
 					case *ast.SelectorExpr:
-						objects = append(objects, p.TypesInfo.ObjectOf(fv.Sel))
+						if obj := p.TypesInfo.ObjectOf(fv.Sel); obj != nil {
+							objects = append(objects, obj)
+						}
 					case *ast.Ident:
-						objects = append(objects, p.TypesInfo.ObjectOf(fv))
+						if obj := p.TypesInfo.ObjectOf(fv); obj != nil {
+							objects = append(objects, obj)
+						}
 					}
 				}
 			}
