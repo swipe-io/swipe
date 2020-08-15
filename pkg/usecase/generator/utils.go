@@ -37,3 +37,34 @@ func makeLogParam(name string, t stdtypes.Type) string {
 		return "len(" + name + ")"
 	}
 }
+
+func isGolangNamedType(t stdtypes.Type) bool {
+	t = normalizeType(t)
+	switch stdtypes.TypeString(t, nil) {
+	case "time.Time",
+		"time.Location",
+		"sql.NullBool",
+		"sql.NullFloat64",
+		"sql.NullInt32",
+		"sql.NullInt64",
+		"sql.NullString",
+		"sql.NullTime":
+		return true
+	}
+	return false
+}
+
+func normalizeType(t stdtypes.Type) stdtypes.Type {
+	switch v := t.(type) {
+	case *stdtypes.Pointer:
+		return normalizeType(v.Elem())
+	case *stdtypes.Slice:
+		return normalizeType(v.Elem())
+	case *stdtypes.Array:
+		return normalizeType(v.Elem())
+	case *stdtypes.Map:
+		return normalizeType(v.Elem())
+	default:
+		return v
+	}
+}
