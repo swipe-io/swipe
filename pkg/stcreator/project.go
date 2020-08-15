@@ -17,6 +17,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type FormatError struct {
+	Err  error
+	Data []byte
+}
+
+func (e FormatError) Error() string {
+	var lines []string
+	for i, b := range bytes.Split(e.Data, []byte("\n")) {
+		lines = append(lines, fmt.Sprintf("%d  %s", i+1, string(b)))
+	}
+	return fmt.Sprintf("%s:\n%s", e.Err.Error(), strings.Join(lines, "\n"))
+}
+
 var funcs = template.FuncMap{
 	"ToLowerCamel": strcase.ToLowerCamel,
 	"ToCamel":      strcase.ToCamel,
@@ -125,10 +138,14 @@ func (l *ProjectLoader) createFile(filename string, data []byte) error {
 		}
 	}()
 	if filepath.Ext(filename) == ".go" {
-		data, err = format.Source(data)
+		fmtData, err := format.Source(data)
 		if err != nil {
-			return err
+			return fmt.Errorf("filename: %s: %v", filename, FormatError{
+				Err:  err,
+				Data: data,
+			})
 		}
+		data = fmtData
 	}
 	_, err = f.Write(data)
 	if err != nil {
