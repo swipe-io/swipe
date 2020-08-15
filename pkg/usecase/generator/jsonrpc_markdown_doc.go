@@ -2,8 +2,10 @@ package generator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	stdtypes "go/types"
+	"io/ioutil"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -56,9 +58,30 @@ func (g *jsonrpcMarkdownDoc) appendExistsTypes(m *typeutil.Map, t stdtypes.Type)
 }
 
 func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
+	var pkgImport string
+	pkgJsonFilepath := filepath.Join(g.info.RootPath, "package.json")
+	data, err := ioutil.ReadFile(pkgJsonFilepath)
+	if err == nil {
+		var packageJSON map[string]interface{}
+		if err := json.Unmarshal(data, &packageJSON); err != nil {
+			return err
+		}
+		if name, ok := packageJSON["name"].(string); ok {
+			pkgImport = name
+		}
+	}
+
 	g.W("# %s JSONRPC Client\n\n", g.o.ID)
 
-	g.W("## API\n## Methods\n\n")
+	if pkgImport != "" {
+		g.W("## Getting Started\n\n")
+		g.W("Import the package with the client:\n\n")
+		g.W("```javascript\nimport API from \"%s\"\n```\n\n", pkgImport)
+		g.W("Create a transport, only one method needs to be implemented: `doRequest(Array.<Object>) PromiseLike<Object>`.\n\n")
+		g.W("For example:\n\n```javascript\nclass FetchTransport {\n    constructor(url) {\n      this.url = url;\n    }\n\n    doRequest(requests) {\n        return fetch(this.url, {method: \"POST\", body: JSON.stringify(requests)})\n    }\n}\n```\n\n")
+		g.W("Now for a complete example:\n\n```javascript\nimport API from \"%s\"\nimport Transport from \"transport\"\n\nconst api = new API(new Transport(\"http://127.0.0.1\"))\n\n// call method here.\n```\n\n", pkgImport)
+		g.W("## API\n## Methods\n\n")
+	}
 
 	existsTypes := new(typeutil.Map)
 
