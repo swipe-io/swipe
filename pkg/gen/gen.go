@@ -84,6 +84,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 						info := model.GenerateInfo{
 							Pkg:         pkg,
 							BasePkgPath: basePkgPath,
+							RootPath:    astData.WorkDir,
 							Pkgs:        astData.Pkgs,
 							BasePath:    basePath,
 							Version:     s.version,
