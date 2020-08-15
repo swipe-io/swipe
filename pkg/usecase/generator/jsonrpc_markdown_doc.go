@@ -35,7 +35,10 @@ func (g *jsonrpcMarkdownDoc) Prepare(ctx context.Context) error {
 }
 
 func (g *jsonrpcMarkdownDoc) appendExistsTypes(m *typeutil.Map, t stdtypes.Type) {
-	t = g.getNormalizeType(t)
+	t = normalizeType(t)
+	if isGolangNamedType(t) {
+		return
+	}
 	if v := m.At(t); v != nil {
 		return
 	}
@@ -43,8 +46,9 @@ func (g *jsonrpcMarkdownDoc) appendExistsTypes(m *typeutil.Map, t stdtypes.Type)
 		if st, ok := named.Obj().Type().Underlying().(*stdtypes.Struct); ok {
 			m.Set(named, st)
 			for i := 0; i < st.NumFields(); i++ {
-				if !st.Field(i).Embedded() {
-					g.appendExistsTypes(m, st.Field(i).Type())
+				f := st.Field(i)
+				if !f.Embedded() {
+					g.appendExistsTypes(m, f.Type())
 				}
 			}
 		}
@@ -217,21 +221,6 @@ func (g *jsonrpcMarkdownDoc) Filename() string {
 	return fmt.Sprintf("jsonrpc_%s_doc.md", strings.ToLower(g.o.ID))
 }
 
-func (g *jsonrpcMarkdownDoc) getNormalizeType(t stdtypes.Type) stdtypes.Type {
-	switch v := t.(type) {
-	case *stdtypes.Pointer:
-		return g.getNormalizeType(v.Elem())
-	case *stdtypes.Slice:
-		return g.getNormalizeType(v.Elem())
-	case *stdtypes.Array:
-		return g.getNormalizeType(v.Elem())
-	case *stdtypes.Map:
-		return g.getNormalizeType(v.Elem())
-	default:
-		return v
-	}
-}
-
 func (g *jsonrpcMarkdownDoc) getJSType(t stdtypes.Type) string {
 	switch v := t.(type) {
 	default:
@@ -259,7 +248,7 @@ func (g *jsonrpcMarkdownDoc) getJSType(t stdtypes.Type) string {
 		case "github.com/pborman/uuid.UUID",
 			"github.com/google/uuid.UUID":
 			return "string"
-		case "time.Time":
+		case "time.Time", "time.Location":
 			return "string"
 		}
 	case *stdtypes.Basic:
