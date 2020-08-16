@@ -77,13 +77,14 @@ func (m MapTypes) At(t string) (MapType, bool) {
 var mapTypesPkg = map[string]string{
 	"uuid.UUID":       "github.com/google/uuid",
 	"*uuid.UUID":      "github.com/google/uuid",
+	"pg.NullTime":     "github.com/go-pg/pg/v10",
 	"sql.NullString":  "database/sql",
 	"sql.NullInt64":   "database/sql",
 	"sql.NullFloat64": "database/sql",
+	"sql.NullTime":    "database/sql",
 	"time.Duration":   "time",
 	"time.Time":       "time",
 	"*time.Duration":  "time",
-	"*time.Time":      "time",
 }
 
 var mapTypes = MapTypes{
@@ -99,12 +100,12 @@ var mapTypes = MapTypes{
 	},
 	{
 		Type:     "time.Time",
-		NullType: "*time.Time",
+		NullType: "pg.NullTime",
 		DBTypes:  []string{"time with time zone", "time without time zone", "timestamp without time zone", "timestamp with time zone", "date"},
 	},
 	{
 		Type:     "bool",
-		NullType: "bool",
+		NullType: "sql.NullBool",
 		DBTypes:  []string{"boolean"},
 	},
 	{
