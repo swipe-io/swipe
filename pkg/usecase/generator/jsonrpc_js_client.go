@@ -72,18 +72,20 @@ class JSONRPCClient {
           });
 	  }, 0);
 	}
-	makeJSONRPCRequest(id, method, params) {
+	makeJSONRPCRequest(id, async, method, params) {
 	  return {
 		jsonrpc: "2.0",
 		id: id,
+		async: async,
 		method: method,
 		params: params,
 	  };
 	}
-	__scheduleRequest(method, params) {
+	__scheduleRequest(method, params, async) {
 	  const p = new Promise((resolve, reject) => {
 		const request = this.makeJSONRPCRequest(
 		  this.__requestIDGenerate(),
+		  async,
 		  method,
 		  params
 		);
@@ -162,27 +164,42 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		}
 
 		g.W("**/\n")
-		g.W("%s(", m.LcName)
-
-		for i, p := range m.Params {
-			if i > 0 {
-				g.W(",")
+		renderMethod := func(async bool) {
+			suffixAsync := ""
+			if async {
+				suffixAsync = "Async"
 			}
-			g.W(p.Name())
-		}
+			g.W("%s%s(", m.LcName, suffixAsync)
 
-		g.W(") {\n")
-		g.W("return this.__scheduleRequest(\"%s\", {", m.LcName)
-
-		for i, p := range m.Params {
-			if i > 0 {
-				g.W(",")
+			for i, p := range m.Params {
+				if i > 0 {
+					g.W(",")
+				}
+				g.W(p.Name())
 			}
-			g.W("%[1]s:%[1]s", p.Name())
-		}
 
-		g.W("})\n")
-		g.W("}\n")
+			g.W(") {\n")
+			g.W("return this.__scheduleRequest(\"%s\", {", m.LcName)
+
+			firstComma := ""
+			if len(m.Params) > 0 {
+				firstComma = ","
+			}
+			g.W("async: %t%s", async, firstComma)
+
+			for i, p := range m.Params {
+				if i > 0 {
+					g.W(",")
+				}
+				g.W("%[1]s:%[1]s", p.Name())
+			}
+
+			g.W("})\n")
+			g.W("}\n")
+		}
+		renderMethod(false)
+		g.W("\n")
+		renderMethod(true)
 	}
 
 	g.W("}\n")
