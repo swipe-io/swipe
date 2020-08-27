@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v1.25.10"></a>
+## [v1.25.10] - 2020-08-27
+### Bug Fixes
+- Incorrect generate with named results.
+
+
 <a name="v1.25.9"></a>
 ## [v1.25.9] - 2020-08-16
 ### Bug Fixes
@@ -417,7 +423,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.25.9...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.25.10...HEAD
+[v1.25.10]: https://github.com/swipe-io/swipe/compare/v1.25.9...v1.25.10
 [v1.25.9]: https://github.com/swipe-io/swipe/compare/v1.25.8...v1.25.9
 [v1.25.8]: https://github.com/swipe-io/swipe/compare/v1.25.7...v1.25.8
 [v1.25.7]: https://github.com/swipe-io/swipe/compare/v1.25.6...v1.25.7
