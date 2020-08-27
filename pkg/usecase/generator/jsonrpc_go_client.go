@@ -113,7 +113,6 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 				g.W("var resp %s\n", responseType)
 			}
 
-			g.W("err := %s.Unmarshal(response.Result, &resp)\n", ffjsonPkg)
 			g.W("if err != nil {\n")
 			g.W("return nil, %s.Errorf(\"couldn't unmarshal body to %sResponse%s: %%s\", err)\n", fmtPkg, m.LcName, g.o.ID)
 			g.W("}\n")

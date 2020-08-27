@@ -95,7 +95,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 		}
 
 		if len(m.Results) > 0 {
-			if len(m.Results) > 1 && m.ResultsNamed {
+			if m.ResultsNamed {
 				for i, p := range m.Results {
 					if i > 0 {
 						g.W(", ")
@@ -120,7 +120,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 		}
 		g.W("return ")
 		if len(m.Results) > 0 {
-			if len(m.Results) > 1 && m.ResultsNamed {
+			if m.ResultsNamed {
 				g.W("%sResponse%s", m.LcName, g.o.ID)
 				g.WriteStructAssign(structKeyValue(m.Results, nil))
 			} else {

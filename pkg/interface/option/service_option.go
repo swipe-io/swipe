@@ -169,9 +169,11 @@ func (g *serviceOption) Parse(option *parser.Option) (interface{}, error) {
 			sm.ReturnErr = sig.Results().At(sig.Results().Len() - 1)
 			resultOffset = 1
 		}
-		if types.IsNamed(sig.Results()) {
+
+		if types.IsNamed(sig.Results()) && sig.Results().Len()-resultOffset > 1 {
 			sm.ResultsNamed = true
 		}
+
 		if !sm.ResultsNamed && sig.Results().Len()-resultOffset > 1 {
 			return nil, errors.NotePosition(serviceOpt.Position,
 				fmt.Errorf("interface method with unnamed results cannot be greater than 1"))
