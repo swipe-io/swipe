@@ -11,7 +11,7 @@ require (
 	github.com/gookit/color v1.2.5
 	github.com/gorilla/mux v1.7.4
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334
-	github.com/l-vitaly/go-kit v1.10.0
+	github.com/l-vitaly/go-kit v1.12.0
 	github.com/lib/pq v1.8.0
 	github.com/pborman/uuid v1.2.0
 	github.com/pquerna/ffjson v0.0.0-20190930134022-aa0246cd15f7
@@ -21,6 +21,5 @@ require (
 	github.com/valyala/fasthttp v1.12.0
 	golang.org/x/mod v0.3.0
 	golang.org/x/tools v0.0.0-20200519015757-0d0afa43d58a
-	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
