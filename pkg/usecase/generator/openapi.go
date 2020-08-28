@@ -347,7 +347,7 @@ func (g *openapiDoc) makeSwaggerSchema(t stdtypes.Type) (schema *openapi.Schema)
 	case *stdtypes.Map:
 		schema.Type = "object"
 		schema.Properties = openapi.Properties{
-			"string": g.makeSwaggerSchema(v.Elem()),
+			"key": g.makeSwaggerSchema(v.Elem()),
 		}
 	case *stdtypes.Slice:
 		if vv, ok := v.Elem().(*stdtypes.Basic); ok && vv.Kind() == stdtypes.Byte {
