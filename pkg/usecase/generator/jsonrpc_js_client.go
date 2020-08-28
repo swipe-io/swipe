@@ -150,7 +150,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 				if i > 0 {
 					g.W(", ")
 				}
-				if p.Name() != "" {
+				if m.ResultsNamed {
 					g.W("%s: ", p.Name())
 				}
 				g.W(g.getJSDocType(p.Type(), 0))
@@ -250,11 +250,11 @@ func (g *jsonRPCJSClient) getJSDocType(t stdtypes.Type, nested int) string {
 	case *stdtypes.Pointer:
 		return g.getJSDocType(v.Elem(), nested)
 	case *stdtypes.Array:
-		return fmt.Sprintf("Array.<%s>", g.getJSDocType(v.Elem(), nested))
+		return fmt.Sprintf("Array<%s>", g.getJSDocType(v.Elem(), nested))
 	case *stdtypes.Slice:
-		return fmt.Sprintf("Array.<%s>", g.getJSDocType(v.Elem(), nested))
+		return fmt.Sprintf("Array<%s>", g.getJSDocType(v.Elem(), nested))
 	case *stdtypes.Map:
-		return fmt.Sprintf("Object.<string, %s>", g.getJSDocType(v.Elem(), nested))
+		return fmt.Sprintf("Object<string, %s>", g.getJSDocType(v.Elem(), nested))
 	case *stdtypes.Named:
 		switch stdtypes.TypeString(v.Obj().Type(), nil) {
 		case "encoding/json.RawMessage":
