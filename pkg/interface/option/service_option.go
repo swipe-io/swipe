@@ -244,6 +244,9 @@ func (g *serviceOption) loadTransport(opt *parser.Option) (option model.Transpor
 	if _, ok := opt.At("ClientEnable"); ok {
 		option.Client.Enable = true
 	}
+	if _, ok := opt.At("TestCaseEnable"); ok {
+		option.TestCase = true
+	}
 	if _, ok := opt.At("ServerDisabled"); ok {
 		option.ServerDisabled = true
 	}

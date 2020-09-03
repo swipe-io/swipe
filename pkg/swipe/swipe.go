@@ -190,6 +190,11 @@ func MethodDefaultOptions(...MethodOption) TransportOption {
 	return "implementation not generated, run swipe"
 }
 
+// TestCaseEnable option for enable generate test case.
+func TestCaseEnable() TransportOption {
+	return "implementation not generated, run swipe"
+}
+
 // JSONRPC enabled use JSON RPC instead of REST.
 func JSONRPC(...JSONRPCOption) TransportOption {
 	return "implementation not generated, run swipe"

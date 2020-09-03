@@ -67,6 +67,7 @@ type TransportOption struct {
 	Protocol             string
 	Prefix               string
 	ServerDisabled       bool
+	TestCase             bool
 	Client               ClientHTTPTransportOption
 	Openapi              OpenapiHTTPTransportOption
 	MarkdownDoc          MarkdownDocHTTPTransportOption
