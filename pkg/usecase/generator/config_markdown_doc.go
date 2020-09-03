@@ -14,6 +14,7 @@ type configMarkdownDoc struct {
 	info      model.GenerateInfo
 	o         model.ConfigOption
 	outputDir string
+	filename  string
 }
 
 func (g *configMarkdownDoc) Prepare(ctx context.Context) error {
@@ -74,9 +75,9 @@ func (g *configMarkdownDoc) OutputDir() string {
 }
 
 func (g *configMarkdownDoc) Filename() string {
-	return "config_doc_gen.md"
+	return g.filename
 }
 
-func NewConfigMarkdownDoc(o model.ConfigOption, info model.GenerateInfo) Generator {
-	return &configMarkdownDoc{o: o, info: info}
+func NewConfigMarkdownDoc(filename string, o model.ConfigOption, info model.GenerateInfo) Generator {
+	return &configMarkdownDoc{filename: filename, o: o, info: info}
 }

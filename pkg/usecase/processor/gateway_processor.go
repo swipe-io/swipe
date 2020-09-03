@@ -18,7 +18,7 @@ func (g *gatewayProcessor) SetOption(option interface{}) bool {
 
 func (g *gatewayProcessor) Generators() []ug.Generator {
 	return []ug.Generator{
-		ug.NewGatewayGenerator("generator_gen.go", g.info, g.option),
+		ug.NewGatewayGenerator("gateway_gen.go", g.info, g.option),
 	}
 }
 
