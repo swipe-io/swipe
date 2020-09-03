@@ -67,8 +67,10 @@ func (g *instrumenting) Process(ctx context.Context) error {
 					g.W("s.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", m.Name, timePkg)
 				},
 			)
-			g.W("return s.next.%s(", m.Name)
-
+			if len(m.Results) > 0 {
+				g.W("return ")
+			}
+			g.W("s.next.%s(", m.Name)
 			if m.ParamCtx != nil {
 				g.W("%s,", m.ParamCtx.Name())
 			}
