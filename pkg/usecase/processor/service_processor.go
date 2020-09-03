@@ -23,9 +23,6 @@ func (p *service) Generators() []ug.Generator {
 		ug.NewEndpoint("endpoint_gen.go", p.info, p.option),
 		ug.NewEndpointFactory("endpoint_gen.go", p.info, p.option),
 	}
-	if p.option.Transport.TestCase {
-		generators = append(generators, ug.NewHTTPTestCase("http_gen_test.go", p.info, p.option))
-	}
 	if p.option.Readme.Enable {
 		generators = append(generators, ug.NewReadme(p.info, p.option))
 	}
