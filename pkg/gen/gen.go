@@ -121,9 +121,9 @@ func (s *Swipe) Generate() ([]Result, []error) {
 								filename = "swipe_gen.go"
 							}
 
-							fileKey := outputDir + filename
+							genFilePath := filepath.Join(outputDir, filename)
 
-							i := importerFactory.Instance(fileKey)
+							i := importerFactory.Instance(genFilePath)
 							if is, ok := g.(importerer); ok {
 								is.SetImporter(i)
 							}
@@ -132,7 +132,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 								return nil, []error{err}
 							}
 
-							f, ok := files[fileKey]
+							f, ok := files[genFilePath]
 							if !ok {
 								f = &file.File{
 									PkgName:   pkg.Name,
@@ -142,7 +142,7 @@ func (s *Swipe) Generate() ([]Result, []error) {
 									Version:   s.version,
 									Importer:  i,
 								}
-								files[fileKey] = f
+								files[genFilePath] = f
 							}
 
 							b := g.Bytes()
@@ -161,19 +161,14 @@ func (s *Swipe) Generate() ([]Result, []error) {
 			}
 		}
 	}
-
-	for path := range basePaths {
-		files, err := filepath.Glob(filepath.Join(path, "*_gen.*"))
-		if err != nil {
-			panic(err)
-		}
-		for _, f := range files {
-			if err := os.Remove(f); err != nil {
-				return nil, []error{err}
+	_ = filepath.Walk(astData.WorkDir, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			if strings.Contains(info.Name(), "_gen") {
+				_ = os.Remove(path)
 			}
 		}
-	}
-
+		return nil
+	})
 	for _, f := range files {
 		if len(f.Bytes()) > 0 {
 			goSrc, err := f.Frame()
@@ -188,7 +183,6 @@ func (s *Swipe) Generate() ([]Result, []error) {
 			})
 		}
 	}
-
 	return result, nil
 }
 
