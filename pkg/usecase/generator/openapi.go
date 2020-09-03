@@ -19,6 +19,152 @@ import (
 	"github.com/swipe-io/swipe/pkg/types"
 )
 
+func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
+	return openapi.Schemas{
+		"ParseError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32700,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Parse error",
+						},
+					},
+				},
+			},
+		},
+		"InvalidRequestError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32600,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Invalid Request",
+						},
+					},
+				},
+			},
+		},
+		"MethodNotFoundError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32601,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Method not found",
+						},
+					},
+				},
+			},
+		},
+		"InvalidParamsError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32602,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Invalid params",
+						},
+					},
+				},
+			},
+		},
+		"InternalError": {
+			Type: "object",
+			Properties: openapi.Properties{
+				"jsonrpc": &openapi.Schema{
+					Type:    "string",
+					Example: "2.0",
+				},
+				"id": &openapi.Schema{
+					Type:    "string",
+					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+				},
+				"error": &openapi.Schema{
+					Type: "object",
+					Properties: openapi.Properties{
+						"code": &openapi.Schema{
+							Type:    "integer",
+							Example: -32603,
+						},
+						"message": &openapi.Schema{
+							Type:    "string",
+							Example: "Internal error",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func getOpenapiRestErrorSchema() *openapi.Schema {
+	return &openapi.Schema{
+		Type: "object",
+		Properties: openapi.Properties{
+			"error": &openapi.Schema{
+				Type: "string",
+			},
+		},
+	}
+}
+
 type openapiDoc struct {
 	bytes.Buffer
 	info      model.GenerateInfo
@@ -173,7 +319,7 @@ func (g *openapiDoc) Filename() string {
 	if g.o.Transport.JsonRPC.Enable {
 		typeName = "jsonrpc"
 	}
-	return fmt.Sprintf("openapi_%s.json", typeName)
+	return fmt.Sprintf("openapi_%s_gen.json", typeName)
 }
 
 func (g *openapiDoc) Imports() []string {
@@ -535,150 +681,4 @@ func (g *openapiDoc) makeRestPath(opt model.OpenapiHTTPTransportOption, m model.
 
 func NewOpenapi(info model.GenerateInfo, o model.ServiceOption) Generator {
 	return &openapiDoc{info: info, o: o}
-}
-
-func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
-	return openapi.Schemas{
-		"ParseError": {
-			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
-					Type:    "string",
-					Example: "2.0",
-				},
-				"id": &openapi.Schema{
-					Type:    "string",
-					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-				},
-				"error": &openapi.Schema{
-					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
-							Type:    "integer",
-							Example: -32700,
-						},
-						"message": &openapi.Schema{
-							Type:    "string",
-							Example: "Parse error",
-						},
-					},
-				},
-			},
-		},
-		"InvalidRequestError": {
-			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
-					Type:    "string",
-					Example: "2.0",
-				},
-				"id": &openapi.Schema{
-					Type:    "string",
-					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-				},
-				"error": &openapi.Schema{
-					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
-							Type:    "integer",
-							Example: -32600,
-						},
-						"message": &openapi.Schema{
-							Type:    "string",
-							Example: "Invalid Request",
-						},
-					},
-				},
-			},
-		},
-		"MethodNotFoundError": {
-			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
-					Type:    "string",
-					Example: "2.0",
-				},
-				"id": &openapi.Schema{
-					Type:    "string",
-					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-				},
-				"error": &openapi.Schema{
-					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
-							Type:    "integer",
-							Example: -32601,
-						},
-						"message": &openapi.Schema{
-							Type:    "string",
-							Example: "Method not found",
-						},
-					},
-				},
-			},
-		},
-		"InvalidParamsError": {
-			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
-					Type:    "string",
-					Example: "2.0",
-				},
-				"id": &openapi.Schema{
-					Type:    "string",
-					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-				},
-				"error": &openapi.Schema{
-					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
-							Type:    "integer",
-							Example: -32602,
-						},
-						"message": &openapi.Schema{
-							Type:    "string",
-							Example: "Invalid params",
-						},
-					},
-				},
-			},
-		},
-		"InternalError": {
-			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
-					Type:    "string",
-					Example: "2.0",
-				},
-				"id": &openapi.Schema{
-					Type:    "string",
-					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-				},
-				"error": &openapi.Schema{
-					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
-							Type:    "integer",
-							Example: -32603,
-						},
-						"message": &openapi.Schema{
-							Type:    "string",
-							Example: "Internal error",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func getOpenapiRestErrorSchema() *openapi.Schema {
-	return &openapi.Schema{
-		Type: "object",
-		Properties: openapi.Properties{
-			"error": &openapi.Schema{
-				Type: "string",
-			},
-		},
-	}
 }
