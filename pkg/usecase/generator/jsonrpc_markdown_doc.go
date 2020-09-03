@@ -242,7 +242,7 @@ func (g *jsonrpcMarkdownDoc) OutputDir() string {
 }
 
 func (g *jsonrpcMarkdownDoc) Filename() string {
-	return fmt.Sprintf("jsonrpc_%s_doc.md", strings.ToLower(g.o.ID))
+	return fmt.Sprintf("jsonrpc_%s_doc_gen.md", strings.ToLower(g.o.ID))
 }
 
 func (g *jsonrpcMarkdownDoc) getJSType(t stdtypes.Type) string {

@@ -21,7 +21,7 @@ func (p *config) Generators() []ug.Generator {
 		ug.NewConfig(p.option),
 	}
 	if p.option.Doc.Enable {
-		generators = append(generators, ug.NewConfigMarkdownDoc(p.option, p.info))
+		generators = append(generators, ug.NewConfigMarkdownDoc("config_doc_gen.md", p.option, p.info))
 	}
 	return generators
 }
