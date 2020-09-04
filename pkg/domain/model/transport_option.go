@@ -54,8 +54,9 @@ type MethodHTTPTransportOption struct {
 }
 
 type ErrorHTTPTransportOption struct {
-	Named *stdtypes.Named
-	Code  int64
+	Named     *stdtypes.Named
+	Code      int64
+	IsPointer bool
 }
 
 type MarkdownDocHTTPTransportOption struct {

@@ -209,6 +209,15 @@ func (g *serviceOption) findError(named *stdtypes.Named, methodName string) *mod
 		if named.Method(i).Name() != methodName {
 			continue
 		}
+
+		var isPointer bool
+		sig := named.Method(i).Type().(*stdtypes.Signature)
+		if sig.Recv() != nil {
+			if _, ok := sig.Recv().Type().(*stdtypes.Pointer); ok {
+				isPointer = true
+			}
+		}
+
 		e := g.info.GraphTypes.Node(named.Method(i))
 		if e == nil {
 			continue
@@ -218,8 +227,9 @@ func (g *serviceOption) findError(named *stdtypes.Named, methodName string) *mod
 		}
 		if code, ok := constant.Int64Val(e.Values()[0].Value); ok {
 			return &model.ErrorHTTPTransportOption{
-				Named: named,
-				Code:  code,
+				Named:     named,
+				Code:      code,
+				IsPointer: isPointer,
 			}
 		}
 	}

@@ -56,26 +56,34 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.W("code int\n")
 	if transportOpt.JsonRPC.Enable {
 		g.W("data interface{}\n")
+		g.W("message string\n")
 	}
 	g.W("}\n")
-	if transportOpt.FastHTTP {
-		g.W("func (e httpError) Error() string {\nreturn %s.StatusMessage(e.code)\n}\n", httpPkg)
+
+	if transportOpt.JsonRPC.Enable {
+		g.W("func (e *httpError) Error() string {\nreturn e.message\n}\n")
 	} else {
-		g.W("func (e httpError) Error() string {\nreturn %s.StatusText(e.code)\n}\n", httpPkg)
+		if transportOpt.FastHTTP {
+			g.W("func (e *httpError) Error() string {\nreturn %s.StatusMessage(e.code)\n}\n", httpPkg)
+		} else {
+			g.W("func (e *httpError) Error() string {\nreturn %s.StatusText(e.code)\n}\n", httpPkg)
+		}
 	}
 
-	g.W("func (e httpError) StatusCode() int {\nreturn e.code\n}\n")
+	g.W("func (e *httpError) StatusCode() int {\nreturn e.code\n}\n")
 
 	errorDecodeParams := []string{"code", "int"}
 	if transportOpt.JsonRPC.Enable {
-		g.W("func (e httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
+		g.W("func (e *httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
+		g.W("func (e *httpError) SetErrorData(data interface{}) {\ne.data = data\n}\n")
+		g.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
 
-		errorDecodeParams = append(errorDecodeParams, "data", "interface{}")
+		errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
 	}
 
 	g.WriteFunc("ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
 		g.W("switch code {\n")
-		g.W("default:\nerr = httpError{code: code}\n")
+		g.W("default:\nerr = &httpError{code: code}\n")
 		var errorKeys []uint32
 		for key := range g.o.Transport.Errors {
 			errorKeys = append(errorKeys, key)
@@ -85,12 +93,20 @@ func (g *httpTransport) Process(ctx context.Context) error {
 			e := g.o.Transport.Errors[key]
 			g.W("case %d:\n", e.Code)
 			pkg := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
-			g.W("err = %s.%s{}\n", pkg, e.Named.Obj().Name())
+			newPrefix := ""
+			if e.IsPointer {
+				newPrefix = "&"
+			}
+			g.W("err = %s%s.%s{}\n", newPrefix, pkg, e.Named.Obj().Name())
 		}
 		g.W("}\n")
 		if transportOpt.JsonRPC.Enable {
 			g.W("if err, ok := err.(%s.ErrorData); ok {\n", kithttpPkg)
 			g.W("err.SetErrorData(data)\n")
+			g.W("}\n")
+
+			g.W("if err, ok := err.(%s.ErrorMessager); ok {\n", kithttpPkg)
+			g.W("err.SetErrorMessage(message)\n")
 			g.W("}\n")
 		}
 		g.W("return")
