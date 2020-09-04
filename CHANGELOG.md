@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v1.26.3"></a>
+## [v1.26.3] - 2020-09-04
+### Bug Fixes
+- Work with pointer errors.
+
+
 <a name="v1.26.2"></a>
 ## [v1.26.2] - 2020-09-04
 ### Bug Fixes
@@ -464,7 +470,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.2...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.3...HEAD
+[v1.26.3]: https://github.com/swipe-io/swipe/compare/v1.26.2...v1.26.3
 [v1.26.2]: https://github.com/swipe-io/swipe/compare/v1.26.1...v1.26.2
 [v1.26.1]: https://github.com/swipe-io/swipe/compare/v1.26.0...v1.26.1
 [v1.26.0]: https://github.com/swipe-io/swipe/compare/v1.25.12...v1.26.0
