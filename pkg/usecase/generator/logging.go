@@ -90,7 +90,7 @@ func (g *logging) Process(ctx context.Context) error {
 					g.W(")\n")
 				})
 			}
-			if len(m.Results) > 0 {
+			if len(m.Results) > 0 || m.ReturnErr != nil {
 				g.W("return ")
 			}
 			g.W("s.next.%s(", m.Name)

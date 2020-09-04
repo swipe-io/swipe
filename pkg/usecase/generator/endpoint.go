@@ -110,7 +110,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 		if m.ReturnErr != nil {
 			g.W("err")
 		}
-		if len(m.Results) > 0 {
+		if len(m.Results) > 0 || m.ReturnErr != nil {
 			g.W(" := ")
 		}
 		g.WriteFuncCall("s", m.Name, callParams)
