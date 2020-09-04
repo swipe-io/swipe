@@ -96,7 +96,7 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		g.W("%s.ClientResponseDecoder(", jsonrpcPkg)
 		g.W("func(_ %s.Context, response %s.Response) (interface{}, error) {\n", contextPkg, jsonrpcPkg)
 		g.W("if response.Error != nil {\n")
-		g.W("return nil, ErrorDecode(response.Error.Code)\n")
+		g.W("return nil, ErrorDecode(response.Error.Code, response.Error.Data)\n")
 		g.W("}\n")
 
 		if len(m.Results) > 0 {
