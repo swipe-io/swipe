@@ -26,27 +26,40 @@ func (g *restGoClient) Prepare(ctx context.Context) error {
 }
 
 func (g *restGoClient) Process(ctx context.Context) error {
+
 	var (
 		kithttpPkg string
+		contextPkg string
 		httpPkg    string
+		jsonPkg    string
+		fmtPkg     string
+		urlPkg     string
+		netPkg     string
+		stringsPkg string
+		pkgIO      string
 	)
+
 	transportOpt := g.o.Transport
 
-	if transportOpt.FastHTTP {
-		kithttpPkg = g.i.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
-	} else {
-		kithttpPkg = g.i.Import("http", "github.com/go-kit/kit/transport/http")
+	if len(g.o.Methods) > 0 {
+		if transportOpt.FastHTTP {
+			kithttpPkg = g.i.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
+		} else {
+			kithttpPkg = g.i.Import("http", "github.com/go-kit/kit/transport/http")
+		}
+		if transportOpt.FastHTTP {
+			httpPkg = g.i.Import("fasthttp", "github.com/valyala/fasthttp")
+		} else {
+			httpPkg = g.i.Import("http", "net/http")
+		}
+		jsonPkg = g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+		pkgIO = g.i.Import("io", "io")
+		fmtPkg = g.i.Import("fmt", "fmt")
+		contextPkg = g.i.Import("context", "context")
+		urlPkg = g.i.Import("url", "net/url")
+		netPkg = g.i.Import("net", "net")
+		stringsPkg = g.i.Import("strings", "strings")
 	}
-	if transportOpt.FastHTTP {
-		httpPkg = g.i.Import("fasthttp", "github.com/valyala/fasthttp")
-	} else {
-		httpPkg = g.i.Import("http", "net/http")
-	}
-	jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-	pkgIO := g.i.Import("io", "io")
-	fmtPkg := g.i.Import("fmt", "fmt")
-	contextPkg := g.i.Import("context", "context")
-	urlPkg := g.i.Import("url", "net/url")
 
 	clientType := "client" + g.o.ID
 	typeStr := stdtypes.TypeString(g.o.Type, g.i.QualifyPkg)
@@ -63,11 +76,25 @@ func (g *restGoClient) Process(ctx context.Context) error {
 	g.W("o(c)\n")
 	g.W("}\n")
 
-	g.W("u, err := %s.Parse(tgt)\n", urlPkg)
+	if len(g.o.Methods) > 0 {
+		g.W("if %s.HasPrefix(tgt, \"[\") {\n", stringsPkg)
+		g.W("host, port, err := %s.SplitHostPort(tgt)\n", netPkg)
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
+		g.W("tgt = host + \":\" + port\n")
+		g.W("}\n")
 
-	g.WriteCheckErr(func() {
-		g.W("return nil, err")
-	})
+		g.W("if %[1]s.HasPrefix(tgt, \"http\") || !%[1]s.HasPrefix(tgt, \"https\") {\n", stringsPkg)
+		g.W("tgt = \"http://\" + tgt\n")
+		g.W("}\n")
+
+		g.W("u, err := %s.Parse(tgt)\n", urlPkg)
+
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
+	}
 
 	for _, m := range g.o.Methods {
 		epName := m.LcName + "Endpoint"
