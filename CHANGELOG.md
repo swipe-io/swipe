@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v1.26.5"></a>
+## [v1.26.5] - 2020-09-07
+### Bug Fixes
+- Generate check for the "http" prefix in JSON RPC/Rest client.
+
+
 <a name="v1.26.4"></a>
 ## [v1.26.4] - 2020-09-07
 ### Features
@@ -476,7 +482,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.4...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.5...HEAD
+[v1.26.5]: https://github.com/swipe-io/swipe/compare/v1.26.4...v1.26.5
 [v1.26.4]: https://github.com/swipe-io/swipe/compare/v1.26.3...v1.26.4
 [v1.26.3]: https://github.com/swipe-io/swipe/compare/v1.26.2...v1.26.3
 [v1.26.2]: https://github.com/swipe-io/swipe/compare/v1.26.1...v1.26.2
