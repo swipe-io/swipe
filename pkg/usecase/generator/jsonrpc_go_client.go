@@ -48,6 +48,8 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		jsonPkg    string
 		fmtPkg     string
 		urlPkg     string
+		netPkg     string
+		stringsPkg string
 	)
 
 	if len(g.o.Methods) > 0 {
@@ -61,9 +63,23 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		ffjsonPkg = g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 		jsonPkg = g.i.Import("json", "encoding/json")
 		fmtPkg = g.i.Import("fmt", "fmt")
+		netPkg = g.i.Import("net", "net")
+		stringsPkg = g.i.Import("strings", "strings")
 	}
 
 	if len(g.o.Methods) > 0 {
+		g.W("if %s.HasPrefix(tgt, \"[\") {\n", stringsPkg)
+		g.W("host, port, err := %s.SplitHostPort(tgt)\n", netPkg)
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
+		g.W("tgt = host + \":\" + port\n")
+		g.W("}\n")
+
+		g.W("if %[1]s.HasPrefix(tgt, \"http\") || !%[1]s.HasPrefix(tgt, \"https\") {\n", stringsPkg)
+		g.W("tgt = \"http://\" + tgt\n")
+		g.W("}\n")
+
 		g.W("u, err := %s.Parse(tgt)\n", urlPkg)
 		g.WriteCheckErr(func() {
 			g.W("return nil, err")
