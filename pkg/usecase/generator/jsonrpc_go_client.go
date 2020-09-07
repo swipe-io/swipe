@@ -76,7 +76,7 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		g.W("tgt = host + \":\" + port\n")
 		g.W("}\n")
 
-		g.W("if %[1]s.HasPrefix(tgt, \"http\") || !%[1]s.HasPrefix(tgt, \"https\") {\n", stringsPkg)
+		g.W("if !%[1]s.HasPrefix(tgt, \"http\") || !%[1]s.HasPrefix(tgt, \"https\") {\n", stringsPkg)
 		g.W("tgt = \"http://\" + tgt\n")
 		g.W("}\n")
 
