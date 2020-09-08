@@ -2,6 +2,15 @@
 ## [Unreleased]
 
 
+<a name="v1.26.6"></a>
+## [v1.26.6] - 2020-09-08
+### Bug Fixes
+- Check url scheme for go cloent generation.
+
+### Pull Requests
+- Merge pull request [#2](https://github.com/swipe-io/swipe/issues/2) from djeckson/fix/check-url-scheme
+
+
 <a name="v1.26.5"></a>
 ## [v1.26.5] - 2020-09-07
 ### Bug Fixes
@@ -482,7 +491,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.5...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.6...HEAD
+[v1.26.6]: https://github.com/swipe-io/swipe/compare/v1.26.5...v1.26.6
 [v1.26.5]: https://github.com/swipe-io/swipe/compare/v1.26.4...v1.26.5
 [v1.26.4]: https://github.com/swipe-io/swipe/compare/v1.26.3...v1.26.4
 [v1.26.3]: https://github.com/swipe-io/swipe/compare/v1.26.2...v1.26.3
