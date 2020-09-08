@@ -85,15 +85,15 @@ func (g *restGoClient) Process(ctx context.Context) error {
 		g.W("tgt = host + \":\" + port\n")
 		g.W("}\n")
 
-		g.W("if !%[1]s.HasPrefix(tgt, \"http\") || !%[1]s.HasPrefix(tgt, \"https\") {\n", stringsPkg)
-		g.W("tgt = \"http://\" + tgt\n")
-		g.W("}\n")
-
 		g.W("u, err := %s.Parse(tgt)\n", urlPkg)
 
 		g.WriteCheckErr(func() {
 			g.W("return nil, err")
 		})
+
+		g.W("if u.Scheme == \"\" {\n")
+		g.W("u.Scheme = \"https\"")
+		g.W("}\n")
 	}
 
 	for _, m := range g.o.Methods {
