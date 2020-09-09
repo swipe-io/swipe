@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v1.26.7"></a>
+## [v1.26.7] - 2020-09-09
+### Features
+- Added Path property to EndpointFactory for concatenated to server URL.
+
+
 <a name="v1.26.6"></a>
 ## [v1.26.6] - 2020-09-08
 ### Bug Fixes
@@ -491,7 +497,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.6...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.7...HEAD
+[v1.26.7]: https://github.com/swipe-io/swipe/compare/v1.26.6...v1.26.7
 [v1.26.6]: https://github.com/swipe-io/swipe/compare/v1.26.5...v1.26.6
 [v1.26.5]: https://github.com/swipe-io/swipe/compare/v1.26.4...v1.26.5
 [v1.26.4]: https://github.com/swipe-io/swipe/compare/v1.26.3...v1.26.4
