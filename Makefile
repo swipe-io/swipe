@@ -4,3 +4,6 @@ chglog:
 check:
 	go vet ./...
 	go test ./...
+
+build:	check
+	go build -o swipe ./cmd/swipe
