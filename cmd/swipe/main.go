@@ -3,25 +3,31 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/swipe-io/swipe/v2"
 
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
 	"github.com/iancoleman/strcase"
 
-	"github.com/swipe-io/swipe/pkg/astloader"
-	"github.com/swipe-io/swipe/pkg/gen"
-	"github.com/swipe-io/swipe/pkg/stcreator"
+	"github.com/swipe-io/swipe/v2/internal/interface/executor"
+	"github.com/swipe-io/swipe/v2/internal/interface/factory"
+	"github.com/swipe-io/swipe/v2/internal/interface/finder"
+	"github.com/swipe-io/swipe/v2/internal/interface/frame"
+	"github.com/swipe-io/swipe/v2/internal/interface/registry"
+	"github.com/swipe-io/swipe/v2/internal/option"
+	"github.com/swipe-io/swipe/v2/internal/stcreator"
 
 	"golang.org/x/mod/modfile"
 )
-
-const version = "v1.26.7"
 
 var (
 	colorSuccess = color.Green.Render
@@ -40,7 +46,6 @@ func main() {
 	flag.Parse()
 
 	log.SetFlags(0)
-	log.SetPrefix("swipe: ")
 	log.SetOutput(os.Stderr)
 
 	allCmds := map[string]bool{
@@ -52,11 +57,22 @@ func main() {
 		"gen":          true,
 		"show":         true,
 	}
+
+	log.Printf("%s %s", color.LightBlue.Render("Swipe"), color.Yellow.Render(swipe.Version))
+	log.Printf("%s %s", color.Yellow.Render("Thanks for using"), color.LightBlue.Render("swipe"))
+	log.Println(color.Yellow.Render("Please wait the command is running, it may take some time"))
+
+	startCmd := time.Now()
 	if args := flag.Args(); len(args) == 0 || !allCmds[args[0]] {
 		genCmd := &genCmd{}
 		os.Exit(int(genCmd.Execute(context.Background(), flag.CommandLine)))
 	}
-	os.Exit(int(subcommands.Execute(context.Background())))
+	code := int(subcommands.Execute(context.Background()))
+
+	log.Println(color.LightGreen.Render("Command execution completed successfully"))
+	log.Printf("%s %s", color.LightBlue.Render("Time"), color.Yellow.Render(time.Now().Sub(startCmd).String()))
+
+	os.Exit(code)
 }
 
 type versionCmd struct {
@@ -85,11 +101,12 @@ func (c *versionCmd) SetFlags(_ *flag.FlagSet) {
 
 // Execute executes the command and returns an ExitStatus.
 func (c *versionCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	log.Println(version)
+	log.Println(swipe.Version)
 	return subcommands.ExitSuccess
 }
 
 type genCmd struct {
+	verbose bool
 }
 
 func (*genCmd) Name() string { return "gen" }
@@ -104,6 +121,7 @@ func (*genCmd) Usage() string {
 }
 
 func (cmd *genCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&cmd.verbose, "v", false, "-v")
 }
 
 func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
@@ -123,26 +141,35 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		return subcommands.ExitFailure
 	}
 
-	if mod.Module.Mod.Path != "github.com/swipe-io/swipe" {
+	if mod.Module.Mod.Path != "github.com/swipe-io/swipe/v2" {
 		foundReplace := false
 		for _, replace := range mod.Replace {
-			if replace.Old.Path == "github.com/swipe-io/swipe" {
+			if replace.Old.Path == "github.com/swipe-io/swipe/v2" {
 				foundReplace = true
 				break
 			}
 		}
 		if !foundReplace {
 			for _, require := range mod.Require {
-				if require.Mod.Path == "github.com/swipe-io/swipe" && require.Mod.Version != version {
-					log.Println(colorFail("swipe cli version (" + version + ") does not match package version (" + require.Mod.Version + ")"))
+				if require.Mod.Path == "github.com/swipe-io/swipe/v2" && require.Mod.Version != swipe.Version {
+					log.Println(colorFail("swipe cli version (" + swipe.Version + ") does not match package version (" + require.Mod.Version + ")"))
 					return subcommands.ExitFailure
 				}
 			}
 		}
 	}
-	l := astloader.NewLoader(wd, os.Environ(), packages(f))
-	s := gen.NewSwipe(ctx, version, l)
-	results, errs := s.Generate()
+
+	l := option.NewLoader()
+	fi := finder.NewServiceFinder(l)
+	r := registry.NewRegistry(fi)
+	i := factory.NewImporterFactory()
+	ff := frame.NewFrameFactory(swipe.Version)
+	ge := executor.NewGenerationExecutor(r, i, ff, l)
+
+	ge.Cleanup(wd) // clear all before generated files.
+
+	results, errs := ge.Execute(wd, os.Environ(), packages(f))
+
 	if len(errs) > 0 {
 		for _, err := range errs {
 			log.Println(colorFail(err))
@@ -158,6 +185,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		if len(g.Errs) > 0 {
 			logErrors(g.Errs)
 			log.Printf("%s: %s\n", g.PkgPath, colorFail("generate failed"))
+			fmt.Println(string(g.Content))
 			success = false
 		}
 		if len(g.Content) == 0 {
@@ -165,7 +193,9 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}
 		err := ioutil.WriteFile(g.OutputPath, g.Content, 0755)
 		if err == nil {
-			log.Printf("%s: wrote %s\n", colorSuccess(g.PkgPath), colorAccent(g.OutputPath))
+			if cmd.verbose {
+				log.Printf("%s: wrote %s\n", colorSuccess(g.PkgPath), colorAccent(g.OutputPath))
+			}
 		} else {
 			log.Printf("%s: failed to write %s: %v\n", colorSuccess(g.PkgPath), colorAccent(g.OutputPath), colorFail(err))
 			success = false

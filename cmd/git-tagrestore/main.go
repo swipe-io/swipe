@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/swipe-io/swipe/pkg/git"
+	"github.com/swipe-io/swipe/v2/internal/git"
 )
 
 func main() {
