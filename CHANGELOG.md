@@ -2,6 +2,16 @@
 ## [Unreleased]
 
 
+<a name="v2.0.0-alpha.1"></a>
+## [v2.0.0-alpha.1] - 2020-09-11
+### Features
+- Some internal changes, performance improvements.
+
+### BREAKING CHANGE
+
+The swipe functions are no longer available in the github.com/swipe-io/swipe/pkg/swipe package, they are now located at github.com/swipe-io/swipe.
+
+
 <a name="v1.26.7"></a>
 ## [v1.26.7] - 2020-09-09
 ### Features
@@ -497,7 +507,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v1.26.7...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.1...HEAD
+[v2.0.0-alpha.1]: https://github.com/swipe-io/swipe/compare/v1.26.7...v2.0.0-alpha.1
 [v1.26.7]: https://github.com/swipe-io/swipe/compare/v1.26.6...v1.26.7
 [v1.26.6]: https://github.com/swipe-io/swipe/compare/v1.26.5...v1.26.6
 [v1.26.5]: https://github.com/swipe-io/swipe/compare/v1.26.4...v1.26.5
