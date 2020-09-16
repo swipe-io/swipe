@@ -4,8 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/achiku/varfmt"
-	"github.com/iancoleman/strcase"
 	_ "github.com/lib/pq"
+	"github.com/swipe-io/strcase"
 )
 
 const tablesSQL = `

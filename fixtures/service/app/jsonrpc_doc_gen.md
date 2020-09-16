@@ -110,6 +110,16 @@ New line comment.
 |permission|<code>string</code>||
 ## Members
 
+### GeoJSON
+
+| Field | Type | Description |
+|------|------|------|
+|coordinates200|<code>Array.&lt;number&gt;</code>||
+### Profile
+
+| Field | Type | Description |
+|------|------|------|
+|phone|<code>string</code>||
 ### User
 
 | Field | Type | Description |
@@ -123,13 +133,3 @@ New line comment.
 |profile|<code><a href="#Profile">Profile</a></code>||
 |created_at|<code>string</code>||
 |updated_at|<code>string</code>||
-### GeoJSON
-
-| Field | Type | Description |
-|------|------|------|
-|coordinates200|<code>Array.&lt;number&gt;</code>||
-### Profile
-
-| Field | Type | Description |
-|------|------|------|
-|phone|<code>string</code>||

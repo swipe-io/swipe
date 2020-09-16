@@ -7,7 +7,7 @@ import (
 
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 
-	"github.com/iancoleman/strcase"
+	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"

@@ -10,7 +10,7 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 
 	"github.com/fatih/structtag"
-	"github.com/iancoleman/strcase"
+	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/strings"

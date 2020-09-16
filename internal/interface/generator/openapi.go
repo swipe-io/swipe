@@ -10,15 +10,16 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
+	"github.com/fatih/structtag"
 
-	"github.com/iancoleman/strcase"
 	"github.com/pquerna/ffjson/ffjson"
 
+	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
+	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 )
 
 func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
@@ -546,7 +547,13 @@ func (g *openapiDoc) makeSwaggerSchema(tpl stdtypes.Type) (schema *openapi.Schem
 			for i := 0; i < st.NumFields(); i++ {
 				f := st.Field(i)
 				if !f.Embedded() {
-					schema.Properties[strcase.ToLowerCamel(f.Name())] = g.makeSwaggerSchema(f.Type())
+					name := f.Name()
+					if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+						if tag, err := tags.Get("json"); err == nil {
+							name = tag.Value()
+						}
+					}
+					schema.Properties[name] = g.makeSwaggerSchema(f.Type())
 				} else {
 					var st *stdtypes.Struct
 					if ptr, ok := f.Type().(*stdtypes.Pointer); ok {

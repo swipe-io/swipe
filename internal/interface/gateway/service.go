@@ -7,7 +7,7 @@ import (
 	stdtypes "go/types"
 	stdstrings "strings"
 
-	"github.com/iancoleman/strcase"
+	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/errors"
 	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
