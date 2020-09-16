@@ -63,15 +63,18 @@ func main() {
 	log.Println(color.Yellow.Render("Please wait the command is running, it may take some time"))
 
 	startCmd := time.Now()
+
+	var code int
 	if args := flag.Args(); len(args) == 0 || !allCmds[args[0]] {
 		genCmd := &genCmd{}
-		os.Exit(int(genCmd.Execute(context.Background(), flag.CommandLine)))
+		code = int(genCmd.Execute(context.Background(), flag.CommandLine))
+	} else {
+		code = int(subcommands.Execute(context.Background()))
 	}
-	code := int(subcommands.Execute(context.Background()))
-
-	log.Println(color.LightGreen.Render("Command execution completed successfully"))
+	if code == 0 {
+		log.Println(color.LightGreen.Render("Command execution completed successfully"))
+	}
 	log.Printf("%s %s", color.LightBlue.Render("Time"), color.Yellow.Render(time.Now().Sub(startCmd).String()))
-
 	os.Exit(code)
 }
 
