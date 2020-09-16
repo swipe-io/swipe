@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
-	"github.com/iancoleman/strcase"
+	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/interface/executor"
 	"github.com/swipe-io/swipe/v2/internal/interface/factory"
