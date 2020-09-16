@@ -12,7 +12,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/iancoleman/strcase"
+	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/format"
 
