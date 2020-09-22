@@ -37,6 +37,9 @@ var funcs = template.FuncMap{
 	"ToSnake":       strcase.ToSnake,
 	"ToKebab":       strcase.ToKebab,
 	"PublicVarName": varfmt.PublicVarName,
+	"Add": func(v, n int) int {
+		return v + n
+	},
 }
 
 type StructParam struct {
@@ -206,12 +209,11 @@ func (l *ProjectLoader) Process(dir, configFilepath string) (*Project, error) {
 			if strings.HasSuffix(info.Name(), ".tpl") {
 				normalizeName := l.normalizeName(info.Name())
 				if strings.HasPrefix(info.Name(), "$struct") {
-					for _, st := range structs {
-						st := st
-
+					for i, st := range structs {
 						data, err := l.executeTemplate(st.Name, fileData, map[string]interface{}{
 							"Structs":     structs,
 							"Struct":      st,
+							"Index":       i,
 							"PkgName":     l.pkgName,
 							"ProjectName": l.projectName,
 							"ProjectID":   l.projectID,
