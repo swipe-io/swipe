@@ -41,7 +41,7 @@ func main() {
 	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(&versionCmd{}, "")
 	subcommands.Register(&genCmd{}, "")
-	subcommands.Register(&crudServiceCmd{}, "")
+	subcommands.Register(&genTplCmd{}, "")
 
 	flag.Parse()
 
@@ -49,13 +49,13 @@ func main() {
 	log.SetOutput(os.Stderr)
 
 	allCmds := map[string]bool{
-		"commands":     true,
-		"crud-service": true,
-		"version":      true,
-		"help":         true,
-		"flags":        true,
-		"gen":          true,
-		"show":         true,
+		"commands": true,
+		"gen-tpl":  true,
+		"version":  true,
+		"help":     true,
+		"flags":    true,
+		"gen":      true,
+		"show":     true,
 	}
 
 	log.Printf("%s %s", color.LightBlue.Render("Swipe"), color.Yellow.Render(swipe.Version))
@@ -211,23 +211,23 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	return subcommands.ExitSuccess
 }
 
-type crudServiceCmd struct {
+type genTplCmd struct {
 	configFilepath string
 }
 
-func (cmd *crudServiceCmd) Name() string { return "crud-service" }
+func (cmd *genTplCmd) Name() string { return "gen-tpl" }
 
-func (cmd *crudServiceCmd) Synopsis() string { return "generate CRUD service structure" }
+func (cmd *genTplCmd) Synopsis() string { return "generating a project through templates" }
 
-func (cmd *crudServiceCmd) Usage() string {
-	return `swipe crud-service [-config] projectName templatesPath`
+func (cmd *genTplCmd) Usage() string {
+	return `swipe gen-tpl [--config] 'projectName' templatesPath`
 }
 
-func (cmd *crudServiceCmd) SetFlags(set *flag.FlagSet) {
-	set.StringVar(&cmd.configFilepath, "config", "", "config file path")
+func (cmd *genTplCmd) SetFlags(set *flag.FlagSet) {
+	set.StringVar(&cmd.configFilepath, "config", "", "config YAML path")
 }
 
-func (cmd *crudServiceCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+func (cmd *genTplCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	srcPath := filepath.Join(build.Default.GOPATH, "src")
 	wd, err := os.Getwd()
 	if err != nil {
