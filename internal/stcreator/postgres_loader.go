@@ -220,9 +220,10 @@ func (l *PostgresLoader) Process() (result []StructMetadata, err error) {
 			if name[len(name)-1] == 's' {
 				name = name[:len(name)-1]
 			}
+			structName := varfmt.PublicVarName(name)
 			sm := StructMetadata{
-				Name:      varfmt.PublicVarName(name),
-				LowerName: strcase.ToLowerCamel(name),
+				Name:      structName,
+				LowerName: strcase.ToLowerCamel(structName),
 			}
 			rows, err := conn.Query(columnsTableSQL, "public", t.Name)
 			if err != nil {
@@ -244,9 +245,10 @@ func (l *PostgresLoader) Process() (result []StructMetadata, err error) {
 						NullType: "interface{}",
 					}
 				}
+				paramName := varfmt.PublicVarName(p.Name)
 				sp := StructParam{
-					Name:       varfmt.PublicVarName(p.Name),
-					LowerName:  strcase.ToLowerCamel(p.Name),
+					Name:       paramName,
+					LowerName:  strcase.ToLowerCamel(paramName),
 					RawType:    mt.Type,
 					ColumnName: p.Name,
 					Primary:    p.Primary,

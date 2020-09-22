@@ -3,7 +3,6 @@ package stcreator
 import (
 	"bytes"
 	"fmt"
-
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,8 +11,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/achiku/varfmt"
 	"github.com/swipe-io/strcase"
-
 	"github.com/swipe-io/swipe/v2/internal/format"
 
 	"gopkg.in/yaml.v3"
@@ -33,10 +32,11 @@ func (e FormatError) Error() string {
 }
 
 var funcs = template.FuncMap{
-	"ToLowerCamel": strcase.ToLowerCamel,
-	"ToCamel":      strcase.ToCamel,
-	"ToSnake":      strcase.ToSnake,
-	"ToKebab":      strcase.ToKebab,
+	"ToLowerCamel":  strcase.ToLowerCamel,
+	"ToCamel":       strcase.ToCamel,
+	"ToSnake":       strcase.ToSnake,
+	"ToKebab":       strcase.ToKebab,
+	"PublicVarName": varfmt.PublicVarName,
 }
 
 type StructParam struct {
@@ -160,9 +160,9 @@ func (l *ProjectLoader) normalizeName(filename string) string {
 	return strings.TrimSuffix(filename, ".tpl")
 }
 
-func (l *ProjectLoader) executeTemplate(data []byte, varsMap interface{}) ([]byte, error) {
+func (l *ProjectLoader) executeTemplate(name string, data []byte, varsMap interface{}) ([]byte, error) {
 	var buf bytes.Buffer
-	t, err := template.New("template").Funcs(funcs).Parse(string(data))
+	t, err := template.New(name).Funcs(funcs).Parse(string(data))
 	if err != nil {
 		return nil, err
 	}
@@ -196,16 +196,10 @@ func (l *ProjectLoader) Process(dir, configFilepath string) (*Project, error) {
 		return nil, err
 	}
 	wd := filepath.Join(l.wd, l.projectID)
-	varsMap := map[string]interface{}{
-		"Structs":     structs,
-		"PkgName":     l.pkgName,
-		"ProjectName": l.projectName,
-		"ProjectID":   l.projectID,
-	}
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		outputPath := filepath.Join(wd, strings.Replace(path, dir, "", -1))
 		if !info.IsDir() {
-			data, err := ioutil.ReadFile(path)
+			fileData, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -213,8 +207,15 @@ func (l *ProjectLoader) Process(dir, configFilepath string) (*Project, error) {
 				normalizeName := l.normalizeName(info.Name())
 				if strings.HasPrefix(info.Name(), "$struct") {
 					for _, st := range structs {
-						varsMap["Struct"] = st
-						data, err = l.executeTemplate(data, varsMap)
+						st := st
+
+						data, err := l.executeTemplate(st.Name, fileData, map[string]interface{}{
+							"Structs":     structs,
+							"Struct":      st,
+							"PkgName":     l.pkgName,
+							"ProjectName": l.projectName,
+							"ProjectID":   l.projectID,
+						})
 						if err != nil {
 							return err
 						}
@@ -224,7 +225,12 @@ func (l *ProjectLoader) Process(dir, configFilepath string) (*Project, error) {
 						}
 					}
 				} else {
-					data, err := l.executeTemplate(data, varsMap)
+					data, err := l.executeTemplate(info.Name(), fileData, map[string]interface{}{
+						"Structs":     structs,
+						"PkgName":     l.pkgName,
+						"ProjectName": l.projectName,
+						"ProjectID":   l.projectID,
+					})
 					if err != nil {
 						return err
 					}
@@ -234,7 +240,7 @@ func (l *ProjectLoader) Process(dir, configFilepath string) (*Project, error) {
 				}
 				return nil
 			} else {
-				if err := l.createFile(filepath.Join(filepath.Dir(outputPath), info.Name()), data); err != nil {
+				if err := l.createFile(filepath.Join(filepath.Dir(outputPath), info.Name()), fileData); err != nil {
 					return err
 				}
 			}
