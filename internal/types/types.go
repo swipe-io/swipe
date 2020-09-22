@@ -1,13 +1,10 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"strconv"
-
-	"github.com/spaolacci/murmur3"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -17,12 +14,6 @@ var (
 	PanicType = types.Universe.Lookup("panic").Type()
 	NilType   = types.Universe.Lookup("nil").Type()
 )
-
-func Hash(name string, hash uint32) uint32 {
-	h := murmur3.New32()
-	_, _ = h.Write([]byte(fmt.Sprintf("%s::%d", name, hash)))
-	return h.Sum32()
-}
 
 func GetBitSize(kind types.BasicKind) string {
 	switch kind {
@@ -35,6 +26,10 @@ func GetBitSize(kind types.BasicKind) string {
 	default: // for types.Int, types.Uint, types.Float64, types.Uint64, types.Int64 and other.
 		return "64"
 	}
+}
+
+func IsNil(t types.Type) bool {
+	return types.Identical(t, NilType)
 }
 
 func IsError(t types.Type) bool {
@@ -62,32 +57,6 @@ func ContainsError(results *types.Tuple) bool {
 
 func IsContext(t types.Type) bool {
 	return types.TypeString(t, nil) == "context.Context"
-}
-
-func LenWithoutErr(t *types.Tuple) int {
-	len := t.Len()
-	if ContainsError(t) {
-		len--
-	}
-	return len
-}
-
-func LenWithoutContext(t *types.Tuple) int {
-	len := t.Len()
-	if ContainsContext(t) {
-		len--
-	}
-	return len
-}
-
-func LookupField(name string, sig *types.Signature) *types.Var {
-	for i := 0; i < sig.Params().Len(); i++ {
-		p := sig.Params().At(i)
-		if p.Name() == name {
-			return p
-		}
-	}
-	return nil
 }
 
 func IsNamed(t *types.Tuple) bool {
