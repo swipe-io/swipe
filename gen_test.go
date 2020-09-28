@@ -62,8 +62,10 @@ func TestSwipe(t *testing.T) {
 					t.Error(e)
 				}
 			}
-
 			for _, result := range results {
+				if len(result.Errs) > 0 {
+					t.Fatalf("result errors: %v", result.Errs)
+				}
 				if *record {
 					if err := ioutil.WriteFile(result.OutputPath, result.Content, 0755); err != nil {
 						t.Fatal(err)
