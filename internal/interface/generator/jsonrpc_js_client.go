@@ -1,18 +1,14 @@
 package generator
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	stdtypes "go/types"
 	"strconv"
-	"strings"
 
-	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
-
-	"github.com/fatih/structtag"
-
+	"github.com/gogo/protobuf/sortkeys"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
+	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
+	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 
 	"golang.org/x/tools/go/types/typeutil"
@@ -123,86 +119,117 @@ func (g *jsonRPCJSClient) Prepare(_ context.Context) error {
 func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	g.W(jsonRPCClientBase)
 
-	g.W("export default class extends JSONRPCClient {\n")
+	mw := writer.BaseWriter{}
+
+	tdc := typevisitor.NewNamedTypeCollector()
 
 	for _, m := range g.serviceMethods {
 		mopt := g.transport.MethodOptions[m.Name]
-		g.W("/**\n")
+		mw.W("/**\n")
 
 		if len(m.Comments) > 0 {
 			for _, comment := range m.Comments {
-				g.W("* %s\n", comment)
+				mw.W("* %s\n", comment)
 			}
-			g.W("*\n")
+			mw.W("*\n")
 		}
 
 		for _, p := range m.Params {
-			g.W("* @param {%s} %s\n", g.getJSDocType(p.Type(), 0), p.Name())
+			buf := new(writer.BaseWriter)
+			typevisitor.JSTypeVisitor(buf).Visit(p.Type())
+
+			tdc.Visit(p.Type())
+
+			mw.W("* @param {%s} %s\n", buf.String(), p.Name())
 		}
 
 		if len(m.Results) > 0 {
-			g.W("* @return {PromiseLike<")
+			mw.W("* @return {PromiseLike<")
 			if m.ResultsNamed {
 				if mopt.WrapResponse.Enable {
-					g.W("{%s: ", mopt.WrapResponse.Name)
+					mw.W("{%s: ", mopt.WrapResponse.Name)
 				} else {
-					g.W("{")
+					mw.W("{")
 				}
 			}
-
 			for i, p := range m.Results {
 				if i > 0 {
-					g.W(", ")
+					mw.W(", ")
 				}
 				if m.ResultsNamed {
-					g.W("%s: ", p.Name())
+					mw.W("%s: ", p.Name())
 				}
-				g.W(g.getJSDocType(p.Type(), 0))
+
+				buf := new(writer.BaseWriter)
+				typevisitor.JSTypeVisitor(buf).Visit(p.Type())
+
+				tdc.Visit(p.Type())
+
+				mw.W(buf.String())
 			}
 			if m.ResultsNamed || mopt.WrapResponse.Enable {
-				g.W("}")
+				mw.W("}")
 			}
-			g.W(">}\n")
+			mw.W(">}\n")
 		}
 
-		g.W("**/\n")
-		g.W("%s(", m.LcName)
+		mw.W("**/\n")
+		mw.W("%s(", m.LcName)
 
 		for i, p := range m.Params {
 			if i > 0 {
-				g.W(",")
+				mw.W(",")
 			}
-			g.W(p.Name())
+			mw.W(p.Name())
 		}
 
-		g.W(") {\n")
-		g.W("return this.__scheduleRequest(\"%s\", {", m.LcName)
+		mw.W(") {\n")
+		mw.W("return this.__scheduleRequest(\"%s\", {", m.LcName)
 
 		for i, p := range m.Params {
 			if i > 0 {
-				g.W(",")
+				mw.W(",")
 			}
-			g.W("%[1]s:%[1]s", p.Name())
+			mw.W("%[1]s:%[1]s", p.Name())
 		}
 
-		g.W("})\n")
-		g.W("}\n")
+		mw.W("})\n")
+		mw.W("}\n")
 	}
 
+	buf := new(writer.BaseWriter)
+
+	for _, t := range tdc.TypeDefs() {
+		typevisitor.JSTypeDefVisitor(buf).Visit(t)
+	}
+
+	g.W(buf.String())
+
+	g.W("export default class extends JSONRPCClient {\n")
+	g.W(mw.String())
 	g.W("}\n")
 
-	for _, e := range g.transport.Errors {
+	errorKeys := make([]uint32, 0, len(g.transport.Errors))
+	for key := range g.transport.Errors {
+		errorKeys = append(errorKeys, key)
+	}
+	sortkeys.Uint32s(errorKeys)
+
+	for _, key := range errorKeys {
+		e := g.transport.Errors[key]
 		g.W(
 			"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %d, data);\n}\n}\n",
 			e.Named.Obj().Name(), e.Code,
 		)
 	}
+
 	g.W("function convertError(e) {\n")
 	g.W("switch(e.code) {\n")
 	g.W("default:\n")
 	g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
 
-	for _, e := range g.transport.Errors {
+	for _, key := range errorKeys {
+		e := g.transport.Errors[key]
 		g.W("case %d:\n", e.Code)
 		g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
 
@@ -245,107 +272,6 @@ func (g *jsonRPCJSClient) OutputDir() string {
 
 func (g *jsonRPCJSClient) Filename() string {
 	return "client_jsonrpc_gen.js"
-}
-
-func (g *jsonRPCJSClient) getJSDocType(tpl stdtypes.Type, nested int) string {
-	switch v := tpl.(type) {
-	default:
-		return "*"
-	case *stdtypes.Pointer:
-		return g.getJSDocType(v.Elem(), nested)
-	case *stdtypes.Array:
-		return fmt.Sprintf("Array<%s>", g.getJSDocType(v.Elem(), nested))
-	case *stdtypes.Slice:
-		return fmt.Sprintf("Array<%s>", g.getJSDocType(v.Elem(), nested))
-	case *stdtypes.Map:
-		return fmt.Sprintf("Object<string, %s>", g.getJSDocType(v.Elem(), nested))
-	case *stdtypes.Named:
-		switch stdtypes.TypeString(v.Obj().Type(), nil) {
-		case "encoding/json.RawMessage":
-			return "*"
-		case "github.com/pborman/uuid.UUID",
-			"github.com/google/uuid.UUID":
-			return "string"
-		case "time.Time":
-			return "string"
-		}
-		return g.getJSDocType(v.Obj().Type().Underlying(), nested)
-	case *stdtypes.Struct:
-		buf := new(bytes.Buffer)
-		_, _ = fmt.Fprintf(buf, "{\n")
-
-		var writeStruct func(st *stdtypes.Struct)
-		writeStruct = func(st *stdtypes.Struct) {
-			var j int
-			for i := 0; i < st.NumFields(); i++ {
-				f := st.Field(i)
-				if f.Embedded() {
-					var st *stdtypes.Struct
-					if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
-						st = ptr.Elem().Underlying().(*stdtypes.Struct)
-					} else {
-						st = f.Type().Underlying().(*stdtypes.Struct)
-					}
-					writeStruct(st)
-					_, _ = fmt.Fprint(buf, ",\n")
-					continue
-				}
-				var (
-					skip bool
-					name = f.Name()
-				)
-				if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-					if jsonTag, err := tags.Get("json"); err == nil {
-						if jsonTag.Name == "-" {
-							skip = true
-						} else {
-							name = jsonTag.Name
-						}
-					}
-				}
-				if skip {
-					continue
-				}
-				if j > 0 {
-					_, _ = fmt.Fprint(buf, ",\n")
-				}
-				_, _ = fmt.Fprintf(buf, "* %s %s: %s", strings.Repeat("  ", nested), name, g.getJSDocType(f.Type(), nested+1))
-				j++
-			}
-		}
-
-		writeStruct(v)
-
-		_, _ = fmt.Fprintln(buf)
-
-		endNested := nested - 2
-		if endNested < 0 {
-			endNested = 0
-		}
-
-		_, _ = fmt.Fprintf(buf, "* %s }", strings.Repeat("  ", endNested))
-		return buf.String()
-	case *stdtypes.Basic:
-		switch v.Kind() {
-		default:
-			return "string"
-		case stdtypes.Bool:
-			return "boolean"
-		case stdtypes.Float32,
-			stdtypes.Float64,
-			stdtypes.Int,
-			stdtypes.Int8,
-			stdtypes.Int16,
-			stdtypes.Int32,
-			stdtypes.Int64,
-			stdtypes.Uint,
-			stdtypes.Uint8,
-			stdtypes.Uint16,
-			stdtypes.Uint32,
-			stdtypes.Uint64:
-			return "number"
-		}
-	}
 }
 
 func NewJsonRPCJSClient(

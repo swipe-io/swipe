@@ -10,16 +10,16 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/fatih/structtag"
-
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
+	iftypevisitor "github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
+	ustypevisitor "github.com/swipe-io/swipe/v2/internal/usecase/typevisitor"
 )
 
 func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
@@ -197,6 +197,8 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		},
 	}
 
+	ntc := iftypevisitor.NewNamedTypeCollector()
+
 	if g.transport.JsonRPC.Enable {
 		swg.Components.Schemas = getOpenapiJSONRPCErrorSchemas()
 	} else {
@@ -258,7 +260,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		}
 
 		if g.transport.JsonRPC.Enable {
-			o = g.makeJSONRPCPath(m)
+			o = g.makeJSONRPCPath(m, ntc)
 			pathStr = "/" + strings.LcFirst(m.Name)
 			mopt.MethodName = "POST"
 
@@ -304,6 +306,13 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			swg.Paths[pathStr].Delete = o
 		}
 	}
+
+	for _, t := range ntc.TypeDefs() {
+		schema := &openapi.Schema{}
+		iftypevisitor.OpenapiDefVisitor(schema).Visit(t)
+		swg.Components.Schemas[t.Obj().Name()] = schema
+	}
+
 	if err := ffjson.NewEncoder(g).Encode(swg); err != nil {
 		return err
 	}
@@ -330,7 +339,7 @@ func (g *openapiDoc) Imports() []string {
 	return nil
 }
 
-func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod) *openapi.Operation {
+func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, ntc ustypevisitor.NamedTypeCollector) *openapi.Operation {
 	mopt := g.transport.MethodOptions[m.Name]
 
 	responseSchema := &openapi.Schema{
@@ -343,9 +352,15 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod) *openapi.Operation {
 		Properties: map[string]*openapi.Schema{},
 	}
 
+	//ntc := typevisitor.NewNamedTypeCollector()
+
 	if len(m.Params) > 0 {
 		for _, p := range m.Params {
-			requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = g.makeSwaggerSchema(p.Type())
+			ntc.Visit(p.Type())
+
+			schema := &openapi.Schema{}
+			iftypevisitor.OpenapiVisitor(schema).Visit(p.Type())
+			requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = schema
 		}
 	} else {
 		requestSchema.Example = json.RawMessage("null")
@@ -353,10 +368,15 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod) *openapi.Operation {
 
 	if len(m.Results) > 1 {
 		for _, r := range m.Results {
-			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = g.makeSwaggerSchema(r.Type())
+			ntc.Visit(r.Type())
+			schema := &openapi.Schema{}
+			iftypevisitor.OpenapiVisitor(schema).Visit(r.Type())
+			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = schema
 		}
 	} else if len(m.Results) == 1 {
-		responseSchema = g.makeSwaggerSchema(m.Results[0].Type())
+		ntc.Visit(m.Results[0].Type())
+		responseSchema = &openapi.Schema{}
+		iftypevisitor.OpenapiVisitor(responseSchema).Visit(m.Results[0].Type())
 	} else {
 		responseSchema.Example = json.RawMessage("null")
 	}
@@ -477,115 +497,115 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod) *openapi.Operation {
 
 func (g *openapiDoc) makeSwaggerSchema(tpl stdtypes.Type) (schema *openapi.Schema) {
 	schema = &openapi.Schema{}
-	switch v := tpl.(type) {
-	case *stdtypes.Pointer:
-		return g.makeSwaggerSchema(v.Elem())
-	case *stdtypes.Interface:
-		// TODO: not anyOf works in SwaggerUI, so the object type is used to display the field.
-		schema.Type = "object"
-		schema.Description = "Can be any value - string, number, boolean, array or object."
-		schema.Properties = openapi.Properties{}
-		schema.Example = json.RawMessage("null")
-		schema.AnyOf = []openapi.Schema{
-			{Type: "string", Example: "abc"},
-			{Type: "integer", Example: 1},
-			{Type: "number", Format: "float", Example: 1.11},
-			{Type: "boolean", Example: true},
-			{Type: "array"},
-			{Type: "object"},
-		}
-	case *stdtypes.Map:
-		schema.Type = "object"
-		schema.Properties = openapi.Properties{
-			"key": g.makeSwaggerSchema(v.Elem()),
-		}
-	case *stdtypes.Slice:
-		if vv, ok := v.Elem().(*stdtypes.Basic); ok && vv.Kind() == stdtypes.Byte {
-			schema.Type = "string"
-			schema.Format = "byte"
-			schema.Example = "U3dhZ2dlciByb2Nrcw=="
-		} else {
-			schema.Type = "array"
-			schema.Items = g.makeSwaggerSchema(v.Elem())
-		}
-	case *stdtypes.Basic:
-		switch v.Kind() {
-		case stdtypes.String:
-			schema.Type = "string"
-			schema.Format = "string"
-			schema.Example = "abc"
-		case stdtypes.Bool:
-			schema.Type = "boolean"
-			schema.Example = true
-		case stdtypes.Int,
-			stdtypes.Uint,
-			stdtypes.Uint8,
-			stdtypes.Uint16,
-			stdtypes.Int8,
-			stdtypes.Int16:
-			schema.Type = "integer"
-			schema.Example = 1
-		case stdtypes.Uint32, stdtypes.Int32:
-			schema.Type = "integer"
-			schema.Format = "int32"
-			schema.Example = 1
-		case stdtypes.Uint64, stdtypes.Int64:
-			schema.Type = "integer"
-			schema.Format = "int64"
-			schema.Example = 1
-		case stdtypes.Float32, stdtypes.Float64:
-			schema.Type = "number"
-			schema.Format = "float"
-			schema.Example = 1.11
-		}
-	case *stdtypes.Struct:
-		schema.Type = "object"
-		schema.Properties = openapi.Properties{}
-
-		var populateSchema func(st *stdtypes.Struct)
-		populateSchema = func(st *stdtypes.Struct) {
-			for i := 0; i < st.NumFields(); i++ {
-				f := st.Field(i)
-				if !f.Embedded() {
-					name := f.Name()
-					if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-						if tag, err := tags.Get("json"); err == nil {
-							name = tag.Value()
-						}
-					}
-					schema.Properties[name] = g.makeSwaggerSchema(f.Type())
-				} else {
-					var st *stdtypes.Struct
-					if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
-						st = ptr.Elem().Underlying().(*stdtypes.Struct)
-					} else {
-						st = f.Type().Underlying().(*stdtypes.Struct)
-					}
-					populateSchema(st)
-				}
-			}
-		}
-		populateSchema(v)
-	case *stdtypes.Named:
-		switch stdtypes.TypeString(v, nil) {
-		case "encoding/json.RawMessage":
-			schema.Type = "object"
-			schema.Properties = openapi.Properties{}
-			return
-		case "time.Time":
-			schema.Type = "string"
-			schema.Format = "date-time"
-			schema.Example = "1985-04-02T01:30:00.00Z"
-			return
-		case "github.com/pborman/uuid.UUID",
-			"github.com/google/uuid.UUID":
-			schema.Type = "string"
-			schema.Format = "uuid"
-			schema.Example = "d5c02d83-6fbc-4dd7-8416-9f85ed80de46"
-			return
-		}
-		return g.makeSwaggerSchema(v.Obj().Type().Underlying())
-	}
+	//switch v := tpl.(type) {
+	//case *stdtypes.Pointer:
+	//	return g.makeSwaggerSchema(v.Elem())
+	//case *stdtypes.Interface:
+	//	// TODO: not anyOf works in SwaggerUI, so the object type is used to display the field.
+	//	schema.Type = "object"
+	//	schema.Description = "Can be any value - string, number, boolean, array or object."
+	//	schema.Properties = openapi.Properties{}
+	//	schema.Example = json.RawMessage("null")
+	//	schema.AnyOf = []openapi.Schema{
+	//		{Type: "string", Example: "abc"},
+	//		{Type: "integer", Example: 1},
+	//		{Type: "number", Format: "float", Example: 1.11},
+	//		{Type: "boolean", Example: true},
+	//		{Type: "array"},
+	//		{Type: "object"},
+	//	}
+	//case *stdtypes.Map:
+	//	schema.Type = "object"
+	//	schema.Properties = openapi.Properties{
+	//		"key": g.makeSwaggerSchema(v.Elem()),
+	//	}
+	//case *stdtypes.Slice:
+	//	if vv, ok := v.Elem().(*stdtypes.Basic); ok && vv.Kind() == stdtypes.Byte {
+	//		schema.Type = "string"
+	//		schema.Format = "byte"
+	//		schema.Example = "U3dhZ2dlciByb2Nrcw=="
+	//	} else {
+	//		schema.Type = "array"
+	//		schema.Items = g.makeSwaggerSchema(v.Elem())
+	//	}
+	//case *stdtypes.Basic:
+	//	switch v.Kind() {
+	//	case stdtypes.String:
+	//		schema.Type = "string"
+	//		schema.Format = "string"
+	//		schema.Example = "abc"
+	//	case stdtypes.Bool:
+	//		schema.Type = "boolean"
+	//		schema.Example = true
+	//	case stdtypes.Int,
+	//		stdtypes.Uint,
+	//		stdtypes.Uint8,
+	//		stdtypes.Uint16,
+	//		stdtypes.Int8,
+	//		stdtypes.Int16:
+	//		schema.Type = "integer"
+	//		schema.Example = 1
+	//	case stdtypes.Uint32, stdtypes.Int32:
+	//		schema.Type = "integer"
+	//		schema.Format = "int32"
+	//		schema.Example = 1
+	//	case stdtypes.Uint64, stdtypes.Int64:
+	//		schema.Type = "integer"
+	//		schema.Format = "int64"
+	//		schema.Example = 1
+	//	case stdtypes.Float32, stdtypes.Float64:
+	//		schema.Type = "number"
+	//		schema.Format = "float"
+	//		schema.Example = 1.11
+	//	}
+	//case *stdtypes.Struct:
+	//	schema.Type = "object"
+	//	schema.Properties = openapi.Properties{}
+	//
+	//	var populateSchema func(st *stdtypes.Struct)
+	//	populateSchema = func(st *stdtypes.Struct) {
+	//		for i := 0; i < st.NumFields(); i++ {
+	//			f := st.Field(i)
+	//			if !f.Embedded() {
+	//				name := f.Name()
+	//				if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+	//					if tag, err := tags.Get("json"); err == nil {
+	//						name = tag.Value()
+	//					}
+	//				}
+	//				schema.Properties[name] = g.makeSwaggerSchema(f.Type())
+	//			} else {
+	//				var st *stdtypes.Struct
+	//				if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
+	//					st = ptr.Elem().Underlying().(*stdtypes.Struct)
+	//				} else {
+	//					st = f.Type().Underlying().(*stdtypes.Struct)
+	//				}
+	//				populateSchema(st)
+	//			}
+	//		}
+	//	}
+	//	populateSchema(v)
+	//case *stdtypes.Named:
+	//	switch stdtypes.TypeString(v, nil) {
+	//	case "encoding/json.RawMessage":
+	//		schema.Type = "object"
+	//		schema.Properties = openapi.Properties{}
+	//		return
+	//	case "time.Time":
+	//		schema.Type = "string"
+	//		schema.Format = "date-time"
+	//		schema.Example = "1985-04-02T01:30:00.00Z"
+	//		return
+	//	case "github.com/pborman/uuid.UUID",
+	//		"github.com/google/uuid.UUID":
+	//		schema.Type = "string"
+	//		schema.Format = "uuid"
+	//		schema.Example = "d5c02d83-6fbc-4dd7-8416-9f85ed80de46"
+	//		return
+	//	}
+	//	return g.makeSwaggerSchema(v.Obj().Type().Underlying())
+	//}
 	return
 }
 

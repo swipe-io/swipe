@@ -9,7 +9,11 @@ func Swipe() {
 		swipe.Service((*Interface)(nil),
 			swipe.Transport("http",
 				swipe.JSONRPC(),
-				swipe.MarkdownDoc("./fixtures/service/app"),
+				swipe.MarkdownDoc("./"),
+				swipe.ClientEnable(),
+				swipe.Openapi(
+					swipe.OpenapiOutput("./"),
+				),
 			),
 		),
 	)

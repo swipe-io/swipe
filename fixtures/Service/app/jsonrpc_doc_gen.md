@@ -120,6 +120,12 @@ New line comment.
 | Field | Type | Description |
 |------|------|------|
 |phone|<code>string</code>||
+### Recurse
+
+| Field | Type | Description |
+|------|------|------|
+|name|<code>string</code>||
+|recurses|<code>Array.&lt;<a href="#Recurse">Recurse</a>&gt;</code>||
 ### User
 
 | Field | Type | Description |
@@ -130,6 +136,8 @@ New line comment.
 |point|<code><a href="#GeoJSON">GeoJSON</a></code>||
 |last_seen|<code>string</code>||
 |photo|<code>Array.&lt;number&gt;</code>||
+|user|<code><a href="#User">User</a></code>||
 |profile|<code><a href="#Profile">Profile</a></code>||
+|recurse|<code><a href="#Recurse">Recurse</a></code>||
 |created_at|<code>string</code>||
 |updated_at|<code>string</code>||

@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
@@ -17,6 +18,12 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/writer"
 	"golang.org/x/tools/go/types/typeutil"
 )
+
+type NamedSlice []*stdtypes.Named
+
+func (n NamedSlice) Len() int           { return len(n) }
+func (n NamedSlice) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n NamedSlice) Less(i, j int) bool { return n[i].Obj().Name() < n[j].Obj().Name() }
 
 var paramCommentRegexp = regexp.MustCompile(`(?s)@([a-zA-Z0-9_]*) (.*)`)
 
@@ -155,65 +162,72 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 	}
 
 	if existsTypes.Len() > 0 {
-		g.W("## Members\n\n")
-
+		nameds := make(NamedSlice, 0, existsTypes.Len())
 		existsTypes.Iterate(func(key stdtypes.Type, value interface{}) {
 			if named, ok := key.(*stdtypes.Named); ok {
-				st := named.Obj().Type().Underlying().(*stdtypes.Struct)
-				comments, ok := g.commentMap.At(st).(map[string]string)
-				if !ok {
-					comments = map[string]string{}
-				}
-
-				g.W("### %s\n\n", named.Obj().Name())
-
-				g.W("| Field | Type | Description |\n|------|------|------|\n")
-
-				var writeStructInfo func(st *stdtypes.Struct)
-				writeStructInfo = func(st *stdtypes.Struct) {
-					for i := 0; i < st.NumFields(); i++ {
-						f := st.Field(i)
-						var (
-							skip bool
-							name = f.Name()
-						)
-						if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-							if jsonTag, err := tags.Get("json"); err == nil {
-								if jsonTag.Name == "-" {
-									skip = true
-								} else {
-									name = jsonTag.Name
-								}
-							}
-						}
-						if skip {
-							continue
-						}
-						if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-							if tag, err := tags.Get("json"); err == nil {
-								name = tag.Name
-							}
-						}
-						if !f.Embedded() {
-							g.W("|%s|<code>%s</code>|%s|\n", name, g.getJSType(f.Type()), comments[f.Name()])
-						} else {
-							var st *stdtypes.Struct
-							if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
-								st = ptr.Elem().Underlying().(*stdtypes.Struct)
-							} else {
-								st = f.Type().Underlying().(*stdtypes.Struct)
-							}
-							writeStructInfo(st)
-						}
-					}
-				}
-				writeStructInfo(st)
+				nameds = append(nameds, named)
 			}
 		})
+		sort.Sort(nameds)
+
+		g.W("## Members\n\n")
+
+		for _, named := range nameds {
+			st := named.Obj().Type().Underlying().(*stdtypes.Struct)
+			comments, ok := g.commentMap.At(st).(map[string]string)
+			if !ok {
+				comments = map[string]string{}
+			}
+
+			g.W("### %s\n\n", named.Obj().Name())
+
+			g.W("| Field | Type | Description |\n|------|------|------|\n")
+
+			var writeStructInfo func(st *stdtypes.Struct)
+			writeStructInfo = func(st *stdtypes.Struct) {
+				for i := 0; i < st.NumFields(); i++ {
+					f := st.Field(i)
+					var (
+						skip bool
+						name = f.Name()
+					)
+					if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+						if jsonTag, err := tags.Get("json"); err == nil {
+							if jsonTag.Name == "-" {
+								skip = true
+							} else {
+								name = jsonTag.Name
+							}
+						}
+					}
+					if skip {
+						continue
+					}
+					if tags, err := structtag.Parse(st.Tag(i)); err == nil {
+						if tag, err := tags.Get("json"); err == nil {
+							name = tag.Name
+						}
+					}
+					if !f.Embedded() {
+						g.W("|%s|<code>%s</code>|%s|\n", name, g.getJSType(f.Type()), comments[f.Name()])
+					} else {
+						var st *stdtypes.Struct
+						if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
+							st = ptr.Elem().Underlying().(*stdtypes.Struct)
+						} else {
+							st = f.Type().Underlying().(*stdtypes.Struct)
+						}
+						writeStructInfo(st)
+					}
+				}
+			}
+			writeStructInfo(st)
+		}
 	}
 
 	if g.enums.Len() > 0 {
 		g.W("## Enums\n")
+
 		g.enums.Iterate(func(key stdtypes.Type, value interface{}) {
 			if named, ok := key.(*stdtypes.Named); ok {
 				typeName := ""

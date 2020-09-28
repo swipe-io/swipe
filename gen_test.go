@@ -2,6 +2,7 @@ package swipe
 
 import (
 	"bytes"
+	"flag"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -18,6 +19,8 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/option"
 	ue "github.com/swipe-io/swipe/v2/internal/usecase/executor"
 )
+
+var record = flag.Bool("record", false, "write expected result without running tests")
 
 func newGeneratorExecutor() ue.GenerationExecutor {
 	l := option.NewLoader()
@@ -59,12 +62,19 @@ func TestSwipe(t *testing.T) {
 					t.Error(e)
 				}
 			}
+
 			for _, result := range results {
-				if actualContent, ok := test.expectedOutput[result.OutputPath]; ok {
-					if !bytes.Equal(result.Content, actualContent) {
-						actual, expected := string(actualContent), string(result.Content)
-						diff := cmp.Diff(strings.Split(actual, "\n"), strings.Split(expected, "\n"))
-						t.Fatalf("swipe output differs from expected file.\n*** actual:\n%s\n\n*** expected:\n%s\n\n*** diff:\n%s", actualContent, expected, diff)
+				if *record {
+					if err := ioutil.WriteFile(result.OutputPath, result.Content, 0755); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					if expectedContent, ok := test.expectedOutput[result.OutputPath]; ok {
+						if !bytes.Equal(expectedContent, result.Content) {
+							actual, expected := string(result.Content), string(expectedContent)
+							diff := cmp.Diff(strings.Split(actual, "\n"), strings.Split(expected, "\n"))
+							t.Fatalf("swipe output differs from expected file.\n*** actual:\n%s\n\n*** expected:\n%s\n\n*** diff:\n%s", actual, expected, diff)
+						}
 					}
 				}
 			}
@@ -92,7 +102,7 @@ func loadTestCase(root string) (*testCase, error) {
 	}
 	expectedOutput := make(map[string][]byte)
 	for _, file := range expectedFiles {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), "_gen.go") {
+		if !file.IsDir() && strings.Contains(file.Name(), "_gen") {
 			expectedFile, err := filepath.Abs(filepath.Join(testCasePath, file.Name()))
 			if err != nil {
 				return nil, err

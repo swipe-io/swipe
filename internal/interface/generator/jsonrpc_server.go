@@ -62,7 +62,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 	g.W("ecm := %[1]s.EndpointCodecMap{}\n", jsonrpcPkg)
 
-	//g.W("return %[1]s.EndpointCodecMap{\n", jsonrpcPkg)
+	//g.w("return %[1]s.EndpointCodecMap{\n", jsonrpcPkg)
 
 	for _, m := range g.serviceMethods {
 		mopt := g.transport.MethodOptions[m.Name]
