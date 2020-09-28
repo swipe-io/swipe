@@ -54,6 +54,11 @@ type Profile struct {
 	Phone string `json:"phone"`
 }
 
+type Recurse struct {
+	Name     string     `json:"name"`
+	Recurses []*Recurse `json:"recurses"`
+}
+
 type User struct {
 	ID        uuid.UUID  `json:"id"`
 	Name      string     `json:"name"`
@@ -61,7 +66,9 @@ type User struct {
 	Point     GeoJSON    `json:"point"`
 	LastSeen  time.Time  `json:"last_seen"`
 	Photo     []byte     `json:"photo"`
+	User      *User      `json:"user"`
 	Profile   *Profile   `json:"profile"`
+	Recurse   *Recurse   `json:"recurse"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 }
