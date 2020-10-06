@@ -77,7 +77,13 @@ func TestSwipe(t *testing.T) {
 							diff := cmp.Diff(strings.Split(actual, "\n"), strings.Split(expected, "\n"))
 							t.Fatalf("swipe output differs from expected file.\n*** actual:\n%s\n\n*** expected:\n%s\n\n*** diff:\n%s", actual, expected, diff)
 						}
+						delete(test.expectedOutput, result.OutputPath)
 					}
+				}
+			}
+			if !*record && len(test.expectedOutput) > 0 {
+				for _, expectedContent := range test.expectedOutput {
+					t.Errorf("there are expected results which are not.\n*** expected:\n%s\n\n***", string(expectedContent))
 				}
 			}
 		})
