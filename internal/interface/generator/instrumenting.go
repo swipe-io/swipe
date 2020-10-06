@@ -18,7 +18,7 @@ type instrumentingGenerator struct {
 	serviceID      string
 	serviceType    stdtypes.Type
 	serviceMethods []model.ServiceMethod
-	instrumenting  model.InstrumentingOption
+	methodOptions  map[string]model.MethodHTTPTransportOption
 	i              *importer.Importer
 }
 
@@ -41,13 +41,26 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 	name := "instrumentingMiddleware" + g.serviceID
 	constructName := "NewInstrumentingMiddleware" + g.serviceID
 
+	g.W("type InstrumentingOption func(*%s)\n\n", name)
+
+	g.W("func Namespace(v string) InstrumentingOption {\nreturn func(i *instrumentingMiddlewareSwipe) {\ni.namespace = v\n}\n}\n\n")
+	g.W("func Subsystem(v string) InstrumentingOption {\nreturn func(i *instrumentingMiddlewareSwipe) {\ni.subsystem = v\n}\n}\n\n")
+
+	g.W("func RequestLatency(requestLatency %s.Histogram) InstrumentingOption {\nreturn func(i *instrumentingMiddlewareSwipe) {\ni.requestLatency = requestLatency\n}\n}\n\n", metricsPkg)
+	g.W("func RequestCount(requestCount %s.Counter) InstrumentingOption {\nreturn func(i *instrumentingMiddlewareSwipe) {\ni.requestCount = requestCount\n}\n}\n\n", metricsPkg)
+
 	g.W("type %s struct {\n", name)
 	g.W("next %s\n", typeStr)
 	g.W("requestCount %s.Counter\n", metricsPkg)
 	g.W("requestLatency %s.Histogram\n", metricsPkg)
-	g.W("}\n")
+	g.W("namespace string\n")
+	g.W("subsystem string\n")
+
+	g.W("}\n\n")
 
 	for _, m := range g.serviceMethods {
+		mopt := g.methodOptions[m.Name]
+
 		var params []string
 
 		if m.ParamCtx != nil {
@@ -62,14 +75,17 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 		}
 
 		g.WriteFunc(m.Name, "s *"+name, params, results, func() {
-			g.WriteDefer(
-				[]string{"begin " + timePkg + ".Time"},
-				[]string{timePkg + ".Now()"},
-				func() {
-					g.W("s.requestCount.With(\"method\", \"%s\").Add(1)\n", m.Name)
-					g.W("s.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", m.Name, timePkg)
-				},
-			)
+			if mopt.InstrumentingEnable {
+				g.WriteDefer(
+					[]string{"begin " + timePkg + ".Time"},
+					[]string{timePkg + ".Now()"},
+					func() {
+						g.W("s.requestCount.With(\"method\", \"%s\").Add(1)\n", m.Name)
+						g.W("s.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", m.Name, timePkg)
+					},
+				)
+			}
+
 			if len(m.Results) > 0 || m.ReturnErr != nil {
 				g.W("return ")
 			}
@@ -89,27 +105,31 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 		})
 	}
 
-	g.W("func %[1]s(s %[2]s, requestCount %[3]s.Counter, requestLatency %[3]s.Histogram) %[2]s {\n", constructName, typeStr, metricsPkg)
+	g.W("func %[1]s(s %[2]s, opts ...InstrumentingOption) %[2]s {\n", constructName, typeStr, metricsPkg)
 
-	g.W("if requestCount == nil {\n")
-	g.W("requestCount = %s.NewCounterFrom(%s.CounterOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
-	g.W("Namespace: %s,\n", strconv.Quote(g.instrumenting.Namespace))
-	g.W("Subsystem: %s,\n", strconv.Quote(g.instrumenting.Subsystem))
+	g.W("i := &%s{next: s}\n", name)
+
+	g.W("for _, o := range opts {\no(i)\n}\n")
+
+	g.W("if i.requestCount == nil {\n")
+	g.W("i.requestCount = %s.NewCounterFrom(%s.CounterOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
+	g.W("Namespace: i.namespace,\n")
+	g.W("Subsystem: i.subsystem,\n")
 	g.W("Name: %s,\n", strconv.Quote("request_count"))
 	g.W("Help: %s,\n", strconv.Quote("Number of requests received."))
 	g.W("}, []string{\"method\"})\n")
 	g.W("\n}\n")
 
-	g.W("if requestLatency == nil {\n")
-	g.W("requestLatency = %s.NewSummaryFrom(%s.SummaryOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
-	g.W("Namespace: %s,\n", strconv.Quote(g.instrumenting.Namespace))
-	g.W("Subsystem: %s,\n", strconv.Quote(g.instrumenting.Subsystem))
+	g.W("if i.requestLatency == nil {\n")
+	g.W("i.requestLatency = %s.NewSummaryFrom(%s.SummaryOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
+	g.W("Namespace: i.namespace,\n")
+	g.W("Subsystem: i.subsystem,\n")
 	g.W("Name: %s,\n", strconv.Quote("request_latency_microseconds"))
 	g.W("Help: %s,\n", strconv.Quote("Total duration of requests in microseconds."))
 	g.W("}, []string{\"method\"})\n")
 	g.W("\n}\n")
 
-	g.W("return &%s{next: s, requestCount: requestCount, requestLatency: requestLatency}\n}\n", name)
+	g.W("return i\n}\n")
 	return nil
 }
 
@@ -133,12 +153,12 @@ func NewInstrumenting(
 	serviceID string,
 	serviceType stdtypes.Type,
 	serviceMethods []model.ServiceMethod,
-	instrumenting model.InstrumentingOption,
+	methodOptions map[string]model.MethodHTTPTransportOption,
 ) generator.Generator {
 	return &instrumentingGenerator{
 		serviceID:      serviceID,
 		serviceType:    serviceType,
 		serviceMethods: serviceMethods,
-		instrumenting:  instrumenting,
+		methodOptions:  methodOptions,
 	}
 }

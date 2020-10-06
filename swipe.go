@@ -51,12 +51,6 @@ type Option string
 // A ServiceOption is an option service.
 type ServiceOption string
 
-// A InstrumentingOption is an option metrics.
-type InstrumentingOption string
-
-// A LoggingOption is an option logging.
-type LoggingOption string
-
 // A TransportOption is an option gokit transport.
 type TransportOption string
 
@@ -136,16 +130,6 @@ func Name(string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// Logging a option enabled logging middleware.
-func Logging(...LoggingOption) ServiceOption {
-	return "implementation not generated, run swipe"
-}
-
-// Instrumenting a option enabled instrumenting (collect metrics) middleware.
-func Instrumenting(namespace, subsystem string, opts ...InstrumentingOption) ServiceOption {
-	return "implementation not generated, run swipe"
-}
-
 // Transport a option that defines the transport generation settings.
 //
 // Swipe generates a method for creating an transport handler using the
@@ -202,8 +186,27 @@ func JSONRPCPath(string) JSONRPCOption {
 	return "implementation not generated, run swipe"
 }
 
+// Logging a option enabled/disable logging middleware.
+func Logging(enable bool) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
+func LoggingParams(includes []string, excludes []string) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
+// InstrumentingEnable a option enabled/disable instrumenting (collect metrics) middleware.
+func Instrumenting(enable bool) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
+// InstrumentingDisable a option disable instrumenting (collect metrics) middleware.
+func InstrumentingDisable() MethodOption {
+	return "implementation not generated, run swipe"
+}
+
 // WrapResponse wrap the response from the server to an object, for example if you want to return as:
-//  {data: { you responce data }}
+//  {data: { you response data }}
 // need to add option:
 //  ...code here...
 //  WrapResponse("data")

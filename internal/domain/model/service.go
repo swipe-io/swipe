@@ -23,12 +23,6 @@ type DeclType struct {
 	Values   []stdtypes.TypeAndValue
 }
 
-type InstrumentingOption struct {
-	Enable    bool
-	Namespace string
-	Subsystem string
-}
-
 type ServiceReadme struct {
 	Enable       bool
 	OutputDir    string
@@ -45,7 +39,7 @@ type ServiceMethod struct {
 	ParamCtx     *stdtypes.Var
 	ReturnErr    *stdtypes.Var
 	ResultsNamed bool
-	Errors       map[uint32]*ErrorHTTPTransportOption
+	Errors       map[uint32]*HTTPError
 	T            stdtypes.Type
 }
 
