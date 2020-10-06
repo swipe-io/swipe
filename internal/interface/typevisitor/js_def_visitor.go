@@ -26,7 +26,7 @@ func (v *jsTypeDefVisitor) writeStruct(st *stdtypes.Struct, nested int) {
 				st = f.Type().Underlying().(*stdtypes.Struct)
 			}
 			v.writeStruct(st, nested)
-			v.buf.W(",\n")
+			v.buf.W("\n")
 			continue
 		}
 		var (
@@ -102,7 +102,11 @@ func (v *jsTypeDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 			v.buf.W("**/\n\n")
 		}
 	} else {
-		v.buf.W(t.Obj().Name())
+		if _, ok := t.Obj().Type().Underlying().(*stdtypes.Struct); ok {
+			v.buf.W(t.Obj().Name())
+		} else {
+			typevisitor.ConvertType(t.Obj().Type().Underlying()).Accept(v, nested+1)
+		}
 	}
 }
 
