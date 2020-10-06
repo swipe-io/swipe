@@ -12,7 +12,7 @@
 
 <a href="#TestMethod2">TestMethod2</a>
 
-### <a name="Create"></a> Create(name, data) ⇒<code>void</code>
+### <a name="Create"></a> Create(newData, name, data) ⇒<code>void</code>
 
  new item of item.
 
@@ -26,6 +26,7 @@
 
 | Param | Type | Description |
 |------|------|------|
+|newData|<code><a href="#Data">Data</a></code>||
 |name|<code>string</code>||
 |data|<code>Array.&lt;number&gt;</code>||
 ### <a name="Delete"></a> Delete(id) ⇒
@@ -125,7 +126,7 @@ New line comment.
 | Field | Type | Description |
 |------|------|------|
 |name|<code>string</code>||
-|recurses|<code>Array.&lt;<a href="#Recurse">Recurse</a>&gt;</code>||
+|recurse|<code>Array.&lt;<a href="#Recurse">Recurse</a>&gt;</code>||
 ### User
 
 | Field | Type | Description |
@@ -135,6 +136,7 @@ New line comment.
 |password|<code>string</code>||
 |point|<code><a href="#GeoJSON">GeoJSON</a></code>||
 |last_seen|<code>string</code>||
+|data|<code><a href="#Data">Data</a></code>||
 |photo|<code>Array.&lt;number&gt;</code>||
 |user|<code><a href="#User">User</a></code>||
 |profile|<code><a href="#Profile">Profile</a></code>||

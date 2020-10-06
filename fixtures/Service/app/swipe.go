@@ -14,6 +14,16 @@ func Swipe() {
 				swipe.Openapi(
 					swipe.OpenapiOutput("./"),
 				),
+
+				swipe.MethodOptions(Interface.Create,
+					swipe.Logging(true),
+					swipe.LoggingParams([]string{}, []string{"newData"}),
+				),
+
+				swipe.MethodDefaultOptions(
+					swipe.Logging(false),
+					swipe.Instrumenting(true),
+				),
 			),
 		),
 	)
