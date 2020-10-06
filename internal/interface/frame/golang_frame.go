@@ -3,10 +3,9 @@ package frame
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 
+	"github.com/swipe-io/swipe/v2/internal/format"
 	"github.com/swipe-io/swipe/v2/internal/importer"
-
 	"github.com/swipe-io/swipe/v2/internal/usecase/frame"
 )
 
@@ -36,10 +35,10 @@ func (f *golangFrame) Frame(data []byte) ([]byte, error) {
 
 	goSrc := buf.Bytes()
 	fmtSrc, err := format.Source(goSrc)
-	if err == nil {
-		goSrc = fmtSrc
+	if err != nil {
+		return nil, fmt.Errorf("error: %w\n ***\n%s\n***\n\n", err, string(goSrc))
 	}
-	return goSrc, err
+	return fmtSrc, nil
 }
 
 func NewGolangFrame(importer *importer.Importer, version, pkgName string) frame.Frame {
