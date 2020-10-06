@@ -40,20 +40,24 @@ type JsonRPCHTTPTransportOption struct {
 }
 
 type MethodHTTPTransportOption struct {
-	MethodName         string
-	Expr               ast.Expr
-	Path               string
-	PathVars           map[string]string
-	HeaderVars         map[string]string
-	QueryVars          map[string]string
-	WrapResponse       WrapResponseHTTPTransportOption
-	ServerRequestFunc  ReqRespFunc
-	ServerResponseFunc ReqRespFunc
-	ClientRequestFunc  ReqRespFunc
-	ClientResponseFunc ReqRespFunc
+	MethodName           string
+	Expr                 ast.Expr
+	Path                 string
+	PathVars             map[string]string
+	HeaderVars           map[string]string
+	QueryVars            map[string]string
+	WrapResponse         WrapResponseHTTPTransportOption
+	ServerRequestFunc    ReqRespFunc
+	ServerResponseFunc   ReqRespFunc
+	ClientRequestFunc    ReqRespFunc
+	ClientResponseFunc   ReqRespFunc
+	LoggingEnable        bool
+	LoggingIncludeParams map[string]struct{}
+	LoggingExcludeParams map[string]struct{}
+	InstrumentingEnable  bool
 }
 
-type ErrorHTTPTransportOption struct {
+type HTTPError struct {
 	Named     *stdtypes.Named
 	Code      int64
 	IsPointer bool
@@ -65,15 +69,13 @@ type MarkdownDocHTTPTransportOption struct {
 }
 
 type TransportOption struct {
-	Protocol             string
-	Prefix               string
-	ServerDisabled       bool
-	Client               ClientHTTPTransportOption
-	Openapi              OpenapiHTTPTransportOption
-	MarkdownDoc          MarkdownDocHTTPTransportOption
-	FastHTTP             bool
-	JsonRPC              JsonRPCHTTPTransportOption
-	MethodOptions        map[string]MethodHTTPTransportOption
-	DefaultMethodOptions MethodHTTPTransportOption
-	Errors               map[uint32]*ErrorHTTPTransportOption
+	Protocol       string
+	Prefix         string
+	ServerDisabled bool
+	Client         ClientHTTPTransportOption
+	Openapi        OpenapiHTTPTransportOption
+	MarkdownDoc    MarkdownDocHTTPTransportOption
+	FastHTTP       bool
+	JsonRPC        JsonRPCHTTPTransportOption
+	MethodOptions  map[string]MethodHTTPTransportOption
 }

@@ -20,9 +20,19 @@ func structKeyValue(vars []*stdtypes.Var, filterFn types.FilterFn) (results []st
 	)
 }
 
-func makeLogParams(data ...*stdtypes.Var) (result []string) {
+func makeLogParams(include, exclude map[string]struct{}, data ...*stdtypes.Var) (result []string) {
 	for _, v := range data {
-		if logParam := makeLogParam(v.Name(), v.Type()); logParam != "" {
+		if len(include) > 0 {
+			if _, ok := include[v.Name()]; !ok {
+				continue
+			}
+		}
+		if len(exclude) > 0 {
+			if _, ok := exclude[v.Name()]; ok {
+				continue
+			}
+		}
+		if logParam := makeLogParam(v.Name(), v.Type().Underlying()); logParam != "" {
 			result = append(result, strconv.Quote(v.Name()), logParam)
 		}
 	}
@@ -30,9 +40,16 @@ func makeLogParams(data ...*stdtypes.Var) (result []string) {
 }
 
 func makeLogParam(name string, t stdtypes.Type) string {
-	switch t.(type) {
+	switch t := t.(type) {
 	default:
 		return name
+	case *stdtypes.Basic:
+		if t.Kind() == stdtypes.Byte {
+			return "len(" + name + ")"
+		}
+		return name
+	case *stdtypes.Pointer:
+		return makeLogParam(name, t.Elem().Underlying())
 	case *stdtypes.Slice, *stdtypes.Array, *stdtypes.Map, *stdtypes.Chan:
 		return "len(" + name + ")"
 	}

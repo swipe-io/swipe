@@ -37,7 +37,7 @@ class JSONRPCClient {
 	}
 	beforeRequest(fn) {
 	  this._beforeRequest = fn;
-	}
+	} 
 	__scheduleCommit() {
 	  if (this._commitTimerID) {
 		clearTimeout(this._commitTimerID);
@@ -80,6 +80,11 @@ class JSONRPCClient {
 		params: params,
 	  };
 	}
+	/**
+    * @param {string} method
+    * @param {Object} params
+    * @returns {Promise<*>}
+    */
 	__scheduleRequest(method, params) {
 	  const p = new Promise((resolve, reject) => {
 		const request = this.makeJSONRPCRequest(
@@ -110,6 +115,7 @@ type jsonRPCJSClient struct {
 	serviceMethods []model.ServiceMethod
 	transport      model.TransportOption
 	enums          *typeutil.Map
+	errors         map[uint32]*model.HTTPError
 }
 
 func (g *jsonRPCJSClient) Prepare(_ context.Context) error {
@@ -137,9 +143,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		for _, p := range m.Params {
 			buf := new(writer.BaseWriter)
 			typevisitor.JSTypeVisitor(buf).Visit(p.Type())
-
 			tdc.Visit(p.Type())
-
 			mw.W("* @param {%s} %s\n", buf.String(), p.Name())
 		}
 
@@ -209,14 +213,14 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	g.W(mw.String())
 	g.W("}\n")
 
-	errorKeys := make([]uint32, 0, len(g.transport.Errors))
-	for key := range g.transport.Errors {
+	errorKeys := make([]uint32, 0, len(g.errors))
+	for key := range g.errors {
 		errorKeys = append(errorKeys, key)
 	}
 	sortkeys.Uint32s(errorKeys)
 
 	for _, key := range errorKeys {
-		e := g.transport.Errors[key]
+		e := g.errors[key]
 		g.W(
 			"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %d, data);\n}\n}\n",
 			e.Named.Obj().Name(), e.Code,
@@ -229,7 +233,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
 
 	for _, key := range errorKeys {
-		e := g.transport.Errors[key]
+		e := g.errors[key]
 		g.W("case %d:\n", e.Code)
 		g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
 
@@ -278,10 +282,12 @@ func NewJsonRPCJSClient(
 	serviceMethods []model.ServiceMethod,
 	transport model.TransportOption,
 	enums *typeutil.Map,
+	errors map[uint32]*model.HTTPError,
 ) generator.Generator {
 	return &jsonRPCJSClient{
 		serviceMethods: serviceMethods,
 		transport:      transport,
 		enums:          enums,
+		errors:         errors,
 	}
 }

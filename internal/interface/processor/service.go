@@ -52,16 +52,16 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 		))
 	}
 	if p.sg.Transport().Protocol == "http" {
-		generators = append(generators, generator.NewHttpTransport(p.sg.ID(), p.sg.Methods(), p.sg.Transport()))
-		if p.sg.EnableLogging() {
-			generators = append(generators, generator.NewLogging(p.sg.ID(), p.sg.Type(), p.sg.Methods()))
+		generators = append(generators, generator.NewHttpTransport(p.sg.ID(), p.sg.Methods(), p.sg.Transport(), p.sg.Errors()))
+		if p.sg.LoggingEnable() {
+			generators = append(generators, generator.NewLogging(p.sg.ID(), p.sg.Type(), p.sg.Methods(), p.sg.Transport().MethodOptions))
 		}
-		if p.sg.Instrumenting().Enable {
+		if p.sg.InstrumentingEnable() {
 			generators = append(generators, generator.NewInstrumenting(
 				p.sg.ID(),
 				p.sg.Type(),
 				p.sg.Methods(),
-				p.sg.Instrumenting(),
+				p.sg.Transport().MethodOptions,
 			))
 		}
 		if p.sg.Transport().JsonRPC.Enable {
@@ -79,14 +79,14 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 			generators = append(
 				generators,
 				generator.NewJsonRPCGoClient(p.sg.ID(), p.sg.Type(), p.sg.Methods(), p.sg.Transport()),
-				generator.NewJsonRPCJSClient(p.sg.Methods(), p.sg.Transport(), p.enums),
+				generator.NewJsonRPCJSClient(p.sg.Methods(), p.sg.Transport(), p.enums, p.sg.Errors()),
 			)
 		} else {
 			generators = append(generators, generator.NewRestGoClient(p.sg.ID(), p.sg.Type(), p.sg.Methods(), p.sg.Transport()))
 		}
 	}
 	if p.sg.Transport().Openapi.Enable {
-		generators = append(generators, generator.NewOpenapi(p.sg.Methods(), p.sg.Transport(), p.workDir))
+		generators = append(generators, generator.NewOpenapi(p.sg.Methods(), p.sg.Transport(), p.workDir, p.sg.Errors()))
 	}
 	return generators
 }

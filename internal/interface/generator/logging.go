@@ -20,6 +20,7 @@ type logging struct {
 	serviceID      string
 	serviceType    stdtypes.Type
 	serviceMethods []model.ServiceMethod
+	methodOptions  map[string]model.MethodHTTPTransportOption
 	i              *importer.Importer
 }
 
@@ -49,11 +50,13 @@ func (g *logging) Process(ctx context.Context) error {
 	)
 
 	for _, m := range g.serviceMethods {
-		logParams := makeLogParams(m.Params...)
+		mopt := g.methodOptions[m.Name]
+
+		logParams := makeLogParams(mopt.LoggingIncludeParams, mopt.LoggingExcludeParams, m.Params...)
 
 		if len(m.Results) > 0 {
 			if m.ResultsNamed {
-				logParams = append(logParams, makeLogParams(m.Results...)...)
+				logParams = append(logParams, makeLogParams(mopt.LoggingIncludeParams, mopt.LoggingExcludeParams, m.Results...)...)
 			} else {
 				logParams = append(logParams, strconv.Quote("result"), makeLogParam("result", m.Results[0].Type()))
 			}
@@ -86,12 +89,14 @@ func (g *logging) Process(ctx context.Context) error {
 		}
 
 		g.WriteFunc(m.Name, "s *"+name, params, results, func() {
-			if len(logParams) > 0 {
-				g.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
-					g.W("s.logger.Log(\"method\",\"%s\",\"took\",%s.Since(now),", m.Name, timePkg)
-					g.W(strings.Join(logParams, ","))
-					g.W(")\n")
-				})
+			if mopt.LoggingEnable {
+				if len(logParams) > 0 {
+					g.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
+						g.W("s.logger.Log(\"method\",\"%s\",\"took\",%s.Since(now),", m.Name, timePkg)
+						g.W(strings.Join(logParams, ","))
+						g.W(")\n")
+					})
+				}
 			}
 			if len(m.Results) > 0 || m.ReturnErr != nil {
 				g.W("return ")
@@ -135,10 +140,12 @@ func NewLogging(
 	serviceID string,
 	serviceType stdtypes.Type,
 	serviceMethods []model.ServiceMethod,
+	methodOptions map[string]model.MethodHTTPTransportOption,
 ) generator.Generator {
 	return &logging{
 		serviceID:      serviceID,
 		serviceType:    serviceType,
 		serviceMethods: serviceMethods,
+		methodOptions:  methodOptions,
 	}
 }
