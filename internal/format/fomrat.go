@@ -1,6 +1,7 @@
 package format
 
 import (
+	"fmt"
 	"go/format"
 	"os/exec"
 )
@@ -23,7 +24,7 @@ func Source(src []byte) ([]byte, error) {
 		}()
 		out, err := cmd.Output()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error: %w", err)
 		}
 		return out, nil
 	}
