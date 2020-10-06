@@ -19,6 +19,7 @@ type httpTransport struct {
 	serviceMethods []model.ServiceMethod
 	transport      model.TransportOption
 	i              *importer.Importer
+	errors         map[uint32]*model.HTTPError
 }
 
 func (g *httpTransport) Prepare(ctx context.Context) error {
@@ -80,12 +81,12 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		g.W("switch code {\n")
 		g.W("default:\nerr = &httpError{code: code}\n")
 		var errorKeys []uint32
-		for key := range g.transport.Errors {
+		for key := range g.errors {
 			errorKeys = append(errorKeys, key)
 		}
 		sortkeys.Uint32s(errorKeys)
 		for _, key := range errorKeys {
-			e := g.transport.Errors[key]
+			e := g.errors[key]
 			g.W("case %d:\n", e.Code)
 			pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
 			if pkgName != "" {
@@ -205,10 +206,12 @@ func NewHttpTransport(
 	serviceID string,
 	serviceMethods []model.ServiceMethod,
 	transport model.TransportOption,
+	errors map[uint32]*model.HTTPError,
 ) generator.Generator {
 	return &httpTransport{
 		serviceID:      serviceID,
 		serviceMethods: serviceMethods,
 		transport:      transport,
+		errors:         errors,
 	}
 }

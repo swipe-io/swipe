@@ -174,6 +174,7 @@ type openapiDoc struct {
 	transport      model.TransportOption
 	workDir        string
 	outputDir      string
+	errors         map[uint32]*model.HTTPError
 }
 
 func (g *openapiDoc) Prepare(ctx context.Context) error {
@@ -205,7 +206,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		swg.Components.Schemas["Error"] = getOpenapiRestErrorSchema()
 	}
 
-	for _, ei := range g.transport.Errors {
+	for _, ei := range g.errors {
 		var s *openapi.Schema
 		if g.transport.JsonRPC.Enable {
 			s = &openapi.Schema{
@@ -713,10 +714,12 @@ func NewOpenapi(
 	serviceMethods []model.ServiceMethod,
 	transport model.TransportOption,
 	workDir string,
+	errors map[uint32]*model.HTTPError,
 ) generator.Generator {
 	return &openapiDoc{
 		serviceMethods: serviceMethods,
 		transport:      transport,
 		workDir:        workDir,
+		errors:         errors,
 	}
 }
