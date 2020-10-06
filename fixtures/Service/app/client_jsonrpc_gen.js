@@ -67,6 +67,11 @@ class JSONRPCClient {
       params: params
     };
   }
+  /**
+   * @param {string} method
+   * @param {Object} params
+   * @returns {Promise<*>}
+   */
   __scheduleRequest(method, params) {
     const p = new Promise((resolve, reject) => {
       const request = this.makeJSONRPCRequest(
@@ -97,6 +102,7 @@ class JSONRPCClient {
  * @property {string} password
  * @property {GeoJSON} point
  * @property {string} last_seen
+ * @property {Object<string, object>} data
  * @property {Array<number>} photo
  * @property {User} user
  * @property {Profile} profile
@@ -118,18 +124,23 @@ class JSONRPCClient {
 /**
  * @typedef {Object} Recurse
  * @property {string} name
- * @property {Array<Recurse>} recurses
+ * @property {Array<Recurse>} recurse
  **/
 
 export default class extends JSONRPCClient {
   /**
    *  Create new item of item.
    *
+   * @param {Object<string, object>} newData
    * @param {string} name
    * @param {Array<number>} data
    **/
-  create(name, data) {
-    return this.__scheduleRequest("create", { name: name, data: data });
+  create(newData, name, data) {
+    return this.__scheduleRequest("create", {
+      newData: newData,
+      name: name,
+      data: data
+    });
   }
   /**
    * @param {number} id
@@ -199,21 +210,21 @@ export default class extends JSONRPCClient {
 }
 export class ErrUnauthorizedError extends JSONRPCError {
   constructor(message, data) {
-    super(message, "ErrUnauthorizedError", -32001, data);
+    super(message, "ErrUnauthorizedError", 401, data);
   }
 }
 export class ErrForbiddenError extends JSONRPCError {
   constructor(message, data) {
-    super(message, "ErrForbiddenError", -32002, data);
+    super(message, "ErrForbiddenError", 403, data);
   }
 }
 function convertError(e) {
   switch (e.code) {
     default:
       return new JSONRPCError(e.message, "UnknownError", e.code, e.data);
-    case -32001:
+    case 401:
       return new ErrUnauthorizedError(e.message, e.data);
-    case -32002:
+    case 403:
       return new ErrForbiddenError(e.message, e.data);
   }
 }
