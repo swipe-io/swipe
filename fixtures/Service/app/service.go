@@ -45,6 +45,10 @@ func (ErrForbidden) ErrorCode() int {
 	return -32002
 }
 
+type Data map[string]interface{}
+
+type AliasData = Data
+
 type GeoJSON struct {
 	Type        string    `json:"-"`
 	Coordinates []float64 `json:"coordinates200"`
@@ -55,8 +59,8 @@ type Profile struct {
 }
 
 type Recurse struct {
-	Name     string     `json:"name"`
-	Recurses []*Recurse `json:"recurses"`
+	Name    string     `json:"name"`
+	Recurse []*Recurse `json:"recurse"`
 }
 
 type User struct {
@@ -65,6 +69,7 @@ type User struct {
 	Password  string     `json:"password"`
 	Point     GeoJSON    `json:"point"`
 	LastSeen  time.Time  `json:"last_seen"`
+	Data      AliasData  `json:"data"`
 	Photo     []byte     `json:"photo"`
 	User      *User      `json:"user"`
 	Profile   *Profile   `json:"profile"`
@@ -75,7 +80,7 @@ type User struct {
 
 type Interface interface {
 	// Create new item of item.
-	Create(ctx context.Context, name string, data []byte) (err error)
+	Create(ctx context.Context, newData AliasData, name string, data []byte) (err error)
 	// Get item.
 	Get(ctx context.Context, id int, name, fname string, price float32, n, b, c int) (data User, err error)
 	// GetAll more comment and more and more comment and more and more comment and more.
@@ -93,7 +98,7 @@ func NewService() Interface {
 	return &service{}
 }
 
-func (s *service) Create(ctx context.Context, name string, data []byte) (err error) {
+func (s *service) Create(ctx context.Context, newData AliasData, name string, data []byte) (err error) {
 	return &ErrUnauthorized{}
 }
 
