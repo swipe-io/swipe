@@ -24,7 +24,10 @@ func Source(src []byte) ([]byte, error) {
 		}()
 		out, err := cmd.Output()
 		if err != nil {
-			return nil, fmt.Errorf("error: %w", err)
+			if err, ok := err.(*exec.ExitError); ok {
+				return nil, fmt.Errorf("error: %s %w", string(err.Stderr), err)
+			}
+			return nil, err
 		}
 		return out, nil
 	}

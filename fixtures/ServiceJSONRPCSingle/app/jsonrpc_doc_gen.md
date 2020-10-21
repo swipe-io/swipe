@@ -12,7 +12,7 @@
 
 <a href="#TestMethod2">TestMethod2</a>
 
-### <a name="Create"></a> Create(newData, name, data) ⇒<code>void</code>
+### <a name="Create"></a>Create(newData, name, data) ⇒<code>void</code>
 
  new item of item.
 
@@ -29,7 +29,7 @@
 |newData|<code><a href="#Data">Data</a></code>||
 |name|<code>string</code>||
 |data|<code>Array.&lt;number&gt;</code>||
-### <a name="Delete"></a> Delete(id) ⇒
+### <a name="Delete"></a>Delete(id) ⇒
 
 
 
@@ -42,7 +42,7 @@
 | Param | Type | Description |
 |------|------|------|
 |id|<code>number</code>||
-### <a name="Get"></a> Get(id, name, fname, price, n, b, c) ⇒<code><a href="#User">User</a></code>
+### <a name="Get"></a>Get(id, name, fname, price, n, b, cc) ⇒<code><a href="#User">User</a></code>
 
  item.
 
@@ -62,8 +62,8 @@
 |price|<code>number</code>||
 |n|<code>number</code>||
 |b|<code>number</code>||
-|c|<code>number</code>||
-### <a name="GetAll"></a> GetAll() ⇒<code>Array.&lt;<a href="#User">User</a>&gt;</code>
+|cc|<code>number</code>||
+### <a name="GetAll"></a>GetAll(members) ⇒<code>Array.&lt;<a href="#User">User</a>&gt;</code>
 
  more comment and more and more comment and more and more comment and more.
 
@@ -77,7 +77,10 @@ New line comment.
 
 
 
-### <a name="TestMethod"></a> TestMethod(data, ss) ⇒<code>Object.&lt;string, Object.&lt;string, Array.&lt;string&gt;&gt;&gt;</code>
+| Param | Type | Description |
+|------|------|------|
+|members|<code><a href="#Members">Members</a></code>||
+### <a name="TestMethod"></a>TestMethod(data, ss) ⇒<code>Object.&lt;string, Object.&lt;string, Array.&lt;string&gt;&gt;&gt;</code>
 
 
 
@@ -91,7 +94,7 @@ New line comment.
 |------|------|------|
 |data|<code>Object.&lt;string, Object&gt;</code>||
 |ss|<code>Object</code>||
-### <a name="TestMethod2"></a> TestMethod2(ns, utype, user, restype, resource, permission) ⇒<code>void</code>
+### <a name="TestMethod2"></a>TestMethod2(ns, utype, user, restype, resource, permission) ⇒<code>void</code>
 
 
 
@@ -141,5 +144,6 @@ New line comment.
 |user|<code><a href="#User">User</a></code>||
 |profile|<code><a href="#Profile">Profile</a></code>||
 |recurse|<code><a href="#Recurse">Recurse</a></code>||
+|kind|<code><a href="#Kind">Kind</a></code>||
 |created_at|<code>string</code>||
 |updated_at|<code>string</code>||

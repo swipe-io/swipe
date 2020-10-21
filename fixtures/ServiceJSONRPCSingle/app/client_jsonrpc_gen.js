@@ -8,7 +8,8 @@ export class JSONRPCError extends Error {
     this.data = data;
   }
 }
-class JSONRPCClient {
+
+class JSONRPCScheduler {
   /**
    *
    * @param {*} transport
@@ -96,47 +97,68 @@ class JSONRPCClient {
   }
 }
 /**
+ * @typedef {Object<string, object>} Data
+ */
+
+/**
  * @typedef {Object} User
  * @property {string} id
  * @property {string} name
  * @property {string} password
  * @property {GeoJSON} point
  * @property {string} last_seen
- * @property {Object<string, object>} data
+ * @property {Data} data
  * @property {Array<number>} photo
  * @property {User} user
  * @property {Profile} profile
  * @property {Recurse} recurse
+ * @property {string} kind
  * @property {string} created_at
  * @property {string} updated_at
- **/
+ */
 
 /**
  * @typedef {Object} GeoJSON
  * @property {Array<number>} coordinates200
- **/
+ */
 
 /**
  * @typedef {Object} Profile
  * @property {string} phone
- **/
+ */
 
 /**
  * @typedef {Object} Recurse
  * @property {string} name
  * @property {Array<Recurse>} recurse
- **/
+ */
 
-export default class extends JSONRPCClient {
+string;
+/**
+ * @typedef {Array<Member>} Members
+ */
+
+/**
+ * @typedef {Object} Member
+ * @property {string} id
+ */
+
+export default RPCClient;
+
+export class JSONRPCClient {
+  constructor(transport) {
+    this.scheduler = new JSONRPCScheduler(transport);
+  }
+
   /**
    *  Create new item of item.
    *
-   * @param {Object<string, object>} newData
+   * @param {Data} newData
    * @param {string} name
    * @param {Array<number>} data
    **/
   create(newData, name, data) {
-    return this.__scheduleRequest("create", {
+    return this.scheduler.__scheduleRequest("create", {
       newData: newData,
       name: name,
       data: data
@@ -147,7 +169,7 @@ export default class extends JSONRPCClient {
    * @return {PromiseLike<{a: string, b: string}>}
    **/
   delete(id) {
-    return this.__scheduleRequest("delete", { id: id });
+    return this.scheduler.__scheduleRequest("delete", { id: id });
   }
   /**
    *  Get item.
@@ -158,28 +180,29 @@ export default class extends JSONRPCClient {
    * @param {number} price
    * @param {number} n
    * @param {number} b
-   * @param {number} c
+   * @param {number} cc
    * @return {PromiseLike<User>}
    **/
-  get(id, name, fname, price, n, b, c) {
-    return this.__scheduleRequest("get", {
+  get(id, name, fname, price, n, b, cc) {
+    return this.scheduler.__scheduleRequest("get", {
       id: id,
       name: name,
       fname: fname,
       price: price,
       n: n,
       b: b,
-      c: c
+      cc: cc
     });
   }
   /**
    *  GetAll more comment and more and more comment and more and more comment and more.
    *  New line comment.
    *
+   * @param {Members} members
    * @return {PromiseLike<Array<User>>}
    **/
-  getAll() {
-    return this.__scheduleRequest("getAll", {});
+  getAll(members) {
+    return this.scheduler.__scheduleRequest("getAll", { members: members });
   }
   /**
    * @param {Object<string, object>} data
@@ -187,7 +210,10 @@ export default class extends JSONRPCClient {
    * @return {PromiseLike<Object<string, Object<string, Array<string>>>>}
    **/
   testMethod(data, ss) {
-    return this.__scheduleRequest("testMethod", { data: data, ss: ss });
+    return this.scheduler.__scheduleRequest("testMethod", {
+      data: data,
+      ss: ss
+    });
   }
   /**
    * @param {string} ns
@@ -198,7 +224,7 @@ export default class extends JSONRPCClient {
    * @param {string} permission
    **/
   testMethod2(ns, utype, user, restype, resource, permission) {
-    return this.__scheduleRequest("testMethod2", {
+    return this.scheduler.__scheduleRequest("testMethod2", {
       ns: ns,
       utype: utype,
       user: user,
@@ -208,23 +234,24 @@ export default class extends JSONRPCClient {
     });
   }
 }
+
 export class ErrUnauthorizedError extends JSONRPCError {
   constructor(message, data) {
-    super(message, "ErrUnauthorizedError", 401, data);
+    super(message, "ErrUnauthorizedError", -32001, data);
   }
 }
 export class ErrForbiddenError extends JSONRPCError {
   constructor(message, data) {
-    super(message, "ErrForbiddenError", 403, data);
+    super(message, "ErrForbiddenError", -32002, data);
   }
 }
 function convertError(e) {
   switch (e.code) {
     default:
       return new JSONRPCError(e.message, "UnknownError", e.code, e.data);
-    case 401:
+    case -32001:
       return new ErrUnauthorizedError(e.message, e.data);
-    case 403:
+    case -32002:
       return new ErrForbiddenError(e.message, e.data);
   }
 }
