@@ -2,6 +2,17 @@
 ## [Unreleased]
 
 
+<a name="v2.0.0-alpha.6"></a>
+## [v2.0.0-alpha.6] - 2020-10-21
+### Features
+- added multiple service interfaces, added time.Time type for REST query convert generate, added time.Duration for config generate, some not noticeable improvements.
+- added output format error message
+
+### BREAKING CHANGE
+
+the format of the settings description has been changed, see the file github.com/swipe-io/swipe/swipe.go for details.
+
+
 <a name="v2.0.0-alpha.5"></a>
 ## [v2.0.0-alpha.5] - 2020-10-06
 ### Bug Fixes
@@ -219,10 +230,15 @@ Now all requests are not asynchronous, to enable an asynchronous request you nee
 - Added annotation for encoding/json.RawMessage in JS client.
 - Invalid path definition for JSON RPC client documentation.
 - Incorrect generate enum name for markdown docs.
-- Change enums JSON RPC client generate format.
 
 ### Features
 - Added command for generate CRUD service structure.
+
+
+<a name="v1.24.3"></a>
+## [v1.24.3] - 2020-07-28
+### Bug Fixes
+- Change enums JSON RPC client generate format.
 
 
 <a name="v1.24.2"></a>
@@ -238,11 +254,6 @@ Now all requests are not asynchronous, to enable an asynchronous request you nee
 ## [v1.24.4] - 2020-07-28
 ### Bug Fixes
 - Incorrect generate enum name for markdown docs.
-
-
-<a name="v1.24.3"></a>
-## [v1.24.3] - 2020-07-28
-### Bug Fixes
 - Change enums JSON RPC client generate format.
 - Added generate enum constants for JSON RPC client.
 
@@ -546,7 +557,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.5...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.6...HEAD
+[v2.0.0-alpha.6]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.5...v2.0.0-alpha.6
 [v2.0.0-alpha.5]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.4...v2.0.0-alpha.5
 [v2.0.0-alpha.4]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.3...v2.0.0-alpha.4
 [v2.0.0-alpha.3]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.2...v2.0.0-alpha.3
@@ -575,11 +587,11 @@ if you used the ability to use the code in the generation description file, then
 [v1.25.0]: https://github.com/swipe-io/swipe/compare/v1.24.7...v1.25.0
 [v1.24.7]: https://github.com/swipe-io/swipe/compare/v1.24.6...v1.24.7
 [v1.24.6]: https://github.com/swipe-io/swipe/compare/v1.24.5...v1.24.6
-[v1.24.5]: https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.5
+[v1.24.5]: https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.5
+[v1.24.3]: https://github.com/swipe-io/swipe/compare/v1.24.2...v1.24.3
 [v1.24.2]: https://github.com/swipe-io/swipe/compare/v1.24.1...v1.24.2
 [v1.24.1]: https://github.com/swipe-io/swipe/compare/v1.24.4...v1.24.1
-[v1.24.4]: https://github.com/swipe-io/swipe/compare/v1.24.3...v1.24.4
-[v1.24.3]: https://github.com/swipe-io/swipe/compare/v1.24.0...v1.24.3
+[v1.24.4]: https://github.com/swipe-io/swipe/compare/v1.24.0...v1.24.4
 [v1.24.0]: https://github.com/swipe-io/swipe/compare/v1.23.0...v1.24.0
 [v1.23.0]: https://github.com/swipe-io/swipe/compare/v1.22.4...v1.23.0
 [v1.22.4]: https://github.com/swipe-io/swipe/compare/v1.22.3...v1.22.4
