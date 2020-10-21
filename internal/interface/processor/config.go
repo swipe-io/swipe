@@ -23,7 +23,7 @@ func (p *configProcessor) Generators() []ug.Generator {
 		generator.NewConfig(p.cg.Struct(), p.cg.StructType(), p.cg.StructExpr(), p.cg.FuncName()),
 	}
 	if p.cg.DocEnable() {
-		generators = append(generators, generator.NewConfigMarkdownDoc(p.cg.Struct(), p.workDir, p.cg.DocOutputDir()))
+		generators = append(generators, generator.NewConfigDoc(p.cg.Struct(), p.workDir, p.cg.DocOutputDir()))
 	}
 	return generators
 }

@@ -4,22 +4,25 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
-
-	"github.com/gogo/protobuf/sortkeys"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
+	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
+type httpTransportOptionsGateway interface {
+	AppID() string
+	Interfaces() model.Interfaces
+	JSONRPCEnable() bool
+	UseFast() bool
+	Error(uint32) *model.HTTPError
+	ErrorKeys() []uint32
+}
+
 type httpTransport struct {
 	writer.GoLangWriter
-	serviceID      string
-	serviceMethods []model.ServiceMethod
-	transport      model.TransportOption
-	i              *importer.Importer
-	errors         map[uint32]*model.HTTPError
+	options httpTransportOptionsGateway
+	i       *importer.Importer
 }
 
 func (g *httpTransport) Prepare(ctx context.Context) error {
@@ -30,14 +33,14 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	var (
 		kitHTTPPkg string
 	)
-	if g.transport.JsonRPC.Enable {
-		if g.transport.FastHTTP {
+	if g.options.JSONRPCEnable() {
+		if g.options.UseFast() {
 			kitHTTPPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
 		} else {
 			kitHTTPPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
 		}
 	} else {
-		if g.transport.FastHTTP {
+		if g.options.UseFast() {
 			kitHTTPPkg = g.i.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
 		} else {
 			kitHTTPPkg = g.i.Import("http", "github.com/go-kit/kit/transport/http")
@@ -48,16 +51,16 @@ func (g *httpTransport) Process(ctx context.Context) error {
 
 	g.W("type httpError struct {\n")
 	g.W("code int\n")
-	if g.transport.JsonRPC.Enable {
+	if g.options.JSONRPCEnable() {
 		g.W("data interface{}\n")
 		g.W("message string\n")
 	}
 	g.W("}\n")
 
-	if g.transport.JsonRPC.Enable {
+	if g.options.JSONRPCEnable() {
 		g.W("func (e *httpError) Error() string {\nreturn e.message\n}\n")
 	} else {
-		if g.transport.FastHTTP {
+		if g.options.UseFast() {
 			httpPkg := g.i.Import("fasthttp", "github.com/valyala/fasthttp")
 			g.W("func (e *httpError) Error() string {\nreturn %s.StatusMessage(e.code)\n}\n", httpPkg)
 		} else {
@@ -69,7 +72,7 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.W("func (e *httpError) StatusCode() int {\nreturn e.code\n}\n")
 
 	errorDecodeParams := []string{"code", "int"}
-	if g.transport.JsonRPC.Enable {
+	if g.options.JSONRPCEnable() {
 		g.W("func (e *httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
 		g.W("func (e *httpError) SetErrorData(data interface{}) {\ne.data = data\n}\n")
 		g.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
@@ -80,13 +83,9 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.WriteFunc("ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
 		g.W("switch code {\n")
 		g.W("default:\nerr = &httpError{code: code}\n")
-		var errorKeys []uint32
-		for key := range g.errors {
-			errorKeys = append(errorKeys, key)
-		}
-		sortkeys.Uint32s(errorKeys)
-		for _, key := range errorKeys {
-			e := g.errors[key]
+
+		for _, key := range g.options.ErrorKeys() {
+			e := g.options.Error(key)
 			g.W("case %d:\n", e.Code)
 			pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
 			if pkgName != "" {
@@ -99,7 +98,7 @@ func (g *httpTransport) Process(ctx context.Context) error {
 			g.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
 		}
 		g.W("}\n")
-		if g.transport.JsonRPC.Enable {
+		if g.options.JSONRPCEnable() {
 			g.W("if err, ok := err.(%s.ErrorData); ok {\n", kitHTTPPkg)
 			g.W("err.SetErrorData(data)\n")
 			g.W("}\n")
@@ -125,25 +124,13 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.W("}\n")
 	g.W("}\n")
 
-	serverOptType := fmt.Sprintf("server%sOpts", g.serviceID)
-	serverOptionType := fmt.Sprintf("%sServerOption", g.serviceID)
+	serverOptType := fmt.Sprintf("serverOpts")
+	serverOptionType := fmt.Sprintf("ServerOption")
 	kithttpServerOption := fmt.Sprintf("%s.ServerOption", kitHTTPPkg)
 	endpointMiddlewareOption := fmt.Sprintf("%s.Middleware", endpointPkg)
 
-	g.W("type %s func (*%s)\n", serverOptionType, serverOptType)
-
-	g.W("type %s struct {\n", serverOptType)
-	g.W("genericServerOption []%s\n", kithttpServerOption)
-	g.W("genericEndpointMiddleware []%s\n", endpointMiddlewareOption)
-
-	for _, m := range g.serviceMethods {
-		g.W("%sServerOption []%s\n", m.LcName, kithttpServerOption)
-		g.W("%sEndpointMiddleware []%s\n", m.LcName, endpointMiddlewareOption)
-	}
-	g.W("}\n")
-
 	g.WriteFunc(
-		g.serviceID+"GenericServerOptions",
+		"GenericServerOptions",
 		"",
 		[]string{"v", "..." + kithttpServerOption},
 		[]string{"", serverOptionType},
@@ -153,7 +140,7 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	)
 
 	g.WriteFunc(
-		g.serviceID+"GenericServerEndpointMiddlewares",
+		"GenericServerEndpointMiddlewares",
 		"",
 		[]string{"v", "..." + endpointMiddlewareOption},
 		[]string{"", serverOptionType},
@@ -162,27 +149,47 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		},
 	)
 
-	for _, m := range g.serviceMethods {
-		g.WriteFunc(
-			g.serviceID+m.Name+"ServerOptions",
-			"",
-			[]string{"opt", "..." + kithttpServerOption},
-			[]string{"", serverOptionType},
-			func() {
-				g.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, m.LcName)
-			},
-		)
+	g.W("type %s func (*%s)\n", serverOptionType, serverOptType)
 
-		g.WriteFunc(
-			g.serviceID+m.Name+"ServerEndpointMiddlewares",
-			"",
-			[]string{"opt", "..." + endpointMiddlewareOption},
-			[]string{"", serverOptionType},
-			func() {
-				g.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, m.LcName)
-			},
-		)
+	g.W("type %s struct {\n", serverOptType)
+	g.W("genericServerOption []%s\n", kithttpServerOption)
+	g.W("genericEndpointMiddleware []%s\n", endpointMiddlewareOption)
+
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
+
+		for _, m := range iface.Methods() {
+			g.W("%sServerOption []%s\n", m.NameUnExport, kithttpServerOption)
+			g.W("%sEndpointMiddleware []%s\n", m.NameUnExport, endpointMiddlewareOption)
+		}
 	}
+	g.W("}\n")
+
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
+		for _, m := range iface.Methods() {
+			g.WriteFunc(
+				fmt.Sprintf("%sServerOptions", m.NameExport),
+				"",
+				[]string{"opt", "..." + kithttpServerOption},
+				[]string{"", serverOptionType},
+				func() {
+					g.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, m.NameUnExport)
+				},
+			)
+
+			g.WriteFunc(
+				fmt.Sprintf("%sServerEndpointMiddlewares", m.NameExport),
+				"",
+				[]string{"opt", "..." + endpointMiddlewareOption},
+				[]string{"", serverOptionType},
+				func() {
+					g.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, m.NameUnExport)
+				},
+			)
+		}
+	}
+
 	return nil
 }
 
@@ -203,15 +210,9 @@ func (g *httpTransport) SetImporter(i *importer.Importer) {
 }
 
 func NewHttpTransport(
-	serviceID string,
-	serviceMethods []model.ServiceMethod,
-	transport model.TransportOption,
-	errors map[uint32]*model.HTTPError,
+	options httpTransportOptionsGateway,
 ) generator.Generator {
 	return &httpTransport{
-		serviceID:      serviceID,
-		serviceMethods: serviceMethods,
-		transport:      transport,
-		errors:         errors,
+		options: options,
 	}
 }

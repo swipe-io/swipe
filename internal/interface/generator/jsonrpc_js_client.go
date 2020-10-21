@@ -5,9 +5,9 @@ import (
 	stdtypes "go/types"
 	"strconv"
 
-	"github.com/gogo/protobuf/sortkeys"
-	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
+
+	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 
@@ -17,13 +17,14 @@ import (
 const jsonRPCClientBase = `
 export class JSONRPCError extends Error {
 	constructor(message, name, code, data) {
-	  super(message);
-	  this.name = name;
-	  this.code = code;
-	  this.data = data;
+	  	super(message);
+	  	this.name = name;
+	  	this.code = code;
+		this.data = data;
 	}
- }
-class JSONRPCClient {
+}
+
+class JSONRPCScheduler {
 	/**
 	 *
 	 * @param {*} transport
@@ -110,12 +111,17 @@ class JSONRPCClient {
  }
 `
 
+type jsonRPCJSClientOptionsGateway interface {
+	Error(key uint32) *model.HTTPError
+	ErrorKeys() []uint32
+	Interfaces() model.Interfaces
+	MethodOption(m model.ServiceMethod) model.MethodOption
+}
+
 type jsonRPCJSClient struct {
 	writer.BaseWriter
-	serviceMethods []model.ServiceMethod
-	transport      model.TransportOption
-	enums          *typeutil.Map
-	errors         map[uint32]*model.HTTPError
+	options jsonRPCJSClientOptionsGateway
+	enums   *typeutil.Map
 }
 
 func (g *jsonRPCJSClient) Prepare(_ context.Context) error {
@@ -129,98 +135,118 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 
 	tdc := typevisitor.NewNamedTypeCollector()
 
-	for _, m := range g.serviceMethods {
-		mopt := g.transport.MethodOptions[m.Name]
-		mw.W("/**\n")
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
 
-		if len(m.Comments) > 0 {
-			for _, comment := range m.Comments {
-				mw.W("* %s\n", comment)
+		mw.W("export class JSONRPCClient%s {\n", iface.NameExport())
+		mw.W("constructor(transport) {\n")
+		mw.W("this.scheduler = new JSONRPCScheduler(transport);\n")
+		mw.W("}\n\n")
+
+		for _, m := range iface.Methods() {
+			mopt := g.options.MethodOption(m)
+			mw.W("/**\n")
+
+			if len(m.Comments) > 0 {
+				for _, comment := range m.Comments {
+					mw.W("* %s\n", comment)
+				}
+				mw.W("*\n")
 			}
-			mw.W("*\n")
-		}
 
-		for _, p := range m.Params {
-			buf := new(writer.BaseWriter)
-			typevisitor.JSTypeVisitor(buf).Visit(p.Type())
-			tdc.Visit(p.Type())
-			mw.W("* @param {%s} %s\n", buf.String(), p.Name())
-		}
-
-		if len(m.Results) > 0 {
-			mw.W("* @return {PromiseLike<")
-			if m.ResultsNamed {
-				if mopt.WrapResponse.Enable {
-					mw.W("{%s: ", mopt.WrapResponse.Name)
-				} else {
-					mw.W("{")
-				}
-			}
-			for i, p := range m.Results {
-				if i > 0 {
-					mw.W(", ")
-				}
-				if m.ResultsNamed {
-					mw.W("%s: ", p.Name())
-				}
-
+			for _, p := range m.Params {
 				buf := new(writer.BaseWriter)
 				typevisitor.JSTypeVisitor(buf).Visit(p.Type())
-
 				tdc.Visit(p.Type())
+				mw.W("* @param {%s} %s\n", buf.String(), p.Name())
+			}
 
-				mw.W(buf.String())
+			if len(m.Results) > 0 {
+				mw.W("* @return {PromiseLike<")
+				if m.ResultsNamed {
+					if mopt.WrapResponse.Enable {
+						mw.W("{%s: ", mopt.WrapResponse.Name)
+					} else {
+						mw.W("{")
+					}
+				}
+				for i, p := range m.Results {
+					if i > 0 {
+						mw.W(", ")
+					}
+					if m.ResultsNamed {
+						mw.W("%s: ", p.Name())
+					}
+
+					buf := new(writer.BaseWriter)
+					typevisitor.JSTypeVisitor(buf).Visit(p.Type())
+
+					tdc.Visit(p.Type())
+
+					mw.W(buf.String())
+				}
+				if m.ResultsNamed || mopt.WrapResponse.Enable {
+					mw.W("}")
+				}
+				mw.W(">}\n")
 			}
-			if m.ResultsNamed || mopt.WrapResponse.Enable {
-				mw.W("}")
+
+			mw.W("**/\n")
+			mw.W("%s(", m.LcName)
+
+			for i, p := range m.Params {
+				if i > 0 {
+					mw.W(",")
+				}
+				mw.W(p.Name())
 			}
-			mw.W(">}\n")
+			var prefix string
+			if g.options.Interfaces().Len() > 1 {
+				prefix = iface.LoweName() + "."
+			}
+			if iface.Prefix() != "" {
+				prefix = iface.Prefix() + "."
+			}
+
+			mw.W(") {\n")
+			mw.W("return this.scheduler.__scheduleRequest(\"%s\", {", prefix+m.LcName)
+
+			for i, p := range m.Params {
+				if i > 0 {
+					mw.W(",")
+				}
+				mw.W("%[1]s:%[1]s", p.Name())
+			}
+
+			mw.W("})\n")
+			mw.W("}\n")
 		}
-
-		mw.W("**/\n")
-		mw.W("%s(", m.LcName)
-
-		for i, p := range m.Params {
-			if i > 0 {
-				mw.W(",")
-			}
-			mw.W(p.Name())
-		}
-
-		mw.W(") {\n")
-		mw.W("return this.__scheduleRequest(\"%s\", {", m.LcName)
-
-		for i, p := range m.Params {
-			if i > 0 {
-				mw.W(",")
-			}
-			mw.W("%[1]s:%[1]s", p.Name())
-		}
-
-		mw.W("})\n")
-		mw.W("}\n")
+		mw.W("}\n\n")
 	}
 
 	buf := new(writer.BaseWriter)
-
 	for _, t := range tdc.TypeDefs() {
 		typevisitor.JSTypeDefVisitor(buf).Visit(t)
 	}
-
 	g.W(buf.String())
 
-	g.W("export default class extends JSONRPCClient {\n")
-	g.W(mw.String())
-	g.W("}\n")
-
-	errorKeys := make([]uint32, 0, len(g.errors))
-	for key := range g.errors {
-		errorKeys = append(errorKeys, key)
+	if g.options.Interfaces().Len() > 1 {
+		g.W("class GRPCClient {\n")
+		g.W("constructor(transport) {\n")
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			g.W("this.%[1]s = new JSONRPCClient%[1]s(transport);\n", iface.Name())
+		}
+		g.W("}\n")
+		g.W("}\n")
 	}
-	sortkeys.Uint32s(errorKeys)
 
-	for _, key := range errorKeys {
-		e := g.errors[key]
+	g.W("export default RPCClient\n\n")
+
+	g.W(mw.String())
+
+	for _, key := range g.options.ErrorKeys() {
+		e := g.options.Error(key)
 		g.W(
 			"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %d, data);\n}\n}\n",
 			e.Named.Obj().Name(), e.Code,
@@ -232,8 +258,8 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	g.W("default:\n")
 	g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
 
-	for _, key := range errorKeys {
-		e := g.errors[key]
+	for _, key := range g.options.ErrorKeys() {
+		e := g.options.Error(key)
 		g.W("case %d:\n", e.Code)
 		g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
 
@@ -258,7 +284,6 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 			g.W("});\n")
 		}
 	})
-
 	return nil
 }
 
@@ -279,15 +304,11 @@ func (g *jsonRPCJSClient) Filename() string {
 }
 
 func NewJsonRPCJSClient(
-	serviceMethods []model.ServiceMethod,
-	transport model.TransportOption,
+	options jsonRPCJSClientOptionsGateway,
 	enums *typeutil.Map,
-	errors map[uint32]*model.HTTPError,
 ) generator.Generator {
 	return &jsonRPCJSClient{
-		serviceMethods: serviceMethods,
-		transport:      transport,
-		enums:          enums,
-		errors:         errors,
+		options: options,
+		enums:   enums,
 	}
 }

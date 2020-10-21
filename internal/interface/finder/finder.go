@@ -6,7 +6,10 @@ import (
 	"path/filepath"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v2/internal/domain/model"
+
 	ig "github.com/swipe-io/swipe/v2/internal/interface/gateway"
+
 	"github.com/swipe-io/swipe/v2/internal/option"
 
 	"github.com/swipe-io/swipe/v2/internal/usecase/finder"
@@ -17,26 +20,29 @@ type serviceFinder struct {
 	loader *option.Loader
 }
 
-func (s *serviceFinder) Find(named *stdtypes.Named) (gateway.ServiceGateway, []error) {
+func (s *serviceFinder) Find(named *stdtypes.Named) (gateway.ServiceGateway, *model.ServiceInterface, []error) {
 	pkgPathParts := stdstrings.Split(named.Obj().Pkg().Path(), "/")
 	servicePath := filepath.Join(build.Default.GOPATH, "src", stdstrings.Join(pkgPathParts[:3], "/"))
 
 	o, errs := s.loader.Load(servicePath, nil, []string{"./..."})
 	if len(errs) > 0 {
-		return nil, errs
+		return nil, nil, errs
 	}
 	for _, resultOption := range o.Options {
 		if resultOption.Option.Name == "Service" {
-			sg, err := ig.NewServiceGateway(resultOption.Option, o.Data.GraphTypes, o.Data.Enums)
+			sg, err := ig.NewServiceGateway(resultOption.Pkg, resultOption.Option, o.Data.GraphTypes, o.Data.Enums)
 			if err != nil {
-				return nil, []error{err}
+				return nil, nil, []error{err}
 			}
-			if sg.TypeName().Obj().String() == named.Obj().String() && sg.Transport().JsonRPC.Enable {
-				return sg, nil
+			for i := 0; i < sg.Interfaces().Len(); i++ {
+				iface := sg.Interfaces().At(i)
+				if iface.TypeName().Obj().String() == named.Obj().String() && sg.JSONRPCEnable() {
+					return sg, iface, nil
+				}
 			}
 		}
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func NewServiceFinder(loader *option.Loader) finder.ServiceFinder {

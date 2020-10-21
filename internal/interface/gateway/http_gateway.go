@@ -62,31 +62,20 @@ func (g *httpGatewayGateway) load(o *option.Option) error {
 			return errors.NotePosition(o.Position,
 				fmt.Errorf("the Iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(o.Value.Type(), nil)))
 		}
-		//iface, ok := ifacePtr.Elem().Underlying().(*stdtypes.Interface)
-		//if !ok {
-		//	return errors.NotePosition(o.Position,
-		//		fmt.Errorf("the Iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(o.Value.Type(), nil)))
-		//}
 
 		typeName := ifacePtr.Elem().(*stdtypes.Named)
 
-		sg, errs := g.finder.Find(typeName)
+		_, iface, errs := g.finder.Find(typeName)
 		if len(errs) > 0 {
 			continue
 		}
 
 		so := model.GatewayServiceOption{
-			ID:            sg.ID(),
-			RawID:         sg.RawID(),
-			TypeName:      sg.TypeName(),
-			Type:          sg.Type(),
-			Iface:         sg.Interface(),
-			Methods:       sg.Methods(),
+			Iface:         iface,
 			MethodOptions: map[string]model.GatewayMethodOption{},
 		}
-
 		if methodOpt, ok := serviceOpt.At("GatewayServiceMethod"); ok {
-			mo, err := g.parseMethodOption(sg.Interface(), methodOpt)
+			mo, err := g.parseMethodOption(iface.Interface(), methodOpt)
 			if err != nil {
 				return err
 			}
@@ -97,7 +86,7 @@ func (g *httpGatewayGateway) load(o *option.Option) error {
 	return nil
 }
 
-func NewGatewayOption(
+func NewGateway(
 	pkg *packages.Package,
 	o *option.Option,
 	finder finder.ServiceFinder,

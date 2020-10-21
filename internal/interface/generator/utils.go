@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/swipe-io/swipe/v2/internal/domain/model"
+
 	"github.com/swipe-io/swipe/v2/internal/types"
 )
 
@@ -84,4 +86,12 @@ func normalizeType(t stdtypes.Type) stdtypes.Type {
 	default:
 		return v
 	}
+}
+
+func makeEpSetName(iface *model.ServiceInterface, ifaceLen int) (epSetName string) {
+	epSetName = "epSet"
+	if ifaceLen > 1 {
+		epSetName = "epSet" + iface.NameExport()
+	}
+	return
 }

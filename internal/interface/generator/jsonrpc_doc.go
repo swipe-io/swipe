@@ -11,11 +11,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
-
 	"github.com/fatih/structtag"
+
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
+	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
+
 	"golang.org/x/tools/go/types/typeutil"
 )
 
@@ -27,19 +28,23 @@ func (n NamedSlice) Less(i, j int) bool { return n[i].Obj().Name() < n[j].Obj().
 
 var paramCommentRegexp = regexp.MustCompile(`(?s)@([a-zA-Z0-9_]*) (.*)`)
 
-type jsonrpcMarkdownDoc struct {
-	writer.BaseWriter
-	serviceID      string
-	serviceMethods []model.ServiceMethod
-	transport      model.TransportOption
-	commentMap     *typeutil.Map
-	enums          *typeutil.Map
-	workDir        string
-	outputDir      string
+type jsonrpcDocOptionsGateway interface {
+	AppID() string
+	Interfaces() model.Interfaces
+	JSONRPCDocOutput() string
 }
 
-func (g *jsonrpcMarkdownDoc) Prepare(ctx context.Context) error {
-	outputDir, err := filepath.Abs(filepath.Join(g.workDir, g.transport.MarkdownDoc.OutputDir))
+type jsonrpcDoc struct {
+	writer.BaseWriter
+	options    jsonrpcDocOptionsGateway
+	commentMap *typeutil.Map
+	enums      *typeutil.Map
+	workDir    string
+	outputDir  string
+}
+
+func (g *jsonrpcDoc) Prepare(ctx context.Context) error {
+	outputDir, err := filepath.Abs(filepath.Join(g.workDir, g.options.JSONRPCDocOutput()))
 	if err != nil {
 		return err
 	}
@@ -47,7 +52,7 @@ func (g *jsonrpcMarkdownDoc) Prepare(ctx context.Context) error {
 	return nil
 }
 
-func (g *jsonrpcMarkdownDoc) appendExistsTypes(m *typeutil.Map, tpl stdtypes.Type) {
+func (g *jsonrpcDoc) appendExistsTypes(m *typeutil.Map, tpl stdtypes.Type) {
 	tpl = normalizeType(tpl)
 	if isGolangNamedType(tpl) {
 		return
@@ -68,7 +73,7 @@ func (g *jsonrpcMarkdownDoc) appendExistsTypes(m *typeutil.Map, tpl stdtypes.Typ
 	}
 }
 
-func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
+func (g *jsonrpcDoc) Process(ctx context.Context) error {
 	var pkgImport string
 	pkgJsonFilepath := filepath.Join(g.workDir, "package.json")
 	data, err := ioutil.ReadFile(pkgJsonFilepath)
@@ -82,7 +87,7 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 		}
 	}
 
-	g.W("# %s JSONRPC Client\n\n", g.serviceID)
+	g.W("# %s JSONRPC Client\n\n", g.options.AppID())
 
 	if pkgImport != "" {
 		g.W("## Getting Started\n\n")
@@ -97,66 +102,79 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 
 	existsTypes := new(typeutil.Map)
 
-	for _, method := range g.serviceMethods {
-		for _, param := range method.Params {
-			g.appendExistsTypes(existsTypes, param.Type())
-		}
-		for _, result := range method.Results {
-			g.appendExistsTypes(existsTypes, result.Type())
-		}
-		g.W("<a href=\"#%[1]s\">%[1]s</a>\n\n", method.Name)
-	}
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
 
-	for _, method := range g.serviceMethods {
-		g.W("### <a name=\"%[1]s\"></a> %[1]s(", method.Name)
-
-		for i, param := range method.Params {
-			if i > 0 {
-				g.W(", ")
-			}
-			g.W("%s", param.Name())
-		}
-
-		g.W(") ⇒")
-
-		if len(method.Results) > 0 {
-			if len(method.Results) == 1 {
-				g.W("<code>%s</code>", g.getJSType(method.Results[0].Type()))
-			}
-		} else {
-			g.W("<code>void</code>")
-		}
-
-		g.W("\n\n")
-
-		paramsComment := make(map[string]string, len(method.Params))
-		for _, comment := range method.Comments {
-			comment = strings.TrimSpace(comment)
-			if strings.HasPrefix(comment, "@") {
-				matches := paramCommentRegexp.FindAllStringSubmatch(comment, -1)
-				if len(matches) == 1 && len(matches[0]) == 3 {
-					paramsComment[matches[0][1]] = matches[0][2]
-				}
-				continue
-			}
-			g.W("%s\n\n", strings.Replace(comment, method.Name, "", len(method.Name)))
-		}
-
-		g.W("\n\n")
-
-		g.W("**Throws**:\n\n")
-
-		for _, e := range method.Errors {
-			g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
-		}
-
-		g.W("\n\n")
-
-		if len(method.Params) > 0 {
-			g.W("| Param | Type | Description |\n|------|------|------|\n")
+		for _, method := range iface.Methods() {
 			for _, param := range method.Params {
-				comment := paramsComment[param.Name()]
-				g.W("|%s|<code>%s</code>|%s|\n", param.Name(), g.getJSType(param.Type()), comment)
+				g.appendExistsTypes(existsTypes, param.Type())
+			}
+			for _, result := range method.Results {
+				g.appendExistsTypes(existsTypes, result.Type())
+			}
+			name := method.Name
+			if g.options.Interfaces().Len() > 1 {
+				name = iface.NameUnExport() + "." + method.Name
+			}
+			g.W("<a href=\"#%[1]s\">%[1]s</a>\n\n", name)
+		}
+
+		for _, method := range iface.Methods() {
+			name := method.Name
+			if g.options.Interfaces().Len() > 1 {
+				name = iface.NameUnExport() + "." + method.Name
+			}
+
+			g.W("### <a name=\"%[1]s\"></a>%[1]s(", name)
+
+			for i, param := range method.Params {
+				if i > 0 {
+					g.W(", ")
+				}
+				g.W("%s", param.Name())
+			}
+
+			g.W(") ⇒")
+
+			if len(method.Results) > 0 {
+				if len(method.Results) == 1 {
+					g.W("<code>%s</code>", g.getJSType(method.Results[0].Type()))
+				}
+			} else {
+				g.W("<code>void</code>")
+			}
+
+			g.W("\n\n")
+
+			paramsComment := make(map[string]string, len(method.Params))
+			for _, comment := range method.Comments {
+				comment = strings.TrimSpace(comment)
+				if strings.HasPrefix(comment, "@") {
+					matches := paramCommentRegexp.FindAllStringSubmatch(comment, -1)
+					if len(matches) == 1 && len(matches[0]) == 3 {
+						paramsComment[matches[0][1]] = matches[0][2]
+					}
+					continue
+				}
+				g.W("%s\n\n", strings.Replace(comment, method.Name, "", len(method.Name)))
+			}
+
+			g.W("\n\n")
+
+			g.W("**Throws**:\n\n")
+
+			for _, e := range method.Errors {
+				g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
+			}
+
+			g.W("\n\n")
+
+			if len(method.Params) > 0 {
+				g.W("| Param | Type | Description |\n|------|------|------|\n")
+				for _, param := range method.Params {
+					comment := paramsComment[param.Name()]
+					g.W("|%s|<code>%s</code>|%s|\n", param.Name(), g.getJSType(param.Type()), comment)
+				}
 			}
 		}
 	}
@@ -251,19 +269,19 @@ func (g *jsonrpcMarkdownDoc) Process(ctx context.Context) error {
 	return nil
 }
 
-func (g *jsonrpcMarkdownDoc) PkgName() string {
+func (g *jsonrpcDoc) PkgName() string {
 	return ""
 }
 
-func (g *jsonrpcMarkdownDoc) OutputDir() string {
+func (g *jsonrpcDoc) OutputDir() string {
 	return g.outputDir
 }
 
-func (g *jsonrpcMarkdownDoc) Filename() string {
+func (g *jsonrpcDoc) Filename() string {
 	return "jsonrpc_doc_gen.md"
 }
 
-func (g *jsonrpcMarkdownDoc) getJSType(tpl stdtypes.Type) string {
+func (g *jsonrpcDoc) getJSType(tpl stdtypes.Type) string {
 	switch v := tpl.(type) {
 	default:
 		return ""
@@ -316,20 +334,16 @@ func (g *jsonrpcMarkdownDoc) getJSType(tpl stdtypes.Type) string {
 	}
 }
 
-func NewJsonrpcMarkdownDoc(
-	serviceID string,
-	serviceMethods []model.ServiceMethod,
-	transport model.TransportOption,
+func NewJsonrpcDoc(
+	options jsonrpcDocOptionsGateway,
 	commentMap *typeutil.Map,
 	enums *typeutil.Map,
 	workDir string,
 ) generator.Generator {
-	return &jsonrpcMarkdownDoc{
-		serviceID:      serviceID,
-		serviceMethods: serviceMethods,
-		transport:      transport,
-		commentMap:     commentMap,
-		enums:          enums,
-		workDir:        workDir,
+	return &jsonrpcDoc{
+		options:    options,
+		commentMap: commentMap,
+		enums:      enums,
+		workDir:    workDir,
 	}
 }

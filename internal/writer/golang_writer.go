@@ -6,6 +6,8 @@ import (
 	"strconv"
 	stdstrings "strings"
 
+	"github.com/swipe-io/strcase"
+
 	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
 )
@@ -46,6 +48,12 @@ func (w *GoLangWriter) WriteFunc(name, recv string, params, results []string, bo
 	w.W("}\n\n")
 }
 
+func (w *GoLangWriter) WriteVarGroup(body func()) {
+	w.W("var (\n")
+	body()
+	w.W("\n)\n")
+}
+
 func (w *GoLangWriter) WriteDefer(params []string, calls []string, body func()) {
 	w.W("defer func(")
 	w.W(stdstrings.Join(params, ","))
@@ -67,7 +75,7 @@ func (w *GoLangWriter) WriteSignature(keyvals []string) {
 		if i > 0 {
 			w.W(", ")
 		}
-		name := "_"
+		name := ""
 		if keyvals[i] != "" {
 			name = keyvals[i]
 		}
@@ -185,7 +193,6 @@ func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) strin
 		if msgErrTemplate == "" {
 			msgErrTemplate = "convert error"
 		}
-
 		errMsg := strconv.Quote(msgErrTemplate + ": %w")
 		w.W("if err != nil {\n")
 		if sliceErr == "" {
@@ -250,8 +257,8 @@ func (w *GoLangWriter) WriteConvertType(
 	case *stdtypes.Pointer:
 		if t.Elem().String() == "net/url.URL" {
 			urlPkg := importFn("url", "net/url")
-			tmpId := stdstrings.ToLower(f.Name()) + "URL"
-			w.W("%s, err := %s.Parse(%s)\n", tmpId, urlPkg, valueId)
+			tmpID := stdstrings.ToLower(f.Name()) + "URL"
+			w.W("%s, err := %s.Parse(%s)\n", tmpID, urlPkg, valueId)
 			w.W("if err != nil {\n")
 			if sliceErr == "" {
 				w.W("return nil, err\n")
@@ -262,22 +269,31 @@ func (w *GoLangWriter) WriteConvertType(
 			if declareVar {
 				w.W("var ")
 			}
-			w.W("%s = %s\n", assignId, tmpId)
+			w.W("%s = %s\n", assignId, tmpID)
 		}
 	case *stdtypes.Named:
-		if t.Obj().Pkg().Path() == "github.com/satori/go.uuid" {
+		tmpID := strcase.ToLowerCamel(f.Name()) + "Result"
+		switch t.Obj().Type().String() {
+		case "uuid.UUID":
 			uuidPkg := importFn("", t.Obj().Pkg().Path())
-			if declareVar {
-				w.W("var ")
-			}
-			w.W("%s, err = %s.FromString(%s)\n", assignId, uuidPkg, valueId)
-			w.W("if err != nil {\n")
-			if sliceErr == "" {
-				w.W("return nil, err\n")
-			} else {
-				w.W("%[1]s = append(%[1]s, err)\n", sliceErr)
-			}
-			w.W("}\n")
+			w.W("%s, err := %s.FromString(%s)\n", tmpID, uuidPkg, valueId)
+		case "time.Duration":
+			timePkg := importFn("time", "time")
+			w.W("%s, err := %s.ParseDuration(%s)\n", tmpID, timePkg, valueId)
+		case "time.Time":
+			timePkg := importFn("time", "time")
+			w.W("%[1]s, err := %[2]s.Parse(%[2]s.RFC3339, %[3]s)\n", tmpID, timePkg, valueId)
 		}
+		w.W("if err != nil {\n")
+		if sliceErr == "" {
+			w.W("return nil, err\n")
+		} else {
+			w.W("%[1]s = append(%[1]s, err)\n", sliceErr)
+		}
+		w.W("}\n")
+		if declareVar {
+			w.W("var ")
+		}
+		w.W("%s = %s\n", assignId, tmpID)
 	}
 }
