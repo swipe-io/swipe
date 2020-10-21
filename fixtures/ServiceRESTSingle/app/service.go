@@ -45,6 +45,12 @@ func (ErrForbidden) ErrorCode() int {
 	return -32002
 }
 
+type Member struct {
+	ID string `json:"id"`
+}
+
+type Members []*Member
+
 type Data map[string]interface{}
 
 type AliasData = Data
@@ -63,6 +69,8 @@ type Recurse struct {
 	Recurse []*Recurse `json:"recurse"`
 }
 
+type Kind string
+
 type User struct {
 	ID        uuid.UUID  `json:"id"`
 	Name      string     `json:"name"`
@@ -74,50 +82,51 @@ type User struct {
 	User      *User      `json:"user"`
 	Profile   *Profile   `json:"profile"`
 	Recurse   *Recurse   `json:"recurse"`
+	Kind      Kind       `json:"kind"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
-type Interface interface {
+type AppInterface interface {
+	InterfaceB
+}
+
+type InterfaceB interface {
 	// Create new item of item.
 	Create(ctx context.Context, newData AliasData, name string, data []byte) (err error)
 	// Get item.
-	Get(ctx context.Context, id int, name, fname string, price float32, n, b, c int) (data User, err error)
+	Get(ctx context.Context, id int, name, fname string, price float32, n, b, cc int) (data User, err error)
 	// GetAll more comment and more and more comment and more and more comment and more.
 	// New line comment.
-	GetAll(ctx context.Context) ([]*User, error)
+	GetAll(ctx context.Context, members Members) ([]*User, error)
 	Delete(ctx context.Context, id uint) (a string, b string, err error)
 	TestMethod(data map[string]interface{}, ss interface{}) (states map[string]map[int][]string, err error)
 	TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error
 }
 
-type service struct {
+type serviceB struct {
 }
 
-func NewService() Interface {
-	return &service{}
-}
-
-func (s *service) Create(ctx context.Context, newData AliasData, name string, data []byte) (err error) {
+func (s *serviceB) Create(ctx context.Context, newData AliasData, name string, data []byte) (err error) {
 	return &ErrUnauthorized{}
 }
 
-func (s *service) Get(ctx context.Context, id int, name, fname string, price float32, n, b, c int) (data User, err error) {
+func (s *serviceB) Get(ctx context.Context, id int, name, fname string, price float32, n, b, cc int) (data User, err error) {
 	panic("implement me")
 }
 
-func (s *service) GetAll(ctx context.Context) ([]*User, error) {
+func (s *serviceB) GetAll(ctx context.Context, members Members) ([]*User, error) {
 	panic("implement me")
 }
 
-func (s *service) Delete(ctx context.Context, id uint) (a string, b string, err error) {
+func (s *serviceB) Delete(ctx context.Context, id uint) (a string, b string, err error) {
 	panic("implement me")
 }
 
-func (s *service) TestMethod(data map[string]interface{}, ss interface{}) (states map[string]map[int][]string, err error) {
+func (s *serviceB) TestMethod(data map[string]interface{}, ss interface{}) (states map[string]map[int][]string, err error) {
 	panic("implement me")
 }
 
-func (s *service) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
+func (s *serviceB) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
 	panic("implement me")
 }

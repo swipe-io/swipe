@@ -7,14 +7,13 @@ import (
 	stdtypes "go/types"
 	"strconv"
 
-	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
-
 	"github.com/fatih/structtag"
-	"github.com/swipe-io/strcase"
 
+	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
+	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
@@ -140,7 +139,7 @@ func (g *config) Process(ctx context.Context) error {
 
 			errorsPkg := g.i.Import("errors", "errors")
 
-			g.W("if %s == %s {\n", "cfg."+opts.fieldPath, types.ZeroValue(f.Type()))
+			g.W("if %s == %s {\n", "cfg."+opts.fieldPath, types.ZeroValue(f.Type(), g.i.QualifyPkg))
 
 			requiredMsg := strconv.Quote(fmt.Sprintf("%s %s required", tagName, opts.name))
 

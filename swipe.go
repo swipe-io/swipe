@@ -51,17 +51,8 @@ type Option string
 // A ServiceOption is an option service.
 type ServiceOption string
 
-// A TransportOption is an option gokit transport.
-type TransportOption string
-
-// A JSONRPCOption is an option JSON RPC.
-type JSONRPCOption interface{}
-
 // A MethodOption is an option method.
 type MethodOption string
-
-// A OpenapiOption is an option for openapi doc.
-type OpenapiOption string
 
 // A ConfigEnvOption is an option env config.
 type ConfigEnvOption string
@@ -79,6 +70,8 @@ type GatewayServiceOption string
 type GatewayServiceMethodOption string
 
 type ReadmeOption string
+
+type InterfaceOption string
 
 // Build the basic option for defining the generation.
 func Build(Option) {
@@ -104,85 +97,82 @@ func Build(Option) {
 //  flag - name of flag, enable as the console flag.
 //
 //  desc - description for String function.
-func ConfigEnv(optionsStruct interface{}, opts ...ConfigEnvOption) Option {
+func ConfigEnv(optionsStruct interface{}) Option {
 	return "implementation not generated, run swipe"
 }
 
-// ConfigMarkdownDoc enable markdown doc generate.
-func ConfigMarkdownDoc(string) ConfigEnvOption {
+func ConfigEnvFuncName(name string) Option {
 	return "implementation not generated, run swipe"
 }
 
-// FuncName sets name of the function to load the configuration, default is "LoadConfig".
-func FuncName(string) ConfigEnvOption {
+// ConfigEnvDocEnable enable markdown doc generate.
+func ConfigEnvDocEnable() Option {
+	return "implementation not generated, run swipe"
+}
+
+// ConfigEnvDocOutput output path markdown doc generate.
+func ConfigEnvDocOutput(output string) Option {
 	return "implementation not generated, run swipe"
 }
 
 // Service a option that defines the generation of transport, metrics, tracing, and logging for gokit.
 // Given iface is nil pointer interface, for example:
 //  (*pkg.Iface)(nil)
-func Service(iface interface{}, opts ...ServiceOption) Option {
+func Service(opts ...ServiceOption) Option {
+	return "implementation not generated, run swipe"
+}
+
+func Interface(iface interface{}, prefix string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // Name override service name prefix.
-func Name(string) ServiceOption {
+func ServiceNamePrefix(string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// Transport a option that defines the transport generation settings.
-//
-// Swipe generates a method for creating an transport handler using the
-// following template:
-//
-//  MakeHandler<transportType><projectName><serviceName>
-//
-// <transportType> is REST or JSONRPC.
-func Transport(protocol string, opts ...TransportOption) ServiceOption {
+// ReadmeEnable enable for generate readme markdown for service.
+func ReadmeEnable() ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// Readme enable for generate readme markdown for service.
-func Readme(outputDir string, opts ...ReadmeOption) ServiceOption {
+func ReadmeOutput(string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// ReadmeTemplate set markdown template path.
-func ReadmeTemplate(path string) ReadmeOption {
+func ReadmeTemplatePath(string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// FastEnable enable use valyala/fasthttp instead net/http package.
-//
-// Supported in both REST and JSON RPC.
-func FastEnable() TransportOption {
+// JSONRPCEnable enabled use JSON RPC instead of REST.
+func JSONRPCEnable() ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// MarkdownDoc enable for generate markdown JSON RPC doc for JS client.
-func MarkdownDoc(outputDir string) TransportOption {
+// JSONRPCPath sets the end point for transport.
+func JSONRPCPath(string) ServiceOption {
+	return "implementation not generated, run swipe"
+}
+
+// JSONRPCDocEnable enable for generate markdown JSON RPC doc.
+func JSONRPCDocEnable() ServiceOption {
+	return "implementation not generated, run swipe"
+}
+
+// JSONRPCDocOutput change output dir for generate markdown JSON RPC doc.
+func JSONRPCDocOutput(output string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // MethodOptions option for defining method settings.
 // Given signature is interface method, for example:
 //  pkg.Iface.Create
-func MethodOptions(signature interface{}, opts ...MethodOption) TransportOption {
+func MethodOptions(signature interface{}, opts ...MethodOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // MethodDefaultOptions option for defining for all methods default settings.
-func MethodDefaultOptions(...MethodOption) TransportOption {
-	return "implementation not generated, run swipe"
-}
-
-// JSONRPC enabled use JSON RPC instead of REST.
-func JSONRPC(...JSONRPCOption) TransportOption {
-	return "implementation not generated, run swipe"
-}
-
-// JSONRPCPath sets the end point for transport.
-func JSONRPCPath(string) JSONRPCOption {
+func MethodDefaultOptions(...MethodOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -205,38 +195,38 @@ func InstrumentingDisable() MethodOption {
 	return "implementation not generated, run swipe"
 }
 
+// RESTMethod sets http method, default is GET.
+func RESTMethod(string) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
 // WrapResponse wrap the response from the server to an object, for example if you want to return as:
 //  {data: { you response data }}
 // need to add option:
 //  ...code here...
 //  WrapResponse("data")
 //  ... code here ...
-func WrapResponse(string) MethodOption {
-	return "implementation not generated, run swipe"
-}
-
-// Method sets http method, default is GET.
-func Method(string) MethodOption {
+func RESTWrapResponse(string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // Path sets http path, default is lowecase method name with the prefix "/",
 // for example: the Get method will look like " /get".
-func Path(string) MethodOption {
+func RESTPath(string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // HeaderVars sets the key/value array to get method values from headers,
 // where the key is the name of the method parameter,
 // and the value is the name of the header.
-func HeaderVars([]string) MethodOption {
+func RESTHeaderVars([]string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // QueryVars sets the key/value array to get method values from query args,
 // where the key is the name of the method parameter,
 // and the value is the name of the query args.
-func QueryVars([]string) MethodOption {
+func RESTQueryVars([]string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -264,48 +254,53 @@ func ClientDecodeResponseFunc(interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
-// ClientEnable enable generate client for the selected transport.
-func ClientEnable() TransportOption {
+// ClientsEnable enable generate Golang, JavaScript client.
+func ClientsEnable(langs []string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// ServerDisabled disable generate http server.
-func ServerDisabled() TransportOption {
+// ServerDisabled enable generate http server.
+func HTTPServer() ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// Openapi generate openapi documentation.
-func Openapi(...OpenapiOption) TransportOption {
+// HTTPFast enable generate fast http server.
+func HTTPFast() ServiceOption {
+	return "implementation not generated, run swipe"
+}
+
+// OpenapiEnable enabled generate openapi documentation.
+func OpenapiEnable() ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // OpenapiTags sets docs tags for method.
-func OpenapiTags(methods []interface{}, tags []string) OpenapiOption {
+func OpenapiTags(methods []interface{}, tags []string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // OpenapiOutput sets output directory, path relative to the file, default is "./".
-func OpenapiOutput(string) OpenapiOption {
+func OpenapiOutput(string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // OpenapiInfo sets info.
-func OpenapiInfo(title, description, version string) OpenapiOption {
+func OpenapiInfo(title, description, version string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // OpenapiContact sets openapi contact.
-func OpenapiContact(name, email, url string) OpenapiOption {
+func OpenapiContact(name, email, url string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // OpenapiLicence sets openapi licence.
-func OpenapiLicence(name, url string) OpenapiOption {
+func OpenapiLicence(name, url string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // OpenapiServer sets openapi server.
-func OpenapiServer(description, url string) OpenapiOption {
+func OpenapiServer(description, url string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 

@@ -15,6 +15,7 @@ require (
 	github.com/l-vitaly/go-kit v1.12.2
 	github.com/lib/pq v1.8.0
 	github.com/pquerna/ffjson v0.0.0-20190930134022-aa0246cd15f7
+	github.com/prometheus/client_golang v1.3.0
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/swipe-io/strcase v0.1.3
 	golang.org/x/mod v0.3.0

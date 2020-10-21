@@ -42,23 +42,23 @@ func (g *configGateway) FuncName() string {
 }
 
 func (g *configGateway) load(o *option.Option) {
-	structOpt := option.MustOption(o.At("optionsStruct"))
+	g.stExpr = o.Value.Expr()
+	g.stType = o.Value.Type()
 
-	g.stExpr = structOpt.Value.Expr()
-	g.stType = structOpt.Value.Type()
-
-	if ptr, ok := structOpt.Value.Type().(*stdtypes.Pointer); ok {
+	if ptr, ok := o.Value.Type().(*stdtypes.Pointer); ok {
 		g.st = ptr.Elem().Underlying().(*stdtypes.Struct)
 	} else {
-		g.st = structOpt.Value.Type().(*stdtypes.Struct)
+		g.st = o.Value.Type().(*stdtypes.Struct)
+	}
+	if _, ok := o.At("ConfigEnvDocEnable"); ok {
+		g.docEnable = true
 	}
 	g.funcName = "LoadConfig"
-	if funcNameOpt, ok := o.At("FuncName"); ok {
-		g.funcName = funcNameOpt.Value.String()
+	if opt, ok := o.At("ConfigEnvFuncName"); ok {
+		g.funcName = opt.Value.String()
 	}
-	if markdownDocOpt, ok := o.At("ConfigMarkdownDoc"); ok {
-		g.docEnable = true
-		g.docOutputDir = markdownDocOpt.Value.String()
+	if opt, ok := o.At("ConfigEnvDocOutput"); ok {
+		g.docOutputDir = opt.Value.String()
 	}
 }
 

@@ -3,11 +3,10 @@ package generator
 import (
 	"context"
 
-	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/strings"
+	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
@@ -69,8 +68,8 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 
 	g.W("type EndpointSet struct {\n")
 	for _, s := range g.services {
-		g.W("%s struct {\n", s.ID)
-		for _, method := range s.Methods {
+		g.W("%s struct {\n", s.Iface.Name())
+		for _, method := range s.Iface.Methods() {
 			g.W("%sEndpoint %s.Endpoint\n", method.Name, epPkg)
 		}
 		g.W("}\n")
@@ -78,17 +77,17 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 	g.W("}\n\n")
 
 	for _, s := range g.services {
-		g.W("type %sEndpointFactory interface {\n", s.ID)
-		for _, method := range s.Methods {
+		g.W("type %sEndpointFactory interface {\n", s.Iface.Name())
+		for _, method := range s.Iface.Methods() {
 			g.W("%sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error)\n", method.Name, epPkg, ioPkg)
 		}
 		g.W("}\n\n")
 
-		g.W("type %sOption struct {\n", s.ID)
+		g.W("type %sOption struct {\n", s.Iface.Name())
 		g.W("Instancer %s.Instancer \n", sdPkg)
-		g.W("EndpointFactory %sEndpointFactory\n", s.ID)
+		g.W("EndpointFactory %sEndpointFactory\n", s.Iface.Name())
 
-		for _, method := range s.Methods {
+		for _, method := range s.Iface.Methods() {
 			g.W("%s EndpointOption\n", method.Name)
 		}
 		g.W("}\n\n")
@@ -99,14 +98,14 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 		if i > 0 {
 			g.W(",")
 		}
-		g.W("%s %sOption", strings.LcFirst(s.ID), s.ID)
+		g.W("%s %sOption", strings.LcFirst(s.Iface.Name()), s.Iface.Name())
 	}
 	g.W(", logger %s.Logger) (ep EndpointSet) {\n", logPkg)
 
 	g.W("{\n")
 	for _, s := range g.services {
-		for _, method := range s.Methods {
-			optName := strings.LcFirst(s.ID)
+		for _, method := range s.Iface.Methods() {
+			optName := strings.LcFirst(s.Iface.Name())
 			g.W("{\n")
 
 			g.W("if %s.%s.Balancer == nil {\n", optName, method.Name)
@@ -124,9 +123,9 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 			g.W("endpointer := %[1]s.NewEndpointer(%[2]s.Instancer, %[2]s.EndpointFactory.%[3]sEndpointFactory, logger)\n", sdPkg, optName, method.Name)
 			g.W(
 				"ep.%[4]s.%[3]sEndpoint = %[1]s.RetryWithCallback(%[2]s.%[3]s.RetryTimeout, %[2]s.%[3]s.Balancer(endpointer), retryMax(%[2]s.%[3]s.RetryMax))\n",
-				lbPkg, optName, method.Name, s.ID,
+				lbPkg, optName, method.Name, s.Iface.Name(),
 			)
-			g.W("ep.%[2]s.%[1]sEndpoint = RetryErrorExtractor()(ep.%[2]s.%[1]sEndpoint)\n", method.Name, s.ID)
+			g.W("ep.%[2]s.%[1]sEndpoint = RetryErrorExtractor()(ep.%[2]s.%[1]sEndpoint)\n", method.Name, s.Iface.Name())
 			g.W("}\n")
 		}
 	}

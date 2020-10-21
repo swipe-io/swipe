@@ -4,7 +4,6 @@ import (
 	stdtypes "go/types"
 
 	"github.com/fatih/structtag"
-
 	"github.com/swipe-io/swipe/v2/internal/usecase/typevisitor"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
@@ -12,47 +11,6 @@ import (
 type jsTypeDefVisitor struct {
 	buf *writer.BaseWriter
 	jst typevisitor.TypeVisitor
-}
-
-func (v *jsTypeDefVisitor) writeStruct(st *stdtypes.Struct, nested int) {
-	var j int
-	for i := 0; i < st.NumFields(); i++ {
-		f := st.Field(i)
-		if f.Embedded() {
-			var st *stdtypes.Struct
-			if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
-				st = ptr.Elem().Underlying().(*stdtypes.Struct)
-			} else {
-				st = f.Type().Underlying().(*stdtypes.Struct)
-			}
-			v.writeStruct(st, nested)
-			v.buf.W("\n")
-			continue
-		}
-		var (
-			skip bool
-			name = f.Name()
-		)
-		if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-			if jsonTag, err := tags.Get("json"); err == nil {
-				if jsonTag.Name == "-" {
-					skip = true
-				} else {
-					name = jsonTag.Name
-				}
-			}
-		}
-		if skip {
-			continue
-		}
-
-		v.buf.W("* @property {")
-		typevisitor.ConvertType(f.Type()).Accept(v, nested+1)
-		v.buf.W("} ")
-		v.buf.W("%s\n", name)
-
-		j++
-	}
 }
 
 func (v *jsTypeDefVisitor) Visit(t stdtypes.Type) {
@@ -94,24 +52,72 @@ func (v *jsTypeDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 		v.buf.W("string")
 		return
 	}
-	if nested == 0 {
-		if st, ok := t.Obj().Type().Underlying().(*stdtypes.Struct); ok {
+	switch tp := t.Obj().Type().Underlying().(type) {
+	default:
+		typevisitor.ConvertType(tp.Underlying()).Accept(v, nested)
+	case *stdtypes.Struct:
+		if nested == 0 {
 			v.buf.W("/**\n")
 			v.buf.W("* @typedef {Object} %s\n", t.Obj().Name())
-			v.writeStruct(st, nested)
-			v.buf.W("**/\n\n")
-		}
-	} else {
-		if _, ok := t.Obj().Type().Underlying().(*stdtypes.Struct); ok {
-			v.buf.W(t.Obj().Name())
+			typevisitor.ConvertType(tp).Accept(v, nested)
+			v.buf.W("*/\n\n")
 		} else {
-			typevisitor.ConvertType(t.Obj().Type().Underlying()).Accept(v, nested+1)
+			v.buf.W(t.Obj().Name())
+		}
+	case *stdtypes.Map, *stdtypes.Slice:
+		if nested == 0 {
+			v.buf.W("/**\n")
+			v.buf.W("* @typedef {")
+			typevisitor.ConvertType(tp).Accept(v, nested)
+			v.buf.W("} %s\n", t.Obj().Name())
+			v.buf.W("*/\n\n")
+		} else {
+			v.buf.W(t.Obj().Name())
 		}
 	}
 }
 
 func (v *jsTypeDefVisitor) VisitStruct(t *stdtypes.Struct, nested int) {
-	v.writeStruct(t, nested)
+	var j int
+	for i := 0; i < t.NumFields(); i++ {
+		f := t.Field(i)
+		if f.Embedded() {
+			var st *stdtypes.Struct
+			if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
+				st = ptr.Elem().Underlying().(*stdtypes.Struct)
+			} else {
+				st = f.Type().Underlying().(*stdtypes.Struct)
+			}
+
+			typevisitor.ConvertType(st).Accept(v, nested)
+
+			v.buf.W("\n")
+			continue
+		}
+		var (
+			skip bool
+			name = f.Name()
+		)
+		if tags, err := structtag.Parse(t.Tag(i)); err == nil {
+			if jsonTag, err := tags.Get("json"); err == nil {
+				if jsonTag.Name == "-" {
+					skip = true
+				} else {
+					name = jsonTag.Name
+				}
+			}
+		}
+		if skip {
+			continue
+		}
+
+		v.buf.W("* @property {")
+		typevisitor.ConvertType(f.Type()).Accept(v, nested+1)
+		v.buf.W("} ")
+		v.buf.W("%s\n", name)
+
+		j++
+	}
 }
 
 func JSTypeDefVisitor(buf *writer.BaseWriter) typevisitor.TypeVisitor {

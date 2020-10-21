@@ -14,33 +14,6 @@ type openapiDefVisitor struct {
 	ov     typevisitor.TypeVisitor
 }
 
-func (v *openapiDefVisitor) populateSchema(st *stdtypes.Struct) {
-	for i := 0; i < st.NumFields(); i++ {
-		f := st.Field(i)
-		if !f.Embedded() {
-			name := f.Name()
-			if tags, err := structtag.Parse(st.Tag(i)); err == nil {
-				if tag, err := tags.Get("json"); err == nil {
-					name = tag.Value()
-				}
-			}
-			if name == "-" {
-				continue
-			}
-			v.schema.Properties[name] = &openapi.Schema{}
-			OpenapiVisitor(v.schema.Properties[name]).Visit(f.Type())
-		} else {
-			var st *stdtypes.Struct
-			if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
-				st = ptr.Elem().Underlying().(*stdtypes.Struct)
-			} else {
-				st = f.Type().Underlying().(*stdtypes.Struct)
-			}
-			v.populateSchema(st)
-		}
-	}
-}
-
 func (v *openapiDefVisitor) Visit(t stdtypes.Type) {
 	typevisitor.ConvertType(t).Accept(v, 0)
 }
@@ -54,7 +27,7 @@ func (v *openapiDefVisitor) VisitArray(t *stdtypes.Array, nested int) {
 }
 
 func (v *openapiDefVisitor) VisitSlice(t *stdtypes.Slice, nested int) {
-	v.VisitSlice(t, nested)
+	v.ov.VisitSlice(t, nested)
 }
 
 func (v *openapiDefVisitor) VisitMap(t *stdtypes.Map, nested int) {
@@ -62,6 +35,7 @@ func (v *openapiDefVisitor) VisitMap(t *stdtypes.Map, nested int) {
 }
 
 func (v *openapiDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
+
 	switch stdtypes.TypeString(t, nil) {
 	case "encoding/json.RawMessage":
 		v.schema.Type = "object"
@@ -80,19 +54,47 @@ func (v *openapiDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 		return
 	}
 
-	if nested == 0 {
-		if st, ok := t.Obj().Type().Underlying().(*stdtypes.Struct); ok {
+	switch tp := t.Obj().Type().Underlying().(type) {
+	default:
+		typevisitor.ConvertType(tp.Underlying()).Accept(v, nested)
+
+	case *stdtypes.Struct:
+		if nested == 0 {
 			v.schema.Properties = openapi.Properties{}
-			v.populateSchema(st)
+			typevisitor.ConvertType(tp).Accept(v, nested)
+		} else {
+			v.schema.Type = "object"
+			v.schema.Ref = "#/components/schemas/" + t.Obj().Name()
 		}
-	} else {
-		v.schema.Type = "object"
-		v.schema.Ref = "#/components/schemas/" + t.Obj().Name()
+	case *stdtypes.Map, *stdtypes.Slice:
+		if nested == 0 {
+			typevisitor.ConvertType(tp).Accept(v, nested)
+		} else {
+			v.schema.Type = "object"
+			v.schema.Ref = "#/components/schemas/" + t.Obj().Name()
+		}
 	}
 }
 
 func (v *openapiDefVisitor) VisitStruct(t *stdtypes.Struct, nested int) {
-
+	for i := 0; i < t.NumFields(); i++ {
+		f := t.Field(i)
+		if !f.Embedded() {
+			name := f.Name()
+			if tags, err := structtag.Parse(t.Tag(i)); err == nil {
+				if tag, err := tags.Get("json"); err == nil {
+					name = tag.Value()
+				}
+			}
+			if name == "-" {
+				continue
+			}
+			v.schema.Properties[name] = &openapi.Schema{}
+			OpenapiVisitor(v.schema.Properties[name]).Visit(f.Type())
+		} else {
+			typevisitor.ConvertType(t).Accept(v, nested+1)
+		}
+	}
 }
 
 func (v *openapiDefVisitor) VisitBasic(t *stdtypes.Basic, nested int) {

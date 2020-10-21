@@ -6,23 +6,22 @@ import (
 	"path/filepath"
 
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
-
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
-type configMarkdownDoc struct {
+type configDoc struct {
 	writer.BaseWriter
 	st        *stdtypes.Struct
 	workDir   string
 	outputDir string
 }
 
-func (g *configMarkdownDoc) Prepare(ctx context.Context) (err error) {
+func (g *configDoc) Prepare(ctx context.Context) (err error) {
 	g.outputDir, err = filepath.Abs(filepath.Join(g.workDir, g.outputDir))
 	return
 }
 
-func (g *configMarkdownDoc) Process(ctx context.Context) error {
+func (g *configDoc) Process(ctx context.Context) error {
 	g.W("# Config\n\n")
 
 	var flags []fldOpts
@@ -62,22 +61,22 @@ func (g *configMarkdownDoc) Process(ctx context.Context) error {
 	return nil
 }
 
-func (g *configMarkdownDoc) PkgName() string {
+func (g *configDoc) PkgName() string {
 	return ""
 }
 
-func (g *configMarkdownDoc) OutputDir() string {
+func (g *configDoc) OutputDir() string {
 	return g.outputDir
 }
 
-func (g *configMarkdownDoc) Filename() string {
+func (g *configDoc) Filename() string {
 	return "config_doc_gen.md"
 }
 
-func NewConfigMarkdownDoc(
+func NewConfigDoc(
 	st *stdtypes.Struct,
 	workDir string,
 	outputDir string,
 ) generator.Generator {
-	return &configMarkdownDoc{st: st, workDir: workDir, outputDir: outputDir}
+	return &configDoc{st: st, workDir: workDir, outputDir: outputDir}
 }

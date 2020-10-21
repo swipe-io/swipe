@@ -1,21 +1,41 @@
 package gateway
 
 import (
-	stdtypes "go/types"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
+	"github.com/swipe-io/swipe/v2/internal/openapi"
 )
 
 type ServiceGateway interface {
-	ID() string
-	RawID() string
-	Transport() model.TransportOption
-	Errors() map[uint32]*model.HTTPError
-	Methods() []model.ServiceMethod
-	Type() stdtypes.Type
-	TypeName() *stdtypes.Named
-	Interface() *stdtypes.Interface
-	Readme() model.ServiceReadme
+	AppID() string
+	AppName() string
+	Interfaces() model.Interfaces
+	Error(key uint32) *model.HTTPError
+	ErrorKeys() []uint32
+	TransportType() model.Transport
+	UseFast() bool
+	MethodOption(m model.ServiceMethod) model.MethodOption
+	Prefix() string
+
+	ReadmeEnable() bool
+	ReadmeOutput() string
+	ReadmeTemplatePath() string
+
 	LoggingEnable() bool
 	InstrumentingEnable() bool
+
+	JSONRPCEnable() bool
+	JSONRPCDocEnable() bool
+	JSONRPCDocOutput() string
+	JSONRPCPath() string
+
+	ClientEnable() bool
+	GoClientEnable() bool
+	JSClientEnable() bool
+
+	OpenapiEnable() bool
+	OpenapiOutput() string
+	OpenapiInfo() openapi.Info
+	OpenapiServers() []openapi.Server
+	OpenapiMethodTags(name string) []string
+	OpenapiDefaultMethodTags() []string
 }

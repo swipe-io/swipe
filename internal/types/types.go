@@ -76,12 +76,10 @@ func Inspect(pkgs []*packages.Package, f func(p *packages.Package, n ast.Node) b
 	}
 }
 
-func ZeroValue(t types.Type) string {
+func ZeroValue(t types.Type, qf types.Qualifier) string {
 	switch u := t.Underlying().(type) {
 	case *types.Array, *types.Struct:
-		return types.TypeString(t, func(p *types.Package) string {
-			return p.Name()
-		}) + "{}"
+		return types.TypeString(t, qf) + "{}"
 	case *types.Basic:
 		info := u.Info()
 		switch {

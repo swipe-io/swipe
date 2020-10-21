@@ -23,12 +23,15 @@ func (v *namedTypeCollector) VisitPointer(t *stdtypes.Pointer, nested int) {
 }
 
 func (v *namedTypeCollector) VisitArray(t *stdtypes.Array, nested int) {
+	typevisitor.ConvertType(t.Elem()).Accept(v, nested)
 }
 
 func (v *namedTypeCollector) VisitSlice(t *stdtypes.Slice, nested int) {
+	typevisitor.ConvertType(t.Elem()).Accept(v, nested)
 }
 
 func (v *namedTypeCollector) VisitMap(t *stdtypes.Map, nested int) {
+	typevisitor.ConvertType(t.Elem()).Accept(v, nested)
 }
 
 func (v *namedTypeCollector) VisitNamed(t *stdtypes.Named, nested int) {

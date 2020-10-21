@@ -8,42 +8,175 @@ import (
 	stdstrings "strings"
 
 	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/errors"
 	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
+	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
-	"golang.org/x/tools/go/types/typeutil"
-
-	"github.com/swipe-io/swipe/v2/internal/domain/model"
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/usecase/gateway"
+
+	"github.com/gogo/protobuf/sortkeys"
+
+	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 type serviceGateway struct {
-	serviceID            string
-	rawServiceID         string
-	transport            model.TransportOption
-	readme               model.ServiceReadme
-	serviceType          stdtypes.Type
-	serviceTypeName      *stdtypes.Named
-	serviceIface         *stdtypes.Interface
-	serviceMethods       []model.ServiceMethod
-	graphTypes           *graph.Graph
-	commentMap           *typeutil.Map
-	defaultMethodOptions model.MethodHTTPTransportOption
-	errors               map[uint32]*model.HTTPError
+	pkg                      *packages.Package
+	transportType            model.Transport
+	useFast                  bool
+	graphTypes               *graph.Graph
+	commentMap               *typeutil.Map
+	methodOptions            map[string]model.MethodOption
+	defaultMethodOptions     model.MethodOption
+	clientsEnable            []string
+	errors                   map[uint32]*model.HTTPError
+	prefix                   string
+	openapiEnable            bool
+	openapiOutput            string
+	openapiInfo              openapi.Info
+	openapiServers           []openapi.Server
+	openapiMethodTags        map[string][]string
+	openapiDefaultMethodTags []string
+	jsonRPCEnable            bool
+	jsonRPCDocEnable         bool
+	jsonRPCDocOutputDir      string
+	jsonRPCPath              string
+	readmeEnable             bool
+	readmeOutput             string
+	readmeTemplatePath       string
+	interfaces               model.Interfaces
+	hasher                   typeutil.Hasher
+	appName                  string
+	appID                    string
 }
 
-func (g *serviceGateway) Errors() map[uint32]*model.HTTPError {
-	return g.errors
+func (g *serviceGateway) AppID() string {
+	return g.appID
+}
+
+func (g *serviceGateway) AppName() string {
+	return g.appName
+}
+
+func (g *serviceGateway) Interfaces() model.Interfaces {
+	return g.interfaces
+}
+
+func (g *serviceGateway) Prefix() string {
+	return g.prefix
+}
+
+func (g *serviceGateway) UseFast() bool {
+	return g.useFast
+}
+
+func (g *serviceGateway) MethodOption(m model.ServiceMethod) model.MethodOption {
+	if sign, ok := m.T.(*stdtypes.Signature); ok && sign.Recv() != nil {
+		ifaceName := stdtypes.TypeString(sign.Recv().Type(), func(p *stdtypes.Package) string {
+			return ""
+		})
+		mopt, ok := g.methodOptions[ifaceName+m.Name]
+		if ok {
+			return mopt
+		}
+	}
+	return g.defaultMethodOptions
+}
+
+func (g *serviceGateway) ClientEnable() bool {
+	return len(g.clientsEnable) > 0
+}
+
+func (g *serviceGateway) GoClientEnable() bool {
+	for _, client := range g.clientsEnable {
+		if client == "go" {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *serviceGateway) JSClientEnable() bool {
+	for _, client := range g.clientsEnable {
+		if client == "js" {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *serviceGateway) OpenapiEnable() bool {
+	return g.openapiEnable
+}
+
+func (g *serviceGateway) OpenapiOutput() string {
+	return g.openapiOutput
+}
+
+func (g *serviceGateway) OpenapiInfo() openapi.Info {
+	return g.openapiInfo
+}
+
+func (g *serviceGateway) OpenapiServers() []openapi.Server {
+	return g.openapiServers
+}
+
+func (g *serviceGateway) OpenapiMethodTags(name string) []string {
+	return g.openapiMethodTags[name]
+}
+
+func (g *serviceGateway) OpenapiDefaultMethodTags() []string {
+	return g.openapiDefaultMethodTags
+}
+
+func (g *serviceGateway) TransportType() model.Transport {
+	return g.transportType
+}
+
+func (g *serviceGateway) JSONRPCEnable() bool {
+	return g.jsonRPCEnable
+}
+
+func (g *serviceGateway) JSONRPCDocEnable() bool {
+	return g.jsonRPCDocEnable
+}
+
+func (g *serviceGateway) JSONRPCDocOutput() string {
+	return g.jsonRPCDocOutputDir
+}
+
+func (g *serviceGateway) JSONRPCPath() string {
+	return g.jsonRPCPath
+}
+
+func (g *serviceGateway) ReadmeOutput() string {
+	return g.readmeOutput
+}
+
+func (g *serviceGateway) ReadmeTemplatePath() string {
+	return g.readmeTemplatePath
+}
+
+func (g *serviceGateway) Error(key uint32) *model.HTTPError {
+	return g.errors[key]
+}
+
+func (g *serviceGateway) ErrorKeys() (errorKeys []uint32) {
+	for key := range g.errors {
+		errorKeys = append(errorKeys, key)
+	}
+	sortkeys.Uint32s(errorKeys)
+	return
 }
 
 func (g *serviceGateway) InstrumentingEnable() bool {
 	if g.defaultMethodOptions.InstrumentingEnable {
 		return true
 	}
-	for _, transportOption := range g.transport.MethodOptions {
+	for _, transportOption := range g.methodOptions {
 		if transportOption.InstrumentingEnable {
 			return true
 		}
@@ -55,7 +188,7 @@ func (g *serviceGateway) LoggingEnable() bool {
 	if g.defaultMethodOptions.LoggingEnable {
 		return true
 	}
-	for _, transportOption := range g.transport.MethodOptions {
+	for _, transportOption := range g.methodOptions {
 		if transportOption.LoggingEnable {
 			return true
 		}
@@ -63,128 +196,83 @@ func (g *serviceGateway) LoggingEnable() bool {
 	return false
 }
 
-func (g *serviceGateway) ID() string {
-	return g.serviceID
+func (g *serviceGateway) ReadmeEnable() bool {
+	return g.readmeEnable
 }
 
-func (g *serviceGateway) RawID() string {
-	return g.rawServiceID
-}
-
-func (g *serviceGateway) Transport() model.TransportOption {
-	return g.transport
-}
-
-func (g *serviceGateway) Methods() []model.ServiceMethod {
-	return g.serviceMethods
-}
-
-func (g *serviceGateway) Type() stdtypes.Type {
-	return g.serviceType
-}
-
-func (g *serviceGateway) TypeName() *stdtypes.Named {
-	return g.serviceTypeName
-}
-
-func (g *serviceGateway) Interface() *stdtypes.Interface {
-	return g.serviceIface
-}
-
-func (g *serviceGateway) Readme() model.ServiceReadme {
-	return g.readme
-}
-
-func (g *serviceGateway) load(o *option.Option) error {
-	serviceOpt := option.MustOption(o.At("iface"))
-	ifacePtr, ok := serviceOpt.Value.Type().(*stdtypes.Pointer)
-	if !ok {
-		return errors.NotePosition(serviceOpt.Position,
-			fmt.Errorf("the Iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(serviceOpt.Value.Type(), nil)))
+func (g *serviceGateway) loadReadme(o *option.Option) error {
+	if _, ok := o.At("ReadmeEnable"); ok {
+		g.readmeEnable = true
 	}
-	iface, ok := ifacePtr.Elem().Underlying().(*stdtypes.Interface)
-	if !ok {
-		return errors.NotePosition(serviceOpt.Position,
-			fmt.Errorf("the Iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(serviceOpt.Value.Type(), nil)))
+	if opt, ok := o.At("ReadmeOutput"); ok {
+		g.readmeOutput = opt.Value.String()
 	}
+	if opt, ok := o.At("ReadmeTemplatePath"); ok {
+		g.readmeTemplatePath = opt.Value.String()
+	}
+	return nil
+}
 
+func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]*model.HTTPError, ifaceLen int) (*model.ServiceInterface, error) {
+	ifaceOpt := option.MustOption(o.At("iface"))
+	prefixOpt := option.MustOption(o.At("prefix"))
+
+	ifacePtr, ok := ifaceOpt.Value.Type().(*stdtypes.Pointer)
+	if !ok {
+		return nil, errors.NotePosition(o.Position,
+			fmt.Errorf("the iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(o.Value.Type(), nil)))
+	}
+	ifaceType, ok := ifacePtr.Elem().Underlying().(*stdtypes.Interface)
+	if !ok {
+		return nil, errors.NotePosition(o.Position,
+			fmt.Errorf("the iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(o.Value.Type(), nil)))
+	}
 	typeName := ifacePtr.Elem().(*stdtypes.Named)
-	rawID := stdstrings.Split(typeName.Obj().Pkg().Path(), "/")[2]
+	ifaceName := strcase.ToCamel(typeName.Obj().Name())
+	ifaceLcName := strcase.ToLowerCamel(ifaceName)
 
-	g.serviceID = strcase.ToCamel(rawID)
-	g.rawServiceID = rawID
+	nameExport := ""
+	nameUnExport := ""
 
-	if nameOpt, ok := o.At("Name"); ok {
-		if name := nameOpt.Value.String(); name != "" {
-			g.serviceID = strcase.ToCamel(name)
-		}
+	if ifaceLen > 1 {
+		nameExport = ifaceName
+		nameUnExport = ifaceLcName
 	}
 
-	g.serviceType = ifacePtr.Elem()
-	g.serviceTypeName = typeName
-	g.serviceIface = iface
+	var serviceMethods []model.ServiceMethod
 
-	errorMethodName := "StatusCode"
-	if g.transport.JsonRPC.Enable {
-		errorMethodName = "ErrorCode"
-	}
-
-	hasher := typeutil.MakeHasher()
-
-	g.graphTypes.Iterate(func(n *graph.Node) {
-		g.graphTypes.Traverse(n, func(n *graph.Node) bool {
-			if named, ok := n.Object.Type().(*stdtypes.Named); ok {
-				key := hasher.Hash(named)
-				if _, ok := g.errors[key]; ok {
-					return true
-				}
-				if e := g.findError(named, errorMethodName); e != nil {
-					g.errors[key] = e
-				}
-			}
-			return true
-		})
-	})
-
-	genericErrors := map[uint32]*model.HTTPError{}
-
-	g.graphTypes.Iterate(func(n *graph.Node) {
-		g.graphTypes.Traverse(n, func(n *graph.Node) bool {
-			if sig, ok := n.Object.Type().(*stdtypes.Signature); ok {
-				if sig.Results().Len() == 1 {
-					if stdtypes.TypeString(sig.Results().At(0).Type(), nil) == "github.com/go-kit/kit/endpoint.Middleware" {
-						g.graphTypes.Traverse(n, func(n *graph.Node) bool {
-							if named, ok := n.Object.Type().(*stdtypes.Named); ok {
-								key := hasher.Hash(named)
-								if _, ok := genericErrors[key]; ok {
-									return true
-								}
-								if e, ok := g.errors[key]; ok {
-									genericErrors[key] = e
-								}
-							}
-							return true
-						})
-					}
-				}
-			}
-			return true
-		})
-	})
-
-	for i := 0; i < iface.NumMethods(); i++ {
-		m := iface.Method(i)
+	for i := 0; i < ifaceType.NumMethods(); i++ {
+		m := ifaceType.Method(i)
 
 		sig := m.Type().(*stdtypes.Signature)
 		comments, _ := g.commentMap.At(m.Type()).([]string)
 
+		lcName := strings.LcFirst(m.Name())
+
+		nameExport := m.Name()
+		nameUnExport := lcName
+
+		nameRequest := m.Name() + "Request"
+		nameResponse := m.Name() + "Response"
+
+		if ifaceLen > 1 {
+			nameRequest = ifaceName + m.Name() + "Request"
+			nameResponse = ifaceName + m.Name() + "Response"
+			nameExport = ifaceName + m.Name()
+			nameUnExport = ifaceLcName + m.Name()
+		}
+
 		sm := model.ServiceMethod{
-			Type:     m,
-			T:        m.Type(),
-			Name:     m.Name(),
-			LcName:   strings.LcFirst(m.Name()),
-			Errors:   genericErrors,
-			Comments: comments,
+			Type:         m,
+			T:            m.Type(),
+			Name:         m.Name(),
+			NameExport:   nameExport,
+			NameUnExport: nameUnExport,
+			LcName:       lcName,
+			NameRequest:  nameRequest,
+			NameResponse: nameResponse,
+			Errors:       genericErrors,
+			Comments:     comments,
 		}
 
 		g.graphTypes.Iterate(func(n *graph.Node) {
@@ -192,7 +280,7 @@ func (g *serviceGateway) load(o *option.Option) error {
 				if n.Object.Name() == m.Name() && stdtypes.Identical(n.Object.Type(), m.Type()) {
 					g.graphTypes.Traverse(n, func(n *graph.Node) bool {
 						if named, ok := n.Object.Type().(*stdtypes.Named); ok {
-							key := hasher.Hash(named)
+							key := g.hasher.Hash(named)
 							if _, ok := sm.Errors[key]; ok {
 								return true
 							}
@@ -208,7 +296,7 @@ func (g *serviceGateway) load(o *option.Option) error {
 							elem = ptr.Elem()
 						}
 						if named, ok := elem.(*stdtypes.Named); ok {
-							key := hasher.Hash(named)
+							key := g.hasher.Hash(named)
 							if _, ok := sm.Errors[key]; ok {
 								return true
 							}
@@ -239,7 +327,7 @@ func (g *serviceGateway) load(o *option.Option) error {
 		}
 
 		if !sm.ResultsNamed && sig.Results().Len()-resultOffset > 1 {
-			return errors.NotePosition(serviceOpt.Position,
+			return nil, errors.NotePosition(o.Position,
 				fmt.Errorf("interface method with unnamed results cannot be greater than 1"))
 		}
 		for j := paramOffset; j < sig.Params().Len(); j++ {
@@ -248,22 +336,111 @@ func (g *serviceGateway) load(o *option.Option) error {
 		for j := 0; j < sig.Results().Len()-resultOffset; j++ {
 			sm.Results = append(sm.Results, sig.Results().At(j))
 		}
-		g.serviceMethods = append(g.serviceMethods, sm)
+		serviceMethods = append(serviceMethods, sm)
+	}
+	return model.NewServiceInterface(
+		prefixOpt.Value.String(),
+		ifaceName,
+		ifaceLcName,
+		nameExport,
+		nameUnExport,
+		ifacePtr.Elem(),
+		typeName,
+		ifaceType,
+		serviceMethods,
+	), nil
+}
+
+func (g *serviceGateway) load(o *option.Option) error {
+	g.appName = stdstrings.Split(g.pkg.PkgPath, "/")[2]
+	if nameOpt, ok := o.At("Name"); ok {
+		if name := nameOpt.Value.String(); name != "" {
+			g.appName = strcase.ToCamel(name)
+		}
+	}
+	g.appID = strcase.ToCamel(g.appName)
+	if err := g.loadJSONRPC(o); err != nil {
+		return err
+	}
+	if err := g.loadOpenapi(o); err != nil {
+		return err
+	}
+	if err := g.loadMethodOptions(o); err != nil {
+		return err
+	}
+	if err := g.loadReadme(o); err != nil {
+		return err
 	}
 
-	if transportOpt, ok := o.At("Transport"); ok {
-		transportOption, err := g.loadTransport(transportOpt)
-		if err != nil {
-			return err
-		}
-		g.transport = transportOption
+	g.prefix = "REST"
+	if g.jsonRPCEnable {
+		g.prefix = "JSONRPC"
 	}
-	if opt, ok := o.At("Readme"); ok {
-		g.readme.Enable = true
-		if readmeTemplateOpt, ok := opt.At("ReadmeTemplate"); ok {
-			g.readme.TemplatePath = readmeTemplateOpt.Value.String()
+
+	errorMethodName := "StatusCode"
+	if g.jsonRPCEnable {
+		errorMethodName = "ErrorCode"
+	}
+
+	g.graphTypes.Iterate(func(n *graph.Node) {
+		g.graphTypes.Traverse(n, func(n *graph.Node) bool {
+			if named, ok := n.Object.Type().(*stdtypes.Named); ok {
+				key := g.hasher.Hash(named)
+				if _, ok := g.errors[key]; ok {
+					return true
+				}
+				if e := g.findError(named, errorMethodName); e != nil {
+					g.errors[key] = e
+				}
+			}
+			return true
+		})
+	})
+
+	genericErrors := map[uint32]*model.HTTPError{}
+
+	g.graphTypes.Iterate(func(n *graph.Node) {
+		g.graphTypes.Traverse(n, func(n *graph.Node) bool {
+			if sig, ok := n.Object.Type().(*stdtypes.Signature); ok {
+				if sig.Results().Len() == 1 {
+					if stdtypes.TypeString(sig.Results().At(0).Type(), nil) == "github.com/go-kit/kit/endpoint.Middleware" {
+						g.graphTypes.Traverse(n, func(n *graph.Node) bool {
+							if named, ok := n.Object.Type().(*stdtypes.Named); ok {
+								key := g.hasher.Hash(named)
+								if _, ok := genericErrors[key]; ok {
+									return true
+								}
+								if e, ok := g.errors[key]; ok {
+									genericErrors[key] = e
+								}
+							}
+							return true
+						})
+					}
+				}
+			}
+			return true
+		})
+	})
+
+	if ifaces, ok := o.Slice("Interface"); ok {
+		for _, iface := range ifaces {
+			svc, err := g.loadService(iface, genericErrors, len(ifaces))
+			if err != nil {
+				return err
+			}
+			g.interfaces = append(g.interfaces, svc)
 		}
-		g.readme.OutputDir = option.MustOption(opt.At("outputDir")).Value.String()
+	}
+
+	if _, ok := o.At("HTTPServer"); ok {
+		g.transportType = model.HTTPTransport
+	}
+	if _, ok := o.At("HTTPFast"); ok {
+		g.useFast = true
+	}
+	if o, ok := o.At("ClientsEnable"); ok {
+		g.clientsEnable = o.Value.StringSlice()
 	}
 	return nil
 }
@@ -301,143 +478,131 @@ func (g *serviceGateway) findError(named *stdtypes.Named, methodName string) *mo
 	return nil
 }
 
-func (g *serviceGateway) loadTransport(o *option.Option) (transportOption model.TransportOption, err error) {
-	_, fastHTTP := o.At("FastEnable")
-	transportOption = model.TransportOption{
-		Protocol:      option.MustOption(o.At("protocol")).Value.String(),
-		FastHTTP:      fastHTTP,
-		MethodOptions: map[string]model.MethodHTTPTransportOption{},
-		Openapi: model.OpenapiHTTPTransportOption{
-			Methods: map[string]*model.OpenapiMethodOption{},
-		},
+func (g *serviceGateway) loadOpenapi(o *option.Option) (err error) {
+	if _, ok := o.At("OpenapiEnable"); ok {
+		g.openapiEnable = true
 	}
-	if v, ok := o.At("MarkdownDoc"); ok {
-		transportOption.MarkdownDoc.Enable = true
-		transportOption.MarkdownDoc.OutputDir = v.Value.String()
+	if v, ok := o.At("OpenapiOutput"); ok {
+		g.openapiOutput = v.Value.String()
 	}
-	if _, ok := o.At("ClientEnable"); ok {
-		transportOption.Client.Enable = true
-	}
-	if _, ok := o.At("ServerDisabled"); ok {
-		transportOption.ServerDisabled = true
-	}
-	if openapiDocOpt, ok := o.At("Openapi"); ok {
-		transportOption.Openapi.Enable = true
-		if v, ok := openapiDocOpt.At("OpenapiOutput"); ok {
-			transportOption.Openapi.Output = v.Value.String()
+	if v, ok := o.At("OpenapiInfo"); ok {
+		g.openapiInfo = openapi.Info{
+			Title:       option.MustOption(v.At("title")).Value.String(),
+			Description: option.MustOption(v.At("description")).Value.String(),
+			Version:     option.MustOption(v.At("version")).Value.String(),
 		}
-		if v, ok := openapiDocOpt.At("OpenapiInfo"); ok {
-			transportOption.Openapi.Info = openapi.Info{
-				Title:       option.MustOption(v.At("title")).Value.String(),
+	}
+	if v, ok := o.At("OpenapiContact"); ok {
+		g.openapiInfo.Contact = &openapi.Contact{
+			Name:  option.MustOption(v.At("name")).Value.String(),
+			Email: option.MustOption(v.At("email")).Value.String(),
+			URL:   option.MustOption(v.At("url")).Value.String(),
+		}
+	}
+	if v, ok := o.At("OpenapiLicence"); ok {
+		g.openapiInfo.License = &openapi.License{
+			Name: option.MustOption(v.At("name")).Value.String(),
+			URL:  option.MustOption(v.At("url")).Value.String(),
+		}
+	}
+	if s, ok := o.Slice("OpenapiServer"); ok {
+		for _, v := range s {
+			g.openapiServers = append(g.openapiServers, openapi.Server{
 				Description: option.MustOption(v.At("description")).Value.String(),
-				Version:     option.MustOption(v.At("version")).Value.String(),
-			}
+				URL:         option.MustOption(v.At("url")).Value.String(),
+			})
 		}
-		if v, ok := openapiDocOpt.At("OpenapiContact"); ok {
-			transportOption.Openapi.Info.Contact = &openapi.Contact{
-				Name:  option.MustOption(v.At("name")).Value.String(),
-				Email: option.MustOption(v.At("email")).Value.String(),
-				URL:   option.MustOption(v.At("url")).Value.String(),
-			}
-		}
-		if v, ok := openapiDocOpt.At("OpenapiLicence"); ok {
-			transportOption.Openapi.Info.License = &openapi.License{
-				Name: option.MustOption(v.At("name")).Value.String(),
-				URL:  option.MustOption(v.At("url")).Value.String(),
-			}
-		}
-		if s, ok := openapiDocOpt.Slice("OpenapiServer"); ok {
-			for _, v := range s {
-				transportOption.Openapi.Servers = append(transportOption.Openapi.Servers, openapi.Server{
-					Description: option.MustOption(v.At("description")).Value.String(),
-					URL:         option.MustOption(v.At("url")).Value.String(),
-				})
-			}
-		}
-		if openapiTags, ok := openapiDocOpt.Slice("OpenapiTags"); ok {
-			for _, openapiTagsOpt := range openapiTags {
-				var methods []string
-				if methodsOpt, ok := openapiTagsOpt.At("methods"); ok {
-					for _, expr := range methodsOpt.Value.ExprSlice() {
-						fnSel, ok := expr.(*ast.SelectorExpr)
-						if !ok {
-							return transportOption, errors.NotePosition(methodsOpt.Position, fmt.Errorf("the %s value must be func selector", methodsOpt.Name))
-						}
-						methods = append(methods, fnSel.Sel.Name)
-						if _, ok := transportOption.Openapi.Methods[fnSel.Sel.Name]; !ok {
-							transportOption.Openapi.Methods[fnSel.Sel.Name] = &model.OpenapiMethodOption{}
-						}
+	}
+	if openapiTags, ok := o.Slice("OpenapiTags"); ok {
+		for _, openapiTagsOpt := range openapiTags {
+			var methods []string
+			if methodsOpt, ok := openapiTagsOpt.At("methods"); ok {
+				for _, expr := range methodsOpt.Value.ExprSlice() {
+					fnSel, ok := expr.(*ast.SelectorExpr)
+					if !ok {
+						return errors.NotePosition(methodsOpt.Position, fmt.Errorf("the %s value must be func selector", methodsOpt.Name))
 					}
-				}
-				if tagsOpt, ok := openapiTagsOpt.At("tags"); ok {
-					if len(methods) > 0 {
-						for _, method := range methods {
-							transportOption.Openapi.Methods[method].Tags = append(transportOption.Openapi.Methods[method].Tags, tagsOpt.Value.StringSlice()...)
-						}
-					} else {
-						transportOption.Openapi.DefaultMethod.Tags = append(transportOption.Openapi.DefaultMethod.Tags, tagsOpt.Value.StringSlice()...)
+					methods = append(methods, fnSel.Sel.Name)
+					if _, ok := g.openapiMethodTags[fnSel.Sel.Name]; !ok {
+						g.openapiMethodTags[fnSel.Sel.Name] = []string{}
 					}
 				}
 			}
-		}
-		if transportOption.Openapi.Output == "" {
-			transportOption.Openapi.Output = "./"
+			if tagsOpt, ok := openapiTagsOpt.At("tags"); ok {
+				if len(methods) > 0 {
+					for _, method := range methods {
+						g.openapiMethodTags[method] = append(g.openapiMethodTags[method], tagsOpt.Value.StringSlice()...)
+					}
+				} else {
+					g.openapiDefaultMethodTags = append(g.openapiDefaultMethodTags, tagsOpt.Value.StringSlice()...)
+				}
+			}
 		}
 	}
-	if jsonRpcOpt, ok := o.At("JSONRPC"); ok {
-		transportOption.JsonRPC.Enable = true
-		if path, ok := jsonRpcOpt.At("JSONRPCPath"); ok {
-			transportOption.JsonRPC.Path = path.Value.String()
-		}
+	if g.openapiOutput == "" {
+		g.openapiOutput = "./"
 	}
+	return nil
+}
+
+func (g *serviceGateway) loadMethodOptions(o *option.Option) (err error) {
 	if methodDefaultOpt, ok := o.At("MethodDefaultOptions"); ok {
-		defaultMethodOptions, err := getMethodOptions(methodDefaultOpt, model.MethodHTTPTransportOption{})
+		g.defaultMethodOptions, err = getMethodOptions(methodDefaultOpt, model.MethodOption{})
 		if err != nil {
-			return transportOption, err
+			return err
 		}
-
-		for _, method := range g.serviceMethods {
-			transportOption.MethodOptions[method.Name] = defaultMethodOptions
-		}
-
-		g.defaultMethodOptions = defaultMethodOptions
 	}
-
 	if methods, ok := o.Slice("MethodOptions"); ok {
 		for _, methodOpt := range methods {
 			signOpt := option.MustOption(methodOpt.At("signature"))
 			fnSel, ok := signOpt.Value.Expr().(*ast.SelectorExpr)
 			if !ok {
-				return transportOption, errors.NotePosition(signOpt.Position, fmt.Errorf("the signature must be selector"))
+				return errors.NotePosition(signOpt.Position, fmt.Errorf("the signature must be selector"))
 			}
-
-			baseMethodOpts := transportOption.MethodOptions[fnSel.Sel.Name]
-			mopt, err := getMethodOptions(methodOpt, baseMethodOpts)
+			mopt, err := getMethodOptions(methodOpt, g.defaultMethodOptions)
 			if err != nil {
-				return transportOption, err
+				return err
 			}
-			transportOption.MethodOptions[fnSel.Sel.Name] = mopt
+			obj := g.pkg.TypesInfo.ObjectOf(fnSel.Sel)
+			if obj != nil {
+				if sign, ok := obj.Type().(*stdtypes.Signature); ok && sign.Recv() != nil {
+					ifaceName := stdtypes.TypeString(sign.Recv().Type(), func(p *stdtypes.Package) string {
+						return ""
+					})
+					g.methodOptions[ifaceName+obj.Name()] = mopt
+				}
+			}
 		}
 	}
-
-	transportOption.Prefix = "REST"
-	if transportOption.JsonRPC.Enable {
-		transportOption.Prefix = "JSONRPC"
-	}
-
 	return
 }
 
-func getMethodOptions(o *option.Option, baseMethodOpts model.MethodHTTPTransportOption) (model.MethodHTTPTransportOption, error) {
-	if loggingOpt, ok := o.At("Logging"); ok {
-		baseMethodOpts.LoggingEnable = loggingOpt.Value.Bool()
+func (g *serviceGateway) loadJSONRPC(o *option.Option) (err error) {
+	if _, ok := o.At("JSONRPCEnable"); ok {
+		g.jsonRPCEnable = true
 	}
-	if loggingParamsOpt, ok := o.At("LoggingParams"); ok {
+	if _, ok := o.At("JSONRPCDocEnable"); ok {
+		g.jsonRPCDocEnable = true
+	}
+	if opt, ok := o.At("JSONRPCDocOutput"); ok {
+		g.jsonRPCDocOutputDir = opt.Value.String()
+	}
+	if opt, ok := o.At("JSONRPCPath"); ok {
+		g.jsonRPCPath = opt.Value.String()
+	}
+	return
+}
+
+func getMethodOptions(o *option.Option, baseMethodOpts model.MethodOption) (model.MethodOption, error) {
+	if opt, ok := o.At("Logging"); ok {
+		baseMethodOpts.LoggingEnable = opt.Value.Bool()
+	}
+	if opt, ok := o.At("LoggingParams"); ok {
 		baseMethodOpts.LoggingIncludeParams = map[string]struct{}{}
 		baseMethodOpts.LoggingExcludeParams = map[string]struct{}{}
 
-		includes := option.MustOption(loggingParamsOpt.At("includes")).Value.StringSlice()
-		excludes := option.MustOption(loggingParamsOpt.At("excludes")).Value.StringSlice()
+		includes := option.MustOption(opt.At("includes")).Value.StringSlice()
+		excludes := option.MustOption(opt.At("excludes")).Value.StringSlice()
 		for _, field := range includes {
 			baseMethodOpts.LoggingIncludeParams[field] = struct{}{}
 		}
@@ -445,18 +610,18 @@ func getMethodOptions(o *option.Option, baseMethodOpts model.MethodHTTPTransport
 			baseMethodOpts.LoggingExcludeParams[field] = struct{}{}
 		}
 	}
-	if instrumentingOpt, ok := o.At("Instrumenting"); ok {
-		baseMethodOpts.InstrumentingEnable = instrumentingOpt.Value.Bool()
+	if opt, ok := o.At("Instrumenting"); ok {
+		baseMethodOpts.InstrumentingEnable = opt.Value.Bool()
 	}
-	if wrapResponseOpt, ok := o.At("WrapResponse"); ok {
+	if opt, ok := o.At("RESTWrapResponse"); ok {
 		baseMethodOpts.WrapResponse.Enable = true
-		baseMethodOpts.WrapResponse.Name = wrapResponseOpt.Value.String()
+		baseMethodOpts.WrapResponse.Name = opt.Value.String()
 	}
-	if httpMethodOpt, ok := o.At("Method"); ok {
-		baseMethodOpts.MethodName = httpMethodOpt.Value.String()
-		baseMethodOpts.Expr = httpMethodOpt.Value.Expr()
+	if opt, ok := o.At("RESTMethod"); ok {
+		baseMethodOpts.MethodName = opt.Value.String()
+		baseMethodOpts.Expr = opt.Value.Expr()
 	}
-	if path, ok := o.At("Path"); ok {
+	if path, ok := o.At("RESTPath"); ok {
 		baseMethodOpts.Path = path.Value.String()
 
 		idxs, err := httpBraceIndices(baseMethodOpts.Path)
@@ -481,32 +646,32 @@ func getMethodOptions(o *option.Option, baseMethodOpts model.MethodHTTPTransport
 			}
 		}
 	}
-	if serverRequestFunc, ok := o.At("ServerDecodeRequestFunc"); ok {
-		baseMethodOpts.ServerRequestFunc.Type = serverRequestFunc.Value.Type()
-		baseMethodOpts.ServerRequestFunc.Expr = serverRequestFunc.Value.Expr()
+	if opt, ok := o.At("ServerDecodeRequestFunc"); ok {
+		baseMethodOpts.ServerRequestFunc.Type = opt.Value.Type()
+		baseMethodOpts.ServerRequestFunc.Expr = opt.Value.Expr()
 	}
-	if serverResponseFunc, ok := o.At("ServerEncodeResponseFunc"); ok {
-		baseMethodOpts.ServerResponseFunc.Type = serverResponseFunc.Value.Type()
-		baseMethodOpts.ServerResponseFunc.Expr = serverResponseFunc.Value.Expr()
+	if opt, ok := o.At("ServerEncodeResponseFunc"); ok {
+		baseMethodOpts.ServerResponseFunc.Type = opt.Value.Type()
+		baseMethodOpts.ServerResponseFunc.Expr = opt.Value.Expr()
 	}
-	if clientRequestFunc, ok := o.At("ClientEncodeRequestFunc"); ok {
-		baseMethodOpts.ClientRequestFunc.Type = clientRequestFunc.Value.Type()
-		baseMethodOpts.ClientRequestFunc.Expr = clientRequestFunc.Value.Expr()
+	if opt, ok := o.At("ClientEncodeRequestFunc"); ok {
+		baseMethodOpts.ClientRequestFunc.Type = opt.Value.Type()
+		baseMethodOpts.ClientRequestFunc.Expr = opt.Value.Expr()
 	}
-	if clientResponseFunc, ok := o.At("ClientDecodeResponseFunc"); ok {
-		baseMethodOpts.ClientResponseFunc.Type = clientResponseFunc.Value.Type()
-		baseMethodOpts.ClientResponseFunc.Expr = clientResponseFunc.Value.Expr()
+	if opt, ok := o.At("ClientDecodeResponseFunc"); ok {
+		baseMethodOpts.ClientResponseFunc.Type = opt.Value.Type()
+		baseMethodOpts.ClientResponseFunc.Expr = opt.Value.Expr()
 	}
-	if queryVars, ok := o.At("QueryVars"); ok {
+	if opt, ok := o.At("RESTQueryVars"); ok {
 		baseMethodOpts.QueryVars = map[string]string{}
-		values := queryVars.Value.StringSlice()
+		values := opt.Value.StringSlice()
 		for i := 0; i < len(values); i += 2 {
 			baseMethodOpts.QueryVars[values[i]] = values[i+1]
 		}
 	}
-	if headerVars, ok := o.At("HeaderVars"); ok {
+	if opt, ok := o.At("RESTHeaderVars"); ok {
 		baseMethodOpts.HeaderVars = map[string]string{}
-		values := headerVars.Value.StringSlice()
+		values := opt.Value.StringSlice()
 		for i := 0; i < len(values); i += 2 {
 			baseMethodOpts.HeaderVars[values[i]] = values[i+1]
 		}
@@ -538,14 +703,19 @@ func httpBraceIndices(s string) ([]int, error) {
 }
 
 func NewServiceGateway(
+	pkg *packages.Package,
 	o *option.Option,
 	graphTypes *graph.Graph,
 	commentMap *typeutil.Map,
 ) (gateway.ServiceGateway, error) {
 	g := &serviceGateway{
-		graphTypes: graphTypes,
-		commentMap: commentMap,
-		errors:     map[uint32]*model.HTTPError{},
+		pkg:               pkg,
+		graphTypes:        graphTypes,
+		commentMap:        commentMap,
+		methodOptions:     map[string]model.MethodOption{},
+		openapiMethodTags: map[string][]string{},
+		errors:            map[uint32]*model.HTTPError{},
+		hasher:            typeutil.MakeHasher(),
 	}
 	if err := g.load(o); err != nil {
 		return nil, err

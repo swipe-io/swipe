@@ -7,12 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
-
 	"github.com/swipe-io/swipe/v2/internal/git"
-
-	"github.com/swipe-io/swipe/v2/internal/domain/model"
-
+	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
@@ -53,26 +49,31 @@ ToDo.
 {{end -}}
 `
 
+type readmeGeneratorOptionsGateway interface {
+	AppID() string
+	AppName() string
+	JSONRPCDocOutput() string
+	ReadmeOutput() string
+	ReadmeTemplatePath() string
+}
+
 type readmeGenerator struct {
 	writer.BaseWriter
-	serviceID      string
-	serviceRawID   string
+	options        readmeGeneratorOptionsGateway
 	basePkgPath    string
 	outputDir      string
 	workDir        string
-	transport      model.TransportOption
-	readme         model.ServiceReadme
 	gitTags        []git.Tag
 	markdownOutput string
 	tpl            *template.Template
 }
 
 func (g *readmeGenerator) Prepare(ctx context.Context) (err error) {
-	g.outputDir, err = filepath.Abs(filepath.Join(g.workDir, g.readme.OutputDir))
+	g.outputDir, err = filepath.Abs(filepath.Join(g.workDir, g.options.ReadmeOutput()))
 	if err != nil {
 		return err
 	}
-	g.markdownOutput, err = filepath.Abs(filepath.Join(g.workDir, g.transport.MarkdownDoc.OutputDir))
+	g.markdownOutput, err = filepath.Abs(filepath.Join(g.workDir, g.options.JSONRPCDocOutput()))
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func (g *readmeGenerator) Prepare(ctx context.Context) (err error) {
 			}
 		}
 	} else {
-		templatePath, err = filepath.Abs(filepath.Join(g.workDir, g.readme.TemplatePath))
+		templatePath, err = filepath.Abs(filepath.Join(g.workDir, g.options.ReadmeTemplatePath()))
 		if err != nil {
 			return err
 		}
@@ -114,8 +115,8 @@ func (g *readmeGenerator) Prepare(ctx context.Context) (err error) {
 
 func (g *readmeGenerator) Process(ctx context.Context) (err error) {
 	return g.tpl.Execute(g, map[string]interface{}{
-		"ID":          g.serviceRawID,
-		"ServiceName": g.serviceID,
+		"ID":          g.options.AppID(),
+		"ServiceName": g.options.AppName(),
 		"RootPkgPath": g.basePkgPath,
 		"GIT": map[string]interface{}{
 			"Tags": g.gitTags,
@@ -136,21 +137,15 @@ func (g *readmeGenerator) Filename() string {
 }
 
 func NewReadme(
-	serviceID string,
-	serviceRawID string,
+	options readmeGeneratorOptionsGateway,
 	basePkgPath string,
 	workDir string,
-	transport model.TransportOption,
-	readme model.ServiceReadme,
 	gitTags []git.Tag,
 ) generator.Generator {
 	return &readmeGenerator{
-		serviceID:    serviceID,
-		serviceRawID: serviceRawID,
-		basePkgPath:  basePkgPath,
-		workDir:      workDir,
-		transport:    transport,
-		readme:       readme,
-		gitTags:      gitTags,
+		options:     options,
+		basePkgPath: basePkgPath,
+		workDir:     workDir,
+		gitTags:     gitTags,
 	}
 }

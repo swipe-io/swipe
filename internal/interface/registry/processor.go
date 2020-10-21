@@ -22,13 +22,13 @@ func (r *registryProcessor) NewProcessor(o *option.ResultOption, data *astloader
 	gt := git.NewGIT()
 	switch o.Option.Name {
 	case "Gateway":
-		hg, err := ig.NewGatewayOption(o.Pkg, o.Option, r.finder)
+		hg, err := ig.NewGateway(o.Pkg, o.Option, r.finder)
 		if err != nil {
 			return nil, err
 		}
 		return processor.NewGatewayProcessor(hg, o.Pkg), nil
 	case "Service":
-		sg, err := ig.NewServiceGateway(o.Option, data.GraphTypes, data.CommentMaps)
+		sg, err := ig.NewServiceGateway(o.Pkg, o.Option, data.GraphTypes, data.CommentMaps)
 		if err != nil {
 			return nil, err
 		}
