@@ -177,13 +177,13 @@ func (g *restServer) Process(ctx context.Context) error {
 
 							g.W("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
 							g.WriteCheckErr(func() {
-								g.W("return nil, %s.Errorf(\"couldn't read body for %s: %%s\", err)\n", fmtPkg, m.NameRequest)
+								g.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, m.NameRequest)
 							})
 							g.W("err = %s.Unmarshal(b, &req)\n", jsonPkg)
 						}
 
 						g.W("if err != nil && err != %s.EOF {\n", pkgIO)
-						g.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, m.NameRequest)
+						g.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, m.NameRequest)
 						g.W("}\n")
 					}
 					if len(mopt.PathVars) > 0 {
@@ -213,7 +213,7 @@ func (g *restServer) Process(ctx context.Context) error {
 							} else {
 								valueID = "vars[" + strconv.Quote(p.Name()) + "]"
 							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, []string{"nil"}, "", false, "")
 						} else if queryName, ok := mopt.QueryVars[p.Name()]; ok {
 							var valueID string
 							if g.options.UseFast() {
@@ -221,7 +221,7 @@ func (g *restServer) Process(ctx context.Context) error {
 							} else {
 								valueID = "q.Get(" + strconv.Quote(queryName) + ")"
 							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, []string{"nil"}, "", false, "")
 						} else if headerName, ok := mopt.HeaderVars[p.Name()]; ok {
 							var valueID string
 							if g.options.UseFast() {
@@ -229,7 +229,7 @@ func (g *restServer) Process(ctx context.Context) error {
 							} else {
 								valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
 							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, []string{"nil"}, "", false, "")
 						}
 					}
 					g.W("return req, nil\n")

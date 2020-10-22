@@ -93,7 +93,7 @@ type AppInterface interface {
 
 type InterfaceB interface {
 	// Create new item of item.
-	Create(ctx context.Context, newData AliasData, name string, data []byte) (err error)
+	Create(ctx context.Context, newData AliasData, name string, data []byte, date time.Time) (err error)
 	// Get item.
 	Get(ctx context.Context, id int, name, fname string, price float32, n, b, cc int) (data User, err error)
 	// GetAll more comment and more and more comment and more and more comment and more.

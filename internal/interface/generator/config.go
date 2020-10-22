@@ -201,7 +201,7 @@ func (g *config) writeEnv(f *stdtypes.Var, opts fldOpts) {
 	tmpVar := strcase.ToLowerCamel(opts.fieldPath) + "Tmp"
 	g.W("%s, ok := %s.LookupEnv(%s)\n", tmpVar, g.i.Import("os", "os"), strconv.Quote(opts.name))
 	g.W("if ok {\n")
-	g.WriteConvertType(g.i.Import, "cfg."+opts.fieldPath, tmpVar, f, "errs", false, "convert "+opts.name+" error")
+	g.WriteConvertType(g.i.Import, "cfg."+opts.fieldPath, tmpVar, f, nil, "errs", false, "convert "+opts.name+" error")
 	g.W("}\n")
 }
 
