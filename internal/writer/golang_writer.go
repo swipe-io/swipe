@@ -131,10 +131,6 @@ func (w *GoLangWriter) WriteFuncCall(id, name string, params []string) {
 	w.W(")\n")
 }
 
-func (w *GoLangWriter) getConvertFunc(funcName, strconvPkg, tmpId, valueId string) string {
-	return fmt.Sprintf("%s, err := %s.%s", tmpId, strconvPkg, fmt.Sprintf(funcName, valueId))
-}
-
 func (w *GoLangWriter) getConvertFuncName(kind stdtypes.BasicKind) string {
 	switch kind {
 	case stdtypes.Int, stdtypes.Int8, stdtypes.Int16, stdtypes.Int32, stdtypes.Int64:
@@ -165,18 +161,17 @@ func (w *GoLangWriter) getFormatFuncName(kind stdtypes.BasicKind) string {
 	}
 }
 
-func (w *GoLangWriter) GetFormatType(importFn func(string, string) string, valueId string, f *stdtypes.Var) string {
-	switch t := f.Type().(type) {
-	case *stdtypes.Basic:
-		funcName := w.getFormatFuncName(t.Kind())
-		if funcName != "" {
-			return fmt.Sprintf("%s.%s", importFn("strconv", "strconv"), fmt.Sprintf(funcName, valueId))
-		}
+func (w *GoLangWriter) writeFormatBasicType(importFn func(string, string) string, assignId, valueId string, t *stdtypes.Basic) {
+	funcName := w.getFormatFuncName(t.Kind())
+	if funcName != "" {
+		strconvPkg := importFn("strconv", "strconv")
+		w.W("%s := %s.%s\n", assignId, strconvPkg, fmt.Sprintf(funcName, valueId))
+	} else {
+		w.W("%s := %s\n", assignId, valueId)
 	}
-	return valueId
 }
 
-func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) string, name, assignId, valueId string, t *stdtypes.Basic, sliceErr string, declareVar bool, msgErrTemplate string) {
+func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) string, name, assignId, valueId string, t *stdtypes.Basic, errRet []string, errSlice string, declareVar bool, msgErrTemplate string) {
 	useCheckErr := true
 
 	fmtPkg := importFn("fmt", "fmt")
@@ -184,7 +179,8 @@ func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) strin
 
 	funcName := w.getConvertFuncName(t.Kind())
 	if funcName != "" {
-		w.W("%s\n", w.getConvertFunc(funcName, importFn("strconv", "strconv"), tmpId, valueId))
+		strconvPkg := importFn("strconv", "strconv")
+		w.W("%s, err := %s.%s\n", tmpId, strconvPkg, fmt.Sprintf(funcName, valueId))
 	} else {
 		useCheckErr = false
 		tmpId = valueId
@@ -195,18 +191,20 @@ func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) strin
 		}
 		errMsg := strconv.Quote(msgErrTemplate + ": %w")
 		w.W("if err != nil {\n")
-		if sliceErr == "" {
-			w.W("return nil, %s.Errorf(%s, err)\n", fmtPkg, errMsg)
+		if errSlice != "" {
+			w.W("%[1]s = append(%[1]s, %[2]s.Errorf(%[3]s, err))\n", errSlice, fmtPkg, errMsg)
 		} else {
-			w.W("%[1]s = append(%[1]s, %s.Errorf(%s, err))\n", sliceErr, fmtPkg, errMsg)
+			w.W("return ")
+			if len(errRet) > 0 {
+				w.W("%s, ", stdstrings.Join(errRet, ","))
+			}
+			w.W("err")
 		}
 		w.W("}\n")
 	}
-
 	if declareVar {
 		w.W("var ")
 	}
-
 	w.W("%s = ", assignId)
 	if t.Kind() != stdtypes.String {
 		w.W("%s(%s)", t.String(), tmpId)
@@ -216,14 +214,32 @@ func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) strin
 	w.W("\n")
 }
 
+func (w *GoLangWriter) WriteFormatType(importFn func(string, string) string, assignId, valueId string, f *stdtypes.Var) string {
+	switch t := f.Type().(type) {
+	case *stdtypes.Basic:
+		w.writeFormatBasicType(importFn, assignId, valueId, t)
+	case *stdtypes.Named:
+		switch t.Obj().Type().String() {
+		case "uuid.UUID":
+			return fmt.Sprintf("%s := %s.String() \n", assignId, valueId)
+		case "time.Duration":
+			w.W("%s := %s.String()\n", assignId, valueId)
+		case "time.Time":
+			timePkg := importFn("time", "time")
+			w.W("%[1]s := %[3]s.Format(%[2]s.RFC3339)\n", assignId, timePkg, valueId)
+		}
+	}
+	return valueId
+}
+
 func (w *GoLangWriter) WriteConvertType(
-	importFn func(string, string) string, assignId, valueId string, f *stdtypes.Var, sliceErr string, declareVar bool, msgErrTemplate string,
+	importFn func(string, string) string, assignId, valueId string, f *stdtypes.Var, errRet []string, errSlice string, declareVar bool, msgErrTemplate string,
 ) {
 	var tmpId string
 
 	switch t := f.Type().(type) {
 	case *stdtypes.Basic:
-		w.writeConvertBasicType(importFn, f.Name(), assignId, valueId, t, sliceErr, declareVar, msgErrTemplate)
+		w.writeConvertBasicType(importFn, f.Name(), assignId, valueId, t, errRet, errSlice, declareVar, msgErrTemplate)
 	case *stdtypes.Slice:
 		stringsPkg := importFn("strings", "strings")
 		switch t := t.Elem().(type) {
@@ -250,7 +266,7 @@ func (w *GoLangWriter) WriteConvertType(
 				}
 				w.W("%s = make([]%s, len(%s))\n", assignId, t.String(), tmpId)
 				w.W("for i, s := range %s {\n", tmpId)
-				w.writeConvertBasicType(importFn, "tmp", assignId+"[i]", "s", t, sliceErr, false, msgErrTemplate)
+				w.writeConvertBasicType(importFn, "tmp", assignId+"[i]", "s", t, errRet, errSlice, false, msgErrTemplate)
 				w.W("}\n")
 			}
 		}
@@ -260,10 +276,14 @@ func (w *GoLangWriter) WriteConvertType(
 			tmpID := stdstrings.ToLower(f.Name()) + "URL"
 			w.W("%s, err := %s.Parse(%s)\n", tmpID, urlPkg, valueId)
 			w.W("if err != nil {\n")
-			if sliceErr == "" {
-				w.W("return nil, err\n")
+			if errSlice != "" {
+				w.W("%[1]s = append(%[1]s, err)\n", errSlice)
 			} else {
-				w.W("%[1]s = append(%[1]s, err)\n", sliceErr)
+				w.W("return ")
+				if len(errRet) > 0 {
+					w.W("%s, ", stdstrings.Join(errRet, ","))
+				}
+				w.W("err")
 			}
 			w.W("}\n")
 			if declareVar {
@@ -285,10 +305,14 @@ func (w *GoLangWriter) WriteConvertType(
 			w.W("%[1]s, err := %[2]s.Parse(%[2]s.RFC3339, %[3]s)\n", tmpID, timePkg, valueId)
 		}
 		w.W("if err != nil {\n")
-		if sliceErr == "" {
-			w.W("return nil, err\n")
+		if errSlice != "" {
+			w.W("%[1]s = append(%[1]s, err)\n", errSlice)
 		} else {
-			w.W("%[1]s = append(%[1]s, err)\n", sliceErr)
+			w.W("return ")
+			if len(errRet) > 0 {
+				w.W("%s, ", stdstrings.Join(errRet, ","))
+			}
+			w.W("err")
 		}
 		w.W("}\n")
 		if declareVar {

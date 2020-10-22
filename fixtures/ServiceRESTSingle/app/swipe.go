@@ -24,12 +24,14 @@ func Swipe() {
 
 			swipe.MethodOptions(AppInterface.Create,
 				swipe.RESTMethod(http.MethodPost),
+				swipe.RESTQueryVars([]string{"date", "date"}),
 				swipe.Logging(true),
 				swipe.LoggingParams([]string{}, []string{"newData"}),
 			),
 			swipe.MethodOptions(AppInterface.Get,
 				swipe.RESTMethod(http.MethodPost),
 				swipe.RESTQueryVars([]string{"cc", "cc"}),
+				swipe.RESTHeaderVars([]string{"fname", "fname"}),
 			),
 			swipe.MethodDefaultOptions(
 				swipe.Logging(false),

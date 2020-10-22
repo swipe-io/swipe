@@ -8,9 +8,9 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/swipe-io/strcase"
-
 	"github.com/swipe-io/swipe/v2/internal/strings"
+
+	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
@@ -159,8 +159,8 @@ func (g *restGoClient) Process(ctx context.Context) error {
 
 			var (
 				pathVars   []string
-				queryVars  []string
-				headerVars []string
+				queryVars  []*stdtypes.Var
+				headerVars []*stdtypes.Var
 			)
 
 			for _, p := range m.Params {
@@ -169,11 +169,16 @@ func (g *restGoClient) Process(ctx context.Context) error {
 						regexp = ":" + regexp
 					}
 					pathStr = stdstrings.Replace(pathStr, "{"+p.Name()+regexp+"}", "%s", -1)
-					pathVars = append(pathVars, g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
-				} else if qName, ok := mopt.QueryVars[p.Name()]; ok {
-					queryVars = append(queryVars, strconv.Quote(qName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
-				} else if hName, ok := mopt.HeaderVars[p.Name()]; ok {
-					headerVars = append(headerVars, strconv.Quote(hName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
+
+					//pathVars = append(pathVars, g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
+				} else if _, ok := mopt.QueryVars[p.Name()]; ok {
+
+					queryVars = append(queryVars, p)
+
+					//queryVars = append(queryVars, strconv.Quote(qName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
+				} else if _, ok := mopt.HeaderVars[p.Name()]; ok {
+					headerVars = append(headerVars, p)
+					//headerVars = append(headerVars, strconv.Quote(hName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 				}
 			}
 
@@ -231,22 +236,22 @@ func (g *restGoClient) Process(ctx context.Context) error {
 					} else {
 						g.W("q := r.URL.Query()\n")
 					}
-
-					for i := 0; i < len(queryVars); i += 2 {
-						g.W("q.Add(%s, %s)\n", queryVars[i], queryVars[i+1])
+					for _, p := range queryVars {
+						name := p.Name() + "Str"
+						g.WriteFormatType(g.i.Import, name, "req."+strings.UcFirst(p.Name()), p)
+						g.W("q.Add(%s, %s)\n", strconv.Quote(mopt.QueryVars[p.Name()]), name)
 					}
-
 					if g.options.UseFast() {
 						g.W("r.URI().SetQueryString(q.String())\n")
 					} else {
 						g.W("r.URL.RawQuery = q.Encode()\n")
 					}
 				}
-
-				for i := 0; i < len(headerVars); i += 2 {
-					g.W("r.Header.Add(%s, %s)\n", headerVars[i], headerVars[i+1])
+				for _, p := range headerVars {
+					name := p.Name() + "Str"
+					g.WriteFormatType(g.i.Import, name, "req."+strings.UcFirst(p.Name()), p)
+					g.W("r.Header.Add(%s, %s)\n", strconv.Quote(mopt.HeaderVars[p.Name()]), name)
 				}
-
 				switch stdstrings.ToUpper(httpMethod) {
 				case "POST", "PUT", "PATCH":
 					jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
