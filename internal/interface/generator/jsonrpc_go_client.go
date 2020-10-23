@@ -30,36 +30,6 @@ func (g *jsonRPCGoClient) Prepare(ctx context.Context) error {
 }
 
 func (g *jsonRPCGoClient) Process(ctx context.Context) error {
-	if g.options.Interfaces().Len() > 1 {
-		g.W("type AppClient struct {\n")
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
-			typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
-			g.W("%sClient %s\n", iface.Name(), typeStr)
-		}
-		g.W("}\n\n")
-
-		g.W("func NewClient%s(tgt string", g.options.Prefix())
-		g.W(" ,opts ...ClientOption")
-		g.W(") (*AppClient, error) {\n")
-
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
-			g.W("%sClient, err := NewClient%s%s(tgt)\n", iface.LoweName(), g.options.Prefix(), iface.NameExport())
-			g.WriteCheckErr(func() {
-				g.W("return nil, err")
-			})
-		}
-
-		g.W("return &AppClient{\n")
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
-			g.W("%[1]sClient: %[2]sClient,\n", iface.Name(), iface.LoweName())
-		}
-		g.W("}, nil\n")
-		g.W("}\n\n")
-	}
-
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		var (
 			jsonrpcPkg string
@@ -74,10 +44,15 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 
 		iface := g.options.Interfaces().At(i)
 
-		clientType := "client" + iface.NameExport()
+		clientType := "client" + iface.Name()
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
-		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.NameExport())
+		var name string
+		if g.options.Interfaces().Len() > 1 {
+			name = iface.Name()
+		}
+
+		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), name)
 		g.W(" ,options ...ClientOption")
 		g.W(") (%s, error) {\n", typeStr)
 		g.W("opts := &clientOpts{}\n")
@@ -181,8 +156,8 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 			methodName := m.LcName
 			if g.options.Interfaces().Len() > 1 {
 				prefix := iface.NameUnExport()
-				if iface.Prefix() != "" {
-					prefix = iface.Prefix()
+				if iface.NameUnExport() != "" {
+					prefix = iface.NameUnExport()
 				}
 				methodName = prefix + "." + methodName
 			}

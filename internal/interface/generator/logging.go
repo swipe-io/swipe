@@ -45,8 +45,8 @@ func (g *logging) Process(ctx context.Context) error {
 		loggerPkg := g.i.Import("log", "github.com/go-kit/kit/log")
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
-		name := iface.NameExport() + "LoggingMiddleware"
-		constructName := fmt.Sprintf("NewLogging%sMiddleware", iface.NameExport())
+		name := iface.Name() + "LoggingMiddleware"
+		constructName := fmt.Sprintf("NewLogging%sMiddleware", iface.Name())
 
 		g.WriteTypeStruct(
 			name,
@@ -154,6 +154,10 @@ func (g *logging) Process(ctx context.Context) error {
 				g.W(")\n")
 
 				if len(m.Results) > 0 || m.ReturnErr != nil {
+					g.W("if _, ok := err.(interface {\n\t\tUnwrap() error\n\t}); !ok {\n")
+					g.W("err = %s.Errorf(\"unexpected error: %%w\", err)\n", g.i.Import("fmt", "fmt"))
+					g.W("}\n")
+
 					g.W("return ")
 
 					for i, result := range m.Results {

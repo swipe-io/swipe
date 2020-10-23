@@ -66,7 +66,7 @@ func (g *restServer) Process(ctx context.Context) error {
 		if i > 0 {
 			g.W(",")
 		}
-		g.W("svc%s %s", iface.NameExport(), typeStr)
+		g.W("svc%s %s", iface.Name(), typeStr)
 	}
 	g.W(", options ...ServerOption")
 	g.W(") (")
@@ -82,7 +82,7 @@ func (g *restServer) Process(ctx context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.NameExport())
+		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
 	}
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
@@ -106,8 +106,8 @@ func (g *restServer) Process(ctx context.Context) error {
 		svcPrefix := ""
 		if g.options.Interfaces().Len() > 1 {
 			prefix := strcase.ToKebab(iface.Name())
-			if iface.Prefix() != "" {
-				prefix = iface.Prefix()
+			if iface.NameUnExport() != "" {
+				prefix = iface.NameUnExport()
 			}
 			svcPrefix = prefix + "/"
 		}

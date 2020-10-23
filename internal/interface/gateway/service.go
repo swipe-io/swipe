@@ -215,7 +215,7 @@ func (g *serviceGateway) loadReadme(o *option.Option) error {
 
 func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]*model.HTTPError, ifaceLen int) (*model.ServiceInterface, error) {
 	ifaceOpt := option.MustOption(o.At("iface"))
-	prefixOpt := option.MustOption(o.At("prefix"))
+	nameOpt := option.MustOption(o.At("name"))
 
 	ifacePtr, ok := ifaceOpt.Value.Type().(*stdtypes.Pointer)
 	if !ok {
@@ -231,12 +231,13 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 	ifaceName := strcase.ToCamel(typeName.Obj().Name())
 	ifaceLcName := strcase.ToLowerCamel(ifaceName)
 
-	nameExport := ""
-	nameUnExport := ""
+	nameExport := ifaceName
+	nameUnExport := ifaceLcName
+	name := nameOpt.Value.String()
 
-	if ifaceLen > 1 {
-		nameExport = ifaceName
-		nameUnExport = ifaceLcName
+	if name != "" {
+		nameExport = strcase.ToCamel(name)
+		nameUnExport = strcase.ToLowerCamel(name)
 	}
 
 	var serviceMethods []model.ServiceMethod
@@ -249,8 +250,8 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 
 		lcName := strings.LcFirst(m.Name())
 
-		nameExport := m.Name()
-		nameUnExport := lcName
+		nameExport := ifaceName + m.Name()
+		nameUnExport := ifaceLcName + m.Name()
 
 		nameRequest := m.Name() + "Request"
 		nameResponse := m.Name() + "Response"
@@ -258,8 +259,6 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		if ifaceLen > 1 {
 			nameRequest = ifaceName + m.Name() + "Request"
 			nameResponse = ifaceName + m.Name() + "Response"
-			nameExport = ifaceName + m.Name()
-			nameUnExport = ifaceLcName + m.Name()
 		}
 
 		sm := model.ServiceMethod{
@@ -339,7 +338,6 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		serviceMethods = append(serviceMethods, sm)
 	}
 	return model.NewServiceInterface(
-		prefixOpt.Value.String(),
 		ifaceName,
 		ifaceLcName,
 		nameExport,

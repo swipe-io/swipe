@@ -66,13 +66,13 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		g.W("func Make%[1]sEndpointCodecMap(ep %[1]sEndpointSet", iface.NameExport())
+		g.W("func Make%[1]sEndpointCodecMap(ep %[1]sEndpointSet", iface.Name())
 		g.W(",ns ...string) %s.EndpointCodecMap {\n", jsonrpcPkg)
 		g.W("var namespace string\n")
 		if g.options.Interfaces().Len() > 1 {
 			prefix := iface.NameUnExport()
-			if iface.Prefix() != "" {
-				prefix = iface.Prefix()
+			if iface.NameUnExport() != "" {
+				prefix = iface.NameUnExport()
 			}
 			g.W("namespace = \"%s.\"\n", prefix)
 		}
@@ -140,7 +140,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 		if i > 0 {
 			g.W(",")
 		}
-		g.W("svc%s %s", iface.NameExport(), typeStr)
+		g.W("svc%s %s", iface.Name(), typeStr)
 	}
 	g.W(", options ...ServerOption")
 	g.W(") (")
@@ -158,7 +158,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.NameExport())
+		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
 	}
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
@@ -188,7 +188,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 		if i > 0 {
 			g.W(",")
 		}
-		g.W("Make%[1]sEndpointCodecMap(%[2]s)", iface.NameExport(), makeEpSetName(iface, g.options.Interfaces().Len()))
+		g.W("Make%[1]sEndpointCodecMap(%[2]s)", iface.Name(), makeEpSetName(iface, g.options.Interfaces().Len()))
 	}
 
 	if g.options.Interfaces().Len() > 1 {
