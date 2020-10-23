@@ -2,6 +2,13 @@
 ## [Unreleased]
 
 
+<a name="v2.0.0-alpha.7"></a>
+## [v2.0.0-alpha.7] - 2020-10-23
+### Bug Fixes
+- change func names generate and REST path values
+- generate format for REST query string and headers and refactoring WriteConvertType
+
+
 <a name="v2.0.0-alpha.6"></a>
 ## [v2.0.0-alpha.6] - 2020-10-21
 ### Features
@@ -557,7 +564,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.6...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.7...HEAD
+[v2.0.0-alpha.7]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.6...v2.0.0-alpha.7
 [v2.0.0-alpha.6]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.5...v2.0.0-alpha.6
 [v2.0.0-alpha.5]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.4...v2.0.0-alpha.5
 [v2.0.0-alpha.4]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.3...v2.0.0-alpha.4
