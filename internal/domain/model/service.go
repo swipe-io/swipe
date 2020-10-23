@@ -23,7 +23,6 @@ func (i Interfaces) At(index int) *ServiceInterface {
 }
 
 type ServiceInterface struct {
-	prefix          string
 	name            string
 	loweName        string
 	nameExport      string
@@ -32,10 +31,6 @@ type ServiceInterface struct {
 	serviceTypeName *stdtypes.Named
 	serviceIface    *stdtypes.Interface
 	serviceMethods  []ServiceMethod
-}
-
-func (g *ServiceInterface) Prefix() string {
-	return g.prefix
 }
 
 func (g *ServiceInterface) NameExport() string {
@@ -71,14 +66,13 @@ func (g *ServiceInterface) Interface() *stdtypes.Interface {
 }
 
 func NewServiceInterface(
-	prefix, name, lowerName, nameExport, nameUnExport string,
+	name, lowerName, nameExport, nameUnExport string,
 	serviceType stdtypes.Type,
 	serviceTypeName *stdtypes.Named,
 	serviceIface *stdtypes.Interface,
 	serviceMethods []ServiceMethod,
 ) *ServiceInterface {
 	return &ServiceInterface{
-		prefix:          prefix,
 		name:            name,
 		loweName:        lowerName,
 		nameExport:      nameExport,

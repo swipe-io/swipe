@@ -29,6 +29,7 @@ func Swipe() {
 				swipe.LoggingParams([]string{}, []string{"newData"}),
 			),
 			swipe.MethodOptions(AppInterface.Get,
+				swipe.RESTPath("/get/{fname}"),
 				swipe.RESTMethod(http.MethodPost),
 				swipe.RESTQueryVars([]string{"cc", "cc"}),
 				swipe.RESTHeaderVars([]string{"fname", "fname"}),

@@ -1,8 +1,8 @@
 # Swipe JSONRPC Client
 
-<a href="#interfaceA.TestMethod">interfaceA.TestMethod</a>
+<a href="#a.TestMethod">a.TestMethod</a>
 
-### <a name="interfaceA.TestMethod"></a>interfaceA.TestMethod() ⇒<code>void</code>
+### <a name="a.TestMethod"></a>a.TestMethod() ⇒<code>void</code>
 
 
 
@@ -12,19 +12,19 @@
 
 
 
-<a href="#interfaceB.Create">interfaceB.Create</a>
+<a href="#b.Create">b.Create</a>
 
-<a href="#interfaceB.Delete">interfaceB.Delete</a>
+<a href="#b.Delete">b.Delete</a>
 
-<a href="#interfaceB.Get">interfaceB.Get</a>
+<a href="#b.Get">b.Get</a>
 
-<a href="#interfaceB.GetAll">interfaceB.GetAll</a>
+<a href="#b.GetAll">b.GetAll</a>
 
-<a href="#interfaceB.TestMethod">interfaceB.TestMethod</a>
+<a href="#b.TestMethod">b.TestMethod</a>
 
-<a href="#interfaceB.TestMethod2">interfaceB.TestMethod2</a>
+<a href="#b.TestMethod2">b.TestMethod2</a>
 
-### <a name="interfaceB.Create"></a>interfaceB.Create(newData, name, data) ⇒<code>void</code>
+### <a name="b.Create"></a>b.Create(newData, name, data) ⇒<code>void</code>
 
  new item of item.
 
@@ -41,7 +41,7 @@
 |newData|<code><a href="#Data">Data</a></code>||
 |name|<code>string</code>||
 |data|<code>Array.&lt;number&gt;</code>||
-### <a name="interfaceB.Delete"></a>interfaceB.Delete(id) ⇒
+### <a name="b.Delete"></a>b.Delete(id) ⇒
 
 
 
@@ -54,7 +54,7 @@
 | Param | Type | Description |
 |------|------|------|
 |id|<code>number</code>||
-### <a name="interfaceB.Get"></a>interfaceB.Get(id, name, fname, price, n, b, cc) ⇒<code><a href="#User">User</a></code>
+### <a name="b.Get"></a>b.Get(id, name, fname, price, n, b, cc) ⇒<code><a href="#User">User</a></code>
 
  item.
 
@@ -75,7 +75,7 @@
 |n|<code>number</code>||
 |b|<code>number</code>||
 |cc|<code>number</code>||
-### <a name="interfaceB.GetAll"></a>interfaceB.GetAll(members) ⇒<code>Array.&lt;<a href="#User">User</a>&gt;</code>
+### <a name="b.GetAll"></a>b.GetAll(members) ⇒<code>Array.&lt;<a href="#User">User</a>&gt;</code>
 
  more comment and more and more comment and more and more comment and more.
 
@@ -92,7 +92,7 @@ New line comment.
 | Param | Type | Description |
 |------|------|------|
 |members|<code><a href="#Members">Members</a></code>||
-### <a name="interfaceB.TestMethod"></a>interfaceB.TestMethod(data, ss) ⇒<code>Object.&lt;string, Object.&lt;string, Array.&lt;string&gt;&gt;&gt;</code>
+### <a name="b.TestMethod"></a>b.TestMethod(data, ss) ⇒<code>Object.&lt;string, Object.&lt;string, Array.&lt;string&gt;&gt;&gt;</code>
 
 
 
@@ -106,7 +106,7 @@ New line comment.
 |------|------|------|
 |data|<code>Object.&lt;string, Object&gt;</code>||
 |ss|<code>Object</code>||
-### <a name="interfaceB.TestMethod2"></a>interfaceB.TestMethod2(ns, utype, user, restype, resource, permission) ⇒<code>void</code>
+### <a name="b.TestMethod2"></a>b.TestMethod2(ns, utype, user, restype, resource, permission) ⇒<code>void</code>
 
 
 

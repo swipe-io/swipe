@@ -279,8 +279,8 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			} else {
 				prefix = strcase.ToKebab(iface.Name())
 			}
-			if iface.Prefix() != "" {
-				prefix = iface.Prefix()
+			if iface.NameUnExport() != "" {
+				prefix = iface.NameUnExport()
 			}
 			if g.options.JSONRPCEnable() {
 				o = g.makeJSONRPCPath(m, iface, ntc)
@@ -322,8 +322,8 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 
 			if g.options.Interfaces().Len() > 1 {
 				ifaceTag := strcase.ToLowerCamel(iface.Name())
-				if iface.Prefix() != "" {
-					ifaceTag = iface.Prefix()
+				if iface.NameExport() != "" {
+					ifaceTag = iface.NameExport()
 				}
 				tags = append(tags, ifaceTag)
 			}
@@ -444,8 +444,8 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.Service
 	if g.options.Interfaces().Len() > 1 {
 		prefix = strcase.ToLowerCamel(iface.Name()) + "."
 	}
-	if iface.Prefix() != "" {
-		prefix = iface.Prefix() + "."
+	if iface.NameUnExport() != "" {
+		prefix = iface.NameUnExport() + "."
 	}
 
 	request := &openapi.Schema{

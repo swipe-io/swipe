@@ -145,7 +145,7 @@ string;
 
 export default RPCClient;
 
-export class JSONRPCClient {
+export class JSONRPCClientInterfaceB {
   constructor(transport) {
     this.scheduler = new JSONRPCScheduler(transport);
   }

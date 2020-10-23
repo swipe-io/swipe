@@ -39,7 +39,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
-		epSetName := iface.NameExport() + "EndpointSet"
+		epSetName := iface.Name() + "EndpointSet"
 
 		g.W("type %s struct {\n", epSetName)
 

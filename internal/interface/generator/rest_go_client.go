@@ -36,36 +36,6 @@ func (g *restGoClient) Prepare(ctx context.Context) error {
 }
 
 func (g *restGoClient) Process(ctx context.Context) error {
-	if g.options.Interfaces().Len() > 1 {
-		g.W("type AppClient struct {\n")
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
-			typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
-			g.W("%sClient %s\n", iface.Name(), typeStr)
-		}
-		g.W("}\n\n")
-
-		g.W("func NewClient%s(tgt string", g.options.Prefix())
-		g.W(" ,opts ...ClientOption")
-		g.W(") (*AppClient, error) {\n")
-
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
-			g.W("%sClient, err := NewClient%s%s(tgt)\n", iface.LoweName(), g.options.Prefix(), iface.NameExport())
-			g.WriteCheckErr(func() {
-				g.W("return nil, err")
-			})
-		}
-
-		g.W("return &AppClient{\n")
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
-			g.W("%[1]sClient: %[2]sClient,\n", iface.Name(), iface.LoweName())
-		}
-		g.W("}, nil\n")
-		g.W("}\n\n")
-	}
-
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		var (
 			kitHTTPPkg string
@@ -79,7 +49,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 			pkgIO      string
 		)
 		iface := g.options.Interfaces().At(i)
-		clientType := "client" + iface.NameExport()
+		clientType := "client" + iface.Name()
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
 		if len(iface.Methods()) > 0 {
@@ -102,7 +72,12 @@ func (g *restGoClient) Process(ctx context.Context) error {
 			stringsPkg = g.i.Import("strings", "strings")
 		}
 
-		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.NameExport())
+		var name string
+		if g.options.Interfaces().Len() > 1 {
+			name = iface.Name()
+		}
+
+		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), name)
 		g.W(" ,options ...ClientOption")
 		g.W(") (%s, error) {\n", typeStr)
 		g.W("opts := &clientOpts{}\n")
@@ -151,14 +126,14 @@ func (g *restGoClient) Process(ctx context.Context) error {
 
 			if g.options.Interfaces().Len() > 1 {
 				svcPrefix := strcase.ToKebab(iface.NameUnExport())
-				if iface.Prefix() != "" {
-					svcPrefix = iface.Prefix()
+				if iface.NameUnExport() != "" {
+					svcPrefix = iface.NameUnExport()
 				}
 				pathStr = path.Join("/", svcPrefix, "/", pathStr)
 			}
 
 			var (
-				pathVars   []string
+				pathVars   []*stdtypes.Var
 				queryVars  []*stdtypes.Var
 				headerVars []*stdtypes.Var
 			)
@@ -170,6 +145,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 					}
 					pathStr = stdstrings.Replace(pathStr, "{"+p.Name()+regexp+"}", "%s", -1)
 
+					pathVars = append(pathVars, p)
 					//pathVars = append(pathVars, g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 				} else if _, ok := mopt.QueryVars[p.Name()]; ok {
 
@@ -218,12 +194,22 @@ func (g *restGoClient) Process(ctx context.Context) error {
 				}
 				g.W("\n")
 
+				pathVarNames := make([]string, 0, len(pathVars))
+				for _, p := range pathVars {
+					name := p.Name() + "Str"
+					pathVarNames = append(pathVarNames, name)
+					g.WriteFormatType(g.i.Import, name, "req."+strings.UcFirst(p.Name()), p)
+				}
 				if g.options.UseFast() {
 					g.W("r.SetRequestURI(")
 				} else {
 					g.W("r.URL.Path += ")
 				}
-				g.W("%s.Sprintf(%s, %s)", fmtPkg, strconv.Quote(pathStr), stdstrings.Join(pathVars, ","))
+				if len(pathVars) > 0 {
+					g.W("%s.Sprintf(%s, %s)\n", fmtPkg, strconv.Quote(pathStr), stdstrings.Join(pathVarNames, ", "))
+				} else {
+					g.W(strconv.Quote(pathStr))
+				}
 
 				if g.options.UseFast() {
 					g.W(")")

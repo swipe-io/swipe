@@ -15,6 +15,7 @@ import (
 )
 
 type clientStructOptionsGateway interface {
+	Prefix() string
 	UseFast() bool
 	JSONRPCEnable() bool
 	Interfaces() model.Interfaces
@@ -52,8 +53,37 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	}
 
 	endpointPkg = g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-
 	clientOptionType := fmt.Sprintf("ClientOption")
+
+	if g.options.Interfaces().Len() > 1 {
+		g.W("type AppClient struct {\n")
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+			g.W("%sClient %s\n", iface.NameExport(), typeStr)
+		}
+		g.W("}\n\n")
+
+		g.W("func NewClient%s(tgt string", g.options.Prefix())
+		g.W(" ,opts ...ClientOption")
+		g.W(") (*AppClient, error) {\n")
+
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			g.W("%sClient, err := NewClient%s%s(tgt)\n", iface.LoweName(), g.options.Prefix(), iface.Name())
+			g.WriteCheckErr(func() {
+				g.W("return nil, err")
+			})
+		}
+
+		g.W("return &AppClient{\n")
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			g.W("%[1]sClient: %[2]sClient,\n", iface.NameExport(), iface.LoweName())
+		}
+		g.W("}, nil\n")
+		g.W("}\n\n")
+	}
 
 	g.W("type %s func(*clientOpts)\n", clientOptionType)
 	g.W("type clientOpts struct {\n")
@@ -113,7 +143,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		clientType := fmt.Sprintf("client%s", iface.NameExport())
+		clientType := fmt.Sprintf("client%s", iface.Name())
 
 		if len(iface.Methods()) > 0 {
 			contextPkg = g.i.Import("context", "context")

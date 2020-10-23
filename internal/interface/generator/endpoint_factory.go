@@ -29,7 +29,7 @@ func (g *endpointFactory) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		epFactoryName := iface.NameExport() + "EndpointFactory"
+		epFactoryName := iface.Name() + "EndpointFactory"
 
 		g.W("type %s struct{\n", epFactoryName)
 		g.W("Option []ClientOption\n")
@@ -52,9 +52,9 @@ func (g *endpointFactory) Process(ctx context.Context) error {
 				})
 				g.W("return ")
 				if g.options.Interfaces().Len() > 1 {
-					g.W("make%s%sEndpoint(c.%sClient), nil, nil\n", iface.NameExport(), m.Name, iface.NameExport())
+					g.W("make%sEndpoint(c.%sClient), nil, nil\n", m.NameExport, iface.NameExport())
 				} else {
-					g.W("make%s%sEndpoint(c), nil, nil\n", iface.NameExport(), m.Name)
+					g.W("make%sEndpoint(c), nil, nil\n", m.NameExport)
 				}
 				g.W("\n}\n\n")
 			}

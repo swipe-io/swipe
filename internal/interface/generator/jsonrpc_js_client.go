@@ -203,9 +203,9 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 			var prefix string
 			if g.options.Interfaces().Len() > 1 {
 				prefix = iface.LoweName() + "."
-			}
-			if iface.Prefix() != "" {
-				prefix = iface.Prefix() + "."
+				if iface.NameUnExport() != "" {
+					prefix = iface.NameUnExport() + "."
+				}
 			}
 
 			mw.W(") {\n")
@@ -235,7 +235,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("constructor(transport) {\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("this.%[1]s = new JSONRPCClient%[1]s(transport);\n", iface.Name())
+			g.W("this.%[1]s = new JSONRPCClient%[1]s(transport);\n", iface.NameExport())
 		}
 		g.W("}\n")
 		g.W("}\n")

@@ -143,13 +143,13 @@ class JSONRPCScheduler {
 
 class GRPCClient {
   constructor(transport) {
-    this.InterfaceA = new JSONRPCClientInterfaceA(transport);
-    this.InterfaceB = new JSONRPCClientInterfaceB(transport);
+    this.A = new JSONRPCClientA(transport);
+    this.B = new JSONRPCClientB(transport);
   }
 }
 export default RPCClient;
 
-export class JSONRPCClientInterfaceA {
+export class JSONRPCClientA {
   constructor(transport) {
     this.scheduler = new JSONRPCScheduler(transport);
   }
@@ -161,7 +161,7 @@ export class JSONRPCClientInterfaceA {
   }
 }
 
-export class JSONRPCClientInterfaceB {
+export class JSONRPCClientB {
   constructor(transport) {
     this.scheduler = new JSONRPCScheduler(transport);
   }
