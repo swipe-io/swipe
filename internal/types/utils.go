@@ -3,8 +3,10 @@ package types
 import (
 	"errors"
 	"fmt"
+	"go/build"
 	"go/types"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -31,6 +33,19 @@ func NameType(vars []*types.Var, qf types.Qualifier, filterFn FilterFn) (results
 	return Params(vars, func(p *types.Var) []string {
 		return []string{"", types.TypeString(p.Type(), qf)}
 	}, filterFn)
+}
+
+func DetectPkgPath(pkg *packages.Package) (string, error) {
+	basePath, err := DetectBasePath(pkg)
+	if err != nil {
+		return "", err
+	}
+	srcPath := filepath.Join(build.Default.GOPATH, "src") + "/"
+	index := strings.Index(basePath, srcPath)
+	if index != -1 {
+		return basePath[index+len(srcPath):], nil
+	}
+	return "", errors.New("fail detected pkg path")
 }
 
 func DetectBasePath(pkg *packages.Package) (string, error) {

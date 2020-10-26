@@ -350,7 +350,11 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 }
 
 func (g *serviceGateway) load(o *option.Option) error {
-	g.appName = stdstrings.Split(g.pkg.PkgPath, "/")[2]
+	pkgPath, err := types.DetectPkgPath(g.pkg)
+	if err != nil {
+		return err
+	}
+	g.appName = stdstrings.Split(pkgPath, "/")[2]
 	if nameOpt, ok := o.At("Name"); ok {
 		if name := nameOpt.Value.String(); name != "" {
 			g.appName = strcase.ToCamel(name)
