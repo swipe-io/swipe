@@ -1,4 +1,4 @@
-language: go
+language: generic
 
 go:
     - 1.13.7
