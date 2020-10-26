@@ -91,7 +91,9 @@ func (l *Loader) Process() (data *Data, errs []error) {
 						for _, spec := range v.Specs {
 							sp := spec.(*ast.TypeSpec)
 							obj := pkg.TypesInfo.ObjectOf(sp.Name)
-							data.GraphTypes.Add(&graph.Node{Object: obj})
+							if obj != nil {
+								data.GraphTypes.Add(&graph.Node{Object: obj})
+							}
 						}
 					case token.CONST:
 						var (
@@ -148,18 +150,20 @@ func (l *Loader) Process() (data *Data, errs []error) {
 					}
 				case *ast.FuncDecl:
 					obj := pkg.TypesInfo.ObjectOf(v.Name)
-					n := &graph.Node{Object: obj}
+					if obj != nil {
+						n := &graph.Node{Object: obj}
 
-					data.GraphTypes.Add(n)
+						data.GraphTypes.Add(n)
 
-					values, objects := visitBlockStmt(pkg, v.Body)
+						values, objects := visitBlockStmt(pkg, v.Body)
 
-					n.AddValue(values...)
+						n.AddValue(values...)
 
-					astNodes = append(astNodes, nodeInfo{
-						node:    n,
-						objects: objects,
-					})
+						astNodes = append(astNodes, nodeInfo{
+							node:    n,
+							objects: objects,
+						})
+					}
 				}
 			}
 		}
