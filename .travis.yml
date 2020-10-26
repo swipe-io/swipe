@@ -9,5 +9,4 @@ node_js:
 
 script:
     - npm install prettier -g
-    - prettier --version
     - make check
