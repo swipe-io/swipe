@@ -5,7 +5,7 @@ go:
     - tip
 
 node_js:
-    - v12.14.1
+    - 12
 
 script:
     - npm install prettier -g
