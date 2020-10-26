@@ -2,6 +2,14 @@
 ## [Unreleased]
 
 
+<a name="v2.0.0-alpha.10"></a>
+## [v2.0.0-alpha.10] - 2020-10-26
+### Bug Fixes
+- prettier format
+- invalid help info for `swipe gen -h`
+- failed generation specifying the file
+
+
 <a name="v2.0.0-alpha.9"></a>
 ## [v2.0.0-alpha.9] - 2020-10-26
 ### Bug Fixes
@@ -573,7 +581,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.9...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.10...HEAD
+[v2.0.0-alpha.10]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.9...v2.0.0-alpha.10
 [v2.0.0-alpha.9]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.8...v2.0.0-alpha.9
 [v2.0.0-alpha.8]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.7...v2.0.0-alpha.8
 [v2.0.0-alpha.7]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.6...v2.0.0-alpha.7
