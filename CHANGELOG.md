@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v2.0.0-alpha.9"></a>
+## [v2.0.0-alpha.9] - 2020-10-26
+### Bug Fixes
+- when generating a "panic" error if the project is empty
+
+
 <a name="v2.0.0-alpha.8"></a>
 ## [v2.0.0-alpha.8] - 2020-10-26
 ### Bug Fixes
@@ -567,7 +573,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.8...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.9...HEAD
+[v2.0.0-alpha.9]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.8...v2.0.0-alpha.9
 [v2.0.0-alpha.8]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.7...v2.0.0-alpha.8
 [v2.0.0-alpha.7]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.6...v2.0.0-alpha.7
 [v2.0.0-alpha.6]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.5...v2.0.0-alpha.6
