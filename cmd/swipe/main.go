@@ -124,7 +124,7 @@ func (*genCmd) Usage() string {
 }
 
 func (cmd *genCmd) SetFlags(f *flag.FlagSet) {
-	f.BoolVar(&cmd.verbose, "v", false, "-v")
+	f.BoolVar(&cmd.verbose, "v", false, "show verbose output")
 }
 
 func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
