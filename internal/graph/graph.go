@@ -42,9 +42,11 @@ func NewGraph() *Graph {
 
 func (g *Graph) objID(obj types.Object) ID {
 	var recvTypeHash uint32 = 0
-	if sig, ok := obj.Type().(*types.Signature); ok {
-		if sig.Recv() != nil {
-			recvTypeHash = g.hasher.Hash(sig.Recv().Type())
+	if obj != nil {
+		if sig, ok := obj.Type().(*types.Signature); ok {
+			if sig.Recv() != nil {
+				recvTypeHash = g.hasher.Hash(sig.Recv().Type())
+			}
 		}
 	}
 	return ID{
