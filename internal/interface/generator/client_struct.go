@@ -70,7 +70,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("%sClient, err := NewClient%s%s(tgt)\n", iface.LoweName(), g.options.Prefix(), iface.Name())
+			g.W("%sClient, err := NewClient%s%s(tgt, opts...)\n", iface.LoweName(), g.options.Prefix(), iface.Name())
 			g.WriteCheckErr(func() {
 				g.W("return nil, err")
 			})
