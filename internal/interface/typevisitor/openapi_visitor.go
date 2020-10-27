@@ -76,7 +76,6 @@ func (v *openapiVisitor) VisitMap(t *stdtypes.Map, nested int) {
 func (v *openapiVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 	switch stdtypes.TypeString(t, nil) {
 	default:
-		v.schema.Type = "object"
 		v.schema.Ref = "#/components/schemas/" + t.Obj().Name()
 	case "encoding/json.RawMessage":
 		v.schema.Type = "object"

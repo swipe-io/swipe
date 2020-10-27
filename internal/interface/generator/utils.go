@@ -95,3 +95,21 @@ func makeEpSetName(iface *model.ServiceInterface, ifaceLen int) (epSetName strin
 	}
 	return
 }
+
+func parseMethodComments(comments []string) (methodComment string, paramsComment map[string]string) {
+	paramsComment = make(map[string]string)
+	for _, comment := range comments {
+		comment = strings.TrimSpace(comment)
+
+		if strings.HasPrefix(comment, "@") {
+
+			matches := paramCommentRegexp.FindAllStringSubmatch(comment, -1)
+			if len(matches) == 1 && len(matches[0]) == 3 {
+				paramsComment[matches[0][1]] = matches[0][2]
+			}
+			continue
+		}
+		methodComment += comment
+	}
+	return
+}

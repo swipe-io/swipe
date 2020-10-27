@@ -198,7 +198,6 @@ func (g *openapiDoc) Prepare(ctx context.Context) error {
 }
 
 func (g *openapiDoc) Process(ctx context.Context) error {
-
 	swg := openapi.OpenAPI{
 		OpenAPI: "3.0.0",
 		Info:    g.options.OpenapiInfo(),
@@ -272,6 +271,8 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			tags := append(g.options.OpenapiDefaultMethodTags(), methodTags...)
 
 			methodName := mopt.MethodName
+			methodComment, paramsComment := parseMethodComments(m.Comments)
+			methodComment = stdstrings.Replace(methodComment, m.Name, "", len(m.Name))
 
 			var prefix string
 			if g.options.JSONRPCEnable() {
@@ -283,7 +284,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				prefix = iface.NameUnExport()
 			}
 			if g.options.JSONRPCEnable() {
-				o = g.makeJSONRPCPath(m, iface, ntc)
+				o = g.makeJSONRPCPath(m, iface, ntc, paramsComment)
 				pathStr = "/" + strings.LcFirst(m.Name)
 				if g.options.Interfaces().Len() > 1 {
 					pathStr = "/" + prefix + "." + strings.LcFirst(m.Name)
@@ -303,7 +304,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 					}
 				}
 			} else {
-				o = g.makeRestPath(m, ntc)
+				o = g.makeRestPath(m, ntc, paramsComment)
 				pathStr = mopt.Path
 				if pathStr == "" {
 					pathStr = strcase.ToKebab(m.LcName)
@@ -328,6 +329,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				tags = append(tags, ifaceTag)
 			}
 
+			o.Description = methodComment
 			o.Tags = tags
 
 			if _, ok := swg.Paths[pathStr]; !ok {
@@ -380,7 +382,7 @@ func (g *openapiDoc) Imports() []string {
 	return nil
 }
 
-func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.ServiceInterface, ntc ustypevisitor.NamedTypeCollector) *openapi.Operation {
+func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.ServiceInterface, ntc ustypevisitor.NamedTypeCollector, paramsComment map[string]string) *openapi.Operation {
 	mopt := g.options.MethodOption(m)
 	responseSchema := &openapi.Schema{
 		Type:       "object",
@@ -390,12 +392,15 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.Service
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
 	}
+
 	if len(m.Params) > 0 {
 		for _, p := range m.Params {
 			ntc.Visit(p.Type())
 
 			schema := &openapi.Schema{}
 			iftypevisitor.OpenapiVisitor(schema).Visit(p.Type())
+
+			schema.Description = paramsComment[p.Name()]
 			requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = schema
 		}
 	} else {
@@ -468,7 +473,6 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.Service
 	}
 
 	return &openapi.Operation{
-		Description: stdstrings.Join(m.Comments, "\n"),
 		RequestBody: &openapi.RequestBody{
 			Required: true,
 			Content: map[string]openapi.Media{
@@ -540,7 +544,7 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.Service
 	}
 }
 
-func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.NamedTypeCollector) *openapi.Operation {
+func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.NamedTypeCollector, paramsComment map[string]string) *openapi.Operation {
 	mopt := g.options.MethodOption(m)
 	responseSchema := &openapi.Schema{
 		Type:       "object",
@@ -570,6 +574,9 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 
 		schema := &openapi.Schema{}
 		iftypevisitor.OpenapiVisitor(schema).Visit(p.Type())
+
+		schema.Description = paramsComment[p.Name()]
+
 		requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = schema
 	}
 	if len(m.Results) > 1 {
