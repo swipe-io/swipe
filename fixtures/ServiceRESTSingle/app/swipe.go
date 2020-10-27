@@ -33,6 +33,7 @@ func Swipe() {
 				swipe.RESTMethod(http.MethodPost),
 				swipe.RESTQueryVars([]string{"cc", "cc"}),
 				swipe.RESTHeaderVars([]string{"fname", "fname"}),
+				swipe.Logging(true),
 			),
 			swipe.MethodDefaultOptions(
 				swipe.Logging(false),
