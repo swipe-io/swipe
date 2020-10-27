@@ -35,7 +35,6 @@ func (v *openapiDefVisitor) VisitMap(t *stdtypes.Map, nested int) {
 }
 
 func (v *openapiDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
-
 	switch stdtypes.TypeString(t, nil) {
 	case "encoding/json.RawMessage":
 		v.schema.Type = "object"
@@ -79,21 +78,32 @@ func (v *openapiDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 func (v *openapiDefVisitor) VisitStruct(t *stdtypes.Struct, nested int) {
 	for i := 0; i < t.NumFields(); i++ {
 		f := t.Field(i)
-		if !f.Embedded() {
-			name := f.Name()
-			if tags, err := structtag.Parse(t.Tag(i)); err == nil {
-				if tag, err := tags.Get("json"); err == nil {
-					name = tag.Value()
-				}
+
+		if f.Embedded() {
+			var st *stdtypes.Struct
+			if ptr, ok := f.Type().(*stdtypes.Pointer); ok {
+				st = ptr.Elem().Underlying().(*stdtypes.Struct)
+			} else {
+				st = f.Type().Underlying().(*stdtypes.Struct)
 			}
-			if name == "-" {
-				continue
-			}
-			v.schema.Properties[name] = &openapi.Schema{}
-			OpenapiVisitor(v.schema.Properties[name]).Visit(f.Type())
-		} else {
-			typevisitor.ConvertType(t).Accept(v, nested+1)
+
+			typevisitor.ConvertType(st).Accept(v, nested)
+
+			continue
 		}
+
+		name := f.Name()
+		if tags, err := structtag.Parse(t.Tag(i)); err == nil {
+			if tag, err := tags.Get("json"); err == nil {
+				name = tag.Value()
+			}
+		}
+		if name == "-" {
+			continue
+		}
+		v.schema.Properties[name] = &openapi.Schema{}
+		OpenapiVisitor(v.schema.Properties[name]).Visit(f.Type())
+
 	}
 }
 
