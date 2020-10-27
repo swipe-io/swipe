@@ -6,6 +6,8 @@
 
 
 
+
+
 **Throws**:
 
 <code>ErrUnauthorizedException</code>
@@ -45,6 +47,8 @@
 
 
 
+
+
 **Throws**:
 
 <code>ErrUnauthorizedException</code>
@@ -77,9 +81,7 @@
 |cc|<code>number</code>||
 ### <a name="b.GetAll"></a>b.GetAll(members) ⇒<code>Array.&lt;<a href="#User">User</a>&gt;</code>
 
- more comment and more and more comment and more and more comment and more.
-
-New line comment.
+ more comment and more and more comment and more and more comment and more.New line comment.
 
 
 
@@ -96,6 +98,8 @@ New line comment.
 
 
 
+
+
 **Throws**:
 
 <code>ErrUnauthorizedException</code>
@@ -107,6 +111,8 @@ New line comment.
 |data|<code>Object.&lt;string, Object&gt;</code>||
 |ss|<code>Object</code>||
 ### <a name="b.TestMethod2"></a>b.TestMethod2(ns, utype, user, restype, resource, permission) ⇒<code>void</code>
+
+
 
 
 
