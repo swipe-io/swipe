@@ -78,18 +78,14 @@ func (g *logging) Process(ctx context.Context) error {
 			params = append(params, types.NameTypeParams(m.Params, g.i.QualifyPkg, nil)...)
 
 			if len(m.Results) > 0 {
-				//if m.ResultsNamed {
-				results = types.NameType(m.Results, g.i.QualifyPkg, nil)
-				//} else {
-				//results = append(results, "", stdtypes.TypeString(m.Results[0].Type(), g.i.QualifyPkg))
-				//}
+				if m.ResultsNamed {
+					results = types.NameType(m.Results, g.i.QualifyPkg, nil)
+				} else {
+					results = append(results, "", stdtypes.TypeString(m.Results[0].Type(), g.i.QualifyPkg))
+				}
 			}
 
 			if m.ReturnErr != nil {
-				//errName := m.ReturnErr.Name()
-				//if errName == "" || errName == "_" {
-				//	errName = "err"
-				//}
 				results = append(results, "", "error")
 				logParams = append(logParams, strconv.Quote("err"), "err")
 			}
@@ -99,7 +95,7 @@ func (g *logging) Process(ctx context.Context) error {
 					g.WriteVarGroup(func() {
 						for _, result := range m.Results {
 							name := "result"
-							if result.Name() != "" {
+							if m.ResultsNamed {
 								name = strcase.ToLowerCamel(result.Name())
 							}
 							g.W("%s %s\n", name, stdtypes.TypeString(result.Type(), g.i.QualifyPkg))
@@ -123,7 +119,7 @@ func (g *logging) Process(ctx context.Context) error {
 				if len(m.Results) > 0 || m.ReturnErr != nil {
 					for i, result := range m.Results {
 						name := "result"
-						if result.Name() != "" {
+						if m.ResultsNamed {
 							name = strcase.ToLowerCamel(result.Name())
 						}
 						if i > 0 {
@@ -162,7 +158,7 @@ func (g *logging) Process(ctx context.Context) error {
 
 					for i, result := range m.Results {
 						name := "result"
-						if result.Name() != "" {
+						if m.ResultsNamed {
 							name = strcase.ToLowerCamel(result.Name())
 						}
 						if i > 0 {
