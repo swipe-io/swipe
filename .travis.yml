@@ -4,10 +4,8 @@ go:
     - 1.13.7
     - tip
 
-node_js:
-    - tip
-
 script:
+    - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.36.0/install.sh | bash
+    - nvm install node
     - npm install prettier -g
-    - prettier
     - make check
