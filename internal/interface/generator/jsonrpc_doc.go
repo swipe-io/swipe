@@ -146,18 +146,9 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 
 			g.W("\n\n")
 
-			paramsComment := make(map[string]string, len(method.Params))
-			for _, comment := range method.Comments {
-				comment = strings.TrimSpace(comment)
-				if strings.HasPrefix(comment, "@") {
-					matches := paramCommentRegexp.FindAllStringSubmatch(comment, -1)
-					if len(matches) == 1 && len(matches[0]) == 3 {
-						paramsComment[matches[0][1]] = matches[0][2]
-					}
-					continue
-				}
-				g.W("%s\n\n", strings.Replace(comment, method.Name, "", len(method.Name)))
-			}
+			methodComment, paramsComment := parseMethodComments(method.Comments)
+
+			g.W("%s\n\n", strings.Replace(methodComment, method.Name, "", len(method.Name)))
 
 			g.W("\n\n")
 
