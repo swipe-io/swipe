@@ -69,15 +69,21 @@ type Recurse struct {
 	Recurse []*Recurse `json:"recurse"`
 }
 
+type Info struct {
+	Title string `json:"title"`
+}
+
 type User struct {
-	ID        uuid.UUID  `json:"id"`
-	Name      string     `json:"name"`
-	Password  string     `json:"password"`
-	Point     GeoJSON    `json:"point"`
-	LastSeen  time.Time  `json:"last_seen"`
-	Data      AliasData  `json:"data"`
-	Photo     []byte     `json:"photo"`
-	User      *User      `json:"user"`
+	*Info
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Password string    `json:"password"`
+	Point    GeoJSON   `json:"point"`
+	LastSeen time.Time `json:"last_seen"`
+	Data     AliasData `json:"data"`
+	Photo    []byte    `json:"photo"`
+	User     *User     `json:"user"`
+	//Users     []*User    `json:"users"`
 	Profile   *Profile   `json:"profile"`
 	Recurse   *Recurse   `json:"recurse"`
 	CreatedAt *time.Time `json:"created_at"`

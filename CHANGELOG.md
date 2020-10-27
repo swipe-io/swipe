@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v2.0.0-alpha.12"></a>
+## [v2.0.0-alpha.12] - 2020-10-27
+### Bug Fixes
+- openapi embedded structs
+
+
 <a name="v2.0.0-alpha.11"></a>
 ## [v2.0.0-alpha.11] - 2020-10-27
 ### Bug Fixes
@@ -595,7 +601,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.11...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.12...HEAD
+[v2.0.0-alpha.12]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.11...v2.0.0-alpha.12
 [v2.0.0-alpha.11]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.10...v2.0.0-alpha.11
 [v2.0.0-alpha.10]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.9...v2.0.0-alpha.10
 [v2.0.0-alpha.9]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.8...v2.0.0-alpha.9
