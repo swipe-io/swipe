@@ -152,6 +152,7 @@
 
 | Field | Type | Description |
 |------|------|------|
+|title|<code>string</code>||
 |id|<code>string</code>||
 |name|<code>string</code>||
 |password|<code>string</code>||
