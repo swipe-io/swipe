@@ -150,28 +150,36 @@ func (g *logging) Process(ctx context.Context) error {
 				g.W(")\n")
 
 				if len(m.Results) > 0 || m.ReturnErr != nil {
+					generateNameResult := func(format string, args ...interface{}) {
+						for i, result := range m.Results {
+							name := "result"
+							if m.ResultsNamed {
+								name = strcase.ToLowerCamel(result.Name())
+							}
+							if i > 0 {
+								g.W(",")
+							}
+							g.W(name)
+						}
+						if m.ReturnErr != nil {
+							if len(m.Results) > 0 {
+								g.W(",")
+							}
+							g.W(format, args...)
+						}
+					}
+					g.W("if err != nil {\n")
 					g.W("if _, ok := err.(interface {\n\t\tUnwrap() error\n\t}); !ok {\n")
 					g.W("err = %s.Errorf(\"unexpected error: %%w\", err)\n", g.i.Import("fmt", "fmt"))
+					g.W("}\n")
+					g.W("return ")
+
+					generateNameResult("%s.Unwrap(err)", g.i.Import("errors", "errors"))
 					g.W("}\n")
 
 					g.W("return ")
 
-					for i, result := range m.Results {
-						name := "result"
-						if m.ResultsNamed {
-							name = strcase.ToLowerCamel(result.Name())
-						}
-						if i > 0 {
-							g.W(",")
-						}
-						g.W(name)
-					}
-					if m.ReturnErr != nil {
-						if len(m.Results) > 0 {
-							g.W(",")
-						}
-						g.W("%s.Unwrap(err)", g.i.Import("errors", "errors"))
-					}
+					generateNameResult("nil")
 				}
 			})
 		}
