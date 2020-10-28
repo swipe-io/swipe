@@ -2,3 +2,4 @@
 .DS_Store
 
 fixtures/*/app/*_gen.go
+releases

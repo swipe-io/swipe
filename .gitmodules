@@ -1,0 +1,3 @@
+[submodule "homebrew-swipe"]
+	path = homebrew-swipe
+	url = git@github.com:swipe-io/homebrew-swipe.git
