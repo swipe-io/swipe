@@ -53,8 +53,6 @@ func (v *jsTypeDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 		return
 	}
 	switch tp := t.Obj().Type().Underlying().(type) {
-	default:
-		typevisitor.ConvertType(tp.Underlying()).Accept(v, nested)
 	case *stdtypes.Struct:
 		if nested == 0 {
 			v.buf.W("/**\n")
@@ -64,7 +62,7 @@ func (v *jsTypeDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 		} else {
 			v.buf.W(t.Obj().Name())
 		}
-	case *stdtypes.Map, *stdtypes.Slice:
+	case *stdtypes.Map, *stdtypes.Slice, *stdtypes.Basic:
 		if nested == 0 {
 			v.buf.W("/**\n")
 			v.buf.W("* @typedef {")

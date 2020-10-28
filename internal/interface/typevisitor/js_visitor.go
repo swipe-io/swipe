@@ -50,11 +50,7 @@ func (v *jsTypeVisitor) VisitMap(t *stdtypes.Map, nested int) {
 func (v *jsTypeVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 	switch stdtypes.TypeString(t.Obj().Type(), nil) {
 	default:
-		//if _, ok := t.Obj().Type().Underlying().(*stdtypes.Struct); ok {
 		v.w(t.Obj().Name())
-		//} else {
-		//	typevisitor.ConvertType(t.Obj().Type().Underlying()).Accept(v, nested+1)
-		//}
 	case "encoding/json.RawMessage":
 		v.w("*")
 		return
