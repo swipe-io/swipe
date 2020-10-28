@@ -228,7 +228,9 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	for _, t := range tdc.TypeDefs() {
 		typevisitor.JSTypeDefVisitor(buf).Visit(t)
 	}
+
 	g.W(buf.String())
+	g.W(mw.String())
 
 	if g.options.Interfaces().Len() > 1 {
 		g.W("class JSONRPCClient {\n")
@@ -245,8 +247,6 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		iface := g.options.Interfaces().At(0)
 		g.W("export default JSONRPCClient%s\n\n", iface.Name())
 	}
-
-	g.W(mw.String())
 
 	for _, key := range g.options.ErrorKeys() {
 		e := g.options.Error(key)
