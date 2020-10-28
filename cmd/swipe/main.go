@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -34,6 +35,9 @@ var (
 	colorAccent  = color.Cyan.Render
 	colorFail    = color.Red.Render
 )
+
+var startGitAttrPattern = []byte("\n# /swipe gen\n")
+var endGitAttrPattern = []byte("# swipe gen/\n")
 
 func main() {
 	subcommands.Register(subcommands.CommandsCommand(), "")
@@ -184,6 +188,8 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	}
 	success := true
 
+	diffExcludes := make([]string, 0, len(results))
+
 	for _, g := range results {
 		if len(g.Errs) > 0 {
 			logErrors(g.Errs)
@@ -194,6 +200,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		if len(g.Content) == 0 {
 			continue
 		}
+		diffExcludes = append(diffExcludes, strings.Replace(g.OutputPath, wd+"/", "", -1))
 		err := ioutil.WriteFile(g.OutputPath, g.Content, 0755)
 		if err == nil {
 			if cmd.verbose {
@@ -207,6 +214,56 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	if !success {
 		log.Println(colorFail("at least one generate failure"))
 		return subcommands.ExitFailure
+	} else {
+		gitAttributesPath := filepath.Join(wd, ".gitattributes")
+		var (
+			f   *os.File
+			err error
+		)
+		if _, err = os.Stat(gitAttributesPath); os.IsNotExist(err) {
+			f, err = os.Create(gitAttributesPath)
+			if err != nil {
+				log.Println(colorFail("create .gitattributes fail: ", err))
+				return subcommands.ExitFailure
+			}
+			f.Close()
+		}
+		data, err := ioutil.ReadFile(gitAttributesPath)
+		if err != nil {
+			log.Println(colorFail("read .gitattributes fail: ", err))
+			return subcommands.ExitFailure
+		}
+
+		buf := new(bytes.Buffer)
+
+		start := bytes.Index(data, startGitAttrPattern)
+		end := bytes.Index(data, endGitAttrPattern)
+
+		if start == -1 && end != -1 {
+			log.Println(colorFail("corrupted .gitattributes not found start swipe patter"))
+			return subcommands.ExitFailure
+		}
+
+		if start != -1 && end == -1 {
+			log.Println(colorFail("corrupted .gitattributes not found end swipe patter"))
+			return subcommands.ExitFailure
+		}
+
+		if start != -1 && end != -1 {
+			buf.Write(data[:start])
+			buf.Write(data[end+len(endGitAttrPattern):])
+		}
+
+		buf.Write(startGitAttrPattern)
+		for _, exclude := range diffExcludes {
+			buf.WriteString(exclude + " -diff\n")
+		}
+		buf.Write(endGitAttrPattern)
+
+		if err := ioutil.WriteFile(gitAttributesPath, buf.Bytes(), 0755); err != nil {
+			log.Println(colorFail("fail write .gitattributes: ", err))
+			return subcommands.ExitFailure
+		}
 	}
 	return subcommands.ExitSuccess
 }
