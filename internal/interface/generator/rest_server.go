@@ -144,10 +144,11 @@ func (g *restServer) Process(ctx context.Context) error {
 				g.W(").")
 				g.W("Path(")
 				if mopt.Path != "" {
-					g.W(strconv.Quote(path.Join(svcPrefix, mopt.Path)))
+					g.W(strconv.Quote(path.Join("/", svcPrefix, mopt.Path)))
 				} else {
 					g.W(strconv.Quote(path.Join("/", svcPrefix, "/", stdstrings.ToLower(m.Name))))
 				}
+
 				g.W(").")
 				g.W("Handler(")
 			}
