@@ -99,11 +99,11 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		}
 		g.W("}\n")
 		if g.options.JSONRPCEnable() {
-			g.W("if err, ok := err.(%s.ErrorData); ok {\n", kitHTTPPkg)
+			g.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
 			g.W("err.SetErrorData(data)\n")
 			g.W("}\n")
 
-			g.W("if err, ok := err.(%s.ErrorMessager); ok {\n", kitHTTPPkg)
+			g.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
 			g.W("err.SetErrorMessage(message)\n")
 			g.W("}\n")
 		}
