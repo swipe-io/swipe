@@ -32,17 +32,16 @@ type restServer struct {
 	i       *importer.Importer
 }
 
-func (g *restServer) Prepare(ctx context.Context) error {
+func (g *restServer) Prepare(_ context.Context) error {
 	return nil
 }
 
-func (g *restServer) Process(ctx context.Context) error {
+func (g *restServer) Process(_ context.Context) error {
 	var (
 		routerPkg  string
 		httpPkg    string
 		kitHTTPPkg string
 	)
-	kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 	contextPkg := g.i.Import("context", "context")
 
@@ -56,7 +55,8 @@ func (g *restServer) Process(ctx context.Context) error {
 		httpPkg = g.i.Import("http", "net/http")
 	}
 
-	g.writeEncodeResponseFunc(contextPkg, httpPkg, kitEndpointPkg, jsonPkg)
+	g.writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg)
+	g.writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg)
 
 	g.W("// MakeHandler%[1]s HTTP %[1]s Transport\n", g.options.Prefix())
 	g.W("func MakeHandler%s(", g.options.Prefix())
@@ -79,6 +79,8 @@ func (g *restServer) Process(ctx context.Context) error {
 
 	g.W("opts := &serverOpts{}\n")
 	g.W("for _, o := range options {\n o(opts)\n }\n")
+
+	g.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
@@ -282,7 +284,77 @@ func (g *restServer) Process(ctx context.Context) error {
 	return nil
 }
 
-func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, kitEndpointPkg, jsonPkg string) {
+func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg string) {
+	//w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	//if headerer, ok := err.(Headerer); ok {
+	//	for k, values := range headerer.Headers() {
+	//		for _, v := range values {
+	//			w.Header().Add(k, v)
+	//		}
+	//	}
+	//}
+	//code := http.StatusInternalServerError
+	//if sc, ok := err.(StatusCoder); ok {
+	//	code = sc.StatusCode()
+	//}
+	//w.WriteHeader(code)
+	//w.Write(body)
+	//
+
+	g.W("func defaultErrorEncoder(ctx %s.Context, err error, ", contextPkg)
+	if g.options.UseFast() {
+		g.W("w %s.RequestCtx) {\n", httpPkg)
+	} else {
+		g.W("w %s.ResponseWriter) {\n", httpPkg)
+	}
+
+	g.W("data, err := %s.Marshal(errorWrapper{Error: err.Error()})\n", jsonPkg)
+	g.W("if err != nil {\n")
+	if g.options.UseFast() {
+		g.W("w.SetBody([]byte(")
+	} else {
+		g.W("w.Write([]byte(")
+	}
+	g.W("%s))\n", strconv.Quote("unexpected error"))
+	g.W("return\n")
+	g.W("}\n")
+
+	if g.options.UseFast() {
+		g.W("w.Response.Header")
+	} else {
+		g.W("w.Header()")
+	}
+	g.W(".Set(\"Content-Type\", \"application/json; charset=utf-8\")\n")
+
+	g.W("if headerer, ok := err.(%s.Headerer); ok {\n", kitHTTPPkg)
+
+	if g.options.UseFast() {
+		g.W("for k, v := range headerer.Headers() {\n")
+		g.W("w.Response.Header.Add(k, v)")
+		g.W("}\n")
+	} else {
+		g.W("for k, values := range headerer.Headers() {\n")
+		g.W("for _, v := range values {\n")
+		g.W("w.Header().Add(k, v)")
+		g.W("}\n}\n")
+	}
+	g.W("}\n")
+	g.W("code := %s.StatusInternalServerError\n", httpPkg)
+	g.W("if sc, ok := err.(%s.StatusCoder); ok {\n", kitHTTPPkg)
+	g.W("code = sc.StatusCode()\n")
+	g.W("}\n")
+
+	if g.options.UseFast() {
+		g.W("w.SetStatusCode(code)\n")
+		g.W("w.SetBody(data)\n")
+	} else {
+		g.W("w.WriteHeader(code)\n")
+		g.W("w.Write(data)\n")
+	}
+	g.W("}\n\n")
+}
+
+func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string) {
 	g.W("type errorWrapper struct {\n")
 	g.W("Error string `json:\"error\"`\n")
 	g.W("}\n")
@@ -304,20 +376,6 @@ func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, kitEndpointPkg
 	}
 
 	g.W("h.Set(\"Content-Iface\", \"application/json; charset=utf-8\")\n")
-	g.W("if e, ok := response.(%s.Failer); ok && e.Failed() != nil {\n", kitEndpointPkg)
-	g.W("data, err := %s.Marshal(errorWrapper{Error: e.Failed().Error()})\n", jsonPkg)
-	g.W("if err != nil {\n")
-	g.W("return err\n")
-	g.W("}\n")
-
-	if g.options.UseFast() {
-		g.W("w.SetBody(data)\n")
-	} else {
-		g.W("w.Write(data)\n")
-	}
-
-	g.W("return nil\n")
-	g.W("}\n")
 
 	g.W("data, err := %s.Marshal(response)\n", jsonPkg)
 	g.W("if err != nil {\n")
