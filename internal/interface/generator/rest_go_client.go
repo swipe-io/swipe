@@ -31,11 +31,11 @@ type restGoClient struct {
 	i       *importer.Importer
 }
 
-func (g *restGoClient) Prepare(ctx context.Context) error {
+func (g *restGoClient) Prepare(_ context.Context) error {
 	return nil
 }
 
-func (g *restGoClient) Process(ctx context.Context) error {
+func (g *restGoClient) Process(_ context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		var (
 			kitHTTPPkg string
@@ -206,7 +206,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 					g.W("r.URL.Path += ")
 				}
 				if len(pathVars) > 0 {
-					g.W("%s.Sprintf(%s, %s)\n", fmtPkg, strconv.Quote(pathStr), stdstrings.Join(pathVarNames, ", "))
+					g.W("%s.Sprintf(%s, %s)", fmtPkg, strconv.Quote(pathStr), stdstrings.Join(pathVarNames, ", "))
 				} else {
 					g.W(strconv.Quote(pathStr))
 				}
@@ -214,6 +214,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 				if g.options.UseFast() {
 					g.W(")")
 				}
+
 				g.W("\n")
 
 				if len(queryVars) > 0 {
@@ -259,6 +260,7 @@ func (g *restGoClient) Process(ctx context.Context) error {
 				g.W("return nil\n")
 				g.W("}")
 			}
+
 			g.W(",\n")
 
 			if mopt.ClientResponseFunc.Expr != nil {
