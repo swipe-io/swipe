@@ -87,7 +87,7 @@ func (g *logging) Process(ctx context.Context) error {
 
 			if m.ReturnErr != nil {
 				results = append(results, "", "error")
-				logParams = append(logParams, strconv.Quote("err"), "err")
+				logParams = append(logParams, strconv.Quote("err"), "errStr")
 			}
 
 			g.WriteFunc(m.Name, "s *"+name, params, results, func() {
@@ -109,11 +109,18 @@ func (g *logging) Process(ctx context.Context) error {
 				if mopt.LoggingEnable {
 					if len(logParams) > 0 {
 						g.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
+							g.W("errStr := err.Error()\n")
+							if m.ReturnErr != nil {
+								g.W("if le, ok := err.(interface{LogError() string}); ok {\n")
+								g.W("errStr = le.LogError()\n")
+								g.W("}\n")
+							}
 							g.W("s.logger.Log(\"method\",\"%s\",\"took\",%s.Since(now),", m.Name, timePkg)
 							g.W(strings.Join(logParams, ","))
 							g.W(")\n")
 						})
 					}
+
 				}
 
 				if len(m.Results) > 0 || m.ReturnErr != nil {
@@ -168,18 +175,10 @@ func (g *logging) Process(ctx context.Context) error {
 							g.W(format, args...)
 						}
 					}
-					g.W("if err != nil {\n")
-					g.W("if _, ok := err.(interface {\n\t\tUnwrap() error\n\t}); !ok {\n")
-					g.W("err = %s.Errorf(\"unexpected error: %%w\", err)\n", g.i.Import("fmt", "fmt"))
-					g.W("}\n")
-					g.W("return ")
-
-					generateNameResult("%s.Unwrap(err)", g.i.Import("errors", "errors"))
-					g.W("}\n")
 
 					g.W("return ")
 
-					generateNameResult("nil")
+					generateNameResult("err")
 				}
 			})
 		}
