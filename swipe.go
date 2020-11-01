@@ -97,21 +97,21 @@ func Build(Option) {
 //  flag - name of flag, enable as the console flag.
 //
 //  desc - description for String function.
-func ConfigEnv(optionsStruct interface{}) Option {
+func ConfigEnv(optionsStruct interface{}, opts ...ConfigEnvOption) Option {
 	return "implementation not generated, run swipe"
 }
 
-func ConfigEnvFuncName(name string) Option {
+func ConfigEnvFuncName(name string) ConfigEnvOption {
 	return "implementation not generated, run swipe"
 }
 
 // ConfigEnvDocEnable enable markdown doc generate.
-func ConfigEnvDocEnable() Option {
+func ConfigEnvDocEnable() ConfigEnvOption {
 	return "implementation not generated, run swipe"
 }
 
 // ConfigEnvDocOutput output path markdown doc generate.
-func ConfigEnvDocOutput(output string) Option {
+func ConfigEnvDocOutput(output string) ConfigEnvOption {
 	return "implementation not generated, run swipe"
 }
 

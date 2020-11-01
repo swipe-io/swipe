@@ -240,25 +240,35 @@ func (w *GoLangWriter) WriteConvertType(
 	switch t := f.Type().(type) {
 	case *stdtypes.Basic:
 		w.writeConvertBasicType(importFn, f.Name(), assignId, valueId, t, errRet, errSlice, declareVar, msgErrTemplate)
+	case *stdtypes.Map:
+		stringsPkg := importFn("strings", "strings")
+		if k, ok := t.Key().(*stdtypes.Basic); ok && k.Kind() == stdtypes.String {
+			if v, ok := t.Elem().(*stdtypes.Basic); ok {
+				tmpId = "parts" + stdstrings.ToLower(f.Name())
+				w.W("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
+				w.W("%s = make(%s, len(%s))\n", assignId, t.String(), tmpId)
+				if isNumeric(v.Kind()) {
+					w.W("for _, s := range %s {\n", tmpId)
+					w.W("kv := %s.Split(s, \"=\")\n", stringsPkg)
+					w.W("if len(kv) == 2 {\n")
+					w.writeConvertBasicType(importFn, "tmp", assignId+"[kv[0]]", "kv[1]", v, errRet, errSlice, false, msgErrTemplate)
+					w.W("}\n")
+					w.W("}\n")
+				} else {
+					w.W("for _, s := range %s {\n", tmpId)
+					w.W("kv := %s.Split(s, \"=\")\n", stringsPkg)
+					w.W("if len(kv) == 2 {\n")
+					w.W("%s[kv[0]] = kv[1]\n", assignId)
+					w.W("}\n")
+					w.W("}\n")
+				}
+			}
+		}
 	case *stdtypes.Slice:
 		stringsPkg := importFn("strings", "strings")
 		switch t := t.Elem().(type) {
 		case *stdtypes.Basic:
-			switch t.Kind() {
-			case stdtypes.String:
-				w.W("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
-			case stdtypes.Uint,
-				stdtypes.Uint8,
-				stdtypes.Uint16,
-				stdtypes.Uint32,
-				stdtypes.Uint64,
-				stdtypes.Int,
-				stdtypes.Int8,
-				stdtypes.Int16,
-				stdtypes.Int32,
-				stdtypes.Int64,
-				stdtypes.Float32,
-				stdtypes.Float64:
+			if isNumeric(t.Kind()) {
 				tmpId = "parts" + stdstrings.ToLower(f.Name()) + strings.UcFirst(t.String())
 				w.W("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
 				if declareVar {
@@ -268,6 +278,8 @@ func (w *GoLangWriter) WriteConvertType(
 				w.W("for i, s := range %s {\n", tmpId)
 				w.writeConvertBasicType(importFn, "tmp", assignId+"[i]", "s", t, errRet, errSlice, false, msgErrTemplate)
 				w.W("}\n")
+			} else {
+				w.W("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
 			}
 		}
 	case *stdtypes.Pointer:
@@ -293,6 +305,7 @@ func (w *GoLangWriter) WriteConvertType(
 		}
 	case *stdtypes.Named:
 		tmpID := strcase.ToLowerCamel(f.Name()) + "Result"
+
 		switch t.Obj().Type().String() {
 		case "uuid.UUID":
 			uuidPkg := importFn("", t.Obj().Pkg().Path())
