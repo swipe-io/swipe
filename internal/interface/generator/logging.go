@@ -87,7 +87,7 @@ func (g *logging) Process(ctx context.Context) error {
 
 			if m.ReturnErr != nil {
 				results = append(results, "", "error")
-				logParams = append(logParams, strconv.Quote("err"), "errStr")
+				logParams = append(logParams, strconv.Quote("err"), "logErr")
 			}
 
 			g.WriteFunc(m.Name, "s *"+name, params, results, func() {
@@ -109,10 +109,10 @@ func (g *logging) Process(ctx context.Context) error {
 				if mopt.LoggingEnable {
 					if len(logParams) > 0 {
 						g.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
-							g.W("errStr := err.Error()\n")
+							g.W("logErr := err\n")
 							if m.ReturnErr != nil {
-								g.W("if le, ok := err.(interface{LogError() string}); ok {\n")
-								g.W("errStr = le.LogError()\n")
+								g.W("if le, ok := err.(interface{LogError() error}); ok {\n")
+								g.W("logErr = le.LogError()\n")
 								g.W("}\n")
 							}
 							g.W("s.logger.Log(\"method\",\"%s\",\"took\",%s.Since(now),", m.Name, timePkg)
