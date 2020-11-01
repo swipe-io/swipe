@@ -307,9 +307,7 @@ func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, j
 	} else {
 		g.W("w %s.ResponseWriter) {\n", httpPkg)
 	}
-
-	g.W("data, err := %s.Marshal(errorWrapper{Error: err.Error()})\n", jsonPkg)
-	g.W("if err != nil {\n")
+	g.W("if data, err := %s.Marshal(errorWrapper{Error: err.Error()}); err != nil {\n", jsonPkg)
 	if g.options.UseFast() {
 		g.W("w.SetBody([]byte(")
 	} else {
