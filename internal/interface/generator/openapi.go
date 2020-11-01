@@ -157,7 +157,7 @@ func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 	}
 }
 
-func getOpenapiRestErrorSchema() *openapi.Schema {
+func getOpenapiRESTErrorSchema() *openapi.Schema {
 	return &openapi.Schema{
 		Type: "object",
 		Properties: openapi.Properties{
@@ -213,7 +213,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 	if g.options.JSONRPCEnable() {
 		swg.Components.Schemas = getOpenapiJSONRPCErrorSchemas()
 	} else {
-		swg.Components.Schemas["Error"] = getOpenapiRestErrorSchema()
+		swg.Components.Schemas["Error"] = getOpenapiRESTErrorSchema()
 	}
 	for _, key := range g.options.ErrorKeys() {
 		ei := g.options.Error(key)
@@ -319,6 +319,20 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 					}
 				}
 				pathStr = path.Join(svcPrefix, "/", pathStr)
+
+				for _, ei := range m.Errors {
+					codeStr := strconv.FormatInt(ei.Code, 10)
+					o.Responses[codeStr] = openapi.Response{
+						Description: ei.Named.Obj().Name(),
+						Content: openapi.Content{
+							"application/json": {
+								Schema: &openapi.Schema{
+									Ref: "#/components/schemas/" + ei.Named.Obj().Name(),
+								},
+							},
+						},
+					}
+				}
 			}
 
 			if g.options.Interfaces().Len() > 1 {
