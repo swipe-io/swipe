@@ -285,22 +285,6 @@ func (g *restServer) Process(_ context.Context) error {
 }
 
 func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg string) {
-	//w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	//if headerer, ok := err.(Headerer); ok {
-	//	for k, values := range headerer.Headers() {
-	//		for _, v := range values {
-	//			w.Header().Add(k, v)
-	//		}
-	//	}
-	//}
-	//code := http.StatusInternalServerError
-	//if sc, ok := err.(StatusCoder); ok {
-	//	code = sc.StatusCode()
-	//}
-	//w.WriteHeader(code)
-	//w.Write(body)
-	//
-
 	g.W("func defaultErrorEncoder(ctx %s.Context, err error, ", contextPkg)
 	if g.options.UseFast() {
 		g.W("w %s.RequestCtx) {\n", httpPkg)
