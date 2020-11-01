@@ -76,6 +76,20 @@ func Inspect(pkgs []*packages.Package, f func(p *packages.Package, n ast.Node) b
 	}
 }
 
+func HasNoEmptyValue(t types.Type) bool {
+	switch u := t.Underlying().(type) {
+	case *types.Array, *types.Struct:
+		return true
+	case *types.Basic:
+		info := u.Info()
+		switch {
+		case info&types.IsBoolean != 0:
+			return true
+		}
+	}
+	return false
+}
+
 func ZeroValue(t types.Type, qf types.Qualifier) string {
 	switch u := t.Underlying().(type) {
 	case *types.Array, *types.Struct:

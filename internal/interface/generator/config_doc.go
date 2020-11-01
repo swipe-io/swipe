@@ -37,25 +37,25 @@ func (g *configDoc) Process(ctx context.Context) error {
 
 	g.W("## Environment variables\n\n")
 
-	g.W("| Name | Type | Description | Required |\n|------|------|------|------|\n")
+	g.W("| Name | Type | Description | Required | Use Zero |\n|------|------|------|------|------|\n")
 
 	for _, opts := range envs {
 		desc := " "
 		if opts.desc != "" {
 			desc = opts.desc
 		}
-		g.W("|%s|<code>%s</code>|%s|%s|\n", opts.name, opts.typeStr, desc, opts.required)
+		g.W("|%s|<code>%s</code>|%s|%s|%s|\n", opts.name, opts.typeStr, desc, opts.required, opts.useZero)
 	}
 
 	g.W("## Flags\n\n")
-	g.W("| Name | Type | Description | Required |\n|------|------|------|------|\n")
+	g.W("| Name | Type | Description | Required | Use Zero |\n|------|------|------|------|------|\n")
 
 	for _, opts := range flags {
 		desc := " "
 		if opts.desc != "" {
 			desc = opts.desc
 		}
-		g.W("|%s|<code>%s</code>|%s|%s|\n", opts.name, opts.typeStr, desc, opts.required)
+		g.W("|%s|<code>%s</code>|%s|%s|%s|\n", opts.name, opts.typeStr, desc, opts.required, opts.useZero)
 	}
 
 	return nil

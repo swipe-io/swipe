@@ -42,13 +42,16 @@ func (g *configGateway) FuncName() string {
 }
 
 func (g *configGateway) load(o *option.Option) {
-	g.stExpr = o.Value.Expr()
-	g.stType = o.Value.Type()
 
-	if ptr, ok := o.Value.Type().(*stdtypes.Pointer); ok {
+	os := option.MustOption(o.At("optionsStruct"))
+
+	g.stExpr = os.Value.Expr()
+	g.stType = os.Value.Type()
+
+	if ptr, ok := os.Value.Type().(*stdtypes.Pointer); ok {
 		g.st = ptr.Elem().Underlying().(*stdtypes.Struct)
 	} else {
-		g.st = o.Value.Type().(*stdtypes.Struct)
+		g.st = os.Value.Type().(*stdtypes.Struct)
 	}
 	if _, ok := o.At("ConfigEnvDocEnable"); ok {
 		g.docEnable = true
