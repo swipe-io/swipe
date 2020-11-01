@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/swipe-io/swipe/v2/internal/fixcomment"
+
 	"github.com/swipe-io/swipe/v2"
 
 	"github.com/google/subcommands"
@@ -45,6 +47,7 @@ func main() {
 	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(&genCmd{}, "")
 	subcommands.Register(&genTplCmd{}, "")
+	subcommands.Register(&fixComment{}, "")
 
 	flag.Parse()
 
@@ -52,11 +55,12 @@ func main() {
 	log.SetOutput(os.Stderr)
 
 	allCmds := map[string]bool{
-		"commands": true,
-		"gen-tpl":  true,
-		"help":     true,
-		"flags":    true,
-		"gen":      true,
+		"commands":    true,
+		"gen-tpl":     true,
+		"help":        true,
+		"flags":       true,
+		"gen":         true,
+		"fix-comment": true,
 	}
 
 	log.Printf("%s %s", color.LightBlue.Render("Swipe"), color.Yellow.Render(swipe.Version))
@@ -295,6 +299,46 @@ func (cmd *genTplCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...inte
 	if err != nil {
 		log.Println(colorFail(err.Error()))
 		return subcommands.ExitFailure
+	}
+	return subcommands.ExitSuccess
+}
+
+type fixComment struct {
+}
+
+func (c *fixComment) Name() string {
+	return "fix-comment"
+}
+
+func (c *fixComment) Synopsis() string {
+	return ""
+}
+
+func (c *fixComment) Usage() string {
+	return ""
+}
+
+func (c *fixComment) SetFlags(set *flag.FlagSet) {
+
+}
+
+func (c *fixComment) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Println(colorFail("failed to get working directory: "), colorFail(err))
+		return subcommands.ExitFailure
+	}
+	fixComment := fixcomment.NewFixComment(wd, os.Environ(), packages(f))
+	fixes, err := fixComment.Execute()
+	if err != nil {
+		log.Println(colorFail("failed to fix comments: "), colorFail(err))
+		return subcommands.ExitFailure
+	}
+	for _, fix := range fixes {
+		err := ioutil.WriteFile(fix.Filepath, fix.Content, 0755)
+		if err == nil {
+			log.Printf("wrote %s\n", colorSuccess(fix.Filepath))
+		}
 	}
 	return subcommands.ExitSuccess
 }

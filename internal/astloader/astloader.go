@@ -250,32 +250,18 @@ func visitBlockStmt(p *packages.Package, stmt ast.Stmt) (values []stdtypes.TypeA
 	switch v := stmt.(type) {
 	case *ast.SelectStmt:
 		return visitBlockStmts(p, v.Body.List)
-		//values = append(values, otherValues...)
-		//objects = append(objects, otherObjects...)
 	case *ast.RangeStmt:
 		return visitBlockStmts(p, v.Body.List)
-		//values = append(values, otherValues...)
-		//objects = append(objects, otherObjects...)
 	case *ast.ForStmt:
 		return visitBlockStmts(p, v.Body.List)
-		//values = append(values, otherValues...)
-		//objects = append(objects, otherObjects...)
 	case *ast.TypeSwitchStmt:
 		return visitBlockStmts(p, v.Body.List)
-		//values = append(values, otherValues...)
-		//objects = append(objects, otherObjects...)
 	case *ast.SwitchStmt:
 		return visitBlockStmts(p, v.Body.List)
-		//values = append(values, otherValues...)
-		//objects = append(objects, otherObjects...)
 	case *ast.IfStmt:
 		return visitBlockStmts(p, v.Body.List)
-		//values = append(values, otherValues...)
-		//objects = append(objects, otherObjects...)
 	case *ast.BlockStmt:
 		return visitBlockStmts(p, v.List)
-		//values = append(values, otherValues...)
-		//objects = append(objects, otherObjects...)
 	case *ast.ReturnStmt:
 		for _, result := range v.Results {
 			switch vv := result.(type) {
