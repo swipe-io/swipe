@@ -43,7 +43,6 @@ func main() {
 	subcommands.Register(subcommands.CommandsCommand(), "")
 	subcommands.Register(subcommands.FlagsCommand(), "")
 	subcommands.Register(subcommands.HelpCommand(), "")
-	subcommands.Register(&versionCmd{}, "")
 	subcommands.Register(&genCmd{}, "")
 	subcommands.Register(&genTplCmd{}, "")
 
@@ -55,18 +54,12 @@ func main() {
 	allCmds := map[string]bool{
 		"commands": true,
 		"gen-tpl":  true,
-		"version":  true,
 		"help":     true,
 		"flags":    true,
 		"gen":      true,
-		"show":     true,
 	}
 
 	log.Printf("%s %s", color.LightBlue.Render("Swipe"), color.Yellow.Render(swipe.Version))
-	log.Printf("%s %s", color.Yellow.Render("Thanks for using"), color.LightBlue.Render("swipe"))
-	log.Println(color.Yellow.Render("Please wait the command is running, it may take some time"))
-
-	startCmd := time.Now()
 
 	var code int
 	if args := flag.Args(); len(args) == 0 || !allCmds[args[0]] {
@@ -75,41 +68,7 @@ func main() {
 	} else {
 		code = int(subcommands.Execute(context.Background()))
 	}
-	if code == 0 {
-		log.Println(color.LightGreen.Render("Command execution completed successfully"))
-	}
-	log.Printf("%s %s", color.LightBlue.Render("Time"), color.Yellow.Render(time.Now().Sub(startCmd).String()))
 	os.Exit(code)
-}
-
-type versionCmd struct {
-}
-
-// Name returns the name of the command.
-func (c *versionCmd) Name() string {
-	return "version"
-}
-
-// Synopsis returns a short string (less than one line) describing the command.
-func (c *versionCmd) Synopsis() string {
-	return "version"
-}
-
-// Usage returns a long string explaining the command and giving usage
-// information.
-func (c *versionCmd) Usage() string {
-	return "version"
-}
-
-// SetFlags adds the flags for this command to the specified set.
-func (c *versionCmd) SetFlags(_ *flag.FlagSet) {
-
-}
-
-// Execute executes the command and returns an ExitStatus.
-func (c *versionCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	log.Println(swipe.Version)
-	return subcommands.ExitSuccess
 }
 
 type genCmd struct {
@@ -132,6 +91,11 @@ func (cmd *genCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+	log.Printf("%s %s", color.Yellow.Render("Thanks for using"), color.LightBlue.Render("swipe"))
+	log.Println(color.Yellow.Render("Please wait the command is running, it may take some time"))
+
+	startCmd := time.Now()
+
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Println(colorFail("failed to get working directory: "), colorFail(err))
@@ -265,6 +229,10 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 			return subcommands.ExitFailure
 		}
 	}
+
+	log.Println(color.LightGreen.Render("Command execution completed successfully"))
+	log.Printf("%s %s", color.LightBlue.Render("Time"), color.Yellow.Render(time.Now().Sub(startCmd).String()))
+
 	return subcommands.ExitSuccess
 }
 
