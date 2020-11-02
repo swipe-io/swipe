@@ -83,20 +83,22 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.WriteFunc("ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
 		g.W("switch code {\n")
 		g.W("default:\nerr = &httpError{code: code}\n")
-
-		for _, key := range g.options.ErrorKeys() {
-			e := g.options.Error(key)
-			g.W("case %d:\n", e.Code)
-			pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
-			if pkgName != "" {
-				pkgName += "."
+		if g.options.JSONRPCEnable() {
+			for _, key := range g.options.ErrorKeys() {
+				e := g.options.Error(key)
+				g.W("case %d:\n", e.Code)
+				pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
+				if pkgName != "" {
+					pkgName += "."
+				}
+				newPrefix := ""
+				if e.IsPointer {
+					newPrefix = "&"
+				}
+				g.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
 			}
-			newPrefix := ""
-			if e.IsPointer {
-				newPrefix = "&"
-			}
-			g.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
 		}
+
 		g.W("}\n")
 		if g.options.JSONRPCEnable() {
 			g.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
