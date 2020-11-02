@@ -291,7 +291,13 @@ func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, j
 	} else {
 		g.W("w %s.ResponseWriter) {\n", httpPkg)
 	}
-	g.W("data, merr := %s.Marshal(errorWrapper{Error: err.Error()})\n", jsonPkg)
+
+	g.W("var errData interface{}\n")
+	g.W("if e, ok := err.(interface{ ErrorData() interface{} }); ok {\n")
+	g.W("errData = e.ErrorData()\n")
+	g.W("}\n")
+
+	g.W("data, merr := %s.Marshal(errorWrapper{Error: err.Error(), Data: errData})\n", jsonPkg)
 	g.W("if merr != nil {\n")
 	if g.options.UseFast() {
 		g.W("w.SetBody([]byte(")
@@ -340,6 +346,7 @@ func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, j
 func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string) {
 	g.W("type errorWrapper struct {\n")
 	g.W("Error string `json:\"error\"`\n")
+	g.W("Data interface{} `json:\"data, omitempty\"`\n")
 	g.W("}\n")
 
 	g.W("func encodeResponseHTTP(ctx %s.Context, ", contextPkg)
@@ -359,6 +366,15 @@ func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string
 	}
 
 	g.W("h.Set(\"Content-Iface\", \"application/json; charset=utf-8\")\n")
+
+	g.W("if response == nil {\n")
+	if g.options.UseFast() {
+		g.W("w.SetStatusCode(201)\n")
+	} else {
+		g.W("w.WriteHeader(201)\n")
+	}
+	g.W("return nil")
+	g.W("}\n")
 
 	g.W("data, err := %s.Marshal(response)\n", jsonPkg)
 	g.W("if err != nil {\n")
