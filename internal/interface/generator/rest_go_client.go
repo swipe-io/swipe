@@ -112,11 +112,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 
 			httpMethod := mopt.MethodName
 			if httpMethod == "" {
-				if len(m.Params) > 0 {
-					httpMethod = "POST"
-				} else {
-					httpMethod = "GET"
-				}
+				httpMethod = "GET"
 			}
 
 			pathStr := mopt.Path
