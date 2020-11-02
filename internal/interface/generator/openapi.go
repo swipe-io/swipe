@@ -275,14 +275,18 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			methodComment = stdstrings.Replace(methodComment, m.Name, "", len(m.Name))
 
 			var prefix string
-			if g.options.JSONRPCEnable() {
-				prefix = strcase.ToLowerCamel(iface.Name())
-			} else {
-				prefix = strcase.ToKebab(iface.Name())
+
+			if g.options.Interfaces().Len() > 1 {
+				if g.options.JSONRPCEnable() {
+					prefix = strcase.ToLowerCamel(iface.Name())
+				} else {
+					prefix = strcase.ToKebab(iface.Name())
+				}
+				if iface.NameUnExport() != "" {
+					prefix = iface.NameUnExport()
+				}
 			}
-			if iface.NameUnExport() != "" {
-				prefix = iface.NameUnExport()
-			}
+
 			if g.options.JSONRPCEnable() {
 				o = g.makeJSONRPCPath(m, iface, ntc, paramsComment)
 				pathStr = "/" + strings.LcFirst(m.Name)
@@ -462,9 +466,9 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.Service
 	var prefix string
 	if g.options.Interfaces().Len() > 1 {
 		prefix = strcase.ToLowerCamel(iface.Name()) + "."
-	}
-	if iface.NameUnExport() != "" {
-		prefix = iface.NameUnExport() + "."
+		if iface.NameUnExport() != "" {
+			prefix = iface.NameUnExport() + "."
+		}
 	}
 
 	request := &openapi.Schema{
