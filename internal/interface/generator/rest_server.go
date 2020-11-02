@@ -346,7 +346,7 @@ func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, j
 func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string) {
 	g.W("type errorWrapper struct {\n")
 	g.W("Error string `json:\"error\"`\n")
-	g.W("Data interface{} `json:\"data, omitempty\"`\n")
+	g.W("Data interface{} `json:\"data,omitempty\"`\n")
 	g.W("}\n")
 
 	g.W("func encodeResponseHTTP(ctx %s.Context, ", contextPkg)
