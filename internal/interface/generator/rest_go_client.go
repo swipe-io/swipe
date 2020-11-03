@@ -140,17 +140,11 @@ func (g *restGoClient) Process(_ context.Context) error {
 						regexp = ":" + regexp
 					}
 					pathStr = stdstrings.Replace(pathStr, "{"+p.Name()+regexp+"}", "%s", -1)
-
 					pathVars = append(pathVars, p)
-					//pathVars = append(pathVars, g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 				} else if _, ok := mopt.QueryVars[p.Name()]; ok {
-
 					queryVars = append(queryVars, p)
-
-					//queryVars = append(queryVars, strconv.Quote(qName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 				} else if _, ok := mopt.HeaderVars[p.Name()]; ok {
 					headerVars = append(headerVars, p)
-					//headerVars = append(headerVars, strconv.Quote(hName), g.GetFormatType(g.i.Import, "req."+strings.UcFirst(p.Name()), p))
 				}
 			}
 
