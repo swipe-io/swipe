@@ -30,7 +30,7 @@ func (s *serviceFinder) Find(named *stdtypes.Named) (gateway.ServiceGateway, *mo
 	}
 	for _, resultOption := range o.Options {
 		if resultOption.Option.Name == "Service" {
-			sg, err := ig.NewServiceGateway(resultOption.Pkg, resultOption.Option, o.Data.GraphTypes, o.Data.Enums)
+			sg, err := ig.NewServiceGateway(resultOption.Pkg, resultOption.Option, o.Data.GraphTypes, o.Data.CommentFuncs)
 			if err != nil {
 				return nil, nil, []error{err}
 			}

@@ -608,8 +608,6 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 		ntc.Visit(m.Results[0].Type())
 		responseSchema = &openapi.Schema{}
 		iftypevisitor.OpenapiVisitor(responseSchema).Visit(m.Results[0].Type())
-	} else {
-		responseSchema.Example = json.RawMessage("null")
 	}
 
 	if mopt.WrapResponse.Enable {
@@ -620,28 +618,40 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 		}
 	}
 
-	o := &openapi.Operation{
-		Summary: m.Name,
-		Responses: map[string]openapi.Response{
-			"200": {
-				Description: "OK",
-				Content: openapi.Content{
-					"application/json": {
-						Schema: responseSchema,
-					},
+	responses := map[string]openapi.Response{}
+
+	if len(m.Results) == 0 {
+		responses["201"] = openapi.Response{
+			Description: "Created",
+			Content: openapi.Content{
+				"text/plain": {},
+			},
+		}
+	} else {
+		responses["200"] = openapi.Response{
+			Description: "OK",
+			Content: openapi.Content{
+				"application/json": {
+					Schema: responseSchema,
 				},
 			},
-			"500": {
-				Description: "FAIL",
-				Content: openapi.Content{
-					"application/json": {
-						Schema: &openapi.Schema{
-							Ref: "#/components/schemas/Error",
-						},
-					},
+		}
+	}
+
+	responses["500"] = openapi.Response{
+		Description: "Internal Server Error",
+		Content: openapi.Content{
+			"application/json": {
+				Schema: &openapi.Schema{
+					Ref: "#/components/schemas/Error",
 				},
 			},
 		},
+	}
+
+	o := &openapi.Operation{
+		Summary:   m.Name,
+		Responses: responses,
 	}
 	for _, p := range m.Params {
 		var in string

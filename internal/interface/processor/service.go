@@ -13,12 +13,12 @@ import (
 )
 
 type serviceProcessor struct {
-	sg       gateway.ServiceGateway
-	gi       *git.GIT
-	workDir  string
-	comments *typeutil.Map
-	enums    *typeutil.Map
-	pkg      *packages.Package
+	sg            gateway.ServiceGateway
+	gi            *git.GIT
+	workDir       string
+	commentFields map[string]map[string]string
+	enums         *typeutil.Map
+	pkg           *packages.Package
 }
 
 func (p *serviceProcessor) Pkg() *packages.Package {
@@ -51,7 +51,7 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 			if p.sg.JSONRPCDocEnable() {
 				generators = append(generators, generator.NewJsonrpcDoc(
 					p.sg,
-					p.comments,
+					p.commentFields,
 					p.enums,
 					p.workDir,
 				))
@@ -93,17 +93,17 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 func NewService(
 	sg gateway.ServiceGateway,
 	gi *git.GIT,
-	comments *typeutil.Map,
+	commentFields map[string]map[string]string,
 	enums *typeutil.Map,
 	workDir string,
 	pkg *packages.Package,
 ) processor.Processor {
 	return &serviceProcessor{
-		sg:       sg,
-		gi:       gi,
-		comments: comments,
-		enums:    enums,
-		workDir:  workDir,
-		pkg:      pkg,
+		sg:            sg,
+		gi:            gi,
+		commentFields: commentFields,
+		enums:         enums,
+		workDir:       workDir,
+		pkg:           pkg,
 	}
 }
