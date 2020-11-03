@@ -25,12 +25,13 @@ type nodeInfo struct {
 }
 
 type Data struct {
-	WorkDir     string
-	RootPkgPath string
-	CommentMaps *typeutil.Map
-	Pkgs        []*packages.Package
-	GraphTypes  *graph.Graph
-	Enums       *typeutil.Map
+	WorkDir       string
+	RootPkgPath   string
+	CommentFuncs  map[string][]string
+	CommentFields map[string]map[string]string
+	Pkgs          []*packages.Package
+	GraphTypes    *graph.Graph
+	Enums         *typeutil.Map
 }
 
 type Loader struct {
@@ -57,11 +58,12 @@ func (l *Loader) Process() (data *Data, errs []error) {
 		err error
 	)
 	data = &Data{
-		WorkDir:     l.wd,
-		RootPkgPath: strings.Split(l.wd, filepath.Join(build.Default.GOPATH, "src")+"/")[1],
-		CommentMaps: new(typeutil.Map),
-		GraphTypes:  graph.NewGraph(),
-		Enums:       new(typeutil.Map),
+		WorkDir:       l.wd,
+		RootPkgPath:   strings.Split(l.wd, filepath.Join(build.Default.GOPATH, "src")+"/")[1],
+		CommentFuncs:  map[string][]string{},
+		CommentFields: map[string]map[string]string{},
+		GraphTypes:    graph.NewGraph(),
+		Enums:         new(typeutil.Map),
 	}
 	cfg := &packages.Config{
 		Context:    l.ctx,
@@ -192,9 +194,9 @@ func (l *Loader) Process() (data *Data, errs []error) {
 		}
 	}
 	types.Inspect(data.Pkgs, func(p *packages.Package, n ast.Node) bool {
-		if st, ok := n.(*ast.StructType); ok {
-			t := p.TypesInfo.TypeOf(st)
-			if t != nil {
+		if ts, ok := n.(*ast.TypeSpec); ok {
+			obj := p.TypesInfo.ObjectOf(ts.Name)
+			if st, ok := ts.Type.(*ast.StructType); ok {
 				comments := map[string]string{}
 				for _, field := range st.Fields.List {
 					if field.Comment != nil {
@@ -204,7 +206,9 @@ func (l *Loader) Process() (data *Data, errs []error) {
 							}
 						}
 					}
-					data.CommentMaps.Set(t, comments)
+				}
+				if len(comments) > 0 {
+					data.CommentFields[obj.String()] = comments
 				}
 			}
 		} else if spec, ok := n.(*ast.Field); ok {
@@ -222,7 +226,10 @@ func (l *Loader) Process() (data *Data, errs []error) {
 					}
 				}
 				if len(comments) > 0 {
-					data.CommentMaps.Set(t, comments)
+					for _, name := range spec.Names {
+						obj := p.TypesInfo.ObjectOf(name)
+						data.CommentFuncs[obj.String()] = comments
+					}
 				}
 			}
 		}

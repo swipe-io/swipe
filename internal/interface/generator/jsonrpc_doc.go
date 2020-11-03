@@ -36,11 +36,11 @@ type jsonrpcDocOptionsGateway interface {
 
 type jsonrpcDoc struct {
 	writer.BaseWriter
-	options    jsonrpcDocOptionsGateway
-	commentMap *typeutil.Map
-	enums      *typeutil.Map
-	workDir    string
-	outputDir  string
+	options       jsonrpcDocOptionsGateway
+	commentFields map[string]map[string]string
+	enums         *typeutil.Map
+	workDir       string
+	outputDir     string
 }
 
 func (g *jsonrpcDoc) Prepare(ctx context.Context) error {
@@ -183,7 +183,8 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 
 		for _, named := range nameds {
 			st := named.Obj().Type().Underlying().(*stdtypes.Struct)
-			comments, ok := g.commentMap.At(st).(map[string]string)
+
+			comments, ok := g.commentFields[named.Obj().String()]
 			if !ok {
 				comments = map[string]string{}
 			}
@@ -327,14 +328,14 @@ func (g *jsonrpcDoc) getJSType(tpl stdtypes.Type) string {
 
 func NewJsonrpcDoc(
 	options jsonrpcDocOptionsGateway,
-	commentMap *typeutil.Map,
+	commentFields map[string]map[string]string,
 	enums *typeutil.Map,
 	workDir string,
 ) generator.Generator {
 	return &jsonrpcDoc{
-		options:    options,
-		commentMap: commentMap,
-		enums:      enums,
-		workDir:    workDir,
+		options:       options,
+		commentFields: commentFields,
+		enums:         enums,
+		workDir:       workDir,
 	}
 }

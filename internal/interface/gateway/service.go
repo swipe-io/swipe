@@ -28,7 +28,7 @@ type serviceGateway struct {
 	transportType            model.Transport
 	useFast                  bool
 	graphTypes               *graph.Graph
-	commentMap               *typeutil.Map
+	commentFuncs             map[string][]string
 	methodOptions            map[string]model.MethodOption
 	defaultMethodOptions     model.MethodOption
 	clientsEnable            []string
@@ -246,7 +246,8 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		m := ifaceType.Method(i)
 
 		sig := m.Type().(*stdtypes.Signature)
-		comments, _ := g.commentMap.At(m.Type()).([]string)
+
+		comments, _ := g.commentFuncs[m.String()]
 
 		lcName := strings.LcFirst(m.Name())
 
@@ -708,12 +709,12 @@ func NewServiceGateway(
 	pkg *packages.Package,
 	o *option.Option,
 	graphTypes *graph.Graph,
-	commentMap *typeutil.Map,
+	commentFuncs map[string][]string,
 ) (gateway.ServiceGateway, error) {
 	g := &serviceGateway{
 		pkg:               pkg,
 		graphTypes:        graphTypes,
-		commentMap:        commentMap,
+		commentFuncs:      commentFuncs,
 		methodOptions:     map[string]model.MethodOption{},
 		openapiMethodTags: map[string][]string{},
 		errors:            map[uint32]*model.HTTPError{},

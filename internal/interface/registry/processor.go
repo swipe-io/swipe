@@ -28,14 +28,14 @@ func (r *registryProcessor) NewProcessor(o *option.ResultOption, data *astloader
 		}
 		return processor.NewGatewayProcessor(hg, o.Pkg), nil
 	case "Service":
-		sg, err := ig.NewServiceGateway(o.Pkg, o.Option, data.GraphTypes, data.CommentMaps)
+		sg, err := ig.NewServiceGateway(o.Pkg, o.Option, data.GraphTypes, data.CommentFuncs)
 		if err != nil {
 			return nil, err
 		}
 		return processor.NewService(
 			sg,
 			gt,
-			data.CommentMaps,
+			data.CommentFields,
 			data.Enums,
 			data.WorkDir,
 			o.Pkg,

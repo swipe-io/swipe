@@ -357,36 +357,35 @@ func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string
 		g.W("w %s.ResponseWriter", httpPkg)
 	}
 
-	g.W(", response interface{}) error {\n")
-
+	g.W(", response interface{}) (err error) {\n")
+	g.W("contentType := \"application/json; charset=utf-8\"\n")
+	g.W("statusCode := 200\n")
 	if g.options.UseFast() {
 		g.W("h := w.Header\n")
 	} else {
 		g.W("h := w.Header()\n")
 	}
-
-	g.W("h.Set(\"Content-Iface\", \"application/json; charset=utf-8\")\n")
-
-	g.W("if response == nil {\n")
-	if g.options.UseFast() {
-		g.W("w.SetStatusCode(201)\n")
-	} else {
-		g.W("w.WriteHeader(201)\n")
-	}
-	g.W("return nil")
-	g.W("}\n")
-
-	g.W("data, err := %s.Marshal(response)\n", jsonPkg)
+	g.W("var data []byte\n")
+	g.W("if response != nil {\n")
+	g.W("data, err = %s.Marshal(response)\n", jsonPkg)
 	g.W("if err != nil {\n")
 	g.W("return err\n")
 	g.W("}\n")
-
+	g.W("} else {\n")
+	g.W("contentType = \"text/plain; charset=utf-8\"\n")
+	g.W("statusCode = 201\n")
+	g.W("}\n")
+	g.W("h.Set(\"Content-Type\", contentType)\n")
+	if g.options.UseFast() {
+		g.W("w.SetStatusCode(statusCode)\n")
+	} else {
+		g.W("w.WriteHeader(statusCode)\n")
+	}
 	if g.options.UseFast() {
 		g.W("w.SetBody(data)\n")
 	} else {
 		g.W("w.Write(data)\n")
 	}
-
 	g.W("return nil\n")
 	g.W("}\n\n")
 }
