@@ -29,7 +29,8 @@ ToDo.
 
 ## Versions
 
-[v2.0.0-alpha.17](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCMulti/app/tree/v2.0.0-alpha.17)
+[v2.0.0-alpha.18](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCMulti/app/tree/v2.0.0-alpha.18)
+, [v2.0.0-alpha.17](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCMulti/app/tree/v2.0.0-alpha.17)
 , [v2.0.0-alpha.16](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCMulti/app/tree/v2.0.0-alpha.16)
 , [v2.0.0-alpha.15](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCMulti/app/tree/v2.0.0-alpha.15)
 , [v2.0.0-alpha.14](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCMulti/app/tree/v2.0.0-alpha.14)

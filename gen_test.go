@@ -3,6 +3,7 @@ package swipe
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 )
 
 var record = flag.Bool("record", false, "write expected result without running tests")
+var onlyDiff = flag.Bool("only-diff", false, "show only diff")
 
 func newGeneratorExecutor() ue.GenerationExecutor {
 	l := option.NewLoader()
@@ -75,7 +77,13 @@ func TestSwipe(t *testing.T) {
 						if !bytes.Equal(expectedContent, result.Content) {
 							actual, expected := string(result.Content), string(expectedContent)
 							diff := cmp.Diff(strings.Split(expected, "\n"), strings.Split(actual, "\n"))
-							t.Fatalf("swipe output differs from expected file %s.\n*** actual:\n%s\n\n*** expected:\n%s\n\n*** diff:\n%s", result.OutputPath, actual, expected, diff)
+							buf := new(bytes.Buffer)
+							buf.WriteString(fmt.Sprintf("swipe output differs from expected file %s.\n", result.OutputPath))
+							if !*onlyDiff {
+								buf.WriteString(fmt.Sprintf("*** actual:\n%s\n\n*** expected:\n%s\n\n", actual, expected))
+							}
+							buf.WriteString(fmt.Sprintf("*** diff:\n%s", diff))
+							t.Fatal(buf.String())
 						}
 						delete(test.expectedOutput, result.OutputPath)
 					}
