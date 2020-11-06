@@ -1,7 +1,7 @@
 VERSION = snapshot
 GHRFLAGS =
 # Git current tag
-GIT_TAG=$(shell git tag -l --contains HEAD)
+GIT_TAG=$(shell git tag -l --contains HEAD | sed -e "s/^v//")
 
 .PHONY: build release
 
