@@ -3,6 +3,7 @@ package gateway
 import (
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
+	"github.com/swipe-io/swipe/v2/internal/option"
 )
 
 type ServiceGateway interface {
@@ -15,6 +16,7 @@ type ServiceGateway interface {
 	UseFast() bool
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	Prefix() string
+	DefaultErrorEncoder() option.Value
 
 	ReadmeEnable() bool
 	ReadmeOutput() string

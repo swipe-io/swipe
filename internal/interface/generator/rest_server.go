@@ -8,6 +8,8 @@ import (
 	"strconv"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v2/internal/option"
+
 	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
@@ -24,6 +26,7 @@ type restServerOptionsGateway interface {
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	JSONRPCEnable() bool
+	DefaultErrorEncoder() option.Value
 }
 
 type restServer struct {
@@ -55,7 +58,9 @@ func (g *restServer) Process(_ context.Context) error {
 		httpPkg = g.i.Import("http", "net/http")
 	}
 
-	g.writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg)
+	if g.options.DefaultErrorEncoder().Expr() == nil {
+		g.writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg)
+	}
 	g.writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg)
 
 	g.W("// MakeHandler%[1]s HTTP %[1]s Transport\n", g.options.Prefix())
@@ -80,7 +85,13 @@ func (g *restServer) Process(_ context.Context) error {
 	g.W("opts := &serverOpts{}\n")
 	g.W("for _, o := range options {\n o(opts)\n }\n")
 
-	g.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)
+	if g.options.DefaultErrorEncoder().Expr() != nil {
+		g.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(", kitHTTPPkg)
+		writer.WriteAST(g, g.i, g.options.DefaultErrorEncoder().Expr())
+		g.W("))\n")
+	} else {
+		g.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)
+	}
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
@@ -285,6 +296,11 @@ func (g *restServer) Process(_ context.Context) error {
 }
 
 func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg string) {
+	g.W("type errorWrapper struct {\n")
+	g.W("Error string `json:\"error\"`\n")
+	g.W("Data interface{} `json:\"data,omitempty\"`\n")
+	g.W("}\n")
+
 	g.W("func defaultErrorEncoder(ctx %s.Context, err error, ", contextPkg)
 	if g.options.UseFast() {
 		g.W("w %s.RequestCtx) {\n", httpPkg)
@@ -302,7 +318,7 @@ func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, j
 	if g.options.UseFast() {
 		g.W("w.SetBody([]byte(")
 	} else {
-		g.W("w.Write([]byte(")
+		g.W("_, _ = w.Write([]byte(")
 	}
 	g.W("%s))\n", strconv.Quote("unexpected error"))
 	g.W("return\n")
@@ -338,17 +354,12 @@ func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, j
 		g.W("w.SetBody(data)\n")
 	} else {
 		g.W("w.WriteHeader(code)\n")
-		g.W("w.Write(data)\n")
+		g.W("_, _ = w.Write(data)\n")
 	}
 	g.W("}\n\n")
 }
 
 func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string) {
-	g.W("type errorWrapper struct {\n")
-	g.W("Error string `json:\"error\"`\n")
-	g.W("Data interface{} `json:\"data,omitempty\"`\n")
-	g.W("}\n")
-
 	g.W("func encodeResponseHTTP(ctx %s.Context, ", contextPkg)
 
 	if g.options.UseFast() {

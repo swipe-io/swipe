@@ -230,6 +230,11 @@ func RESTQueryVars([]string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
+// DefaultErrorEncoder is responsible for encoding the server error.
+func DefaultErrorEncoder(f interface{}) ServiceOption {
+	return "implementation not generated, run swipe"
+}
+
 // ServerEncodeResponseFunc sets the encoding function of the passed
 // response object to the response writer.
 func ServerEncodeResponseFunc(interface{}) MethodOption {

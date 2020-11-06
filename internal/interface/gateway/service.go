@@ -51,6 +51,7 @@ type serviceGateway struct {
 	hasher                   typeutil.Hasher
 	appName                  string
 	appID                    string
+	defaultErrorEncoder      option.Value
 }
 
 func (g *serviceGateway) AppID() string {
@@ -71,6 +72,10 @@ func (g *serviceGateway) Prefix() string {
 
 func (g *serviceGateway) UseFast() bool {
 	return g.useFast
+}
+
+func (g *serviceGateway) DefaultErrorEncoder() option.Value {
+	return g.defaultErrorEncoder
 }
 
 func (g *serviceGateway) MethodOption(m model.ServiceMethod) model.MethodOption {
@@ -435,7 +440,9 @@ func (g *serviceGateway) load(o *option.Option) error {
 			g.interfaces = append(g.interfaces, svc)
 		}
 	}
-
+	if o, ok := o.At("DefaultErrorEncoder"); ok {
+		g.defaultErrorEncoder = o.Value
+	}
 	if _, ok := o.At("HTTPServer"); ok {
 		g.transportType = model.HTTPTransport
 	}
