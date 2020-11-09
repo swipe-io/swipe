@@ -19,7 +19,6 @@ type registryProcessor struct {
 }
 
 func (r *registryProcessor) NewProcessor(o *option.ResultOption, data *astloader.Data) (up.Processor, error) {
-	gt := git.NewGIT()
 	switch o.Option.Name {
 	case "Gateway":
 		hg, err := ig.NewGateway(o.Pkg, o.Option, r.finder)
@@ -28,6 +27,7 @@ func (r *registryProcessor) NewProcessor(o *option.ResultOption, data *astloader
 		}
 		return processor.NewGatewayProcessor(hg, o.Pkg), nil
 	case "Service":
+		gt := git.NewGIT()
 		sg, err := ig.NewServiceGateway(o.Pkg, o.Option, data.GraphTypes, data.CommentFuncs)
 		if err != nil {
 			return nil, err
@@ -46,6 +46,12 @@ func (r *registryProcessor) NewProcessor(o *option.ResultOption, data *astloader
 			o.Pkg,
 			data.WorkDir,
 		), nil
+	case "Presenter":
+		pg, err := ig.NewPresenterGateway(o.Pkg, o.Option)
+		if err != nil {
+			return nil, err
+		}
+		return processor.NewPresenterGatewayProcessor(pg, o.Pkg), nil
 	}
 	return nil, errors.New("unexpected processor: " + o.Option.Name)
 }

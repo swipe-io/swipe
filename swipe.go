@@ -73,6 +73,8 @@ type ReadmeOption string
 
 type InterfaceOption string
 
+type PresenterOption string
+
 // Build the basic option for defining the generation.
 func Build(Option) {
 }
@@ -322,5 +324,13 @@ func GatewayServiceMethod(signature interface{}, opts ...GatewayServiceMethodOpt
 }
 
 func GatewayBalancer(string) GatewayServiceMethodOption {
+	return "implementation not generated, run swipe"
+}
+
+func Presenter(...PresenterOption) Option {
+	return "implementation not generated, run swipe"
+}
+
+func PresenterInterface(t interface{}) PresenterOption {
 	return "implementation not generated, run swipe"
 }
