@@ -23,6 +23,7 @@ import (
 
 var record = flag.Bool("record", false, "write expected result without running tests")
 var onlyDiff = flag.Bool("only-diff", false, "show only diff")
+var runOnly = flag.String("run-only", "", "run only single test")
 
 func newGeneratorExecutor() ue.GenerationExecutor {
 	l := option.NewLoader()
@@ -57,6 +58,9 @@ func TestSwipe(t *testing.T) {
 	}
 	for _, test := range tests {
 		test := test
+		if *runOnly != test.name {
+			continue
+		}
 		t.Run(test.name, func(t *testing.T) {
 			results, errs := ge.Execute(test.testCasePath, os.Environ(), []string{"."})
 			if len(errs) > 0 {
