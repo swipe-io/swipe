@@ -148,6 +148,8 @@ func (g *restGoClient) Process(_ context.Context) error {
 				}
 			}
 
+			remainingParams := len(m.Params) - (len(pathVars) + len(queryVars) + len(headerVars))
+
 			g.W("c.%s = %s.NewClient(\n", epName, kitHTTPPkg)
 			if mopt.Expr != nil {
 				writer.WriteAST(g, g.i, mopt.Expr)
@@ -231,20 +233,22 @@ func (g *restGoClient) Process(_ context.Context) error {
 				}
 				switch stdstrings.ToUpper(httpMethod) {
 				case "POST", "PUT", "PATCH":
-					jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+					if remainingParams > 0 {
+						jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 
-					g.W("data, err := %s.Marshal(req)\n", jsonPkg)
-					g.W("if err != nil  {\n")
-					g.W("return %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\n", fmtPkg)
-					g.W("}\n")
+						g.W("data, err := %s.Marshal(req)\n", jsonPkg)
+						g.W("if err != nil  {\n")
+						g.W("return %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\n", fmtPkg)
+						g.W("}\n")
 
-					if g.options.UseFast() {
-						g.W("r.SetBody(data)\n")
-					} else {
-						ioutilPkg := g.i.Import("ioutil", "io/ioutil")
-						bytesPkg := g.i.Import("bytes", "bytes")
+						if g.options.UseFast() {
+							g.W("r.SetBody(data)\n")
+						} else {
+							ioutilPkg := g.i.Import("ioutil", "io/ioutil")
+							bytesPkg := g.i.Import("bytes", "bytes")
 
-						g.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
+							g.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
+						}
 					}
 				}
 				g.W("return nil\n")

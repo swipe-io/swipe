@@ -103,6 +103,7 @@ type InterfaceB interface {
 	Delete(ctx context.Context, id uint) (a string, b string, err error)
 	TestMethod(data map[string]interface{}, ss interface{}) (states map[string]map[int][]string, err error)
 	TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error
+	Start(ctx context.Context) error
 }
 
 type serviceB struct {
