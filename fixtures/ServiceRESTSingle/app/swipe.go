@@ -47,6 +47,9 @@ func Swipe() {
 			swipe.MethodOptions(InterfaceB.TestMethod2,
 				swipe.RESTMethod(http.MethodPost),
 			),
+			swipe.MethodOptions(InterfaceB.Start,
+				swipe.RESTMethod(http.MethodPost),
+			),
 			swipe.MethodDefaultOptions(
 				swipe.Logging(false),
 				swipe.Instrumenting(true),
