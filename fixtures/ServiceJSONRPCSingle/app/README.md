@@ -29,7 +29,8 @@ ToDo.
 
 ## Versions
 
-[v2.0.0-alpha.19](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCSingle/app/tree/v2.0.0-alpha.19)
+[v2.0.0-alpha.20](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCSingle/app/tree/v2.0.0-alpha.20)
+, [v2.0.0-alpha.19](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCSingle/app/tree/v2.0.0-alpha.19)
 , [v2.0.0-alpha.18](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCSingle/app/tree/v2.0.0-alpha.18)
 , [v2.0.0-alpha.17](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCSingle/app/tree/v2.0.0-alpha.17)
 , [v2.0.0-alpha.16](https://github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCSingle/app/tree/v2.0.0-alpha.16)
