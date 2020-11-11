@@ -174,7 +174,6 @@ func (w *GoLangWriter) writeFormatBasicType(importFn func(string, string) string
 func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) string, name, assignId, valueId string, t *stdtypes.Basic, errRet []string, errSlice string, declareVar bool, msgErrTemplate string) {
 	useCheckErr := true
 
-	fmtPkg := importFn("fmt", "fmt")
 	tmpId := stdstrings.ToLower(name) + strings.UcFirst(t.String())
 
 	funcName := w.getConvertFuncName(t.Kind())
@@ -192,7 +191,7 @@ func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) strin
 		errMsg := strconv.Quote(msgErrTemplate + ": %w")
 		w.W("if err != nil {\n")
 		if errSlice != "" {
-			w.W("%[1]s = append(%[1]s, %[2]s.Errorf(%[3]s, err))\n", errSlice, fmtPkg, errMsg)
+			w.W("%[1]s = append(%[1]s, %[2]s.Errorf(%[3]s, err))\n", errSlice, importFn("fmt", "fmt"), errMsg)
 		} else {
 			w.W("return ")
 			if len(errRet) > 0 {
