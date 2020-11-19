@@ -65,7 +65,9 @@ func (g *logging) Process(ctx context.Context) error {
 				if m.ResultsNamed {
 					logParams = append(logParams, makeLogParams(mopt.LoggingIncludeParams, mopt.LoggingExcludeParams, m.Results...)...)
 				} else {
-					logParams = append(logParams, strconv.Quote("result"), makeLogParam("result", m.Results[0].Type()))
+					if paramName := makeLogParam("result", m.Results[0].Type()); paramName != nil {
+						logParams = append(logParams, paramName...)
+					}
 				}
 			}
 

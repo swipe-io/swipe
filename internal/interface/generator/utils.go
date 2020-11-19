@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
-
 	"github.com/swipe-io/swipe/v2/internal/types"
 )
 
@@ -34,26 +33,34 @@ func makeLogParams(include, exclude map[string]struct{}, data ...*stdtypes.Var) 
 				continue
 			}
 		}
-		if logParam := makeLogParam(v.Name(), v.Type().Underlying()); logParam != "" {
-			result = append(result, strconv.Quote(v.Name()), logParam)
+		if logParam := makeLogParam(v.Name(), v.Type()); len(logParam) > 0 {
+			result = append(result, logParam...)
 		}
 	}
 	return
 }
 
-func makeLogParam(name string, t stdtypes.Type) string {
+func makeLogParam(name string, t stdtypes.Type) []string {
+	quoteName := strconv.Quote(name)
 	switch t := t.(type) {
 	default:
-		return name
+		return []string{quoteName, name}
+	case *stdtypes.Struct:
+		return []string{quoteName, name}
+	case *stdtypes.Named:
+		if hasMethodString(t) {
+			return []string{quoteName, name + ".String()"}
+		}
+		return makeLogParam(name, t.Underlying())
 	case *stdtypes.Basic:
 		if t.Kind() == stdtypes.Byte {
-			return "len(" + name + ")"
+			return []string{quoteName, "len(" + name + ")"}
 		}
-		return name
+		return []string{quoteName, name}
 	case *stdtypes.Pointer:
 		return makeLogParam(name, t.Elem().Underlying())
 	case *stdtypes.Slice, *stdtypes.Array, *stdtypes.Map, *stdtypes.Chan:
-		return "len(" + name + ")"
+		return []string{quoteName, "len(" + name + ")"}
 	}
 }
 
@@ -112,4 +119,17 @@ func parseMethodComments(comments []string) (methodComment string, paramsComment
 		methodComment += comment
 	}
 	return
+}
+
+func hasMethodString(named *stdtypes.Named) bool {
+	for i := 0; i < named.NumMethods(); i++ {
+		m := named.Method(i)
+		if m.Name() == "String" {
+			sig := m.Type().(*stdtypes.Signature)
+			if sig.Params().Len() == 0 && sig.Results().Len() == 1 && stdtypes.TypeString(sig.Results().At(0).Type(), nil) == "string" {
+				return true
+			}
+		}
+	}
+	return false
 }
