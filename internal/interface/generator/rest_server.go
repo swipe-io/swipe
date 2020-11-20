@@ -179,11 +179,10 @@ func (g *restServer) Process(_ context.Context) error {
 				if len(m.Params) > 0 {
 					g.W("var req %s\n", m.NameRequest)
 					switch stdstrings.ToUpper(mopt.MethodName) {
-					case "POST", "PUT", "PATCH":
-						fmtPkg := g.i.Import("fmt", "fmt")
+					case "POST", "PUT", "PATCH", "DELETE":
 						jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+						fmtPkg := g.i.Import("fmt", "fmt")
 						pkgIO := g.i.Import("io", "io")
-
 						if g.options.UseFast() {
 							g.W("err := %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
 						} else {
@@ -195,7 +194,6 @@ func (g *restServer) Process(_ context.Context) error {
 							})
 							g.W("err = %s.Unmarshal(b, &req)\n", jsonPkg)
 						}
-
 						g.W("if err != nil && err != %s.EOF {\n", pkgIO)
 						g.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, m.NameRequest)
 						g.W("}\n")
