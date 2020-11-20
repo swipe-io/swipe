@@ -1,5 +1,8 @@
 language: go
 
+git:
+    submodules: false
+
 go:
     - 1.13.7
     - tip
