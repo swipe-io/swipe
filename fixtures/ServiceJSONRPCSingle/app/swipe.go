@@ -7,7 +7,7 @@ import "github.com/swipe-io/swipe/v2"
 func Swipe() {
 	swipe.Build(
 		swipe.Service(
-			swipe.Interface((*InterfaceB)(nil), ""),
+			swipe.Interface((*InterfaceB)(nil), "service"),
 
 			swipe.HTTPServer(),
 

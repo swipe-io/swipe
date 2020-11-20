@@ -146,7 +146,7 @@ class JSONRPCScheduler {
  * @property {string} id
  */
 
-class JSONRPCClientInterfaceB {
+class JSONRPCClientService {
   constructor(transport) {
     this.scheduler = new JSONRPCScheduler(transport);
   }
@@ -236,7 +236,7 @@ class JSONRPCClientInterfaceB {
   }
 }
 
-export default JSONRPCClientInterfaceB;
+export default JSONRPCClientService;
 
 export class ErrUnauthorizedError extends JSONRPCError {
   constructor(message, data) {

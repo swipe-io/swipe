@@ -1,5 +1,49 @@
 # Swipe JSONRPC Client
 
+## Getting Started
+
+You can install this with:
+
+```shell script
+npm install --save-dev service
+```
+
+Import the package with the client:
+
+```javascript
+import API from "service"
+```
+
+Create a transport, only one method needs to be implemented: `doRequest(Array.<Object>) PromiseLike<Object>`.
+
+For example:
+
+```javascript
+class FetchTransport {
+    constructor(url) {
+      this.url = url;
+    }
+
+    doRequest(requests) {
+        return fetch(this.url, {method: "POST", body: JSON.stringify(requests)})
+    }
+}
+```
+
+Now for a complete example:
+
+```javascript
+import API from "service"
+import Transport from "transport"
+
+const api = new API(new Transport("http://127.0.0.1"))
+
+// call method here.
+```
+
+## API
+## Methods
+
 <a href="#a.TestMethod">a.TestMethod</a>
 
 ### <a name="a.TestMethod"></a>a.TestMethod() ⇒<code>void</code>
