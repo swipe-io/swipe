@@ -94,11 +94,10 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 			if mopt.ServerRequestFunc.Expr != nil {
 				writer.WriteAST(g, g.i, mopt.ServerRequestFunc.Expr)
 			} else {
-				fmtPkg := g.i.Import("fmt", "fmt")
-
 				g.W("func(_ %s.Context, msg %s.RawMessage) (interface{}, error) {\n", contextPkg, jsonPkg)
 
 				if len(m.Params) > 0 {
+					fmtPkg := g.i.Import("fmt", "fmt")
 					g.W("var req %s\n", m.NameRequest)
 					g.W("err := %s.Unmarshal(msg, &req)\n", ffJSONPkg)
 					g.W("if err != nil {\n")
