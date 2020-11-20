@@ -232,7 +232,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 					g.W("r.Header.Add(%s, %s)\n", strconv.Quote(mopt.HeaderVars[p.Name()]), name)
 				}
 				switch stdstrings.ToUpper(httpMethod) {
-				case "POST", "PUT", "PATCH":
+				case "POST", "PUT", "PATCH", "DELETE":
 					if remainingParams > 0 {
 						jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 
