@@ -91,7 +91,7 @@ type InterfaceB interface {
 	// Create new item of item.
 	Create(ctx context.Context, newData AliasData, name string, data []byte) (err error)
 	// Get item.
-	Get(ctx context.Context, id int, name, fname string, price float32, n, b, cc int) (data User, err error)
+	Get(ctx context.Context, id uuid.UUID, name, fname string, price float32, n, b, cc int) (data User, err error)
 	// GetAll more comment and more and more comment and more and more comment and more.
 	// New line comment.
 	GetAll(ctx context.Context, members Members) ([]*User, error)
@@ -107,7 +107,7 @@ func (s *serviceB) Create(ctx context.Context, newData AliasData, name string, d
 	return &ErrUnauthorized{}
 }
 
-func (s *serviceB) Get(ctx context.Context, id int, name, fname string, price float32, n, b, cc int) (data User, err error) {
+func (s *serviceB) Get(ctx context.Context, id uuid.UUID, name, fname string, price float32, n, b, cc int) (data User, err error) {
 	panic("implement me")
 }
 
