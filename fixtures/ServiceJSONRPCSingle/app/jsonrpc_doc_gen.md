@@ -58,7 +58,7 @@
 
 | Param | Type | Description |
 |------|------|------|
-|id|<code>number</code>||
+|id|<code>string</code>||
 |name|<code>string</code>||
 |fname|<code>string</code>||
 |price|<code>number</code>||

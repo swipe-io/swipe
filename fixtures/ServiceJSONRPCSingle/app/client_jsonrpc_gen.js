@@ -175,7 +175,7 @@ class JSONRPCClientInterfaceB {
   /**
    *  Get item.
    *
-   * @param {number} id
+   * @param {string} id
    * @param {string} name
    * @param {string} fname
    * @param {number} price

@@ -27,6 +27,11 @@ func Swipe() {
 				swipe.LoggingParams([]string{}, []string{"newData"}),
 			),
 
+			swipe.MethodOptions(InterfaceB.Get,
+				swipe.Logging(true),
+				swipe.LoggingParams([]string{"id"}, []string{}),
+			),
+
 			swipe.MethodDefaultOptions(
 				swipe.Logging(false),
 				swipe.Instrumenting(true),
