@@ -245,7 +245,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("export default JSONRPCClient\n\n")
 	} else if g.options.Interfaces().Len() == 1 {
 		iface := g.options.Interfaces().At(0)
-		g.W("export default JSONRPCClient%s\n\n", iface.Name())
+		g.W("export default JSONRPCClient%s\n\n", iface.NameExport())
 	}
 
 	for _, key := range g.options.ErrorKeys() {
