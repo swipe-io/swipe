@@ -179,7 +179,7 @@ func (g *restServer) Process(_ context.Context) error {
 				if len(m.Params) > 0 {
 					g.W("var req %s\n", m.NameRequest)
 					switch stdstrings.ToUpper(mopt.MethodName) {
-					case "POST", "PUT", "PATCH", "DELETE":
+					case "POST", "PUT", "PATCH":
 						jsonPkg := g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 						fmtPkg := g.i.Import("fmt", "fmt")
 						pkgIO := g.i.Import("io", "io")
