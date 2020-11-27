@@ -111,8 +111,8 @@ func (g *logging) Process(ctx context.Context) error {
 				if mopt.LoggingEnable {
 					if len(logParams) > 0 {
 						g.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
-							g.W("logErr := err\n")
 							if m.ReturnErr != nil {
+								g.W("logErr := err\n")
 								g.W("if le, ok := err.(interface{LogError() error}); ok {\n")
 								g.W("logErr = le.LogError()\n")
 								g.W("}\n")

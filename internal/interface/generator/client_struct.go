@@ -248,6 +248,8 @@ func (g *clientStruct) Process(ctx context.Context) error {
 					} else {
 						g.W("response")
 					}
+				}
+				if len(m.Results) > 0 && m.ReturnErr != nil {
 					g.W(", ")
 				}
 				if m.ReturnErr != nil {

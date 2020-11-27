@@ -137,6 +137,8 @@ func (g *endpoint) writeEndpointMake() {
 					} else {
 						g.W("result")
 					}
+				}
+				if len(m.Results) > 0 && m.ReturnErr != nil {
 					g.W(", ")
 				}
 				if m.ReturnErr != nil {
