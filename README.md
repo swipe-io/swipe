@@ -17,6 +17,13 @@ go get github.com/swipe-io/swipe/cmd/swipe
 
 > check that "$GOPATH/bin "is added to your "$PATH".
 
+or use brew:
+
+```shell
+brew tap swipe-io/swipe
+brew install swipe
+```
+
 ## Documentation
 
 [User guide](https://pkg.go.dev/github.com/swipe-io/swipe/pkg/swipe?tab=doc)
