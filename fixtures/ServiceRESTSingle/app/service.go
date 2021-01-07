@@ -87,6 +87,10 @@ type User struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
+func (u User) LogParams() []string {
+	return nil
+}
+
 type AppInterface interface {
 	InterfaceB
 }

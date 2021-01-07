@@ -22,6 +22,10 @@ func structKeyValue(vars []*stdtypes.Var, filterFn types.FilterFn) (results []st
 }
 
 func makeLogParams(include, exclude map[string]struct{}, data ...*stdtypes.Var) (result []string) {
+	return makeLogParamsRecursive(include, exclude, "", data...)
+}
+
+func makeLogParamsRecursive(include, exclude map[string]struct{}, parentName string, data ...*stdtypes.Var) (result []string) {
 	for _, v := range data {
 		if len(include) > 0 {
 			if _, ok := include[v.Name()]; !ok {
@@ -33,7 +37,7 @@ func makeLogParams(include, exclude map[string]struct{}, data ...*stdtypes.Var) 
 				continue
 			}
 		}
-		if logParam := makeLogParam(v.Name(), v.Type()); len(logParam) > 0 {
+		if logParam := makeLogParam(parentName+v.Name(), v.Type()); len(logParam) > 0 {
 			result = append(result, logParam...)
 		}
 	}
@@ -45,20 +49,23 @@ func makeLogParam(name string, t stdtypes.Type) []string {
 	switch t := t.(type) {
 	default:
 		return []string{quoteName, name}
-	case *stdtypes.Struct:
-		return []string{quoteName, name}
 	case *stdtypes.Named:
 		if hasMethodString(t) {
 			return []string{quoteName, name + ".String()"}
 		}
-		return makeLogParam(name, t.Underlying())
+		if hasMethodLogParams(t) {
+			return []string{quoteName, name + ".LogParams()"}
+		}
+		return nil
+	case *stdtypes.Struct:
+		return nil
 	case *stdtypes.Basic:
 		if t.Kind() == stdtypes.Byte {
 			return []string{quoteName, "len(" + name + ")"}
 		}
 		return []string{quoteName, name}
 	case *stdtypes.Pointer:
-		return makeLogParam(name, t.Elem().Underlying())
+		return makeLogParam(name, t.Elem())
 	case *stdtypes.Slice, *stdtypes.Array, *stdtypes.Map, *stdtypes.Chan:
 		return []string{quoteName, "len(" + name + ")"}
 	}
@@ -127,6 +134,19 @@ func hasMethodString(named *stdtypes.Named) bool {
 		if m.Name() == "String" {
 			sig := m.Type().(*stdtypes.Signature)
 			if sig.Params().Len() == 0 && sig.Results().Len() == 1 && stdtypes.TypeString(sig.Results().At(0).Type(), nil) == "string" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasMethodLogParams(named *stdtypes.Named) bool {
+	for i := 0; i < named.NumMethods(); i++ {
+		m := named.Method(i)
+		if m.Name() == "LogParams" {
+			sig := m.Type().(*stdtypes.Signature)
+			if sig.Params().Len() == 0 && sig.Results().Len() == 1 && stdtypes.TypeString(sig.Results().At(0).Type(), nil) == "[]string" {
 				return true
 			}
 		}
