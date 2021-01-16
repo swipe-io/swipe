@@ -65,6 +65,17 @@ func TestSwipe(t *testing.T) {
 					t.Error(e)
 				}
 			}
+
+			// clear all before generated files.
+			_ = filepath.Walk(test.testCasePath, func(path string, info os.FileInfo, err error) error {
+				if !info.IsDir() {
+					if strings.Contains(info.Name(), "_gen") {
+						_ = os.Remove(path)
+					}
+				}
+				return nil
+			})
+
 			for _, result := range results {
 				if len(result.Errs) > 0 {
 					t.Fatalf("result errors: %v", result.Errs)
