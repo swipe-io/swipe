@@ -36,12 +36,7 @@ func (g *logging) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		var (
-			timePkg string
-		)
-		if len(iface.Methods()) > 0 {
-			timePkg = g.i.Import("time", "time")
-		}
+		timePkg := g.i.Import("time", "time")
 		loggerPkg := g.i.Import("log", "github.com/go-kit/kit/log")
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 

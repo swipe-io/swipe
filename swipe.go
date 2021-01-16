@@ -164,6 +164,11 @@ func JSONRPCDocOutput(output string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
+// GatewayEnable enabled use Gateway service type.
+func GatewayEnable() ServiceOption {
+	return "implementation not generated, run swipe"
+}
+
 // MethodOptions option for defining method settings.
 // Given signature is interface method, for example:
 //  pkg.Iface.Create
@@ -178,6 +183,10 @@ func MethodDefaultOptions(...MethodOption) ServiceOption {
 
 // Logging a option enabled/disable logging middleware.
 func Logging(enable bool) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
+func Exclude(enable bool) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -306,21 +315,5 @@ func OpenapiLicence(name, url string) ServiceOption {
 
 // OpenapiServer sets openapi server.
 func OpenapiServer(description, url string) ServiceOption {
-	return "implementation not generated, run swipe"
-}
-
-func Gateway(services ...GatewayOption) Option {
-	return "implementation not generated, run swipe"
-}
-
-func GatewayService(iface interface{}, opts ...GatewayServiceOption) GatewayOption {
-	return "implementation not generated, run swipe"
-}
-
-func GatewayServiceMethod(signature interface{}, opts ...GatewayServiceMethodOption) GatewayServiceOption {
-	return "implementation not generated, run swipe"
-}
-
-func GatewayBalancer(string) GatewayServiceMethodOption {
 	return "implementation not generated, run swipe"
 }

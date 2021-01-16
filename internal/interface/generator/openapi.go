@@ -11,7 +11,6 @@ import (
 	stdstrings "strings"
 
 	"github.com/pquerna/ffjson/ffjson"
-
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	iftypevisitor "github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
@@ -276,21 +275,18 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 
 			var prefix string
 
-			if g.options.Interfaces().Len() > 1 {
+			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
 				if g.options.JSONRPCEnable() {
-					prefix = strcase.ToLowerCamel(iface.Name())
+					prefix = iface.NameUnExport()
 				} else {
 					prefix = strcase.ToKebab(iface.Name())
-				}
-				if iface.NameUnExport() != "" {
-					prefix = iface.NameUnExport()
 				}
 			}
 
 			if g.options.JSONRPCEnable() {
-				o = g.makeJSONRPCPath(m, iface, ntc, paramsComment)
+				o = g.makeJSONRPCPath(m, ntc, paramsComment, prefix)
 				pathStr = "/" + strings.LcFirst(m.Name)
-				if g.options.Interfaces().Len() > 1 {
+				if prefix != "" {
 					pathStr = "/" + prefix + "." + strings.LcFirst(m.Name)
 				}
 				methodName = "POST"
@@ -313,16 +309,16 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				if pathStr == "" {
 					pathStr = strcase.ToKebab(m.LcName)
 				}
-				svcPrefix := ""
-				if g.options.Interfaces().Len() > 1 {
-					svcPrefix = path.Join("/", prefix)
+
+				if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
+					prefix = path.Join("/", prefix)
 				}
 				for _, p := range m.Params {
 					if regexp, ok := mopt.PathVars[p.Name()]; ok {
 						pathStr = stdstrings.Replace(pathStr, ":"+regexp, "", -1)
 					}
 				}
-				pathStr = path.Join(svcPrefix, "/", pathStr)
+				pathStr = path.Join(prefix, "/", pathStr)
 
 				for _, ei := range m.Errors {
 					codeStr := strconv.FormatInt(ei.Code, 10)
@@ -400,7 +396,9 @@ func (g *openapiDoc) Imports() []string {
 	return nil
 }
 
-func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.ServiceInterface, ntc ustypevisitor.NamedTypeCollector, paramsComment map[string]string) *openapi.Operation {
+func (g *openapiDoc) makeJSONRPCPath(
+	m model.ServiceMethod, ntc ustypevisitor.NamedTypeCollector, paramsComment map[string]string, prefix string,
+) *openapi.Operation {
 	mopt := g.options.MethodOption(m)
 	responseSchema := &openapi.Schema{
 		Type:       "object",
@@ -463,12 +461,9 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.Service
 		},
 	}
 
-	var prefix string
-	if g.options.Interfaces().Len() > 1 {
-		prefix = strcase.ToLowerCamel(iface.Name()) + "."
-		if iface.NameUnExport() != "" {
-			prefix = iface.NameUnExport() + "."
-		}
+	methodName := strcase.ToLowerCamel(m.Name)
+	if prefix != "" {
+		methodName = prefix + "." + methodName
 	}
 
 	request := &openapi.Schema{
@@ -484,7 +479,7 @@ func (g *openapiDoc) makeJSONRPCPath(m model.ServiceMethod, iface *model.Service
 			},
 			"method": &openapi.Schema{
 				Type: "string",
-				Enum: []string{prefix + strcase.ToLowerCamel(m.Name)},
+				Enum: []string{methodName},
 			},
 			"params": requestSchema,
 		},

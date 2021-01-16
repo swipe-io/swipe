@@ -5,7 +5,6 @@ import (
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
-	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
@@ -13,7 +12,7 @@ import (
 type httpGatewayGenerator struct {
 	writer.GoLangWriter
 	i        *importer.Importer
-	services []model.GatewayServiceOption
+	services model.Interfaces
 }
 
 func (g *httpGatewayGenerator) Prepare(ctx context.Context) error {
@@ -26,7 +25,6 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 	epPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	httpKitPkg := g.i.Import("endpoint", "github.com/go-kit/kit/transport/http")
 	jsonRPCKitPkg := g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
-	logPkg := g.i.Import("endpoint", "github.com/go-kit/kit/log")
 	sdPkg := g.i.Import("sd", "github.com/go-kit/kit/sd")
 	lbPkg := g.i.Import("sd", "github.com/go-kit/kit/sd/lb")
 	timePkg := g.i.Import("time", "time")
@@ -68,8 +66,8 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 
 	g.W("type EndpointSet struct {\n")
 	for _, s := range g.services {
-		g.W("%s struct {\n", s.Iface.Name())
-		for _, method := range s.Iface.Methods() {
+		g.W("%s struct {\n", s.Name())
+		for _, method := range s.Methods() {
 			g.W("%sEndpoint %s.Endpoint\n", method.Name, epPkg)
 		}
 		g.W("}\n")
@@ -77,61 +75,21 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 	g.W("}\n\n")
 
 	for _, s := range g.services {
-		g.W("type %sEndpointFactory interface {\n", s.Iface.Name())
-		for _, method := range s.Iface.Methods() {
+		g.W("type %sEndpointFactory interface {\n", s.Name())
+		for _, method := range s.Methods() {
 			g.W("%sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error)\n", method.Name, epPkg, ioPkg)
 		}
 		g.W("}\n\n")
 
-		g.W("type %sOption struct {\n", s.Iface.Name())
+		g.W("type %sOption struct {\n", s.Name())
 		g.W("Instancer %s.Instancer \n", sdPkg)
-		g.W("EndpointFactory %sEndpointFactory\n", s.Iface.Name())
+		g.W("EndpointFactory %sEndpointFactory\n", s.Name())
 
-		for _, method := range s.Iface.Methods() {
+		for _, method := range s.Methods() {
 			g.W("%s EndpointOption\n", method.Name)
 		}
 		g.W("}\n\n")
 	}
-
-	g.W("func NewGateway(")
-	for i, s := range g.services {
-		if i > 0 {
-			g.W(",")
-		}
-		g.W("%s %sOption", strings.LcFirst(s.Iface.Name()), s.Iface.Name())
-	}
-	g.W(", logger %s.Logger) (ep EndpointSet) {\n", logPkg)
-
-	g.W("{\n")
-	for _, s := range g.services {
-		for _, method := range s.Iface.Methods() {
-			optName := strings.LcFirst(s.Iface.Name())
-			g.W("{\n")
-
-			g.W("if %s.%s.Balancer == nil {\n", optName, method.Name)
-			g.W("%s.%s.Balancer = %s.NewRoundRobin\n", optName, method.Name, lbPkg)
-			g.W("}\n")
-
-			g.W("if %s.%s.RetryMax == 0 {\n", optName, method.Name)
-			g.W("%s.%s.RetryMax = DefaultRetryMax\n", optName, method.Name)
-			g.W("}\n")
-
-			g.W("if %s.%s.RetryTimeout == 0 {\n", optName, method.Name)
-			g.W("%s.%s.RetryTimeout = DefaultRetryTimeout\n", optName, method.Name)
-			g.W("}\n")
-
-			g.W("endpointer := %[1]s.NewEndpointer(%[2]s.Instancer, %[2]s.EndpointFactory.%[3]sEndpointFactory, logger)\n", sdPkg, optName, method.Name)
-			g.W(
-				"ep.%[4]s.%[3]sEndpoint = %[1]s.RetryWithCallback(%[2]s.%[3]s.RetryTimeout, %[2]s.%[3]s.Balancer(endpointer), retryMax(%[2]s.%[3]s.RetryMax))\n",
-				lbPkg, optName, method.Name, s.Iface.Name(),
-			)
-			g.W("ep.%[2]s.%[1]sEndpoint = RetryErrorExtractor()(ep.%[2]s.%[1]sEndpoint)\n", method.Name, s.Iface.Name())
-			g.W("}\n")
-		}
-	}
-	g.W("}\n")
-	g.W("return\n")
-	g.W("}\n")
 	return nil
 }
 
@@ -152,7 +110,7 @@ func (g *httpGatewayGenerator) SetImporter(i *importer.Importer) {
 }
 
 func NewGatewayGenerator(
-	services []model.GatewayServiceOption,
+	services model.Interfaces,
 ) generator.Generator {
 	return &httpGatewayGenerator{
 		services: services,

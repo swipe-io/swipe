@@ -2,7 +2,11 @@ package option
 
 import (
 	"go/ast"
+	"go/build"
 	stdtypes "go/types"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/swipe-io/swipe/v2/internal/astloader"
@@ -21,6 +25,7 @@ type Result struct {
 }
 
 type Loader struct {
+	astLoader *astloader.Loader
 }
 
 func (l *Loader) declProcess(pkg *packages.Package, decl ast.Decl) (*ResultOption, error) {
@@ -75,9 +80,9 @@ func (l *Loader) loadPkgs(pkgs []*packages.Package) (<-chan *ResultOption, <-cha
 	return outCh, errCh
 }
 
-func (l *Loader) Load(wd string, env []string, patterns []string) (result *Result, errs []error) {
+func (l *Loader) Load() (result *Result, errs []error) {
 	result = &Result{}
-	data, errs := astloader.NewLoader(wd, env, patterns).Process()
+	data, errs := l.astLoader.Process()
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -90,7 +95,16 @@ func (l *Loader) Load(wd string, env []string, patterns []string) (result *Resul
 			errs = append(errs, e)
 		}
 	}()
+
+	srcPath := filepath.Join(build.Default.GOPATH, "src") + string(os.PathSeparator)
+	wd := l.astLoader.WorkDir()
+	basePkg := strings.Replace(wd, srcPath, "", -1)
+
 	for option := range optionsCh {
+		pkgPath := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
+		if pkgPath != basePkg {
+			continue
+		}
 		result.Options = append(result.Options, option)
 	}
 	return
@@ -123,6 +137,6 @@ func (l *Loader) findInjector(info *stdtypes.Info, fn *ast.FuncDecl) (*ast.CallE
 	return nil, nil
 }
 
-func NewLoader() *Loader {
-	return &Loader{}
+func NewLoader(astLoader *astloader.Loader) *Loader {
+	return &Loader{astLoader: astLoader}
 }

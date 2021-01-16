@@ -32,15 +32,15 @@ type jsonrpcDocOptionsGateway interface {
 	AppID() string
 	Interfaces() model.Interfaces
 	JSONRPCDocOutput() string
+	CommentFields() map[string]map[string]string
+	Enums() *typeutil.Map
 }
 
 type jsonrpcDoc struct {
 	writer.BaseWriter
-	options       jsonrpcDocOptionsGateway
-	commentFields map[string]map[string]string
-	enums         *typeutil.Map
-	workDir       string
-	outputDir     string
+	options   jsonrpcDocOptionsGateway
+	workDir   string
+	outputDir string
 }
 
 func (g *jsonrpcDoc) Prepare(ctx context.Context) error {
@@ -184,7 +184,7 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 		for _, named := range nameds {
 			st := named.Obj().Type().Underlying().(*stdtypes.Struct)
 
-			comments, ok := g.commentFields[named.Obj().String()]
+			comments, ok := g.options.CommentFields()[named.Obj().String()]
 			if !ok {
 				comments = map[string]string{}
 			}
@@ -235,10 +235,10 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 		}
 	}
 
-	if g.enums.Len() > 0 {
+	if g.options.Enums().Len() > 0 {
 		g.W("## Enums\n")
 
-		g.enums.Iterate(func(key stdtypes.Type, value interface{}) {
+		g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
 			if named, ok := key.(*stdtypes.Named); ok {
 				typeName := ""
 				if b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic); ok {
@@ -291,7 +291,7 @@ func (g *jsonrpcDoc) getJSType(tpl stdtypes.Type) string {
 		switch stdtypes.TypeString(v.Obj().Type(), nil) {
 		default:
 			var postfix string
-			if g.enums.At(v) != nil {
+			if g.options.Enums().At(v) != nil {
 				postfix = "Enum"
 			}
 			return fmt.Sprintf("<a href=\"#%[1]s\">%[1]s%[2]s</a>", v.Obj().Name(), postfix)
@@ -326,16 +326,9 @@ func (g *jsonrpcDoc) getJSType(tpl stdtypes.Type) string {
 	}
 }
 
-func NewJsonrpcDoc(
-	options jsonrpcDocOptionsGateway,
-	commentFields map[string]map[string]string,
-	enums *typeutil.Map,
-	workDir string,
-) generator.Generator {
+func NewJsonrpcDoc(options jsonrpcDocOptionsGateway, workDir string) generator.Generator {
 	return &jsonrpcDoc{
-		options:       options,
-		commentFields: commentFields,
-		enums:         enums,
-		workDir:       workDir,
+		options: options,
+		workDir: workDir,
 	}
 }

@@ -31,6 +31,11 @@ type ServiceInterface struct {
 	serviceTypeName *stdtypes.Named
 	serviceIface    *stdtypes.Interface
 	serviceMethods  []ServiceMethod
+	isNameChange    bool
+}
+
+func (g *ServiceInterface) IsNameChange() bool {
+	return g.isNameChange
 }
 
 func (g *ServiceInterface) NameExport() string {
@@ -65,18 +70,13 @@ func (g *ServiceInterface) Interface() *stdtypes.Interface {
 	return g.serviceIface
 }
 
-func NewServiceInterface(
-	name, lowerName, nameExport, nameUnExport string,
-	serviceType stdtypes.Type,
-	serviceTypeName *stdtypes.Named,
-	serviceIface *stdtypes.Interface,
-	serviceMethods []ServiceMethod,
-) *ServiceInterface {
+func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNameChange bool, serviceType stdtypes.Type, serviceTypeName *stdtypes.Named, serviceIface *stdtypes.Interface, serviceMethods []ServiceMethod) *ServiceInterface {
 	return &ServiceInterface{
 		name:            name,
 		loweName:        lowerName,
 		nameExport:      nameExport,
 		nameUnExport:    nameUnExport,
+		isNameChange:    isNameChange,
 		serviceType:     serviceType,
 		serviceTypeName: serviceTypeName,
 		serviceIface:    serviceIface,
@@ -146,6 +146,7 @@ type MethodOption struct {
 	LoggingIncludeParams map[string]struct{}
 	LoggingExcludeParams map[string]struct{}
 	InstrumentingEnable  bool
+	Exclude              bool
 }
 
 type HTTPError struct {

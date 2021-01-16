@@ -52,25 +52,23 @@ func (g *restGoClient) Process(_ context.Context) error {
 		clientType := "client" + iface.Name()
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
-		if len(iface.Methods()) > 0 {
-			if g.options.UseFast() {
-				kitHTTPPkg = g.i.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
-			} else {
-				kitHTTPPkg = g.i.Import("http", "github.com/go-kit/kit/transport/http")
-			}
-			if g.options.UseFast() {
-				httpPkg = g.i.Import("fasthttp", "github.com/valyala/fasthttp")
-			} else {
-				httpPkg = g.i.Import("http", "net/http")
-			}
-			jsonPkg = g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-			pkgIO = g.i.Import("io", "io")
-			fmtPkg = g.i.Import("fmt", "fmt")
-			contextPkg = g.i.Import("context", "context")
-			urlPkg = g.i.Import("url", "net/url")
-			netPkg = g.i.Import("net", "net")
-			stringsPkg = g.i.Import("strings", "strings")
+		if g.options.UseFast() {
+			kitHTTPPkg = g.i.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
+		} else {
+			kitHTTPPkg = g.i.Import("http", "github.com/go-kit/kit/transport/http")
 		}
+		if g.options.UseFast() {
+			httpPkg = g.i.Import("fasthttp", "github.com/valyala/fasthttp")
+		} else {
+			httpPkg = g.i.Import("http", "net/http")
+		}
+		jsonPkg = g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+		pkgIO = g.i.Import("io", "io")
+		fmtPkg = g.i.Import("fmt", "fmt")
+		contextPkg = g.i.Import("context", "context")
+		urlPkg = g.i.Import("url", "net/url")
+		netPkg = g.i.Import("net", "net")
+		stringsPkg = g.i.Import("strings", "strings")
 
 		var name string
 		if g.options.Interfaces().Len() > 1 {
@@ -86,25 +84,23 @@ func (g *restGoClient) Process(_ context.Context) error {
 		g.W("o(opts)\n")
 		g.W("}\n")
 
-		if len(iface.Methods()) > 0 {
-			g.W("if %s.HasPrefix(tgt, \"[\") {\n", stringsPkg)
-			g.W("host, port, err := %s.SplitHostPort(tgt)\n", netPkg)
-			g.WriteCheckErr(func() {
-				g.W("return nil, err")
-			})
-			g.W("tgt = host + \":\" + port\n")
-			g.W("}\n")
+		g.W("if %s.HasPrefix(tgt, \"[\") {\n", stringsPkg)
+		g.W("host, port, err := %s.SplitHostPort(tgt)\n", netPkg)
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
+		g.W("tgt = host + \":\" + port\n")
+		g.W("}\n")
 
-			g.W("u, err := %s.Parse(tgt)\n", urlPkg)
+		g.W("u, err := %s.Parse(tgt)\n", urlPkg)
 
-			g.WriteCheckErr(func() {
-				g.W("return nil, err")
-			})
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
 
-			g.W("if u.Scheme == \"\" {\n")
-			g.W("u.Scheme = \"https\"")
-			g.W("}\n")
-		}
+		g.W("if u.Scheme == \"\" {\n")
+		g.W("u.Scheme = \"https\"")
+		g.W("}\n")
 
 		for _, m := range iface.Methods() {
 			epName := m.LcName + "Endpoint"
@@ -120,12 +116,8 @@ func (g *restGoClient) Process(_ context.Context) error {
 				pathStr = path.Join("/", m.LcName)
 			}
 
-			if g.options.Interfaces().Len() > 1 {
-				svcPrefix := strcase.ToKebab(iface.NameUnExport())
-				if iface.NameUnExport() != "" {
-					svcPrefix = iface.NameUnExport()
-				}
-				pathStr = path.Join("/", svcPrefix, "/", pathStr)
+			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
+				pathStr = path.Join("/", strcase.ToKebab(iface.NameUnExport()), "/", pathStr)
 			}
 
 			var (
