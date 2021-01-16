@@ -12,9 +12,9 @@ import (
 	stdstrings "strings"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
-
 	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/types"
+
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 )
