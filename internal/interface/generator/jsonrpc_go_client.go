@@ -61,38 +61,34 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		g.W("o(opts)\n")
 		g.W("}\n")
 
-		if len(iface.Methods()) > 0 {
-			if g.options.UseFast() {
-				jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
-			} else {
-				jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
-			}
-			urlPkg = g.i.Import("url", "net/url")
-			contextPkg = g.i.Import("context", "context")
-			ffJSONPkg = g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-			jsonPkg = g.i.Import("json", "encoding/json")
-			fmtPkg = g.i.Import("fmt", "fmt")
-			netPkg = g.i.Import("net", "net")
-			stringsPkg = g.i.Import("strings", "strings")
+		if g.options.UseFast() {
+			jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
+		} else {
+			jsonrpcPkg = g.i.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
 		}
+		urlPkg = g.i.Import("url", "net/url")
+		contextPkg = g.i.Import("context", "context")
+		ffJSONPkg = g.i.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+		jsonPkg = g.i.Import("json", "encoding/json")
+		fmtPkg = g.i.Import("fmt", "fmt")
+		netPkg = g.i.Import("net", "net")
+		stringsPkg = g.i.Import("strings", "strings")
 
-		if len(iface.Methods()) > 0 {
-			g.W("if %s.HasPrefix(tgt, \"[\") {\n", stringsPkg)
-			g.W("host, port, err := %s.SplitHostPort(tgt)\n", netPkg)
-			g.WriteCheckErr(func() {
-				g.W("return nil, err")
-			})
-			g.W("tgt = host + \":\" + port\n")
-			g.W("}\n")
+		g.W("if %s.HasPrefix(tgt, \"[\") {\n", stringsPkg)
+		g.W("host, port, err := %s.SplitHostPort(tgt)\n", netPkg)
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
+		g.W("tgt = host + \":\" + port\n")
+		g.W("}\n")
 
-			g.W("u, err := %s.Parse(tgt)\n", urlPkg)
-			g.WriteCheckErr(func() {
-				g.W("return nil, err")
-			})
-			g.W("if u.Scheme == \"\" {\n")
-			g.W("u.Scheme = \"https\"")
-			g.W("}\n")
-		}
+		g.W("u, err := %s.Parse(tgt)\n", urlPkg)
+		g.WriteCheckErr(func() {
+			g.W("return nil, err")
+		})
+		g.W("if u.Scheme == \"\" {\n")
+		g.W("u.Scheme = \"https\"")
+		g.W("}\n")
 
 		for _, m := range iface.Methods() {
 			mopt := g.options.MethodOption(m)
@@ -154,12 +150,8 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 			g.W(")\n")
 
 			methodName := m.LcName
-			if g.options.Interfaces().Len() > 1 {
-				prefix := iface.NameUnExport()
-				if iface.NameUnExport() != "" {
-					prefix = iface.NameUnExport()
-				}
-				methodName = prefix + "." + methodName
+			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
+				methodName = iface.NameUnExport() + "." + iface.NameUnExport()
 			}
 
 			g.W("c.%sEndpoint = %s.NewClient(\n", m.LcName, jsonrpcPkg)
