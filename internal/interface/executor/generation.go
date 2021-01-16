@@ -2,9 +2,7 @@ package executor
 
 import (
 	"context"
-	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/swipe-io/swipe/v2/internal/types"
@@ -121,19 +119,8 @@ func (e *generationExecutor) processGenerate(pkg *packages.Package, generators [
 	return outCh
 }
 
-func (e *generationExecutor) Cleanup(wd string) {
-	_ = filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			if strings.Contains(info.Name(), "_gen") {
-				_ = os.Remove(path)
-			}
-		}
-		return nil
-	})
-}
-
-func (e *generationExecutor) Execute(wd string, env []string, patterns []string) (results []executor.GenerateResult, errs []error) {
-	opr, errs := e.l.Load(wd, env, patterns)
+func (e *generationExecutor) Execute() (results []executor.GenerateResult, errs []error) {
+	opr, errs := e.l.Load()
 	if len(errs) > 0 {
 		return nil, errs
 	}
