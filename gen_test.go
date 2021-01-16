@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/swipe-io/swipe/v2/internal/astloader"
+
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/swipe-io/swipe/v2/internal/interface/executor"
 	"github.com/swipe-io/swipe/v2/internal/interface/factory"
-	"github.com/swipe-io/swipe/v2/internal/interface/finder"
 	"github.com/swipe-io/swipe/v2/internal/interface/frame"
 	"github.com/swipe-io/swipe/v2/internal/interface/registry"
 	"github.com/swipe-io/swipe/v2/internal/option"
@@ -24,10 +25,10 @@ import (
 var record = flag.Bool("record", false, "write expected result without running tests")
 var onlyDiff = flag.Bool("only-diff", false, "show only diff")
 
-func newGeneratorExecutor() ue.GenerationExecutor {
-	l := option.NewLoader()
-	fi := finder.NewServiceFinder(l)
-	r := registry.NewRegistry(fi)
+func newGeneratorExecutor(wd string) ue.GenerationExecutor {
+	astl := astloader.NewLoader(wd, os.Environ(), []string{"."})
+	l := option.NewLoader(astl)
+	r := registry.NewRegistry(l)
 	i := factory.NewImporterFactory()
 	ff := frame.NewFrameFactory(Version)
 	return executor.NewGenerationExecutor(r, i, ff, l)
@@ -35,8 +36,6 @@ func newGeneratorExecutor() ue.GenerationExecutor {
 
 func TestSwipe(t *testing.T) {
 	const testRoot = "fixtures"
-
-	ge := newGeneratorExecutor()
 
 	testdataEnts, err := ioutil.ReadDir(testRoot)
 	if err != nil {
@@ -56,9 +55,11 @@ func TestSwipe(t *testing.T) {
 		tests = append(tests, test)
 	}
 	for _, test := range tests {
+		ge := newGeneratorExecutor(test.testCasePath)
+
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			results, errs := ge.Execute(test.testCasePath, os.Environ(), []string{"."})
+			results, errs := ge.Execute()
 			if len(errs) > 0 {
 				for _, e := range errs {
 					t.Error(e)
