@@ -101,8 +101,10 @@ func (l *Loader) Load() (result *Result, errs []error) {
 	basePkg := strings.Replace(wd, srcPath, "", -1)
 
 	for option := range optionsCh {
-		pkgPath := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
-		if pkgPath != basePkg {
+		optRootPkg := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
+		baseRootPkg := strings.Join(strings.Split(basePkg, "/")[:3], "/")
+
+		if optRootPkg != baseRootPkg {
 			continue
 		}
 		result.Options = append(result.Options, option)
