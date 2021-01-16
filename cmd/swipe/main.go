@@ -13,17 +13,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/swipe-io/swipe/v2/internal/fixcomment"
-
-	"github.com/swipe-io/swipe/v2"
-
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
-	"github.com/swipe-io/strcase"
 
+	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v2"
+	"github.com/swipe-io/swipe/v2/internal/astloader"
+	"github.com/swipe-io/swipe/v2/internal/fixcomment"
 	"github.com/swipe-io/swipe/v2/internal/interface/executor"
 	"github.com/swipe-io/swipe/v2/internal/interface/factory"
-	"github.com/swipe-io/swipe/v2/internal/interface/finder"
 	"github.com/swipe-io/swipe/v2/internal/interface/frame"
 	"github.com/swipe-io/swipe/v2/internal/interface/registry"
 	"github.com/swipe-io/swipe/v2/internal/option"
@@ -134,16 +132,24 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}
 	}
 
-	l := option.NewLoader()
-	fi := finder.NewServiceFinder(l)
-	r := registry.NewRegistry(fi)
+	astLoader := astloader.NewLoader(wd, os.Environ(), packages(f))
+	l := option.NewLoader(astLoader)
+	r := registry.NewRegistry(l)
 	i := factory.NewImporterFactory()
 	ff := frame.NewFrameFactory(swipe.Version)
 	ge := executor.NewGenerationExecutor(r, i, ff, l)
 
-	ge.Cleanup(wd) // clear all before generated files.
+	// clear all before generated files.
+	_ = filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			if strings.Contains(info.Name(), "_gen") {
+				_ = os.Remove(path)
+			}
+		}
+		return nil
+	})
 
-	results, errs := ge.Execute(wd, os.Environ(), packages(f))
+	results, errs := ge.Execute()
 
 	if len(errs) > 0 {
 		for _, err := range errs {
