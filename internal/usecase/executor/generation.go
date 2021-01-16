@@ -8,6 +8,5 @@ type GenerateResult struct {
 }
 
 type GenerationExecutor interface {
-	Execute(wd string, env []string, patterns []string) (results []GenerateResult, errs []error)
-	Cleanup(wd string)
+	Execute() (results []GenerateResult, errs []error)
 }
