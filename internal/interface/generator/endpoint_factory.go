@@ -36,29 +36,28 @@ func (g *endpointFactory) Process(ctx context.Context) error {
 		g.W("Path string\n")
 		g.W("}\n\n")
 
-		if len(iface.Methods()) > 0 {
-			kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-			ioPkg := g.i.Import("io", "io")
-			stringsPkg := g.i.Import("strings", "strings")
+		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
+		ioPkg := g.i.Import("io", "io")
+		stringsPkg := g.i.Import("strings", "strings")
 
-			for _, m := range iface.Methods() {
-				g.W("func (f *%s) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, m.Name, kitEndpointPkg, ioPkg)
-				g.W("if f.Path != \"\"{\n")
-				g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(f.Path, \"/\")", stringsPkg)
-				g.W("}\n")
-				g.W("c, err := NewClient%s(instance, f.Option...)\n", g.options.Prefix())
-				g.WriteCheckErr(func() {
-					g.W("return nil, nil, err\n")
-				})
-				g.W("return ")
-				if g.options.Interfaces().Len() > 1 {
-					g.W("make%sEndpoint(c.%sClient), nil, nil\n", m.NameExport, iface.NameExport())
-				} else {
-					g.W("make%sEndpoint(c), nil, nil\n", m.NameExport)
-				}
-				g.W("\n}\n\n")
+		for _, m := range iface.Methods() {
+			g.W("func (f *%s) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, m.Name, kitEndpointPkg, ioPkg)
+			g.W("if f.Path != \"\"{\n")
+			g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(f.Path, \"/\")", stringsPkg)
+			g.W("}\n")
+			g.W("c, err := NewClient%s(instance, f.Option...)\n", g.options.Prefix())
+			g.WriteCheckErr(func() {
+				g.W("return nil, nil, err\n")
+			})
+			g.W("return ")
+			if g.options.Interfaces().Len() > 1 {
+				g.W("make%sEndpoint(c.%sClient), nil, nil\n", m.NameExport, iface.NameExport())
+			} else {
+				g.W("make%sEndpoint(c), nil, nil\n", m.NameExport)
 			}
+			g.W("\n}\n\n")
 		}
+
 	}
 	return nil
 }
