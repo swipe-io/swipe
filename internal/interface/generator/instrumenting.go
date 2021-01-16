@@ -50,14 +50,8 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		var (
-			timePkg string
-		)
-		if len(iface.Methods()) > 0 {
-			timePkg = g.i.Import("time", "time")
-		}
-
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+		timePkg := g.i.Import("time", "time")
 		stdPrometheusPkg := g.i.Import("prometheus", "github.com/prometheus/client_golang/prometheus")
 		kitPrometheusPkg := g.i.Import("prometheus", "github.com/go-kit/kit/metrics/prometheus")
 
