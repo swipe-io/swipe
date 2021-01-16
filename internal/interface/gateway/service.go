@@ -29,6 +29,8 @@ type serviceGateway struct {
 	useFast                  bool
 	graphTypes               *graph.Graph
 	commentFuncs             map[string][]string
+	commentFields            map[string]map[string]string
+	enums                    *typeutil.Map
 	methodOptions            map[string]model.MethodOption
 	defaultMethodOptions     model.MethodOption
 	clientsEnable            []string
@@ -52,6 +54,20 @@ type serviceGateway struct {
 	appName                  string
 	appID                    string
 	defaultErrorEncoder      option.Value
+	gatewayEnable            bool
+	loader                   *option.Loader
+}
+
+func (g *serviceGateway) Enums() *typeutil.Map {
+	return g.enums
+}
+
+func (g *serviceGateway) CommentFields() map[string]map[string]string {
+	return g.commentFields
+}
+
+func (g *serviceGateway) GatewayEnable() bool {
+	return g.gatewayEnable
 }
 
 func (g *serviceGateway) AppID() string {
@@ -232,17 +248,23 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		return nil, errors.NotePosition(o.Position,
 			fmt.Errorf("the iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(o.Value.Type(), nil)))
 	}
-	typeName := ifacePtr.Elem().(*stdtypes.Named)
-	ifaceName := strcase.ToCamel(typeName.Obj().Name())
+
+	var graphTypes = g.graphTypes
+
+	ifaceNamed := ifacePtr.Elem().(*stdtypes.Named)
+
+	ifaceName := strcase.ToCamel(ifaceNamed.Obj().Name())
 	ifaceLcName := strcase.ToLowerCamel(ifaceName)
 
 	nameExport := ifaceName
 	nameUnExport := ifaceLcName
 	name := nameOpt.Value.String()
+	isNameChange := false
 
 	if name != "" {
 		nameExport = strcase.ToCamel(name)
 		nameUnExport = strcase.ToLowerCamel(name)
+		isNameChange = true
 	}
 
 	var serviceMethods []model.ServiceMethod
@@ -280,10 +302,14 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 			Comments:     comments,
 		}
 
-		g.graphTypes.Iterate(func(n *graph.Node) {
-			g.graphTypes.Traverse(n, func(n *graph.Node) bool {
+		if g.MethodOption(sm).Exclude {
+			continue
+		}
+
+		graphTypes.Iterate(func(n *graph.Node) {
+			graphTypes.Traverse(n, func(n *graph.Node) bool {
 				if n.Object.Name() == m.Name() && stdtypes.Identical(n.Object.Type(), m.Type()) {
-					g.graphTypes.Traverse(n, func(n *graph.Node) bool {
+					graphTypes.Traverse(n, func(n *graph.Node) bool {
 						if named, ok := n.Object.Type().(*stdtypes.Named); ok {
 							key := g.hasher.Hash(named)
 							if _, ok := sm.Errors[key]; ok {
@@ -348,8 +374,9 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		ifaceLcName,
 		nameExport,
 		nameUnExport,
+		isNameChange,
 		ifacePtr.Elem(),
-		typeName,
+		ifaceNamed,
 		ifaceType,
 		serviceMethods,
 	), nil
@@ -368,6 +395,9 @@ func (g *serviceGateway) load(o *option.Option) error {
 	}
 	g.appID = strcase.ToCamel(g.appName)
 	if err := g.loadJSONRPC(o); err != nil {
+		return err
+	}
+	if err := g.loadGateway(o); err != nil {
 		return err
 	}
 	if err := g.loadOpenapi(o); err != nil {
@@ -437,7 +467,9 @@ func (g *serviceGateway) load(o *option.Option) error {
 			if err != nil {
 				return err
 			}
-			g.interfaces = append(g.interfaces, svc)
+			if len(svc.Methods()) > 0 {
+				g.interfaces = append(g.interfaces, svc)
+			}
 		}
 	}
 	if o, ok := o.At("DefaultErrorEncoder"); ok {
@@ -603,7 +635,17 @@ func (g *serviceGateway) loadJSONRPC(o *option.Option) (err error) {
 	return
 }
 
+func (g *serviceGateway) loadGateway(o *option.Option) error {
+	if _, ok := o.At("GatewayEnable"); ok {
+		g.gatewayEnable = true
+	}
+	return nil
+}
+
 func getMethodOptions(o *option.Option, baseMethodOpts model.MethodOption) (model.MethodOption, error) {
+	if opt, ok := o.At("Exclude"); ok {
+		baseMethodOpts.Exclude = opt.Value.Bool()
+	}
 	if opt, ok := o.At("Logging"); ok {
 		baseMethodOpts.LoggingEnable = opt.Value.Bool()
 	}
@@ -714,14 +756,20 @@ func httpBraceIndices(s string) ([]int, error) {
 
 func NewServiceGateway(
 	pkg *packages.Package,
+	loader *option.Loader,
 	o *option.Option,
 	graphTypes *graph.Graph,
 	commentFuncs map[string][]string,
+	commentFields map[string]map[string]string,
+	enums *typeutil.Map,
 ) (gateway.ServiceGateway, error) {
 	g := &serviceGateway{
 		pkg:               pkg,
+		loader:            loader,
 		graphTypes:        graphTypes,
 		commentFuncs:      commentFuncs,
+		commentFields:     commentFields,
+		enums:             enums,
 		methodOptions:     map[string]model.MethodOption{},
 		openapiMethodTags: map[string][]string{},
 		errors:            map[uint32]*model.HTTPError{},

@@ -9,16 +9,13 @@ import (
 	ug "github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/usecase/processor"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/go/types/typeutil"
 )
 
 type serviceProcessor struct {
-	sg            gateway.ServiceGateway
-	gi            *git.GIT
-	workDir       string
-	commentFields map[string]map[string]string
-	enums         *typeutil.Map
-	pkg           *packages.Package
+	sg      gateway.ServiceGateway
+	gi      *git.GIT
+	workDir string
+	pkg     *packages.Package
 }
 
 func (p *serviceProcessor) Pkg() *packages.Package {
@@ -28,6 +25,9 @@ func (p *serviceProcessor) Pkg() *packages.Package {
 func (p *serviceProcessor) Generators() []ug.Generator {
 	var generators []ug.Generator
 	generators = append(generators, generator.NewEndpoint(p.sg))
+	if p.sg.GatewayEnable() {
+		generators = append(generators, generator.NewGatewayGenerator(p.sg.Interfaces()))
+	}
 	if p.sg.ReadmeEnable() {
 		tags, _ := p.gi.GetTags()
 		generators = append(generators,
@@ -49,12 +49,7 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 		}
 		if p.sg.JSONRPCEnable() {
 			if p.sg.JSONRPCDocEnable() {
-				generators = append(generators, generator.NewJsonrpcDoc(
-					p.sg,
-					p.commentFields,
-					p.enums,
-					p.workDir,
-				))
+				generators = append(generators, generator.NewJsonrpcDoc(p.sg, p.workDir))
 			}
 			generators = append(generators, generator.NewJsonRPCServer(p.sg))
 		} else {
@@ -62,12 +57,13 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 		}
 	}
 	if p.sg.ClientEnable() {
-		generators = append(generators,
-			generator.NewEndpointFactory(p.sg),
-			generator.NewClientStruct(p.sg),
-		)
+		if p.sg.GoClientEnable() {
+			generators = append(generators,
+				generator.NewEndpointFactory(p.sg),
+				generator.NewClientStruct(p.sg),
+			)
+		}
 		if p.sg.JSONRPCEnable() {
-
 			if p.sg.GoClientEnable() {
 				generators = append(
 					generators,
@@ -77,7 +73,7 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 			if p.sg.JSClientEnable() {
 				generators = append(
 					generators,
-					generator.NewJsonRPCJSClient(p.sg, p.enums),
+					generator.NewJsonRPCJSClient(p.sg),
 				)
 			}
 		} else if p.sg.GoClientEnable() {
@@ -93,17 +89,13 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 func NewService(
 	sg gateway.ServiceGateway,
 	gi *git.GIT,
-	commentFields map[string]map[string]string,
-	enums *typeutil.Map,
 	workDir string,
 	pkg *packages.Package,
 ) processor.Processor {
 	return &serviceProcessor{
-		sg:            sg,
-		gi:            gi,
-		commentFields: commentFields,
-		enums:         enums,
-		workDir:       workDir,
-		pkg:           pkg,
+		sg:      sg,
+		gi:      gi,
+		workDir: workDir,
+		pkg:     pkg,
 	}
 }

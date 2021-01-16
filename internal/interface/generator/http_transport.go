@@ -14,6 +14,7 @@ type httpTransportOptionsGateway interface {
 	AppID() string
 	Interfaces() model.Interfaces
 	JSONRPCEnable() bool
+	GoClientEnable() bool
 	UseFast() bool
 	Error(uint32) *model.HTTPError
 	ErrorKeys() []uint32
@@ -49,68 +50,70 @@ func (g *httpTransport) Process(ctx context.Context) error {
 
 	endpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 
-	g.W("type httpError struct {\n")
-	g.W("code int\n")
-	if g.options.JSONRPCEnable() {
-		g.W("data interface{}\n")
-		g.W("message string\n")
-	}
-	g.W("}\n")
-
-	if g.options.JSONRPCEnable() {
-		g.W("func (e *httpError) Error() string {\nreturn e.message\n}\n")
-	} else {
-		if g.options.UseFast() {
-			httpPkg := g.i.Import("fasthttp", "github.com/valyala/fasthttp")
-			g.W("func (e *httpError) Error() string {\nreturn %s.StatusMessage(e.code)\n}\n", httpPkg)
-		} else {
-			httpPkg := g.i.Import("http", "net/http")
-			g.W("func (e *httpError) Error() string {\nreturn %s.StatusText(e.code)\n}\n", httpPkg)
-		}
-	}
-
-	g.W("func (e *httpError) StatusCode() int {\nreturn e.code\n}\n")
-
-	errorDecodeParams := []string{"code", "int"}
-	if g.options.JSONRPCEnable() {
-		g.W("func (e *httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
-		g.W("func (e *httpError) SetErrorData(data interface{}) {\ne.data = data\n}\n")
-		g.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
-
-		errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
-	}
-
-	g.WriteFunc("ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
-		g.W("switch code {\n")
-		g.W("default:\nerr = &httpError{code: code}\n")
+	if g.options.GoClientEnable() {
+		g.W("type httpError struct {\n")
+		g.W("code int\n")
 		if g.options.JSONRPCEnable() {
-			for _, key := range g.options.ErrorKeys() {
-				e := g.options.Error(key)
-				g.W("case %d:\n", e.Code)
-				pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
-				if pkgName != "" {
-					pkgName += "."
-				}
-				newPrefix := ""
-				if e.IsPointer {
-					newPrefix = "&"
-				}
-				g.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
+			g.W("data interface{}\n")
+			g.W("message string\n")
+		}
+		g.W("}\n")
+
+		if g.options.JSONRPCEnable() {
+			g.W("func (e *httpError) Error() string {\nreturn e.message\n}\n")
+		} else {
+			if g.options.UseFast() {
+				httpPkg := g.i.Import("fasthttp", "github.com/valyala/fasthttp")
+				g.W("func (e *httpError) Error() string {\nreturn %s.StatusMessage(e.code)\n}\n", httpPkg)
+			} else {
+				httpPkg := g.i.Import("http", "net/http")
+				g.W("func (e *httpError) Error() string {\nreturn %s.StatusText(e.code)\n}\n", httpPkg)
 			}
 		}
 
-		g.W("}\n")
-		if g.options.JSONRPCEnable() {
-			g.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
-			g.W("err.SetErrorData(data)\n")
-			g.W("}\n")
+		g.W("func (e *httpError) StatusCode() int {\nreturn e.code\n}\n")
 
-			g.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
-			g.W("err.SetErrorMessage(message)\n")
-			g.W("}\n")
+		errorDecodeParams := []string{"code", "int"}
+		if g.options.JSONRPCEnable() {
+			g.W("func (e *httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
+			g.W("func (e *httpError) SetErrorData(data interface{}) {\ne.data = data\n}\n")
+			g.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
+
+			errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
 		}
-		g.W("return")
-	})
+
+		g.WriteFunc("ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
+			g.W("switch code {\n")
+			g.W("default:\nerr = &httpError{code: code}\n")
+			if g.options.JSONRPCEnable() {
+				for _, key := range g.options.ErrorKeys() {
+					e := g.options.Error(key)
+					g.W("case %d:\n", e.Code)
+					pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
+					if pkgName != "" {
+						pkgName += "."
+					}
+					newPrefix := ""
+					if e.IsPointer {
+						newPrefix = "&"
+					}
+					g.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
+				}
+			}
+
+			g.W("}\n")
+			if g.options.JSONRPCEnable() {
+				g.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
+				g.W("err.SetErrorData(data)\n")
+				g.W("}\n")
+
+				g.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
+				g.W("err.SetErrorMessage(message)\n")
+				g.W("}\n")
+			}
+			g.W("return")
+		})
+	}
 
 	g.W("func middlewareChain(middlewares []%[1]s.Middleware) %[1]s.Middleware {\n", endpointPkg)
 	g.W("return func(next %[1]s.Endpoint) %[1]s.Endpoint {\n", endpointPkg)

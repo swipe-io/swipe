@@ -4,6 +4,7 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/option"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 type ServiceGateway interface {
@@ -40,4 +41,9 @@ type ServiceGateway interface {
 	OpenapiServers() []openapi.Server
 	OpenapiMethodTags(name string) []string
 	OpenapiDefaultMethodTags() []string
+
+	GatewayEnable() bool
+
+	CommentFields() map[string]map[string]string
+	Enums() *typeutil.Map
 }

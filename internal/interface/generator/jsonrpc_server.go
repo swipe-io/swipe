@@ -5,6 +5,8 @@ import (
 	stdtypes "go/types"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v2/internal/strings"
+
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
@@ -15,6 +17,7 @@ type jsonRPCServerOptionsGateway interface {
 	AppID() string
 	UseFast() bool
 	JSONRPCEnable() bool
+	GatewayEnable() bool
 	JSONRPCPath() string
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	Interfaces() model.Interfaces
@@ -68,14 +71,13 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 		g.W("func Make%[1]sEndpointCodecMap(ep %[1]sEndpointSet", iface.Name())
 		g.W(",ns ...string) %s.EndpointCodecMap {\n", jsonrpcPkg)
+
 		g.W("var namespace string\n")
-		if g.options.Interfaces().Len() > 1 {
-			prefix := iface.NameUnExport()
-			if iface.NameUnExport() != "" {
-				prefix = iface.NameUnExport()
-			}
-			g.W("namespace = \"%s.\"\n", prefix)
+
+		if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
+			g.W("namespace = \"%s.\"\n", iface.NameUnExport())
 		}
+
 		g.W("if len(ns) > 0 {\n")
 		g.W("namespace = %s.Join(ns, \".\") + \".\"\n", stringsPkg)
 		g.W("}\n")
@@ -132,6 +134,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 	}
 
 	g.W("// HTTP %s Transport\n", g.options.Prefix())
+
 	g.W("func MakeHandler%s(", g.options.Prefix())
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
@@ -139,8 +142,18 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 		if i > 0 {
 			g.W(",")
 		}
-		g.W("svc%s %s", iface.Name(), typeStr)
+
+		if g.options.GatewayEnable() {
+			g.W("%s %sOption", strings.LcFirst(iface.Name()), iface.Name())
+		} else {
+			g.W("svc%s %s", iface.Name(), typeStr)
+		}
 	}
+
+	if g.options.GatewayEnable() {
+		g.W(", logger %s.Logger", g.i.Import("log", "github.com/go-kit/kit/log"))
+	}
+
 	g.W(", options ...ServerOption")
 	g.W(") (")
 	if g.options.UseFast() {
@@ -152,24 +165,73 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 	g.W(", error) {\n")
 
 	g.W("opts := &serverOpts{}\n")
-
 	g.W("for _, o := range options {\n o(opts)\n }\n")
 
-	for i := 0; i < g.options.Interfaces().Len(); i++ {
-		iface := g.options.Interfaces().At(i)
-		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
-	}
+	if g.options.GatewayEnable() {
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			g.W("%[1]s := %[2]sEndpointSet{}\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
+		}
 
-	for i := 0; i < g.options.Interfaces().Len(); i++ {
-		iface := g.options.Interfaces().At(i)
-		epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
-		for _, m := range iface.Methods() {
-			g.W(
-				"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-				m.NameUnExport, m.Name, epSetName,
-			)
+		sdPkg := g.i.Import("sd", "github.com/go-kit/kit/sd")
+		lbPkg := g.i.Import("sd", "github.com/go-kit/kit/sd/lb")
+
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+
+			for _, m := range iface.Methods() {
+
+				epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
+
+				optName := strings.LcFirst(iface.Name())
+				g.W("{\n")
+
+				g.W("if %s.%s.Balancer == nil {\n", optName, m.Name)
+				g.W("%s.%s.Balancer = %s.NewRoundRobin\n", optName, m.Name, lbPkg)
+				g.W("}\n")
+
+				g.W("if %s.%s.RetryMax == 0 {\n", optName, m.Name)
+				g.W("%s.%s.RetryMax = DefaultRetryMax\n", optName, m.Name)
+				g.W("}\n")
+
+				g.W("if %s.%s.RetryTimeout == 0 {\n", optName, m.Name)
+				g.W("%s.%s.RetryTimeout = DefaultRetryTimeout\n", optName, m.Name)
+				g.W("}\n")
+
+				g.W("endpointer := %[1]s.NewEndpointer(%[2]s.Instancer, %[2]s.EndpointFactory.%[3]sEndpointFactory, logger)\n", sdPkg, optName, m.Name)
+				g.W(
+					"%[4]s.%[3]sEndpoint = %[1]s.RetryWithCallback(%[2]s.%[3]s.RetryTimeout, %[2]s.%[3]s.Balancer(endpointer), retryMax(%[2]s.%[3]s.RetryMax))\n",
+					lbPkg, optName, m.Name, epSetName,
+				)
+				g.W(
+					"%[2]s.%[1]sEndpoint = RetryErrorExtractor()(%[2]s.%[1]sEndpoint)\n",
+					m.Name, epSetName,
+				)
+				g.W(
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					m.NameUnExport, m.Name, epSetName,
+				)
+				g.W("}\n")
+			}
+		}
+	} else {
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
+		}
+
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
+			for _, m := range iface.Methods() {
+				g.W(
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					m.NameUnExport, m.Name, epSetName,
+				)
+			}
 		}
 	}
+
 	if g.options.UseFast() {
 		g.W("r := %s.New()\n", routerPkg)
 	} else {

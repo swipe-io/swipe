@@ -6,12 +6,11 @@ import (
 	"strconv"
 
 	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
+	"golang.org/x/tools/go/types/typeutil"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
-
-	"golang.org/x/tools/go/types/typeutil"
 )
 
 const jsonRPCClientBase = `
@@ -116,12 +115,13 @@ type jsonRPCJSClientOptionsGateway interface {
 	ErrorKeys() []uint32
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
+	CommentFields() map[string]map[string]string
+	Enums() *typeutil.Map
 }
 
 type jsonRPCJSClient struct {
 	writer.BaseWriter
 	options jsonRPCJSClientOptionsGateway
-	enums   *typeutil.Map
 }
 
 func (g *jsonRPCJSClient) Prepare(_ context.Context) error {
@@ -201,11 +201,8 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 				mw.W(p.Name())
 			}
 			var prefix string
-			if g.options.Interfaces().Len() > 1 {
-				prefix = iface.LoweName() + "."
-				if iface.NameUnExport() != "" {
-					prefix = iface.NameUnExport() + "."
-				}
+			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
+				prefix = iface.NameUnExport() + "."
 			}
 
 			mw.W(") {\n")
@@ -269,7 +266,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	}
 	g.W("}\n}\n")
 
-	g.enums.Iterate(func(key stdtypes.Type, value interface{}) {
+	g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
 		if named, ok := key.(*stdtypes.Named); ok {
 			b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic)
 			if !ok {
@@ -306,12 +303,8 @@ func (g *jsonRPCJSClient) Filename() string {
 	return "client_jsonrpc_gen.js"
 }
 
-func NewJsonRPCJSClient(
-	options jsonRPCJSClientOptionsGateway,
-	enums *typeutil.Map,
-) generator.Generator {
+func NewJsonRPCJSClient(options jsonRPCJSClientOptionsGateway) generator.Generator {
 	return &jsonRPCJSClient{
 		options: options,
-		enums:   enums,
 	}
 }

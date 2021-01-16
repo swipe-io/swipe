@@ -1,4 +1,4 @@
-//+build swipe
+//+build swipe ide
 
 package app
 
@@ -9,9 +9,30 @@ import (
 
 func Swipe() {
 	swipe.Build(
-		swipe.Gateway(
-			swipe.GatewayService((*app.InterfaceA)(nil)),
-			swipe.GatewayService((*app.InterfaceB)(nil)),
+		swipe.Service(
+			swipe.Interface((*app.InterfaceA)(nil), "a"),
+			swipe.Interface((*app.InterfaceB)(nil), "b"),
+
+			swipe.HTTPServer(),
+
+			swipe.JSONRPCEnable(),
+			swipe.GatewayEnable(),
+
+			swipe.ClientsEnable([]string{"js"}),
+
+			swipe.OpenapiEnable(),
+
+			swipe.MethodOptions(app.InterfaceB.Create,
+				swipe.Exclude(false),
+			),
+
+			//swipe.MethodOptions(app.InterfaceA.TestMethod,
+			//	swipe.Exclude(false),
+			//),
+
+			swipe.MethodDefaultOptions(
+				swipe.Exclude(true),
+			),
 		),
 	)
 }
