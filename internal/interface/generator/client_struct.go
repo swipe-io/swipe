@@ -145,9 +145,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 
 		clientType := fmt.Sprintf("client%s", iface.Name())
 
-		if len(iface.Methods()) > 0 {
-			contextPkg = g.i.Import("context", "context")
-		}
+		contextPkg = g.i.Import("context", "context")
 
 		g.W("type %s struct {\n", clientType)
 		for _, m := range iface.Methods() {
