@@ -233,7 +233,14 @@ func (g *restServer) Process(_ context.Context) error {
 							} else {
 								valueID = "q.Get(" + strconv.Quote(queryName) + ")"
 							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, []string{"nil"}, "", false, "")
+
+							tmpID := "tmp" + p.Name()
+							g.W("%s := %s\n", tmpID, valueID)
+
+							g.W("if %s != \"\" {\n", tmpID)
+							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), tmpID, p, []string{"nil"}, "", false, "")
+							g.W("}\n")
+
 						} else if headerName, ok := mopt.HeaderVars[p.Name()]; ok {
 							var valueID string
 							if g.options.UseFast() {
