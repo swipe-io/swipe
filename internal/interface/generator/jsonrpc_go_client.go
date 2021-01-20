@@ -151,7 +151,7 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 
 			methodName := m.LcName
 			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
-				methodName = iface.NameUnExport() + "." + iface.NameUnExport()
+				methodName = iface.NameUnExport() + "." + methodName
 			}
 
 			g.W("c.%sEndpoint = %s.NewClient(\n", m.LcName, jsonrpcPkg)
