@@ -132,7 +132,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}
 	}
 
-	astLoader := astloader.NewLoader(wd, os.Environ(), packages(f))
+	astLoader := astloader.NewLoader(wd, os.Environ(), packages(f), mod)
 	l := option.NewLoader(astLoader)
 	r := registry.NewRegistry(l)
 	i := factory.NewImporterFactory()

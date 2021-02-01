@@ -27,6 +27,7 @@ func Swipe() {
 				swipe.RESTMethod(http.MethodPost),
 				swipe.Logging(true),
 				swipe.LoggingParams([]string{}, []string{"newData"}),
+				swipe.LoggingContext("123", "123"),
 			),
 			swipe.MethodOptions(InterfaceB.Get,
 				swipe.RESTPath("/get-test"),

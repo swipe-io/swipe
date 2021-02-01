@@ -11,6 +11,8 @@ import (
 	"strings"
 	stdstrings "strings"
 
+	"golang.org/x/mod/modfile"
+
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/types"
@@ -26,7 +28,7 @@ type nodeInfo struct {
 
 type Data struct {
 	WorkDir       string
-	RootPkgPath   string
+	PkgPath       string
 	CommentFuncs  map[string][]string
 	CommentFields map[string]map[string]string
 	Pkgs          []*packages.Package
@@ -39,6 +41,7 @@ type Loader struct {
 	wd       string
 	env      []string
 	patterns []string
+	mod      *modfile.File
 }
 
 func (l *Loader) Patterns() []string {
@@ -57,9 +60,18 @@ func (l *Loader) Process() (data *Data, errs []error) {
 	var (
 		err error
 	)
+
+	var pkgPath string
+
+	if l.mod == nil {
+		pkgPath = strings.Split(l.wd, filepath.Join(build.Default.GOPATH, "src")+"/")[1]
+	} else {
+		pkgPath = l.mod.Module.Mod.Path
+	}
+
 	data = &Data{
 		WorkDir:       l.wd,
-		RootPkgPath:   strings.Split(l.wd, filepath.Join(build.Default.GOPATH, "src")+"/")[1],
+		PkgPath:       pkgPath,
 		CommentFuncs:  map[string][]string{},
 		CommentFields: map[string]map[string]string{},
 		GraphTypes:    graph.NewGraph(),
@@ -306,10 +318,11 @@ func visitBlockStmt(p *packages.Package, stmt ast.Stmt) (values []stdtypes.TypeA
 	return
 }
 
-func NewLoader(wd string, env []string, patterns []string) *Loader {
+func NewLoader(wd string, env []string, patterns []string, mod *modfile.File) *Loader {
 	return &Loader{
 		wd:       wd,
 		env:      env,
 		patterns: patterns,
+		mod:      mod,
 	}
 }

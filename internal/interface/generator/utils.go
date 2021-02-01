@@ -51,7 +51,7 @@ func makeLogParam(name string, t stdtypes.Type) []string {
 		return []string{quoteName, name}
 	case *stdtypes.Named:
 		if hasMethodString(t) {
-			return []string{quoteName, name + ".String()"}
+			return []string{quoteName, name}
 		}
 		if hasMethodLogParams(t) {
 			return []string{quoteName, name + ".LogParams()"}

@@ -43,7 +43,7 @@
 //  }
 package swipe
 
-const Version = "v2.0.0-beta7"
+const Version = "v2.0.0-beta6"
 
 // A Option is an option for a Swipe.
 type Option string
@@ -191,6 +191,10 @@ func Exclude(enable bool) MethodOption {
 }
 
 func LoggingParams(includes []string, excludes []string) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
+func LoggingContext(key interface{}, name string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 

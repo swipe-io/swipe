@@ -26,7 +26,7 @@ var record = flag.Bool("record", false, "write expected result without running t
 var onlyDiff = flag.Bool("only-diff", false, "show only diff")
 
 func newGeneratorExecutor(wd string) ue.GenerationExecutor {
-	astl := astloader.NewLoader(wd, os.Environ(), []string{"."})
+	astl := astloader.NewLoader(wd, os.Environ(), []string{"."}, nil)
 	l := option.NewLoader(astl)
 	r := registry.NewRegistry(l)
 	i := factory.NewImporterFactory()

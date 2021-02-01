@@ -145,6 +145,7 @@ type MethodOption struct {
 	LoggingEnable        bool
 	LoggingIncludeParams map[string]struct{}
 	LoggingExcludeParams map[string]struct{}
+	LoggingContext       map[string]ast.Expr
 	InstrumentingEnable  bool
 	Exclude              bool
 }

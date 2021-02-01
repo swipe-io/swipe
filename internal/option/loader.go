@@ -2,10 +2,7 @@ package option
 
 import (
 	"go/ast"
-	"go/build"
 	stdtypes "go/types"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -82,6 +79,7 @@ func (l *Loader) loadPkgs(pkgs []*packages.Package) (<-chan *ResultOption, <-cha
 
 func (l *Loader) Load() (result *Result, errs []error) {
 	result = &Result{}
+
 	data, errs := l.astLoader.Process()
 	if len(errs) > 0 {
 		return nil, errs
@@ -96,15 +94,9 @@ func (l *Loader) Load() (result *Result, errs []error) {
 		}
 	}()
 
-	srcPath := filepath.Join(build.Default.GOPATH, "src") + string(os.PathSeparator)
-	wd := l.astLoader.WorkDir()
-	basePkg := strings.Replace(wd, srcPath, "", -1)
-
 	for option := range optionsCh {
 		optRootPkg := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
-		baseRootPkg := strings.Join(strings.Split(basePkg, "/")[:3], "/")
-
-		if optRootPkg != baseRootPkg {
+		if optRootPkg != data.PkgPath {
 			continue
 		}
 		result.Options = append(result.Options, option)

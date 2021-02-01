@@ -45,7 +45,7 @@ ToDo.
 
 {{range $index, $tag := .GIT.Tags -}}
    {{if gt $index 0 -}}, {{end -}}
-   [{{$tag.Name}}](https://{{$.RootPkgPath}}/tree/{{$tag.Name}})
+   [{{$tag.Name}}](https://{{$.PkgPath}}/tree/{{$tag.Name}})
 {{end -}}
 `
 
@@ -117,7 +117,7 @@ func (g *readmeGenerator) Process(ctx context.Context) (err error) {
 	return g.tpl.Execute(g, map[string]interface{}{
 		"ID":          g.options.AppID(),
 		"ServiceName": g.options.AppName(),
-		"RootPkgPath": g.basePkgPath,
+		"PkgPath":     g.basePkgPath,
 		"GIT": map[string]interface{}{
 			"Tags": g.gitTags,
 		},
