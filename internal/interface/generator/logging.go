@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	stdtypes "go/types"
 	"strconv"
@@ -55,6 +56,19 @@ func (g *logging) Process(ctx context.Context) error {
 			mopt := g.options.MethodOption(m)
 
 			logParams := makeLogParams(mopt.LoggingIncludeParams, mopt.LoggingExcludeParams, m.Params...)
+
+			if len(mopt.LoggingContext) > 0 {
+				if m.ParamCtx == nil {
+					return errors.New(m.Name + " using LoggingContext need added context var")
+				}
+				for name, key := range mopt.LoggingContext {
+					var buf writer.GoLangWriter
+					buf.W("ctx.Value(")
+					writer.WriteAST(&buf, g.i, key)
+					buf.W(")")
+					logParams = append(logParams, strconv.Quote(name), buf.String())
+				}
+			}
 
 			if len(m.Results) > 0 {
 				if m.ResultsNamed {

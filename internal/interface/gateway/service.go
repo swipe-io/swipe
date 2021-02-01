@@ -662,6 +662,16 @@ func getMethodOptions(o *option.Option, baseMethodOpts model.MethodOption) (mode
 			baseMethodOpts.LoggingExcludeParams[field] = struct{}{}
 		}
 	}
+
+	baseMethodOpts.LoggingContext = map[string]ast.Expr{}
+
+	if opts, ok := o.Slice("LoggingContext"); ok {
+		for _, opt := range opts {
+			key := option.MustOption(opt.At("key")).Value.Expr()
+			name := option.MustOption(opt.At("name")).Value.String()
+			baseMethodOpts.LoggingContext[name] = key
+		}
+	}
 	if opt, ok := o.At("Instrumenting"); ok {
 		baseMethodOpts.InstrumentingEnable = opt.Value.Bool()
 	}
