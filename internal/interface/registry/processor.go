@@ -20,7 +20,7 @@ func (r *registryProcessor) NewProcessor(o *option.ResultOption, data *astloader
 	gt := git.NewGIT()
 	switch o.Option.Name {
 	case "Service":
-		sg, err := ig.NewServiceGateway(o.Pkg, r.l, o.Option, data.GraphTypes, data.CommentFuncs, data.CommentFields, data.Enums)
+		sg, err := ig.NewServiceGateway(o.Pkg, o.Option, data.GraphTypes, data.CommentFuncs, data.CommentFields, data.Enums)
 		if err != nil {
 			return nil, err
 		}

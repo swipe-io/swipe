@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	stdtypes "go/types"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
@@ -9,15 +10,11 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
-type endpointFactoryOptionsGateway interface {
-	Interfaces() model.Interfaces
-	Prefix() string
-}
-
 type endpointFactory struct {
 	writer.GoLangWriter
-	options endpointFactoryOptionsGateway
-	i       *importer.Importer
+	interfaces model.Interfaces
+	prefix     string
+	i          *importer.Importer
 }
 
 func (g *endpointFactory) Prepare(ctx context.Context) error {
@@ -25,39 +22,41 @@ func (g *endpointFactory) Prepare(ctx context.Context) error {
 }
 
 func (g *endpointFactory) Process(ctx context.Context) error {
+	for i := 0; i < g.interfaces.Len(); i++ {
+		iface := g.interfaces.At(i)
 
-	for i := 0; i < g.options.Interfaces().Len(); i++ {
-		iface := g.options.Interfaces().At(i)
+		if iface.External() {
+			epFactoryName := iface.LoweName() + "EndpointFactory"
+			kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
+			ioPkg := g.i.Import("io", "io")
+			stringsPkg := g.i.Import("strings", "strings")
 
-		epFactoryName := iface.Name() + "EndpointFactory"
+			g.W("type %s struct{\n", epFactoryName)
+			g.W("factory func(instance string) (%s, error)\n", stdtypes.TypeString(iface.Type(), g.i.QualifyPkg))
+			g.W("instance string\n")
+			g.W("}\n\n")
 
-		g.W("type %s struct{\n", epFactoryName)
-		g.W("Option []ClientOption\n")
-		g.W("Path string\n")
-		g.W("}\n\n")
-
-		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-		ioPkg := g.i.Import("io", "io")
-		stringsPkg := g.i.Import("strings", "strings")
-
-		for _, m := range iface.Methods() {
-			g.W("func (f *%s) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, m.Name, kitEndpointPkg, ioPkg)
-			g.W("if f.Path != \"\"{\n")
-			g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(f.Path, \"/\")", stringsPkg)
-			g.W("}\n")
-			g.W("c, err := NewClient%s(instance, f.Option...)\n", g.options.Prefix())
-			g.WriteCheckErr(func() {
-				g.W("return nil, nil, err\n")
-			})
-			g.W("return ")
-			if g.options.Interfaces().Len() > 1 {
-				g.W("make%sEndpoint(c.%sClient), nil, nil\n", m.NameExport, iface.NameExport())
-			} else {
+			for _, m := range iface.Methods() {
+				g.W("func (f *%s) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, m.Name, kitEndpointPkg, ioPkg)
+				g.W("if f.instance != \"\"{\n")
+				g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(f.instance, \"/\")", stringsPkg)
+				g.W("}\n")
+				g.W("c, err := f.factory(instance)\n")
+				g.WriteCheckErr(func() {
+					g.W("return nil, nil, err\n")
+				})
+				g.W("return ")
 				g.W("make%sEndpoint(c), nil, nil\n", m.NameExport)
+				g.W("\n}\n\n")
 			}
-			g.W("\n}\n\n")
-		}
 
+			g.W("func New%sFactory(instance string,", iface.Name())
+			g.W("factory func(instance string) (%s, error)", stdtypes.TypeString(iface.Type(), g.i.QualifyPkg))
+			g.W(") %sEndpointFactory {\n", iface.Name())
+
+			g.W("return &%s{instance: instance, factory: factory}\n", epFactoryName)
+			g.W("}\n")
+		}
 	}
 	return nil
 }
@@ -79,9 +78,11 @@ func (g *endpointFactory) SetImporter(i *importer.Importer) {
 }
 
 func NewEndpointFactory(
-	options endpointFactoryOptionsGateway,
+	interfaces model.Interfaces,
+	prefix string,
 ) generator.Generator {
 	return &endpointFactory{
-		options: options,
+		interfaces: interfaces,
+		prefix:     prefix,
 	}
 }

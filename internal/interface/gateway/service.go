@@ -54,8 +54,6 @@ type serviceGateway struct {
 	appName                  string
 	appID                    string
 	defaultErrorEncoder      option.Value
-	gatewayEnable            bool
-	loader                   *option.Loader
 }
 
 func (g *serviceGateway) Enums() *typeutil.Map {
@@ -64,10 +62,6 @@ func (g *serviceGateway) Enums() *typeutil.Map {
 
 func (g *serviceGateway) CommentFields() map[string]map[string]string {
 	return g.commentFields
-}
-
-func (g *serviceGateway) GatewayEnable() bool {
-	return g.gatewayEnable
 }
 
 func (g *serviceGateway) AppID() string {
@@ -253,6 +247,9 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 
 	ifaceNamed := ifacePtr.Elem().(*stdtypes.Named)
 
+	basePkgService := stdstrings.Join(stdstrings.Split(ifaceNamed.Obj().Pkg().Path(), "/")[:3], "/")
+	basePkgInternal := stdstrings.Join(stdstrings.Split(g.pkg.PkgPath, "/")[:3], "/")
+
 	ifaceName := strcase.ToCamel(ifaceNamed.Obj().Name())
 	ifaceLcName := strcase.ToLowerCamel(ifaceName)
 
@@ -379,6 +376,7 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		ifaceNamed,
 		ifaceType,
 		serviceMethods,
+		basePkgService != basePkgInternal,
 	), nil
 }
 
@@ -395,9 +393,6 @@ func (g *serviceGateway) load(o *option.Option) error {
 	}
 	g.appID = strcase.ToCamel(g.appName)
 	if err := g.loadJSONRPC(o); err != nil {
-		return err
-	}
-	if err := g.loadGateway(o); err != nil {
 		return err
 	}
 	if err := g.loadOpenapi(o); err != nil {
@@ -635,13 +630,6 @@ func (g *serviceGateway) loadJSONRPC(o *option.Option) (err error) {
 	return
 }
 
-func (g *serviceGateway) loadGateway(o *option.Option) error {
-	if _, ok := o.At("GatewayEnable"); ok {
-		g.gatewayEnable = true
-	}
-	return nil
-}
-
 func getMethodOptions(o *option.Option, baseMethodOpts model.MethodOption) (model.MethodOption, error) {
 	if opt, ok := o.At("Exclude"); ok {
 		baseMethodOpts.Exclude = opt.Value.Bool()
@@ -766,7 +754,6 @@ func httpBraceIndices(s string) ([]int, error) {
 
 func NewServiceGateway(
 	pkg *packages.Package,
-	loader *option.Loader,
 	o *option.Option,
 	graphTypes *graph.Graph,
 	commentFuncs map[string][]string,
@@ -775,7 +762,6 @@ func NewServiceGateway(
 ) (gateway.ServiceGateway, error) {
 	g := &serviceGateway{
 		pkg:               pkg,
-		loader:            loader,
 		graphTypes:        graphTypes,
 		commentFuncs:      commentFuncs,
 		commentFields:     commentFields,

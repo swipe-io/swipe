@@ -2,7 +2,6 @@ package processor
 
 import (
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
-
 	"github.com/swipe-io/swipe/v2/internal/git"
 	"github.com/swipe-io/swipe/v2/internal/interface/generator"
 	"github.com/swipe-io/swipe/v2/internal/usecase/gateway"
@@ -24,10 +23,13 @@ func (p *serviceProcessor) Pkg() *packages.Package {
 
 func (p *serviceProcessor) Generators() []ug.Generator {
 	var generators []ug.Generator
-	generators = append(generators, generator.NewEndpoint(p.sg))
-	if p.sg.GatewayEnable() {
-		generators = append(generators, generator.NewGatewayGenerator(p.sg.Interfaces()))
-	}
+	generators = append(
+		generators,
+		generator.NewEndpoint(p.sg),
+		generator.NewGatewayGenerator(p.sg.Interfaces()),
+		generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
+	)
+
 	if p.sg.ReadmeEnable() {
 		tags, _ := p.gi.GetTags()
 		generators = append(generators,
@@ -59,7 +61,6 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 	if p.sg.ClientEnable() {
 		if p.sg.GoClientEnable() {
 			generators = append(generators,
-				generator.NewEndpointFactory(p.sg),
 				generator.NewClientStruct(p.sg),
 			)
 		}
