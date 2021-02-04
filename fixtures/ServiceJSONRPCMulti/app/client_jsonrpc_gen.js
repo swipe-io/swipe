@@ -258,23 +258,23 @@ class JSONRPCClient {
 }
 export default JSONRPCClient;
 
-export class ErrUnauthorizedError extends JSONRPCError {
-  constructor(message, data) {
-    super(message, "ErrUnauthorizedError", -32001, data);
-  }
-}
 export class ErrForbiddenError extends JSONRPCError {
   constructor(message, data) {
     super(message, "ErrForbiddenError", -32002, data);
+  }
+}
+export class ErrUnauthorizedError extends JSONRPCError {
+  constructor(message, data) {
+    super(message, "ErrUnauthorizedError", -32001, data);
   }
 }
 function convertError(e) {
   switch (e.code) {
     default:
       return new JSONRPCError(e.message, "UnknownError", e.code, e.data);
-    case -32001:
-      return new ErrUnauthorizedError(e.message, e.data);
     case -32002:
       return new ErrForbiddenError(e.message, e.data);
+    case -32001:
+      return new ErrUnauthorizedError(e.message, e.data);
   }
 }
