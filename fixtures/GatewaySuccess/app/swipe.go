@@ -16,7 +16,6 @@ func Swipe() {
 			swipe.HTTPServer(),
 
 			swipe.JSONRPCEnable(),
-			swipe.GatewayEnable(),
 
 			swipe.ClientsEnable([]string{"js"}),
 
@@ -25,10 +24,6 @@ func Swipe() {
 			swipe.MethodOptions(app.InterfaceB.Create,
 				swipe.Exclude(false),
 			),
-
-			//swipe.MethodOptions(app.InterfaceA.TestMethod,
-			//	swipe.Exclude(false),
-			//),
 
 			swipe.MethodDefaultOptions(
 				swipe.Exclude(true),
