@@ -96,7 +96,8 @@ func (l *Loader) Load() (result *Result, errs []error) {
 
 	for option := range optionsCh {
 		optRootPkg := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
-		if optRootPkg != data.PkgPath {
+		pkgPath := strings.Join(strings.Split(data.PkgPath, "/")[:3], "/")
+		if optRootPkg != pkgPath {
 			continue
 		}
 		result.Options = append(result.Options, option)
