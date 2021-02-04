@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -227,6 +228,8 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 			buf.Write(data[:start])
 			buf.Write(data[end+len(endGitAttrPattern):])
 		}
+
+		sort.Strings(diffExcludes)
 
 		buf.Write(startGitAttrPattern)
 		for _, exclude := range diffExcludes {
