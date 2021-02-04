@@ -26,10 +26,14 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 	generators = append(
 		generators,
 		generator.NewEndpoint(p.sg),
-		generator.NewGatewayGenerator(p.sg.Interfaces()),
-		generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
 	)
-
+	if p.sg.FoundServiceGateway() {
+		generators = append(
+			generators,
+			generator.NewGatewayGenerator(p.sg.Interfaces()),
+			generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
+		)
+	}
 	if p.sg.ReadmeEnable() {
 		tags, _ := p.gi.GetTags()
 		generators = append(generators,

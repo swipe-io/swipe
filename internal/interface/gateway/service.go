@@ -54,6 +54,11 @@ type serviceGateway struct {
 	appName                  string
 	appID                    string
 	defaultErrorEncoder      option.Value
+	foundServiceGateway      bool
+}
+
+func (g *serviceGateway) FoundServiceGateway() bool {
+	return g.foundServiceGateway
 }
 
 func (g *serviceGateway) Enums() *typeutil.Map {
@@ -456,17 +461,24 @@ func (g *serviceGateway) load(o *option.Option) error {
 		})
 	})
 
+	var foundServiceGateway bool
 	if ifaces, ok := o.Slice("Interface"); ok {
 		for _, iface := range ifaces {
 			svc, err := g.loadService(iface, genericErrors, len(ifaces))
 			if err != nil {
 				return err
 			}
+			if svc.External() {
+				foundServiceGateway = true
+			}
 			if len(svc.Methods()) > 0 {
 				g.interfaces = append(g.interfaces, svc)
 			}
 		}
 	}
+
+	g.foundServiceGateway = foundServiceGateway
+
 	if o, ok := o.At("DefaultErrorEncoder"); ok {
 		g.defaultErrorEncoder = o.Value
 	}
