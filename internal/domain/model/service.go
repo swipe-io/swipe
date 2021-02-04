@@ -156,6 +156,25 @@ type MethodOption struct {
 	Exclude              bool
 }
 
+type ErrorKey struct {
+	Key  uint32
+	Code int64
+}
+
+type ErrorKeys []ErrorKey
+
+func (e ErrorKeys) Len() int {
+	return len(e)
+}
+
+func (e ErrorKeys) Less(i, j int) bool {
+	return e[i].Code < e[j].Code
+}
+
+func (e ErrorKeys) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
 type HTTPError struct {
 	Named     *stdtypes.Named
 	Code      int64

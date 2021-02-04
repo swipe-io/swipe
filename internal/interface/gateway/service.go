@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/constant"
 	stdtypes "go/types"
+	"sort"
 	stdstrings "strings"
 
 	"github.com/swipe-io/strcase"
@@ -16,8 +17,6 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/gateway"
-
-	"github.com/gogo/protobuf/sortkeys"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
@@ -35,6 +34,7 @@ type serviceGateway struct {
 	defaultMethodOptions     model.MethodOption
 	clientsEnable            []string
 	errors                   map[uint32]*model.HTTPError
+	errorKeys                model.ErrorKeys
 	prefix                   string
 	openapiEnable            bool
 	openapiOutput            string
@@ -184,12 +184,8 @@ func (g *serviceGateway) Error(key uint32) *model.HTTPError {
 	return g.errors[key]
 }
 
-func (g *serviceGateway) ErrorKeys() (errorKeys []uint32) {
-	for key := range g.errors {
-		errorKeys = append(errorKeys, key)
-	}
-	sortkeys.Uint32s(errorKeys)
-	return
+func (g *serviceGateway) ErrorKeys() model.ErrorKeys {
+	return g.errorKeys
 }
 
 func (g *serviceGateway) InstrumentingEnable() bool {
@@ -491,6 +487,15 @@ func (g *serviceGateway) load(o *option.Option) error {
 	if o, ok := o.At("ClientsEnable"); ok {
 		g.clientsEnable = o.Value.StringSlice()
 	}
+
+	for key := range g.errors {
+		g.errorKeys = append(g.errorKeys, model.ErrorKey{
+			Key:  key,
+			Code: g.errors[key].Code,
+		})
+	}
+	sort.Sort(g.errorKeys)
+
 	return nil
 }
 
