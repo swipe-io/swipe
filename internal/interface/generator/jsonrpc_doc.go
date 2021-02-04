@@ -20,6 +20,12 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
+type MethodErrors []*model.HTTPError
+
+func (n MethodErrors) Len() int           { return len(n) }
+func (n MethodErrors) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n MethodErrors) Less(i, j int) bool { return n[i].Code < n[j].Code }
+
 type NamedSlice []*stdtypes.Named
 
 func (n NamedSlice) Len() int           { return len(n) }
@@ -154,7 +160,15 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 
 			g.W("**Throws**:\n\n")
 
-			for _, e := range method.Errors {
+			var methodErrors MethodErrors
+
+			for _, methodError := range method.Errors {
+				methodErrors = append(methodErrors, methodError)
+			}
+
+			sort.Sort(methodErrors)
+
+			for _, e := range methodErrors {
 				g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
 			}
 
