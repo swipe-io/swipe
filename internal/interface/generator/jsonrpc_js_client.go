@@ -112,7 +112,7 @@ class JSONRPCScheduler {
 
 type jsonRPCJSClientOptionsGateway interface {
 	Error(key uint32) *model.HTTPError
-	ErrorKeys() []uint32
+	ErrorKeys() model.ErrorKeys
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	CommentFields() map[string]map[string]string
@@ -246,7 +246,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	}
 
 	for _, key := range g.options.ErrorKeys() {
-		e := g.options.Error(key)
+		e := g.options.Error(key.Key)
 		g.W(
 			"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %d, data);\n}\n}\n",
 			e.Named.Obj().Name(), e.Code,
@@ -259,7 +259,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
 
 	for _, key := range g.options.ErrorKeys() {
-		e := g.options.Error(key)
+		e := g.options.Error(key.Key)
 		g.W("case %d:\n", e.Code)
 		g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
 

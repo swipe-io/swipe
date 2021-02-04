@@ -171,7 +171,7 @@ type openapiDocOptionsGateway interface {
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	JSONRPCEnable() bool
-	ErrorKeys() []uint32
+	ErrorKeys() model.ErrorKeys
 	Error(key uint32) *model.HTTPError
 	OpenapiOutput() string
 	OpenapiInfo() openapi.Info
@@ -215,7 +215,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		swg.Components.Schemas["Error"] = getOpenapiRESTErrorSchema()
 	}
 	for _, key := range g.options.ErrorKeys() {
-		ei := g.options.Error(key)
+		ei := g.options.Error(key.Key)
 		var s *openapi.Schema
 		if g.options.JSONRPCEnable() {
 			s = &openapi.Schema{

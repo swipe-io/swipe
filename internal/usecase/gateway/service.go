@@ -12,7 +12,7 @@ type ServiceGateway interface {
 	AppName() string
 	Interfaces() model.Interfaces
 	Error(key uint32) *model.HTTPError
-	ErrorKeys() []uint32
+	ErrorKeys() model.ErrorKeys
 	TransportType() model.Transport
 	UseFast() bool
 	MethodOption(m model.ServiceMethod) model.MethodOption

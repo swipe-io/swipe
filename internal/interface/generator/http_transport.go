@@ -17,7 +17,7 @@ type httpTransportOptionsGateway interface {
 	GoClientEnable() bool
 	UseFast() bool
 	Error(uint32) *model.HTTPError
-	ErrorKeys() []uint32
+	ErrorKeys() model.ErrorKeys
 }
 
 type httpTransport struct {
@@ -87,7 +87,7 @@ func (g *httpTransport) Process(ctx context.Context) error {
 			g.W("default:\nerr = &httpError{code: code}\n")
 			if g.options.JSONRPCEnable() {
 				for _, key := range g.options.ErrorKeys() {
-					e := g.options.Error(key)
+					e := g.options.Error(key.Key)
 					g.W("case %d:\n", e.Code)
 					pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
 					if pkgName != "" {
