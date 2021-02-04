@@ -66,6 +66,9 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 
 	g.W("type EndpointSet struct {\n")
 	for _, s := range g.services {
+		if !s.External() {
+			continue
+		}
 		g.W("%s struct {\n", s.Name())
 		for _, method := range s.Methods() {
 			g.W("%sEndpoint %s.Endpoint\n", method.Name, epPkg)
@@ -75,6 +78,10 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 	g.W("}\n\n")
 
 	for _, s := range g.services {
+		if !s.External() {
+			continue
+		}
+
 		g.W("type %sEndpointFactory interface {\n", s.Name())
 		for _, method := range s.Methods() {
 			g.W("%sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error)\n", method.Name, epPkg, ioPkg)

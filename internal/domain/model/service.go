@@ -32,6 +32,11 @@ type ServiceInterface struct {
 	serviceIface    *stdtypes.Interface
 	serviceMethods  []ServiceMethod
 	isNameChange    bool
+	external        bool
+}
+
+func (g *ServiceInterface) External() bool {
+	return g.external
 }
 
 func (g *ServiceInterface) IsNameChange() bool {
@@ -70,7 +75,7 @@ func (g *ServiceInterface) Interface() *stdtypes.Interface {
 	return g.serviceIface
 }
 
-func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNameChange bool, serviceType stdtypes.Type, serviceTypeName *stdtypes.Named, serviceIface *stdtypes.Interface, serviceMethods []ServiceMethod) *ServiceInterface {
+func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNameChange bool, serviceType stdtypes.Type, serviceTypeName *stdtypes.Named, serviceIface *stdtypes.Interface, serviceMethods []ServiceMethod, external bool) *ServiceInterface {
 	return &ServiceInterface{
 		name:            name,
 		loweName:        lowerName,
@@ -81,6 +86,7 @@ func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNam
 		serviceTypeName: serviceTypeName,
 		serviceIface:    serviceIface,
 		serviceMethods:  serviceMethods,
+		external:        external,
 	}
 }
 

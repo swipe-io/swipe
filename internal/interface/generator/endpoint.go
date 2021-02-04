@@ -18,7 +18,6 @@ import (
 
 type endpointOptionsGateway interface {
 	Interfaces() model.Interfaces
-	GatewayEnable() bool
 }
 
 type EndpointOption struct {
@@ -35,12 +34,11 @@ func (g *endpoint) Prepare(ctx context.Context) error {
 }
 
 func (g *endpoint) Process(ctx context.Context) error {
-	if !g.options.GatewayEnable() {
-		g.writeEndpointMake()
-	}
+	g.writeEndpointMake()
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
+
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 		epSetName := iface.Name() + "EndpointSet"
 
@@ -51,7 +49,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 		}
 		g.W("}\n")
 
-		if !g.options.GatewayEnable() {
+		if !iface.External() {
 			g.W("func Make%[1]s(svc %[2]s) %[1]s {\n", epSetName, typeStr)
 			g.W("return %s{\n", epSetName)
 			for _, m := range iface.Methods() {

@@ -17,7 +17,6 @@ type jsonRPCServerOptionsGateway interface {
 	AppID() string
 	UseFast() bool
 	JSONRPCEnable() bool
-	GatewayEnable() bool
 	JSONRPCPath() string
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	Interfaces() model.Interfaces
@@ -106,7 +105,6 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 					g.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, m.NameRequest)
 					g.W("}\n")
 					g.W("return req, nil\n")
-
 				} else {
 					g.W("return nil, nil\n")
 				}
@@ -136,6 +134,9 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 	g.W("// HTTP %s Transport\n", g.options.Prefix())
 
 	g.W("func MakeHandler%s(", g.options.Prefix())
+
+	var hasGateway bool
+
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
@@ -143,14 +144,15 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 			g.W(",")
 		}
 
-		if g.options.GatewayEnable() {
+		if iface.External() {
+			hasGateway = true
 			g.W("%s %sOption", strings.LcFirst(iface.Name()), iface.Name())
 		} else {
 			g.W("svc%s %s", iface.Name(), typeStr)
 		}
 	}
 
-	if g.options.GatewayEnable() {
+	if hasGateway {
 		g.W(", logger %s.Logger", g.i.Import("log", "github.com/go-kit/kit/log"))
 	}
 
@@ -167,23 +169,19 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 	g.W("opts := &serverOpts{}\n")
 	g.W("for _, o := range options {\n o(opts)\n }\n")
 
-	if g.options.GatewayEnable() {
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
+
+		if iface.External() {
+			sdPkg := g.i.Import("sd", "github.com/go-kit/kit/sd")
+			lbPkg := g.i.Import("sd", "github.com/go-kit/kit/sd/lb")
+
 			g.W("%[1]s := %[2]sEndpointSet{}\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
-		}
-
-		sdPkg := g.i.Import("sd", "github.com/go-kit/kit/sd")
-		lbPkg := g.i.Import("sd", "github.com/go-kit/kit/sd/lb")
-
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
 
 			for _, m := range iface.Methods() {
-
 				epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
-
 				optName := strings.LcFirst(iface.Name())
+
 				g.W("{\n")
 
 				g.W("if %s.%s.Balancer == nil {\n", optName, m.Name)
@@ -213,15 +211,8 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 				)
 				g.W("}\n")
 			}
-		}
-	} else {
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
+		} else {
 			g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
-		}
-
-		for i := 0; i < g.options.Interfaces().Len(); i++ {
-			iface := g.options.Interfaces().At(i)
 			epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
 			for _, m := range iface.Methods() {
 				g.W(

@@ -42,8 +42,6 @@ type ServiceGateway interface {
 	OpenapiMethodTags(name string) []string
 	OpenapiDefaultMethodTags() []string
 
-	GatewayEnable() bool
-
 	CommentFields() map[string]map[string]string
 	Enums() *typeutil.Map
 }

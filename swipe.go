@@ -63,12 +63,6 @@ type OpenapiServersOption string
 // A OpenapiServerOption is an openapi concrete server option.
 type OpenapiServerOption string
 
-type GatewayOption string
-
-type GatewayServiceOption string
-
-type GatewayServiceMethodOption string
-
 type ReadmeOption string
 
 type InterfaceOption string
@@ -161,11 +155,6 @@ func JSONRPCDocEnable() ServiceOption {
 
 // JSONRPCDocOutput change output dir for generate markdown JSON RPC doc.
 func JSONRPCDocOutput(output string) ServiceOption {
-	return "implementation not generated, run swipe"
-}
-
-// GatewayEnable enabled use Gateway service type.
-func GatewayEnable() ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
