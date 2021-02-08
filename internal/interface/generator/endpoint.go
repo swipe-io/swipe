@@ -39,6 +39,10 @@ func (g *endpoint) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
+		if iface.External() {
+			continue
+		}
+
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 		epSetName := iface.Name() + "EndpointSet"
 
@@ -101,6 +105,10 @@ func (g *endpoint) SetImporter(i *importer.Importer) {
 func (g *endpoint) writeEndpointMake() {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
+
+		if iface.External() {
+			continue
+		}
 
 		contextPkg := g.i.Import("context", "context")
 		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")

@@ -45,5 +45,6 @@ type ServiceGateway interface {
 	CommentFields() map[string]map[string]string
 	Enums() *typeutil.Map
 
+	FoundService() bool
 	FoundServiceGateway() bool
 }

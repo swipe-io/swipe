@@ -23,10 +23,9 @@ func (p *serviceProcessor) Pkg() *packages.Package {
 
 func (p *serviceProcessor) Generators() []ug.Generator {
 	var generators []ug.Generator
-	generators = append(
-		generators,
-		generator.NewEndpoint(p.sg),
-	)
+	if p.sg.FoundService() {
+		generators = append(generators, generator.NewEndpoint(p.sg))
+	}
 	if p.sg.FoundServiceGateway() {
 		generators = append(
 			generators,

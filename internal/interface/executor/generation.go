@@ -13,8 +13,6 @@ import (
 
 	"github.com/swipe-io/swipe/v2/internal/usecase/processor"
 
-	"github.com/swipe-io/swipe/v2/internal/astloader"
-
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/usecase/executor"
@@ -34,16 +32,16 @@ type generationExecutor struct {
 	l  *option.Loader
 }
 
-func (e *generationExecutor) processOptions(options []*option.ResultOption, data *astloader.Data) (<-chan processor.Processor, <-chan error) {
+func (e *generationExecutor) process(result *option.Result) (<-chan processor.Processor, <-chan error) {
 	outCh := make(chan processor.Processor)
 	errCh := make(chan error)
 	go func() {
 		var wg sync.WaitGroup
-		for _, o := range options {
+		for _, o := range result.Options {
 			wg.Add(1)
 			go func(o *option.ResultOption) {
 				defer wg.Done()
-				p, err := e.r.NewProcessor(o, data)
+				p, err := e.r.NewProcessor(o, result.ExternalOptions, result.Data)
 				if err != nil {
 					errCh <- err
 					return
@@ -125,7 +123,7 @@ func (e *generationExecutor) Execute() (results []executor.GenerateResult, errs 
 		return nil, errs
 	}
 
-	processorCh, errCh := e.processOptions(opr.Options, opr.Data)
+	processorCh, errCh := e.process(opr)
 	go func() {
 		for err := range errCh {
 			errs = append(errs, err)

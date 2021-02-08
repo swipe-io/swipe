@@ -17,8 +17,9 @@ type ResultOption struct {
 }
 
 type Result struct {
-	Data    *astloader.Data
-	Options []*ResultOption
+	Data            *astloader.Data
+	Options         []*ResultOption
+	ExternalOptions []*ResultOption
 }
 
 type Loader struct {
@@ -98,6 +99,7 @@ func (l *Loader) Load() (result *Result, errs []error) {
 		optRootPkg := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
 		pkgPath := strings.Join(strings.Split(data.PkgPath, "/")[:3], "/")
 		if optRootPkg != pkgPath {
+			result.ExternalOptions = append(result.ExternalOptions, option)
 			continue
 		}
 		result.Options = append(result.Options, option)
