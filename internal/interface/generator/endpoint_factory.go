@@ -2,7 +2,6 @@ package generator
 
 import (
 	"context"
-	stdtypes "go/types"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
@@ -25,38 +24,37 @@ func (g *endpointFactory) Process(ctx context.Context) error {
 	for i := 0; i < g.interfaces.Len(); i++ {
 		iface := g.interfaces.At(i)
 
-		if iface.External() {
-			epFactoryName := iface.LoweName() + "EndpointFactory"
-			kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-			ioPkg := g.i.Import("io", "io")
-			stringsPkg := g.i.Import("strings", "strings")
+		epFactoryName := iface.Name() + "ClientEndpointFactory"
+		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
+		ioPkg := g.i.Import("io", "io")
+		stringsPkg := g.i.Import("strings", "strings")
 
-			g.W("type %s struct{\n", epFactoryName)
-			g.W("factory func(instance string) (%s, error)\n", stdtypes.TypeString(iface.Type(), g.i.QualifyPkg))
-			g.W("instance string\n")
-			g.W("}\n\n")
+		g.W("type %s struct{\n", epFactoryName)
+		g.W("opts []ClientOption\n")
 
-			for _, m := range iface.Methods() {
-				g.W("func (f *%s) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, m.Name, kitEndpointPkg, ioPkg)
-				g.W("if f.instance != \"\"{\n")
-				g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(f.instance, \"/\")", stringsPkg)
-				g.W("}\n")
-				g.W("c, err := f.factory(instance)\n")
-				g.WriteCheckErr(func() {
-					g.W("return nil, nil, err\n")
-				})
-				g.W("return ")
-				g.W("make%sEndpoint(c), nil, nil\n", m.NameExport)
-				g.W("\n}\n\n")
-			}
+		g.W("instance string\n")
+		g.W("}\n\n")
 
-			g.W("func New%sFactory(instance string,", iface.Name())
-			g.W("factory func(instance string) (%s, error)", stdtypes.TypeString(iface.Type(), g.i.QualifyPkg))
-			g.W(") %sEndpointFactory {\n", iface.Name())
-
-			g.W("return &%s{instance: instance, factory: factory}\n", epFactoryName)
+		for _, m := range iface.Methods() {
+			g.W("func (f *%s) %sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, m.Name, kitEndpointPkg, ioPkg)
+			g.W("if f.instance != \"\"{\n")
+			g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(f.instance, \"/\")", stringsPkg)
 			g.W("}\n")
+			g.W("c, err :=  NewClient%s(instance, f.opts...)\n", g.prefix)
+			g.WriteCheckErr(func() {
+				g.W("return nil, nil, err\n")
+			})
+			g.W("return ")
+			g.W("make%sEndpoint(c), nil, nil\n", m.NameExport)
+			g.W("\n}\n\n")
 		}
+
+		g.W("func New%sClientFactory(instance string,", iface.Name())
+		g.W("opts ...ClientOption")
+		g.W(") *%s {\n", epFactoryName)
+
+		g.W("return &%s{instance: instance, opts: opts}\n", epFactoryName)
+		g.W("}\n")
 	}
 	return nil
 }
