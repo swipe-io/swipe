@@ -31,7 +31,6 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 		generators = append(
 			generators,
 			generator.NewGatewayGenerator(p.sg.Interfaces()),
-			generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
 		)
 	}
 	if p.sg.ReadmeEnable() {
@@ -66,6 +65,7 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 		if p.sg.GoClientEnable() {
 			generators = append(generators,
 				generator.NewClientStruct(p.sg),
+				generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
 			)
 		}
 		if p.sg.JSONRPCEnable() {
