@@ -7,5 +7,5 @@ import (
 )
 
 type ProcessorRegistry interface {
-	NewProcessor(o *option.ResultOption, data *astloader.Data) (up.Processor, error)
+	NewProcessor(o *option.ResultOption, externalOptions []*option.ResultOption, data *astloader.Data) (up.Processor, error)
 }

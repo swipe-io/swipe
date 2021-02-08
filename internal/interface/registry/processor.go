@@ -16,11 +16,11 @@ type registryProcessor struct {
 	l *option.Loader
 }
 
-func (r *registryProcessor) NewProcessor(o *option.ResultOption, data *astloader.Data) (up.Processor, error) {
+func (r *registryProcessor) NewProcessor(o *option.ResultOption, externalOptions []*option.ResultOption, data *astloader.Data) (up.Processor, error) {
 	gt := git.NewGIT()
 	switch o.Option.Name {
 	case "Service":
-		sg, err := ig.NewServiceGateway(o.Pkg, o.Option, data.GraphTypes, data.CommentFuncs, data.CommentFields, data.Enums)
+		sg, err := ig.NewServiceGateway(o.Pkg, o.Option, data.GraphTypes, data.CommentFuncs, data.CommentFields, data.Enums, externalOptions)
 		if err != nil {
 			return nil, err
 		}

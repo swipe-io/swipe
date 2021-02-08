@@ -4,6 +4,8 @@ import (
 	"container/list"
 	"go/ast"
 	stdtypes "go/types"
+
+	"golang.org/x/tools/go/packages"
 )
 
 type Transport string
@@ -23,16 +25,26 @@ func (i Interfaces) At(index int) *ServiceInterface {
 }
 
 type ServiceInterface struct {
-	name            string
-	loweName        string
-	nameExport      string
-	nameUnExport    string
-	serviceType     stdtypes.Type
-	serviceTypeName *stdtypes.Named
-	serviceIface    *stdtypes.Interface
-	serviceMethods  []ServiceMethod
-	isNameChange    bool
-	external        bool
+	name             string
+	loweName         string
+	nameExport       string
+	nameUnExport     string
+	serviceType      stdtypes.Type
+	serviceTypeName  *stdtypes.Named
+	serviceIface     *stdtypes.Interface
+	serviceMethods   []ServiceMethod
+	isNameChange     bool
+	external         bool
+	externalSwipePkg *packages.Package
+	appName          string
+}
+
+func (g *ServiceInterface) AppName() string {
+	return g.appName
+}
+
+func (g *ServiceInterface) ExternalSwipePkg() *packages.Package {
+	return g.externalSwipePkg
 }
 
 func (g *ServiceInterface) External() bool {
@@ -75,18 +87,20 @@ func (g *ServiceInterface) Interface() *stdtypes.Interface {
 	return g.serviceIface
 }
 
-func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNameChange bool, serviceType stdtypes.Type, serviceTypeName *stdtypes.Named, serviceIface *stdtypes.Interface, serviceMethods []ServiceMethod, external bool) *ServiceInterface {
+func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNameChange bool, serviceType stdtypes.Type, serviceTypeName *stdtypes.Named, serviceIface *stdtypes.Interface, serviceMethods []ServiceMethod, external bool, externalSwipePkg *packages.Package, appName string) *ServiceInterface {
 	return &ServiceInterface{
-		name:            name,
-		loweName:        lowerName,
-		nameExport:      nameExport,
-		nameUnExport:    nameUnExport,
-		isNameChange:    isNameChange,
-		serviceType:     serviceType,
-		serviceTypeName: serviceTypeName,
-		serviceIface:    serviceIface,
-		serviceMethods:  serviceMethods,
-		external:        external,
+		name:             name,
+		loweName:         lowerName,
+		nameExport:       nameExport,
+		nameUnExport:     nameUnExport,
+		isNameChange:     isNameChange,
+		serviceType:      serviceType,
+		serviceTypeName:  serviceTypeName,
+		serviceIface:     serviceIface,
+		serviceMethods:   serviceMethods,
+		external:         external,
+		externalSwipePkg: externalSwipePkg,
+		appName:          appName,
 	}
 }
 

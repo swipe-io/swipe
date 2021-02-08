@@ -54,7 +54,13 @@ type serviceGateway struct {
 	appName                  string
 	appID                    string
 	defaultErrorEncoder      option.Value
+	foundService             bool
 	foundServiceGateway      bool
+	externalOptions          []*option.ResultOption
+}
+
+func (g *serviceGateway) FoundService() bool {
+	return g.foundService
 }
 
 func (g *serviceGateway) FoundServiceGateway() bool {
@@ -248,6 +254,34 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 
 	ifaceNamed := ifacePtr.Elem().(*stdtypes.Named)
 
+	var externalSwipePkg *packages.Package
+
+	for _, extOpt := range g.externalOptions {
+		if ifaces, ok := extOpt.Option.Slice("Interface"); ok {
+			for _, o := range ifaces {
+				ifaceExtOpt := option.MustOption(o.At("iface"))
+				if ifaceExtPtr, ok := ifaceExtOpt.Value.Type().(*stdtypes.Pointer); ok {
+					ifaceExtType := ifaceExtPtr.Elem().Underlying().(*stdtypes.Interface)
+					if ifaceExtType.NumEmbeddeds() > 0 {
+						for i := 0; i < ifaceExtType.NumEmbeddeds(); i++ {
+							if ifaceExtType.EmbeddedType(i).String() == ifacePtr.Elem().String() {
+								externalSwipePkg = extOpt.Pkg
+							}
+						}
+					}
+					if ifaceExtPtr.Elem().String() == ifacePtr.Elem().String() {
+						externalSwipePkg = extOpt.Pkg
+					}
+				}
+			}
+		}
+	}
+	var appName string
+	if externalSwipePkg != nil {
+		id := stdstrings.Split(externalSwipePkg.PkgPath, "/")[:3][2]
+		appName = strcase.ToCamel(id)
+	}
+
 	basePkgService := stdstrings.Join(stdstrings.Split(ifaceNamed.Obj().Pkg().Path(), "/")[:3], "/")
 	basePkgInternal := stdstrings.Join(stdstrings.Split(g.pkg.PkgPath, "/")[:3], "/")
 
@@ -378,6 +412,8 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		ifaceType,
 		serviceMethods,
 		basePkgService != basePkgInternal,
+		externalSwipePkg,
+		appName,
 	), nil
 }
 
@@ -458,21 +494,26 @@ func (g *serviceGateway) load(o *option.Option) error {
 	})
 
 	var foundServiceGateway bool
+	var serviceCount int
 	if ifaces, ok := o.Slice("Interface"); ok {
 		for _, iface := range ifaces {
 			svc, err := g.loadService(iface, genericErrors, len(ifaces))
 			if err != nil {
 				return err
 			}
-			if svc.External() {
-				foundServiceGateway = true
-			}
+
 			if len(svc.Methods()) > 0 {
+				if svc.External() {
+					foundServiceGateway = true
+				} else {
+					serviceCount++
+				}
 				g.interfaces = append(g.interfaces, svc)
 			}
 		}
 	}
 
+	g.foundService = serviceCount > 0
 	g.foundServiceGateway = foundServiceGateway
 
 	if o, ok := o.At("DefaultErrorEncoder"); ok {
@@ -776,6 +817,7 @@ func NewServiceGateway(
 	commentFuncs map[string][]string,
 	commentFields map[string]map[string]string,
 	enums *typeutil.Map,
+	externalOptions []*option.ResultOption,
 ) (gateway.ServiceGateway, error) {
 	g := &serviceGateway{
 		pkg:               pkg,
@@ -787,6 +829,7 @@ func NewServiceGateway(
 		openapiMethodTags: map[string][]string{},
 		errors:            map[uint32]*model.HTTPError{},
 		hasher:            typeutil.MakeHasher(),
+		externalOptions:   externalOptions,
 	}
 	if err := g.load(o); err != nil {
 		return nil, err
