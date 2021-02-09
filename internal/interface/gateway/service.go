@@ -276,14 +276,19 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 			}
 		}
 	}
+
+	basePkgService := stdstrings.Join(stdstrings.Split(ifaceNamed.Obj().Pkg().Path(), "/")[:3], "/")
+	basePkgInternal := stdstrings.Join(stdstrings.Split(g.pkg.PkgPath, "/")[:3], "/")
+	external := basePkgService != basePkgInternal
+
 	var appName string
 	if externalSwipePkg != nil {
 		id := stdstrings.Split(externalSwipePkg.PkgPath, "/")[:3][2]
 		appName = strcase.ToCamel(id)
+	} else if external {
+		return nil, errors.NotePosition(o.Position,
+			fmt.Errorf("you need to add an external service package for %s", stdtypes.TypeString(o.Value.Type(), nil)))
 	}
-
-	basePkgService := stdstrings.Join(stdstrings.Split(ifaceNamed.Obj().Pkg().Path(), "/")[:3], "/")
-	basePkgInternal := stdstrings.Join(stdstrings.Split(g.pkg.PkgPath, "/")[:3], "/")
 
 	ifaceName := strcase.ToCamel(ifaceNamed.Obj().Name())
 	ifaceLcName := strcase.ToLowerCamel(ifaceName)
@@ -411,7 +416,7 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		ifaceNamed,
 		ifaceType,
 		serviceMethods,
-		basePkgService != basePkgInternal,
+		external,
 		externalSwipePkg,
 		appName,
 	), nil

@@ -57,7 +57,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 			g.W("func Make%[1]s(svc %[2]s) %[1]s {\n", epSetName, typeStr)
 			g.W("return %s{\n", epSetName)
 			for _, m := range iface.Methods() {
-				g.W("%sEndpoint: make%sEndpoint(svc),\n", m.Name, m.NameExport)
+				g.W("%sEndpoint: Make%sEndpoint(svc),\n", m.Name, m.NameExport)
 
 			}
 			g.W("}\n")
@@ -115,7 +115,7 @@ func (g *endpoint) writeEndpointMake() {
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
 		for _, m := range iface.Methods() {
-			g.W("func make%sEndpoint(s %s) %s.Endpoint {\n", m.NameExport, typeStr, kitEndpointPkg)
+			g.W("func Make%sEndpoint(s %s) %s.Endpoint {\n", m.NameExport, typeStr, kitEndpointPkg)
 			g.W("return func (ctx %s.Context, request interface{}) (interface{}, error) {\n", contextPkg)
 
 			var callParams []string
