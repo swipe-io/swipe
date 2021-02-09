@@ -64,7 +64,7 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 		if p.sg.GoClientEnable() {
 			generators = append(generators,
 				generator.NewClientStruct(p.sg),
-				generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
+				//generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
 			)
 		}
 		if p.sg.JSONRPCEnable() {

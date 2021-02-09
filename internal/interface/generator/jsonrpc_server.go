@@ -186,6 +186,10 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 			for _, m := range iface.Methods() {
 				epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
 				optName := strings.LcFirst(iface.AppName())
+				epFactoryName := iface.LoweName() + "ClientEndpointFactory"
+				kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
+				transportExtPkg := g.i.Import(iface.ExternalSwipePkg().Name, iface.ExternalSwipePkg().PkgPath)
+				ioPkg := g.i.Import("io", "io")
 
 				g.W("{\n")
 
@@ -201,7 +205,19 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 				g.W("%s.%s.RetryTimeout = DefaultRetryTimeout\n", optName, m.Name)
 				g.W("}\n")
 
-				g.W("endpointer := %[1]s.NewEndpointer(%[2]s.Instancer, %[2]s.EndpointFactory.%[3]sEndpointFactory, logger)\n", sdPkg, optName, m.Name)
+				g.W("%s := func (instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, kitEndpointPkg, ioPkg)
+				g.W("if %s.Instance != \"\"{\n", optName)
+				g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(%[2]s.Instance, \"/\")", stringsPkg, optName)
+				g.W("}\n")
+				g.W("c, err :=  %s.NewClient%s(instance, %s.ClientOptions...)\n", transportExtPkg, g.options.Prefix(), optName)
+				g.WriteCheckErr(func() {
+					g.W("return nil, nil, err\n")
+				})
+				g.W("return ")
+				g.W("%s.Make%sEndpoint(c), nil, nil\n", transportExtPkg, m.NameExport)
+				g.W("\n}\n\n")
+
+				g.W("endpointer := %s.NewEndpointer(%s.Instancer, %s, logger)\n", sdPkg, optName, epFactoryName)
 				g.W(
 					"%[4]s.%[3]sEndpoint = %[1]s.RetryWithCallback(%[2]s.%[3]s.RetryTimeout, %[2]s.%[3]s.Balancer(endpointer), retryMax(%[2]s.%[3]s.RetryMax))\n",
 					lbPkg, optName, m.Name, epSetName,
