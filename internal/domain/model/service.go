@@ -136,7 +136,7 @@ type ServiceMethod struct {
 	ParamCtx     *stdtypes.Var
 	ReturnErr    *stdtypes.Var
 	ResultsNamed bool
-	Errors       map[uint32]*HTTPError
+	Errors       HTTPErrors
 	T            stdtypes.Type
 }
 
@@ -170,26 +170,22 @@ type MethodOption struct {
 	Exclude              bool
 }
 
-type ErrorKey struct {
-	Key  uint32
-	Code int64
-}
+type HTTPErrors []*HTTPError
 
-type ErrorKeys []ErrorKey
-
-func (e ErrorKeys) Len() int {
+func (e HTTPErrors) Len() int {
 	return len(e)
 }
 
-func (e ErrorKeys) Less(i, j int) bool {
+func (e HTTPErrors) Less(i, j int) bool {
 	return e[i].Code < e[j].Code
 }
 
-func (e ErrorKeys) Swap(i, j int) {
+func (e HTTPErrors) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
 type HTTPError struct {
+	ID        uint32
 	Named     *stdtypes.Named
 	Code      int64
 	IsPointer bool

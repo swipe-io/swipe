@@ -11,13 +11,12 @@ type ServiceGateway interface {
 	AppID() string
 	AppName() string
 	Interfaces() model.Interfaces
-	Error(key uint32) *model.HTTPError
-	ErrorKeys() model.ErrorKeys
 	TransportType() model.Transport
 	UseFast() bool
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	Prefix() string
 	DefaultErrorEncoder() option.Value
+	Errors() map[uint32]*model.HTTPError
 
 	ReadmeEnable() bool
 	ReadmeOutput() string

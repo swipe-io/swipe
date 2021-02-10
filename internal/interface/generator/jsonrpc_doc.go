@@ -160,15 +160,7 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 
 			g.W("**Throws**:\n\n")
 
-			var methodErrors MethodErrors
-
-			for _, methodError := range method.Errors {
-				methodErrors = append(methodErrors, methodError)
-			}
-
-			sort.Sort(methodErrors)
-
-			for _, e := range methodErrors {
+			for _, e := range method.Errors {
 				g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
 			}
 

@@ -53,11 +53,12 @@ class JSONRPCScheduler {
 		this.__doRequest(requests)
 		  .then((responses) => {
 			for (let i = 0; i < responses.length; i++) {
+              const schedule = scheduleRequests[responses[i].id];
 			  if (responses[i].error) {
-				scheduleRequests[responses[i].id].reject(convertError(responses[i].error));
+				schedule.reject(responses[i].error);
 				continue;
 			  }
-			  scheduleRequests[responses[i].id].resolve(responses[i].result);
+			  schedule.resolve(responses[i].result);
 			}
 		  })
          .catch((e) => {
@@ -111,12 +112,11 @@ class JSONRPCScheduler {
 `
 
 type jsonRPCJSClientOptionsGateway interface {
-	Error(key uint32) *model.HTTPError
-	ErrorKeys() model.ErrorKeys
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	CommentFields() map[string]map[string]string
 	Enums() *typeutil.Map
+	Errors() map[uint32]*model.HTTPError
 }
 
 type jsonRPCJSClient struct {
@@ -215,7 +215,14 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 				mw.W("%[1]s:%[1]s", p.Name())
 			}
 
-			mw.W("})\n")
+			mw.W("}).catch(e => { return ")
+			if iface.External() {
+				mw.W("%s%sConvertError(e)", iface.AppName(), m.Name)
+			} else {
+				mw.W("%s%sConvertError(e)", iface.LoweName(), m.Name)
+			}
+			mw.W("; })\n")
+
 			mw.W("}\n")
 		}
 		mw.W("}\n\n")
@@ -245,26 +252,51 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("export default JSONRPCClient%s\n\n", iface.NameExport())
 	}
 
-	for _, key := range g.options.ErrorKeys() {
-		e := g.options.Error(key.Key)
-		g.W(
-			"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %d, data);\n}\n}\n",
-			e.Named.Obj().Name(), e.Code,
-		)
+	httpErrorsDub := map[uint32]struct{}{}
+
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
+		for _, method := range iface.Methods() {
+			for _, e := range method.Errors {
+				if _, ok := httpErrorsDub[e.ID]; ok {
+					continue
+				}
+				httpErrorsDub[e.ID] = struct{}{}
+
+				g.W("export class ")
+				if iface.External() {
+					g.W(iface.AppName())
+				}
+				g.W(
+					"%[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %[2]d, data);\n}\n}\n",
+					e.Named.Obj().Name(), e.Code,
+				)
+			}
+		}
 	}
 
-	g.W("function convertError(e) {\n")
-	g.W("switch(e.code) {\n")
-	g.W("default:\n")
-	g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
-
-	for _, key := range g.options.ErrorKeys() {
-		e := g.options.Error(key.Key)
-		g.W("case %d:\n", e.Code)
-		g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
-
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
+		for _, method := range iface.Methods() {
+			if iface.External() {
+				g.W("function %s%sConvertError(e) {\n", iface.AppName(), method.Name)
+			} else {
+				g.W("function %s%sConvertError(e) {\n", iface.LoweName(), method.Name)
+			}
+			g.W("switch(e.code) {\n")
+			g.W("default:\n")
+			g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
+			for _, e := range method.Errors {
+				g.W("case %d:\n", e.Code)
+				if iface.External() {
+					g.W("return new %s%sError(e.message, e.data);\n", iface.AppName(), e.Named.Obj().Name())
+				} else {
+					g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
+				}
+			}
+			g.W("}\n}\n")
+		}
 	}
-	g.W("}\n}\n")
 
 	g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
 		if named, ok := key.(*stdtypes.Named); ok {
