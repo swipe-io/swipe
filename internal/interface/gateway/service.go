@@ -34,7 +34,6 @@ type serviceGateway struct {
 	defaultMethodOptions     model.MethodOption
 	clientsEnable            []string
 	errors                   map[uint32]*model.HTTPError
-	errorKeys                model.ErrorKeys
 	prefix                   string
 	openapiEnable            bool
 	openapiOutput            string
@@ -186,12 +185,8 @@ func (g *serviceGateway) ReadmeTemplatePath() string {
 	return g.readmeTemplatePath
 }
 
-func (g *serviceGateway) Error(key uint32) *model.HTTPError {
-	return g.errors[key]
-}
-
-func (g *serviceGateway) ErrorKeys() model.ErrorKeys {
-	return g.errorKeys
+func (g *serviceGateway) Errors() map[uint32]*model.HTTPError {
+	return g.errors
 }
 
 func (g *serviceGateway) InstrumentingEnable() bool {
@@ -309,6 +304,11 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 	for i := 0; i < ifaceType.NumMethods(); i++ {
 		m := ifaceType.Method(i)
 
+		methodErrors := map[uint32]*model.HTTPError{}
+		for key, httpError := range genericErrors {
+			methodErrors[key] = httpError
+		}
+
 		sig := m.Type().(*stdtypes.Signature)
 
 		comments, _ := g.commentFuncs[m.String()]
@@ -335,7 +335,6 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 			LcName:       lcName,
 			NameRequest:  nameRequest,
 			NameResponse: nameResponse,
-			Errors:       genericErrors,
 			Comments:     comments,
 		}
 
@@ -349,11 +348,11 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 					graphTypes.Traverse(n, func(n *graph.Node) bool {
 						if named, ok := n.Object.Type().(*stdtypes.Named); ok {
 							key := g.hasher.Hash(named)
-							if _, ok := sm.Errors[key]; ok {
+							if _, ok := methodErrors[key]; ok {
 								return true
 							}
 							if e, ok := g.errors[key]; ok {
-								sm.Errors[key] = e
+								methodErrors[key] = e
 							}
 						}
 						return true
@@ -365,11 +364,11 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 						}
 						if named, ok := elem.(*stdtypes.Named); ok {
 							key := g.hasher.Hash(named)
-							if _, ok := sm.Errors[key]; ok {
+							if _, ok := methodErrors[key]; ok {
 								return true
 							}
 							if e, ok := g.errors[key]; ok {
-								sm.Errors[key] = e
+								methodErrors[key] = e
 							}
 						}
 					}
@@ -404,6 +403,13 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		for j := 0; j < sig.Results().Len()-resultOffset; j++ {
 			sm.Results = append(sm.Results, sig.Results().At(j))
 		}
+
+		for _, httpError := range methodErrors {
+			sm.Errors = append(sm.Errors, httpError)
+		}
+
+		sort.Sort(sm.Errors)
+
 		serviceMethods = append(serviceMethods, sm)
 	}
 	return model.NewServiceInterface(
@@ -465,6 +471,7 @@ func (g *serviceGateway) load(o *option.Option) error {
 					return true
 				}
 				if e := g.findError(named, errorMethodName); e != nil {
+					e.ID = key
 					g.errors[key] = e
 				}
 			}
@@ -533,14 +540,6 @@ func (g *serviceGateway) load(o *option.Option) error {
 	if o, ok := o.At("ClientsEnable"); ok {
 		g.clientsEnable = o.Value.StringSlice()
 	}
-
-	for key := range g.errors {
-		g.errorKeys = append(g.errorKeys, model.ErrorKey{
-			Key:  key,
-			Code: g.errors[key].Code,
-		})
-	}
-	sort.Sort(g.errorKeys)
 
 	return nil
 }

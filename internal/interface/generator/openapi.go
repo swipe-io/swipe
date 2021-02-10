@@ -171,8 +171,6 @@ type openapiDocOptionsGateway interface {
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	JSONRPCEnable() bool
-	ErrorKeys() model.ErrorKeys
-	Error(key uint32) *model.HTTPError
 	OpenapiOutput() string
 	OpenapiInfo() openapi.Info
 	OpenapiServers() []openapi.Server
@@ -214,46 +212,52 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 	} else {
 		swg.Components.Schemas["Error"] = getOpenapiRESTErrorSchema()
 	}
-	for _, key := range g.options.ErrorKeys() {
-		ei := g.options.Error(key.Key)
-		var s *openapi.Schema
-		if g.options.JSONRPCEnable() {
-			s = &openapi.Schema{
-				Type: "object",
-				Properties: openapi.Properties{
-					"jsonrpc": &openapi.Schema{
-						Type:    "string",
-						Example: "2.0",
-					},
-					"id": &openapi.Schema{
-						Type:    "string",
-						Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-					},
-					"error": &openapi.Schema{
+
+	for i := 0; i < g.options.Interfaces().Len(); i++ {
+		iface := g.options.Interfaces().At(i)
+
+		for _, method := range iface.Methods() {
+			for _, e := range method.Errors {
+				var s *openapi.Schema
+				if g.options.JSONRPCEnable() {
+					s = &openapi.Schema{
 						Type: "object",
 						Properties: openapi.Properties{
-							"code": &openapi.Schema{
-								Type:    "integer",
-								Example: ei.Code,
+							"jsonrpc": &openapi.Schema{
+								Type:    "string",
+								Example: "2.0",
 							},
-							"message": &openapi.Schema{
+							"id": &openapi.Schema{
+								Type:    "string",
+								Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+							},
+							"error": &openapi.Schema{
+								Type: "object",
+								Properties: openapi.Properties{
+									"code": &openapi.Schema{
+										Type:    "integer",
+										Example: e.Code,
+									},
+									"message": &openapi.Schema{
+										Type: "string",
+									},
+								},
+							},
+						},
+					}
+				} else {
+					s = &openapi.Schema{
+						Type: "object",
+						Properties: openapi.Properties{
+							"error": &openapi.Schema{
 								Type: "string",
 							},
 						},
-					},
-				},
-			}
-		} else {
-			s = &openapi.Schema{
-				Type: "object",
-				Properties: openapi.Properties{
-					"error": &openapi.Schema{
-						Type: "string",
-					},
-				},
+					}
+				}
+				swg.Components.Schemas[e.Named.Obj().Name()] = s
 			}
 		}
-		swg.Components.Schemas[ei.Named.Obj().Name()] = s
 	}
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {

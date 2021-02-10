@@ -16,8 +16,6 @@ type httpTransportOptionsGateway interface {
 	JSONRPCEnable() bool
 	GoClientEnable() bool
 	UseFast() bool
-	Error(uint32) *model.HTTPError
-	ErrorKeys() model.ErrorKeys
 }
 
 type httpTransport struct {
@@ -82,37 +80,42 @@ func (g *httpTransport) Process(ctx context.Context) error {
 			errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
 		}
 
-		g.WriteFunc("ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
-			g.W("switch code {\n")
-			g.W("default:\nerr = &httpError{code: code}\n")
-			if g.options.JSONRPCEnable() {
-				for _, key := range g.options.ErrorKeys() {
-					e := g.options.Error(key.Key)
-					g.W("case %d:\n", e.Code)
-					pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
-					if pkgName != "" {
-						pkgName += "."
-					}
-					newPrefix := ""
-					if e.IsPointer {
-						newPrefix = "&"
-					}
-					g.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
-				}
-			}
+		for i := 0; i < g.options.Interfaces().Len(); i++ {
+			iface := g.options.Interfaces().At(i)
+			for _, method := range iface.Methods() {
+				g.WriteFunc(method.NameUnExport+"ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
+					g.W("switch code {\n")
+					g.W("default:\nerr = &httpError{code: code}\n")
+					if g.options.JSONRPCEnable() {
 
-			g.W("}\n")
-			if g.options.JSONRPCEnable() {
-				g.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
-				g.W("err.SetErrorData(data)\n")
-				g.W("}\n")
+						for _, e := range method.Errors {
+							g.W("case %d:\n", e.Code)
+							pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
+							if pkgName != "" {
+								pkgName += "."
+							}
+							newPrefix := ""
+							if e.IsPointer {
+								newPrefix = "&"
+							}
+							g.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
+						}
 
-				g.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
-				g.W("err.SetErrorMessage(message)\n")
-				g.W("}\n")
+					}
+					g.W("}\n")
+					if g.options.JSONRPCEnable() {
+						g.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
+						g.W("err.SetErrorData(data)\n")
+						g.W("}\n")
+
+						g.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
+						g.W("err.SetErrorMessage(message)\n")
+						g.W("}\n")
+					}
+					g.W("return")
+				})
 			}
-			g.W("return")
-		})
+		}
 	}
 
 	g.W("func middlewareChain(middlewares []%[1]s.Middleware) %[1]s.Middleware {\n", endpointPkg)
