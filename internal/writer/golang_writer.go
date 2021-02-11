@@ -213,14 +213,14 @@ func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) strin
 	w.W("\n")
 }
 
-func (w *GoLangWriter) WriteFormatType(importFn func(string, string) string, assignId, valueId string, f *stdtypes.Var) string {
+func (w *GoLangWriter) WriteFormatType(importFn func(string, string) string, assignId, valueId string, f *stdtypes.Var) {
 	switch t := f.Type().(type) {
 	case *stdtypes.Basic:
 		w.writeFormatBasicType(importFn, assignId, valueId, t)
 	case *stdtypes.Named:
 		switch t.Obj().Type().String() {
-		case "uuid.UUID":
-			return fmt.Sprintf("%s := %s.String() \n", assignId, valueId)
+		case "github.com/google/uuid.UUID", "github.com/satori/uuid.UUID":
+			w.W("%s := %s.String() \n", assignId, valueId)
 		case "time.Duration":
 			w.W("%s := %s.String()\n", assignId, valueId)
 		case "time.Time":
@@ -228,7 +228,6 @@ func (w *GoLangWriter) WriteFormatType(importFn func(string, string) string, ass
 			w.W("%[1]s := %[3]s.Format(%[2]s.RFC3339)\n", assignId, timePkg, valueId)
 		}
 	}
-	return valueId
 }
 
 func (w *GoLangWriter) WriteConvertType(
@@ -306,9 +305,12 @@ func (w *GoLangWriter) WriteConvertType(
 		tmpID := strcase.ToLowerCamel(f.Name()) + "Result"
 
 		switch t.Obj().Type().String() {
-		case "uuid.UUID":
-			uuidPkg := importFn("", t.Obj().Pkg().Path())
+		case "github.com/satori/uuid.UUID":
+			uuidPkg := importFn(t.Obj().Pkg().Name(), t.Obj().Pkg().Path())
 			w.W("%s, err := %s.FromString(%s)\n", tmpID, uuidPkg, valueId)
+		case "github.com/google/uuid.UUID":
+			uuidPkg := importFn(t.Obj().Pkg().Name(), t.Obj().Pkg().Path())
+			w.W("%s, err := %s.Parse(%s)\n", tmpID, uuidPkg, valueId)
 		case "time.Duration":
 			timePkg := importFn("time", "time")
 			w.W("%s, err := %s.ParseDuration(%s)\n", tmpID, timePkg, valueId)

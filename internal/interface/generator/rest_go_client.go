@@ -260,7 +260,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 				}
 
 				g.W("if statusCode := %s; statusCode != %s.StatusOK {\n", statusCode, httpPkg)
-				g.W("return nil, ErrorDecode(statusCode)\n")
+				g.W("return nil, %sErrorDecode(statusCode)\n", m.NameUnExport)
 				g.W("}\n")
 
 				if len(m.Results) > 0 {
