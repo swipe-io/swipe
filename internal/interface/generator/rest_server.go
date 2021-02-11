@@ -217,6 +217,7 @@ func (g *restServer) Process(_ context.Context) error {
 							g.W("q := r.URL.Query()\n")
 						}
 					}
+
 					for _, p := range m.Params {
 						if _, ok := mopt.PathVars[p.Name()]; ok {
 							var valueID string
