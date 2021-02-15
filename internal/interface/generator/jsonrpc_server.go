@@ -258,16 +258,18 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-
 		if i > 0 {
 			g.W(",")
 		}
-
 		if iface.External() {
 			pkgExtTransport := g.i.Import(iface.ExternalSwipePkg().Name, iface.ExternalSwipePkg().PkgPath)
 			g.W("%s.Make%sEndpointCodecMap(%s, %s)", pkgExtTransport, iface.Name(), makeEpSetName(iface, g.options.Interfaces().Len()), strconv.Quote(iface.NameUnExport()))
 		} else {
-			g.W("Make%sEndpointCodecMap(%s)", iface.Name(), makeEpSetName(iface, g.options.Interfaces().Len()))
+			g.W("Make%sEndpointCodecMap(%s", iface.Name(), makeEpSetName(iface, g.options.Interfaces().Len()))
+			if g.options.Interfaces().Len() > 1 {
+				g.W(",%s", strconv.Quote(iface.NameUnExport()))
+			}
+			g.W(")")
 		}
 	}
 
