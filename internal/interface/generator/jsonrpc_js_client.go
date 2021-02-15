@@ -2,8 +2,6 @@ package generator
 
 import (
 	"context"
-	stdtypes "go/types"
-	"strconv"
 
 	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
 	"golang.org/x/tools/go/types/typeutil"
@@ -252,24 +250,20 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("export default JSONRPCClient%s\n\n", iface.NameExport())
 	}
 
-	httpErrorsDub := map[uint32]struct{}{}
+	httpErrorsDub := map[string]struct{}{}
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, method := range iface.Methods() {
 			for _, e := range method.Errors {
-				if _, ok := httpErrorsDub[e.ID]; ok {
+				errorName := iface.AppName() + e.Named.Obj().Name()
+				if _, ok := httpErrorsDub[errorName]; ok {
 					continue
 				}
-				httpErrorsDub[e.ID] = struct{}{}
-
-				g.W("export class ")
-				if iface.External() {
-					g.W(iface.AppName())
-				}
+				httpErrorsDub[errorName] = struct{}{}
 				g.W(
-					"%[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %[2]d, data);\n}\n}\n",
-					e.Named.Obj().Name(), e.Code,
+					"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %[2]d, data);\n}\n}\n",
+					errorName, e.Code,
 				)
 			}
 		}
@@ -298,24 +292,24 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		}
 	}
 
-	g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
-		if named, ok := key.(*stdtypes.Named); ok {
-			b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic)
-			if !ok {
-				return
-			}
-			g.W("export const %sEnum = Object.freeze({\n", named.Obj().Name())
-
-			for _, enum := range value.([]model.Enum) {
-				value := enum.Value
-				if b.Info() == stdtypes.IsString {
-					value = strconv.Quote(value)
-				}
-				g.W("%s: %s,\n", strconv.Quote(enum.Name), value)
-			}
-			g.W("});\n")
-		}
-	})
+	//g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
+	//	if named, ok := key.(*stdtypes.Named); ok {
+	//		b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic)
+	//		if !ok {
+	//			return
+	//		}
+	//		g.W("export const %sEnum = Object.freeze({\n", named.Obj().Name())
+	//
+	//		for _, enum := range value.([]model.Enum) {
+	//			value := enum.Value
+	//			if b.Info() == stdtypes.IsString {
+	//				value = strconv.Quote(value)
+	//			}
+	//			g.W("%s: %s,\n", strconv.Quote(enum.Name), value)
+	//		}
+	//		g.W("});\n")
+	//	}
+	//})
 	return nil
 }
 
