@@ -16,4 +16,4 @@ go get github.com/swipe-io/swipe/cmd/swipe
 
 ## Documentation
 
-[User guide](https://pkg.go.dev/github.com/swipe-io/swipe/pkg/swipe?tab=doc)
+[User guide](http://swipeio.dev) PS. at the moment only in Russian
