@@ -213,7 +213,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 				mw.W("%[1]s:%[1]s", p.Name())
 			}
 
-			mw.W("}).catch(e => { return ")
+			mw.W("}).catch(e => { throw ")
 			if iface.External() {
 				mw.W("%s%sConvertError(e)", iface.AppName(), m.Name)
 			} else {
