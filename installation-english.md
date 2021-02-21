@@ -6,7 +6,7 @@ go get github.com/swipe-io/swipe/cmd/swipe
 ````
 
 
-Swipe requires a Go version with Golang Modules support. So don't forget to initialize the Go module: 
+Swipe requires a Go version with [Golang Modules](https://github.com/golang/go/wiki/Modules) support. So don't forget to initialize the Go module: 
 ````javascript
 go mod init github.com/my/repo
 ````
@@ -18,12 +18,11 @@ go get github.com/swipe-io/swipe/v2
 
 ## 🔥 WARNING
 
-The package version must match the version of the Swipe console utility. Swipe generates code using an option: a function that calls functions that define the generation parameters. To describe the generation parameters, create a .go file and add a function, add a swipe. 
+Swipe generates code using an option: a function that calls functions that define the generation parameters.
 
-Build call to the function body. You also need to add the build tag // + build swipe so that Golang will ignore the file when you build your application. 
+To describe the generation parameters, create a .go file and add a function, add a `swipe.Build` call to the function body. You also need to add the build tag `// + build swipe` so that Golang will ignore the file when you build your application.
 
-
-Below is a simple example of a JSON RPC transport generation configuration file: 
+Below is a simple example of a JSON RPC transport generation configuration file:
 
 ````javascript
 // +build swipe
@@ -65,7 +64,7 @@ If you want to generate code, you can run:
 swipe ./pkg/...
 ````
 
-The above command will search for all functions containing swipe. Build and generate code in * _gen. *.
+The above command will search for all functions containing `swipe.Build` and generate code in `* _gen. *`.
 
 To view the original source for this documentation [**click here**](https://swipeio.dev/docs/installation) *Original Format-Russian*
 
