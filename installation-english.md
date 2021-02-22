@@ -1,30 +1,30 @@
 # Swipe Installation 
 
-Install the Swipe console utility: 
-````javascript
+Install the **Swipe** console utility: 
+````bash
 go get github.com/swipe-io/swipe/cmd/swipe
 ````
 
 
-Swipe requires a Go version with [Golang Modules](https://github.com/golang/go/wiki/Modules) support. So don't forget to initialize the Go module: 
-````javascript
+**Swipe** requires a Go version with [Golang Modules](https://github.com/golang/go/wiki/Modules) support. So don't forget to initialize the Go module: 
+````bash
 go mod init github.com/my/repo
 ````
 
 and then install the Swipe package: 
-````javascript
+````bash
 go get github.com/swipe-io/swipe/v2
 ````
 
 ## 🔥 WARNING
 
-Swipe generates code using an option: a function that calls functions that define the generation parameters.
+**Swipe** generates code using an option: a function that calls functions that define the generation parameters.
 
 To describe the generation parameters, create a .go file and add a function, add a `swipe.Build` call to the function body. You also need to add the build tag `// + build swipe` so that Golang will ignore the file when you build your application.
 
 Below is a simple example of a JSON RPC transport generation configuration file:
 
-````javascript
+````bash
 // +build swipe
 
 package transport
@@ -60,12 +60,12 @@ func Swipe() {
 ````
 
 If you want to generate code, you can run:
-````javascript
+````bash
 swipe ./pkg/...
 ````
 
 The above command will search for all functions containing `swipe.Build` and generate code in `* _gen. *`.
 
-To view the original source for this documentation [**click here**](https://swipeio.dev/docs/installation) *Original Format-Russian*
+To view the original source for this documentation [**click here**](https://swipeio.dev/docs/installation) *Original Format -Russian*
 
 This Documentation was Translated From Russian To English with [Google Translate](https://translate.google.com/) by github user [AL0YISI0US](https://github.com/AL0YSI0US) [![made-with-Markdown](https://img.shields.io/badge/Made%20with-Markdown-1f425f.svg)](http://commonmark.org)
