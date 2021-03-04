@@ -48,7 +48,7 @@ func (l *Loader) declProcess(pkg *packages.Package, decl ast.Decl) (*ResultOptio
 	return nil, nil
 }
 
-func (l *Loader) loadPkgs(pkgs []*packages.Package) (<-chan *ResultOption, <-chan error) {
+func (l *Loader) loadPackages(pkgs []*packages.Package) (<-chan *ResultOption, <-chan error) {
 	outCh := make(chan *ResultOption)
 	errCh := make(chan error)
 	go func() {
@@ -87,7 +87,7 @@ func (l *Loader) Load() (result *Result, errs []error) {
 	}
 	result.Data = data
 
-	optionsCh, errCh := l.loadPkgs(data.Pkgs)
+	optionsCh, errCh := l.loadPackages(data.Pkgs)
 
 	go func() {
 		for e := range errCh {
@@ -98,6 +98,7 @@ func (l *Loader) Load() (result *Result, errs []error) {
 	for option := range optionsCh {
 		optRootPkg := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
 		pkgPath := strings.Join(strings.Split(data.PkgPath, "/")[:3], "/")
+
 		if optRootPkg != pkgPath {
 			result.ExternalOptions = append(result.ExternalOptions, option)
 			continue

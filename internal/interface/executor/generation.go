@@ -32,30 +32,6 @@ type generationExecutor struct {
 	l  *option.Loader
 }
 
-func (e *generationExecutor) process(result *option.Result) (<-chan processor.Processor, <-chan error) {
-	outCh := make(chan processor.Processor)
-	errCh := make(chan error)
-	go func() {
-		var wg sync.WaitGroup
-		for _, o := range result.Options {
-			wg.Add(1)
-			go func(o *option.ResultOption) {
-				defer wg.Done()
-				p, err := e.r.NewProcessor(o, result.ExternalOptions, result.Data)
-				if err != nil {
-					errCh <- err
-					return
-				}
-				outCh <- p
-			}(o)
-		}
-		wg.Wait()
-		close(errCh)
-		close(outCh)
-	}()
-	return outCh, errCh
-}
-
 func (e *generationExecutor) processGenerate(pkg *packages.Package, generators []generator.Generator) <-chan executor.GenerateResult {
 	outCh := make(chan executor.GenerateResult)
 
@@ -122,16 +98,20 @@ func (e *generationExecutor) Execute() (results []executor.GenerateResult, errs 
 	if len(errs) > 0 {
 		return nil, errs
 	}
-
-	processorCh, errCh := e.process(opr)
-	go func() {
-		for err := range errCh {
+	var processors []processor.Processor
+	for _, o := range opr.Options {
+		p, err := e.r.NewProcessor(o, opr.ExternalOptions, opr.Data)
+		if err != nil {
 			errs = append(errs, err)
+			continue
 		}
-	}()
-
+		processors = append(processors, p)
+	}
+	if len(errs) > 0 {
+		return nil, errs
+	}
 	var wg sync.WaitGroup
-	for p := range processorCh {
+	for _, p := range processors {
 		wg.Add(1)
 		go func(p processor.Processor) {
 			defer wg.Done()
@@ -142,7 +122,6 @@ func (e *generationExecutor) Execute() (results []executor.GenerateResult, errs 
 		}(p)
 	}
 	wg.Wait()
-
 	return
 }
 

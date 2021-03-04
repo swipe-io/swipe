@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/constant"
 	stdtypes "go/types"
+	"path/filepath"
 	"sort"
 	stdstrings "strings"
 
@@ -30,6 +31,7 @@ type serviceGateway struct {
 	commentFuncs             map[string][]string
 	commentFields            map[string]map[string]string
 	enums                    *typeutil.Map
+	wd                       string
 	methodOptions            map[string]model.MethodOption
 	defaultMethodOptions     model.MethodOption
 	clientsEnable            []string
@@ -429,11 +431,8 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 }
 
 func (g *serviceGateway) load(o *option.Option) error {
-	pkgPath, err := types.DetectPkgPath(g.pkg)
-	if err != nil {
-		return err
-	}
-	g.appName = stdstrings.Split(pkgPath, "/")[2]
+	parts := filepath.SplitList(g.wd)
+	g.appName = parts[len(parts)-1]
 	if nameOpt, ok := o.At("Name"); ok {
 		if name := nameOpt.Value.String(); name != "" {
 			g.appName = strcase.ToCamel(name)
@@ -821,6 +820,7 @@ func NewServiceGateway(
 	commentFuncs map[string][]string,
 	commentFields map[string]map[string]string,
 	enums *typeutil.Map,
+	wd string,
 	externalOptions []*option.ResultOption,
 ) (gateway.ServiceGateway, error) {
 	g := &serviceGateway{
@@ -829,6 +829,7 @@ func NewServiceGateway(
 		commentFuncs:      commentFuncs,
 		commentFields:     commentFields,
 		enums:             enums,
+		wd:                wd,
 		methodOptions:     map[string]model.MethodOption{},
 		openapiMethodTags: map[string][]string{},
 		errors:            map[uint32]*model.HTTPError{},

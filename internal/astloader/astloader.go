@@ -58,17 +58,14 @@ func (l *Loader) WorkDir() string {
 
 func (l *Loader) Process() (data *Data, errs []error) {
 	var (
-		err error
+		pkgPath string
+		err     error
 	)
-
-	var pkgPath string
-
 	if l.mod == nil {
 		pkgPath = strings.Split(l.wd, filepath.Join(build.Default.GOPATH, "src")+"/")[1]
 	} else {
 		pkgPath = l.mod.Module.Mod.Path
 	}
-
 	data = &Data{
 		WorkDir:       l.wd,
 		PkgPath:       pkgPath,

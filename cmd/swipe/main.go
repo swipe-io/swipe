@@ -104,21 +104,31 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		log.Println(colorFail("failed to get working directory: "), colorFail(err))
 		return subcommands.ExitFailure
 	}
+
+	log.Printf("%s: %s\n", color.Yellow.Render("Workdir"), wd)
+
 	modBytes, err := ioutil.ReadFile(filepath.Join(wd, "go.mod"))
 	if err != nil {
 		log.Println(colorFail("failed read go.mod file: "), colorFail(err))
 		return subcommands.ExitFailure
 	}
+
+	log.Printf("%s: %s\n", color.Yellow.Render("Read go.mod"), color.LightGreen.Render("ok"))
+
 	mod, err := modfile.Parse("go.mod", modBytes, nil)
 	if err != nil {
 		log.Println(colorFail("failed parse go.mod file: "), colorFail(err))
 		return subcommands.ExitFailure
 	}
 
+	log.Printf("%s: %s\n", color.Yellow.Render("Parse go.mod"), color.LightGreen.Render("ok"))
+
 	if mod.Module.Mod.Path != "github.com/swipe-io/swipe/v2" {
 		foundReplace := false
 		for _, replace := range mod.Replace {
 			if replace.Old.Path == "github.com/swipe-io/swipe/v2" {
+				log.Printf("%s\n", color.Red.Render("You are using replace for github.com/swipe-io/swipe/v2"))
+
 				foundReplace = true
 				break
 			}
@@ -176,6 +186,13 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 			continue
 		}
 		diffExcludes = append(diffExcludes, strings.Replace(g.OutputPath, wd+"/", "", -1))
+
+		dirPath := filepath.Dir(g.OutputPath)
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			log.Printf("%s: failed to create dir %s: %v\n", colorSuccess(g.PkgPath), colorAccent(dirPath), colorFail(err))
+			return subcommands.ExitFailure
+		}
+
 		err := ioutil.WriteFile(g.OutputPath, g.Content, 0755)
 		if err == nil {
 			if cmd.verbose {
