@@ -9,7 +9,7 @@ fgo-build:
 	fgo -p releases -b homebrew-swipe build ${NEXT_TAG}
 
 build:
-	CC=/usr/bin/gcc goxc -d=releases -bc="linux,386 darwin" -pv=$(VERSION)
+	goxc -d=releases -bc="linux,386 darwin,windows" -arch="amd64 arm" -pv=$(VERSION)
 
 release:
 	ghr -u swipe-io -replace $(GHRFLAGS) v$(VERSION) releases/$(VERSION)
