@@ -43,7 +43,7 @@
 //  }
 package swipe
 
-const Version = "v2.0.0-rc1"
+const Version = "v2.0.0-rc2"
 
 // A Option is an option for a Swipe.
 type Option string
