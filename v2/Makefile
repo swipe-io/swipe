@@ -6,7 +6,7 @@ GHRFLAGS =
 default: build
 
 fgo-build:
-	fgo -p releases -b homebrew-swipe build ${NEXT_TAG}
+	fgo -p releases -b ./../homebrew-swipe build ${NEXT_TAG}
 
 build:
 	goxc -d=releases -bc="linux,386 darwin,windows" -arch="amd64 arm" -pv=$(VERSION)
