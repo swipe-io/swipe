@@ -1,4 +1,4 @@
-# /Users/vitaly/work/go/src/github.com/swipe-io/swipe/fixtures/ServiceRESTMulti/app : A short description of the service. <code></code>
+# /Users/vitaly/work/go/src/github.com/swipe-io/swipe/v2/fixtures/ServiceRESTMulti/app : A short description of the service. <code></code>
 A complete description of the service and what it does.
 
 ## Example
