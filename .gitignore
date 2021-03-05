@@ -1,5 +1,5 @@
 .idea
 .DS_Store
 
-fixtures/*/app/*_gen.go
+v2/fixtures/*/app/*_gen.go
 releases
