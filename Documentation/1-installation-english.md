@@ -1,17 +1,19 @@
-# Swipe Installation 
+# Swipe Installation
 
-Install the **Swipe** console utility: 
+Install the **Swipe** console utility:
+
 ````bash
 go get github.com/swipe-io/swipe/cmd/swipe
 ````
 
+**Swipe** requires a Go version with [Golang Modules](https://github.com/golang/go/wiki/Modules) support. So don't forget to initialize the Go module:
 
-**Swipe** requires a Go version with [Golang Modules](https://github.com/golang/go/wiki/Modules) support. So don't forget to initialize the Go module: 
 ````bash
 go mod init github.com/my/repo
 ````
 
-and then install the Swipe package: 
+and then install the Swipe package:
+
 ````bash
 go get github.com/swipe-io/swipe/v2
 ````
@@ -39,12 +41,12 @@ func Swipe() {
     Build(
         Service(
             HTTPServer(),
-            
+      
             Interface((*controller.ExampleController)(nil), ""),
 
             ClientsEnable([]string{"go"}),
 
-            JSONRPCEnable(),        
+            JSONRPCEnable(),  
 
             OpenapiEnable(),
             OpenapiOutput("./docs"),
@@ -60,12 +62,17 @@ func Swipe() {
 ````
 
 If you want to generate code, you can run:
+
 ````bash
 swipe ./pkg/...
 ````
 
-The above command will search for all functions containing `swipe.Build` and generate code in `* _gen. *`.
+The above command will search for all functions containing `swipe.Build` and generate code in `_gen.`.
 
-To view the original source for this documentation [**click here**](https://swipeio.dev/docs/installation) *Original Format -Russian*
 
-This Documentation was Translated From Russian To English with [Google Translate](https://translate.google.com/) by github user [AL0YISI0US](https://github.com/AL0YSI0US) [![made-with-Markdown](https://img.shields.io/badge/Made%20with-Markdown-1f425f.svg)](http://commonmark.org)
+> To view the original source for this documentation [**click here**](https://swipeio.dev/docs/installation) Original Format -*Russian*
+
+
+[Next ==>](rest-api.md.md) **REST API**
+
+[<== Home](README.md) 🏠
