@@ -33,7 +33,7 @@ func newGeneratorExecutor(wd string) ue.GenerationExecutor {
 }
 
 func TestSwipe(t *testing.T) {
-	const testRoot = "fixtures"
+	const testRoot = "fixture"
 
 	testdataEnts, err := ioutil.ReadDir(testRoot)
 	if err != nil {
@@ -64,15 +64,17 @@ func TestSwipe(t *testing.T) {
 				}
 			}
 
-			// clear all before generated files.
-			_ = filepath.Walk(test.testCasePath, func(path string, info os.FileInfo, err error) error {
-				if !info.IsDir() {
-					if strings.Contains(info.Name(), "_gen") {
-						_ = os.Remove(path)
+			if *record {
+				// clear all before generated files.
+				_ = filepath.Walk(test.testCasePath, func(path string, info os.FileInfo, err error) error {
+					if !info.IsDir() {
+						if strings.Contains(info.Name(), "_gen") {
+							_ = os.Remove(path)
+						}
 					}
-				}
-				return nil
-			})
+					return nil
+				})
+			}
 
 			for _, result := range results {
 				if len(result.Errs) > 0 {
@@ -99,11 +101,11 @@ func TestSwipe(t *testing.T) {
 					}
 				}
 			}
-			//if !*record && len(test.expectedOutput) > 0 {
-			//for _, expectedContent := range test.expectedOutput {
-			//t.Errorf("there are expected results which are not.\n*** expected:\n%s\n\n***", string(expectedContent))
-			//}
-			//}
+			if !*record && len(test.expectedOutput) > 0 {
+				for _, expectedContent := range test.expectedOutput {
+					t.Errorf("there are expected results which are not.\n*** expected:\n%s\n\n***", string(expectedContent))
+				}
+			}
 		})
 	}
 }
