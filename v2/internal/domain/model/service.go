@@ -123,21 +123,23 @@ type DeclType struct {
 }
 
 type ServiceMethod struct {
-	Type         *stdtypes.Func
-	Name         string
-	NameExport   string
-	NameUnExport string
-	LcName       string
-	NameRequest  string
-	NameResponse string
-	Params       VarSlice
-	Results      VarSlice
-	Comments     []string
-	ParamCtx     *stdtypes.Var
-	ReturnErr    *stdtypes.Var
-	ResultsNamed bool
-	Errors       HTTPErrors
-	T            stdtypes.Type
+	Type          *stdtypes.Func
+	Name          string
+	NameExport    string
+	NameUnExport  string
+	LcName        string
+	NameRequest   string
+	NameResponse  string
+	Params        VarSlice
+	Results       VarSlice
+	Comments      []string
+	ParamCtx      *stdtypes.Var
+	ParamVariadic *stdtypes.Var
+	ReturnErr     *stdtypes.Var
+	ResultsNamed  bool
+	Variadic      bool
+	Errors        HTTPErrors
+	T             stdtypes.Type
 }
 
 type ReqRespFunc struct {

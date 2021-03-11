@@ -12,6 +12,8 @@
 
 <a href="#TestMethod2">TestMethod2</a>
 
+<a href="#TestMethodOptionals">TestMethodOptionals</a>
+
 ### <a name="Create"></a>Create(newData, name, data) ⇒<code>void</code>
 
  new item of item.
@@ -106,6 +108,19 @@
 |restype|<code>string</code>||
 |resource|<code>string</code>||
 |permission|<code>string</code>||
+### <a name="TestMethodOptionals"></a>TestMethodOptionals(ns) ⇒<code>void</code>
+
+
+
+
+
+**Throws**:
+
+
+
+| Param | Type | Description |
+|------|------|------|
+|ns|<code>string</code>||
 ## Members
 
 ### GeoJSON

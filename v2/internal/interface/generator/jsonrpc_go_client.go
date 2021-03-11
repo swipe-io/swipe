@@ -47,12 +47,13 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		clientType := "client" + iface.Name()
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
-		var name string
-		if g.options.Interfaces().Len() > 1 {
-			name = iface.Name()
-		}
+		g.W("// Deprecated\nfunc NewClient%s(tgt string", g.options.Prefix())
+		g.W(" ,options ...ClientOption")
+		g.W(") (%s, error) {\n", typeStr)
+		g.W("return NewClient%s%s(tgt, options...)", g.options.Prefix(), iface.Name())
+		g.W("}\n")
 
-		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), name)
+		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.Name())
 		g.W(" ,options ...ClientOption")
 		g.W(") (%s, error) {\n", typeStr)
 		g.W("opts := &clientOpts{}\n")

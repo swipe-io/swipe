@@ -83,23 +83,37 @@ func MakeInterfaceBTestMethod2Endpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
+func MakeInterfaceBTestMethodOptionalsEndpoint(s InterfaceB) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(TestMethodOptionalsRequest)
+		err := s.TestMethodOptionals(ctx, req.Ns, req.Options...)
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+}
+
 type InterfaceBEndpointSet struct {
-	CreateEndpoint      endpoint.Endpoint
-	DeleteEndpoint      endpoint.Endpoint
-	GetEndpoint         endpoint.Endpoint
-	GetAllEndpoint      endpoint.Endpoint
-	TestMethodEndpoint  endpoint.Endpoint
-	TestMethod2Endpoint endpoint.Endpoint
+	CreateEndpoint              endpoint.Endpoint
+	DeleteEndpoint              endpoint.Endpoint
+	GetEndpoint                 endpoint.Endpoint
+	GetAllEndpoint              endpoint.Endpoint
+	TestMethodEndpoint          endpoint.Endpoint
+	TestMethod2Endpoint         endpoint.Endpoint
+	TestMethodOptionalsEndpoint endpoint.Endpoint
 }
 
 func MakeInterfaceBEndpointSet(svc InterfaceB) InterfaceBEndpointSet {
 	return InterfaceBEndpointSet{
-		CreateEndpoint:      MakeInterfaceBCreateEndpoint(svc),
-		DeleteEndpoint:      MakeInterfaceBDeleteEndpoint(svc),
-		GetEndpoint:         MakeInterfaceBGetEndpoint(svc),
-		GetAllEndpoint:      MakeInterfaceBGetAllEndpoint(svc),
-		TestMethodEndpoint:  MakeInterfaceBTestMethodEndpoint(svc),
-		TestMethod2Endpoint: MakeInterfaceBTestMethod2Endpoint(svc),
+		CreateEndpoint:              MakeInterfaceBCreateEndpoint(svc),
+		DeleteEndpoint:              MakeInterfaceBDeleteEndpoint(svc),
+		GetEndpoint:                 MakeInterfaceBGetEndpoint(svc),
+		GetAllEndpoint:              MakeInterfaceBGetAllEndpoint(svc),
+		TestMethodEndpoint:          MakeInterfaceBTestMethodEndpoint(svc),
+		TestMethod2Endpoint:         MakeInterfaceBTestMethod2Endpoint(svc),
+		TestMethodOptionalsEndpoint: MakeInterfaceBTestMethodOptionalsEndpoint(svc),
 	}
 }
 
@@ -138,4 +152,8 @@ type TestMethod2Request struct {
 	Restype    string `json:"restype"`
 	Resource   string `json:"resource"`
 	Permission string `json:"permission"`
+}
+type TestMethodOptionalsRequest struct {
+	Ns      string          `json:"ns"`
+	Options []OptionService `json:"options"`
 }

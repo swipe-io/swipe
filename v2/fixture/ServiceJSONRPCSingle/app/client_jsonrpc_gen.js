@@ -145,6 +145,11 @@ class JSONRPCScheduler {
  * @property {string} id
  */
 
+/**
+ * @typedef {Object} OptionService
+ * @property {string} name
+ */
+
 class JSONRPCClientService {
   constructor(transport) {
     this.scheduler = new JSONRPCScheduler(transport);
@@ -254,6 +259,20 @@ class JSONRPCClientService {
         throw interfaceBTestMethod2ConvertError(e);
       });
   }
+  /**
+   * @param {string} ns
+   * @param {...OptionService} options
+   **/
+  testMethodOptionals(ns, ...options) {
+    return this.scheduler
+      .__scheduleRequest("service.testMethodOptionals", {
+        ns: ns,
+        options: options
+      })
+      .catch((e) => {
+        throw interfaceBTestMethodOptionalsConvertError(e);
+      });
+  }
 }
 
 export default JSONRPCClientService;
@@ -296,6 +315,12 @@ function interfaceBTestMethodConvertError(e) {
   }
 }
 function interfaceBTestMethod2ConvertError(e) {
+  switch (e.code) {
+    default:
+      return new JSONRPCError(e.message, "UnknownError", e.code, e.data);
+  }
+}
+function interfaceBTestMethodOptionalsConvertError(e) {
   switch (e.code) {
     default:
       return new JSONRPCError(e.message, "UnknownError", e.code, e.data);

@@ -84,6 +84,14 @@ func (s *ServiceLoggingMiddleware) TestMethod2(ctx context.Context, ns string, u
 	return err
 }
 
+func (s *ServiceLoggingMiddleware) TestMethodOptionals(ctx context.Context, ns string) error {
+	var (
+		err error
+	)
+	err = s.next.TestMethodOptionals(ctx, ns)
+	return err
+}
+
 func NewLoggingServiceMiddleware(s InterfaceB, logger log.Logger) InterfaceB {
 	return &ServiceLoggingMiddleware{next: s, logger: logger}
 }

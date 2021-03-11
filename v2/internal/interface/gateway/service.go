@@ -338,6 +338,7 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 			NameRequest:  nameRequest,
 			NameResponse: nameResponse,
 			Comments:     comments,
+			Variadic:     sig.Variadic(),
 		}
 
 		if g.MethodOption(sm).Exclude {
@@ -380,12 +381,18 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		})
 
 		var (
-			resultOffset, paramOffset int
+			resultOffset, variadicOffset, paramOffset int
 		)
 		if types.ContainsContext(sig.Params()) {
 			sm.ParamCtx = sig.Params().At(0)
 			paramOffset = 1
 		}
+
+		if sm.Variadic {
+			sm.ParamVariadic = sig.Params().At(sig.Params().Len() - 1)
+			variadicOffset = 1
+		}
+
 		if types.ContainsError(sig.Results()) {
 			sm.ReturnErr = sig.Results().At(sig.Results().Len() - 1)
 			resultOffset = 1
@@ -399,7 +406,7 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 			return nil, errors.NotePosition(o.Position,
 				fmt.Errorf("interface method with unnamed results cannot be greater than 1"))
 		}
-		for j := paramOffset; j < sig.Params().Len(); j++ {
+		for j := paramOffset; j < sig.Params().Len()-variadicOffset; j++ {
 			sm.Params = append(sm.Params, sig.Params().At(j))
 		}
 		for j := 0; j < sig.Results().Len()-resultOffset; j++ {
