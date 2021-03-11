@@ -14,20 +14,22 @@ import (
 
 type ClientOption func(*clientOpts)
 type clientOpts struct {
-	interfaceBCreateClientOption            []jsonrpc.ClientOption
-	interfaceBCreateEndpointMiddleware      []endpoint.Middleware
-	interfaceBDeleteClientOption            []jsonrpc.ClientOption
-	interfaceBDeleteEndpointMiddleware      []endpoint.Middleware
-	interfaceBGetClientOption               []jsonrpc.ClientOption
-	interfaceBGetEndpointMiddleware         []endpoint.Middleware
-	interfaceBGetAllClientOption            []jsonrpc.ClientOption
-	interfaceBGetAllEndpointMiddleware      []endpoint.Middleware
-	interfaceBTestMethodClientOption        []jsonrpc.ClientOption
-	interfaceBTestMethodEndpointMiddleware  []endpoint.Middleware
-	interfaceBTestMethod2ClientOption       []jsonrpc.ClientOption
-	interfaceBTestMethod2EndpointMiddleware []endpoint.Middleware
-	genericClientOption                     []jsonrpc.ClientOption
-	genericEndpointMiddleware               []endpoint.Middleware
+	interfaceBCreateClientOption                    []jsonrpc.ClientOption
+	interfaceBCreateEndpointMiddleware              []endpoint.Middleware
+	interfaceBDeleteClientOption                    []jsonrpc.ClientOption
+	interfaceBDeleteEndpointMiddleware              []endpoint.Middleware
+	interfaceBGetClientOption                       []jsonrpc.ClientOption
+	interfaceBGetEndpointMiddleware                 []endpoint.Middleware
+	interfaceBGetAllClientOption                    []jsonrpc.ClientOption
+	interfaceBGetAllEndpointMiddleware              []endpoint.Middleware
+	interfaceBTestMethodClientOption                []jsonrpc.ClientOption
+	interfaceBTestMethodEndpointMiddleware          []endpoint.Middleware
+	interfaceBTestMethod2ClientOption               []jsonrpc.ClientOption
+	interfaceBTestMethod2EndpointMiddleware         []endpoint.Middleware
+	interfaceBTestMethodOptionalsClientOption       []jsonrpc.ClientOption
+	interfaceBTestMethodOptionalsEndpointMiddleware []endpoint.Middleware
+	genericClientOption                             []jsonrpc.ClientOption
+	genericEndpointMiddleware                       []endpoint.Middleware
 }
 
 func GenericClientOptions(opt ...jsonrpc.ClientOption) ClientOption {
@@ -86,13 +88,22 @@ func InterfaceBTestMethod2ClientEndpointMiddlewares(opt ...endpoint.Middleware) 
 	return func(c *clientOpts) { c.interfaceBTestMethod2EndpointMiddleware = opt }
 }
 
+func InterfaceBTestMethodOptionalsClientOptions(opt ...jsonrpc.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.interfaceBTestMethodOptionalsClientOption = opt }
+}
+
+func InterfaceBTestMethodOptionalsClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.interfaceBTestMethodOptionalsEndpointMiddleware = opt }
+}
+
 type clientInterfaceB struct {
-	createEndpoint      endpoint.Endpoint
-	deleteEndpoint      endpoint.Endpoint
-	getEndpoint         endpoint.Endpoint
-	getAllEndpoint      endpoint.Endpoint
-	testMethodEndpoint  endpoint.Endpoint
-	testMethod2Endpoint endpoint.Endpoint
+	createEndpoint              endpoint.Endpoint
+	deleteEndpoint              endpoint.Endpoint
+	getEndpoint                 endpoint.Endpoint
+	getAllEndpoint              endpoint.Endpoint
+	testMethodEndpoint          endpoint.Endpoint
+	testMethod2Endpoint         endpoint.Endpoint
+	testMethodOptionalsEndpoint endpoint.Endpoint
 }
 
 func (c *clientInterfaceB) Create(ctx context.Context, newData Data, name string, data []byte) error {
@@ -141,6 +152,14 @@ func (c *clientInterfaceB) TestMethod(data map[string]interface{}, ss interface{
 
 func (c *clientInterfaceB) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
 	_, err := c.testMethod2Endpoint(ctx, TestMethod2Request{Ns: ns, Utype: utype, User: user, Restype: restype, Resource: resource, Permission: permission})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *clientInterfaceB) TestMethodOptionals(ctx context.Context, ns string) error {
+	_, err := c.testMethodOptionalsEndpoint(ctx, TestMethodOptionalsRequest{Ns: ns})
 	if err != nil {
 		return err
 	}

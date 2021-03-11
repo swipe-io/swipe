@@ -116,6 +116,20 @@ func interfaceBTestMethod2ErrorDecode(code int, message string, data interface{}
 	return
 }
 
+func interfaceBTestMethodOptionalsErrorDecode(code int, message string, data interface{}) (err error) {
+	switch code {
+	default:
+		err = &httpError{code: code}
+	}
+	if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {
+		err.SetErrorData(data)
+	}
+	if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {
+		err.SetErrorMessage(message)
+	}
+	return
+}
+
 func middlewareChain(middlewares []endpoint.Middleware) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		if len(middlewares) == 0 {
@@ -139,20 +153,22 @@ func GenericServerEndpointMiddlewares(v ...endpoint.Middleware) ServerOption {
 
 type ServerOption func(*serverOpts)
 type serverOpts struct {
-	genericServerOption                     []jsonrpc.ServerOption
-	genericEndpointMiddleware               []endpoint.Middleware
-	interfaceBCreateServerOption            []jsonrpc.ServerOption
-	interfaceBCreateEndpointMiddleware      []endpoint.Middleware
-	interfaceBDeleteServerOption            []jsonrpc.ServerOption
-	interfaceBDeleteEndpointMiddleware      []endpoint.Middleware
-	interfaceBGetServerOption               []jsonrpc.ServerOption
-	interfaceBGetEndpointMiddleware         []endpoint.Middleware
-	interfaceBGetAllServerOption            []jsonrpc.ServerOption
-	interfaceBGetAllEndpointMiddleware      []endpoint.Middleware
-	interfaceBTestMethodServerOption        []jsonrpc.ServerOption
-	interfaceBTestMethodEndpointMiddleware  []endpoint.Middleware
-	interfaceBTestMethod2ServerOption       []jsonrpc.ServerOption
-	interfaceBTestMethod2EndpointMiddleware []endpoint.Middleware
+	genericServerOption                             []jsonrpc.ServerOption
+	genericEndpointMiddleware                       []endpoint.Middleware
+	interfaceBCreateServerOption                    []jsonrpc.ServerOption
+	interfaceBCreateEndpointMiddleware              []endpoint.Middleware
+	interfaceBDeleteServerOption                    []jsonrpc.ServerOption
+	interfaceBDeleteEndpointMiddleware              []endpoint.Middleware
+	interfaceBGetServerOption                       []jsonrpc.ServerOption
+	interfaceBGetEndpointMiddleware                 []endpoint.Middleware
+	interfaceBGetAllServerOption                    []jsonrpc.ServerOption
+	interfaceBGetAllEndpointMiddleware              []endpoint.Middleware
+	interfaceBTestMethodServerOption                []jsonrpc.ServerOption
+	interfaceBTestMethodEndpointMiddleware          []endpoint.Middleware
+	interfaceBTestMethod2ServerOption               []jsonrpc.ServerOption
+	interfaceBTestMethod2EndpointMiddleware         []endpoint.Middleware
+	interfaceBTestMethodOptionalsServerOption       []jsonrpc.ServerOption
+	interfaceBTestMethodOptionalsEndpointMiddleware []endpoint.Middleware
 }
 
 func InterfaceBCreateServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
@@ -201,4 +217,12 @@ func InterfaceBTestMethod2ServerOptions(opt ...jsonrpc.ServerOption) ServerOptio
 
 func InterfaceBTestMethod2ServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
 	return func(c *serverOpts) { c.interfaceBTestMethod2EndpointMiddleware = opt }
+}
+
+func InterfaceBTestMethodOptionalsServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.interfaceBTestMethodOptionalsServerOption = opt }
+}
+
+func InterfaceBTestMethodOptionalsServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.interfaceBTestMethodOptionalsEndpointMiddleware = opt }
 }

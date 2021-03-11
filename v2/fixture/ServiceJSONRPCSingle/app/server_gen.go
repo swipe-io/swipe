@@ -123,6 +123,20 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 			Encode: encodeResponseJSONRPC,
 		}
 	}
+	if ep.TestMethodOptionalsEndpoint != nil {
+		ecm[namespace+"testMethodOptionals"] = jsonrpc.EndpointCodec{
+			Endpoint: ep.TestMethodOptionalsEndpoint,
+			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
+				var req TestMethodOptionalsRequest
+				err := ffjson.Unmarshal(msg, &req)
+				if err != nil {
+					return nil, fmt.Errorf("couldn't unmarshal body to TestMethodOptionalsRequest: %s", err)
+				}
+				return req, nil
+			},
+			Encode: encodeResponseJSONRPC,
+		}
+	}
 	return ecm
 }
 
@@ -139,6 +153,7 @@ func MakeHandlerJSONRPC(svcInterfaceB InterfaceB, options ...ServerOption) (http
 	epSet.GetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetAllEndpointMiddleware...))(epSet.GetAllEndpoint)
 	epSet.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodEndpointMiddleware...))(epSet.TestMethodEndpoint)
 	epSet.TestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethod2EndpointMiddleware...))(epSet.TestMethod2Endpoint)
+	epSet.TestMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodOptionalsEndpointMiddleware...))(epSet.TestMethodOptionalsEndpoint)
 	r := mux.NewRouter()
 	handler := jsonrpc.NewServer(MakeInterfaceBEndpointCodecMap(epSet), opts.genericServerOption...)
 	r.Methods("POST").Path("").Handler(handler)

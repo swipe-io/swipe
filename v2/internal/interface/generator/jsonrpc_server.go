@@ -209,12 +209,16 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 				g.W("if %s.Instance != \"\"{\n", optName)
 				g.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(%[2]s.Instance, \"/\")", stringsPkg, optName)
 				g.W("}\n")
-				g.W("c, err :=  %s.NewClient%s(instance, %s.ClientOptions...)\n", transportExtPkg, g.options.Prefix(), optName)
+
+				g.W("c, err := %s.NewClient%s%s(instance, %s.ClientOptions...)\n", transportExtPkg, g.options.Prefix(), iface.Name(), optName)
+
 				g.WriteCheckErr(func() {
 					g.W("return nil, nil, err\n")
 				})
 				g.W("return ")
+
 				g.W("%s.Make%sEndpoint(c), nil, nil\n", transportExtPkg, m.NameExport)
+
 				g.W("\n}\n\n")
 
 				g.W("endpointer := %s.NewEndpointer(%s.Instancer, %s, logger)\n", sdPkg, optName, epFactoryName)

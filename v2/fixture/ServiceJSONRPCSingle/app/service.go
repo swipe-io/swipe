@@ -87,6 +87,10 @@ type User struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
+type OptionService struct {
+	Name string `json:"name"`
+}
+
 type InterfaceB interface {
 	// Create new item of item.
 	Create(ctx context.Context, newData AliasData, name string, data []byte) (err error)
@@ -98,6 +102,7 @@ type InterfaceB interface {
 	Delete(ctx context.Context, id uint) (a string, b string, err error)
 	TestMethod(data map[string]interface{}, ss interface{}) (states map[string]map[int][]string, err error)
 	TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error
+	TestMethodOptionals(ctx context.Context, ns string, options ...OptionService) error
 }
 
 type serviceB struct {
@@ -124,5 +129,9 @@ func (s *serviceB) TestMethod(data map[string]interface{}, ss interface{}) (stat
 }
 
 func (s *serviceB) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
+	panic("implement me")
+}
+
+func (s *serviceB) TestMethodOptionals(ctx context.Context, ns string, options ...OptionService) error {
 	panic("implement me")
 }

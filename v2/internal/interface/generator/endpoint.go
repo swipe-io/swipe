@@ -70,6 +70,9 @@ func (g *endpoint) Process(ctx context.Context) error {
 				for _, p := range m.Params {
 					g.W("%s %s `json:\"%s\"`\n", strings.UcFirst(p.Name()), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(p.Name()))
 				}
+				if m.ParamVariadic != nil {
+					g.W("%s %s `json:\"%s\"`\n", strings.UcFirst(m.ParamVariadic.Name()), stdtypes.TypeString(m.ParamVariadic.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(m.ParamVariadic.Name()))
+				}
 				g.W("}\n")
 			}
 
@@ -122,11 +125,21 @@ func (g *endpoint) writeEndpointMake() {
 			if m.ParamCtx != nil {
 				callParams = append(callParams, "ctx")
 			}
+
+			methodParams := model.VarSlice{}
+			methodParams = append(methodParams, m.Params...)
+
 			callParams = append(callParams, types.Params(m.Params, func(p *stdtypes.Var) []string {
 				name := p.Name()
 				name = stdstrings.ToUpper(name[:1]) + name[1:]
 				return []string{"req." + name}
 			}, nil)...)
+
+			if m.ParamVariadic != nil {
+				name := m.ParamVariadic.Name()
+				name = stdstrings.ToUpper(name[:1]) + name[1:]
+				callParams = append(callParams, "req."+name+"...")
+			}
 
 			if len(m.Params) > 0 {
 				g.W("req := request.(%s)\n", m.NameRequest)
@@ -153,6 +166,7 @@ func (g *endpoint) writeEndpointMake() {
 			if len(m.Results) > 0 || m.ReturnErr != nil {
 				g.W(" := ")
 			}
+
 			g.WriteFuncCall("s", m.Name, callParams)
 			if m.ReturnErr != nil {
 				g.WriteCheckErr(func() {

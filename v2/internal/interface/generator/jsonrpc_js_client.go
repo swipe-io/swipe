@@ -2,6 +2,9 @@ package generator
 
 import (
 	"context"
+	stdtypes "go/types"
+
+	"github.com/swipe-io/swipe/v2/internal/importer"
 
 	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
 	"golang.org/x/tools/go/types/typeutil"
@@ -120,6 +123,7 @@ type jsonRPCJSClientOptionsGateway interface {
 type jsonRPCJSClient struct {
 	writer.BaseWriter
 	options jsonRPCJSClientOptionsGateway
+	i       *importer.Importer
 }
 
 func (g *jsonRPCJSClient) Prepare(_ context.Context) error {
@@ -158,6 +162,15 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 				tdc.Visit(p.Type())
 				mw.W("* @param {%s} %s\n", buf.String(), p.Name())
 			}
+			if m.ParamVariadic != nil {
+				vt := m.ParamVariadic.Type()
+				if t, ok := vt.(*stdtypes.Slice); ok {
+					vt = t.Elem()
+				}
+				tdc.Visit(vt)
+
+				mw.W("* @param {...%s} %s\n", stdtypes.TypeString(vt, g.i.QualifyPkg), m.ParamVariadic.Name())
+			}
 
 			if len(m.Results) > 0 {
 				mw.W("* @return {PromiseLike<")
@@ -175,12 +188,9 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 					if m.ResultsNamed {
 						mw.W("%s: ", p.Name())
 					}
-
 					buf := new(writer.BaseWriter)
 					typevisitor.JSTypeVisitor(buf).Visit(p.Type())
-
 					tdc.Visit(p.Type())
-
 					mw.W(buf.String())
 				}
 				if m.ResultsNamed || mopt.WrapResponse.Enable {
@@ -198,6 +208,10 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 				}
 				mw.W(p.Name())
 			}
+			if m.ParamVariadic != nil {
+				mw.W(", ...%s", m.ParamVariadic.Name())
+			}
+
 			var prefix string
 			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
 				prefix = iface.NameUnExport() + "."
@@ -211,6 +225,9 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 					mw.W(",")
 				}
 				mw.W("%[1]s:%[1]s", p.Name())
+			}
+			if m.ParamVariadic != nil {
+				mw.W(",%[1]s:%[1]s", m.ParamVariadic.Name())
 			}
 
 			mw.W("}).catch(e => { throw ")
@@ -313,10 +330,6 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	return nil
 }
 
-func (g *jsonRPCJSClient) Imports() []string {
-	return nil
-}
-
 func (g *jsonRPCJSClient) PkgName() string {
 	return ""
 }
@@ -327,6 +340,10 @@ func (g *jsonRPCJSClient) OutputDir() string {
 
 func (g *jsonRPCJSClient) Filename() string {
 	return "client_jsonrpc_gen.js"
+}
+
+func (g *jsonRPCJSClient) SetImporter(i *importer.Importer) {
+	g.i = i
 }
 
 func NewJsonRPCJSClient(options jsonRPCJSClientOptionsGateway) generator.Generator {

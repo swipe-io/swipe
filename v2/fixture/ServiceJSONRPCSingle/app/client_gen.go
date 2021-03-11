@@ -216,5 +216,31 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		append(opts.genericClientOption, opts.interfaceBTestMethod2ClientOption...)...,
 	).Endpoint()
 	c.testMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethod2EndpointMiddleware...))(c.testMethod2Endpoint)
+	opts.interfaceBTestMethodOptionalsClientOption = append(
+		opts.interfaceBTestMethodOptionalsClientOption,
+		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
+			req, ok := obj.(TestMethodOptionalsRequest)
+			if !ok {
+				return nil, fmt.Errorf("couldn't assert request as TestMethodOptionalsRequest, got %T", obj)
+			}
+			b, err := ffjson.Marshal(req)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't marshal request %T: %s", obj, err)
+			}
+			return b, nil
+		}),
+		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
+			if response.Error != nil {
+				return nil, interfaceBTestMethodOptionalsErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+			}
+			return nil, nil
+		}),
+	)
+	c.testMethodOptionalsEndpoint = jsonrpc.NewClient(
+		u,
+		"service.testMethodOptionals",
+		append(opts.genericClientOption, opts.interfaceBTestMethodOptionalsClientOption...)...,
+	).Endpoint()
+	c.testMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodOptionalsEndpointMiddleware...))(c.testMethodOptionalsEndpoint)
 	return c, nil
 }
