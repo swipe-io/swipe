@@ -20,9 +20,9 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 )
 
-func NewClientRESTInterfaceA(tgt string, options ...ClientOption) (InterfaceA, error) {
+func NewClientRESTA(tgt string, options ...ClientOption) (InterfaceA, error) {
 	opts := &clientOpts{}
-	c := &clientInterfaceA{}
+	c := &clientA{}
 	for _, o := range options {
 		o(opts)
 	}
@@ -40,29 +40,29 @@ func NewClientRESTInterfaceA(tgt string, options ...ClientOption) (InterfaceA, e
 	if u.Scheme == "" {
 		u.Scheme = "https"
 	}
-	c.testMethodEndpoint = http.NewClient(
+	c.aTestMethodEndpoint = http.NewClient(
 		"GET",
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
 			r.Method = "GET"
-			r.URL.Path += "/a/testMethod"
+			r.URL.Path += "/a/test-method"
 			return nil
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, interfaceATestMethodErrorDecode(statusCode)
+				return nil, aTestMethodErrorDecode(statusCode)
 			}
 			return nil, nil
 		},
-		append(opts.genericClientOption, opts.interfaceATestMethodClientOption...)...,
+		append(opts.genericClientOption, opts.aTestMethodClientOption...)...,
 	).Endpoint()
-	c.testMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceATestMethodEndpointMiddleware...))(c.testMethodEndpoint)
+	c.aTestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.aTestMethodEndpointMiddleware...))(c.aTestMethodEndpoint)
 	return c, nil
 }
 
-func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, error) {
+func NewClientRESTB(tgt string, options ...ClientOption) (InterfaceB, error) {
 	opts := &clientOpts{}
-	c := &clientInterfaceB{}
+	c := &clientB{}
 	for _, o := range options {
 		o(opts)
 	}
@@ -80,13 +80,13 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 	if u.Scheme == "" {
 		u.Scheme = "https"
 	}
-	c.createEndpoint = http.NewClient(
+	c.bCreateEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(InterfaceBCreateRequest)
+			req, ok := request.(BCreateCreateRequest)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as InterfaceBCreateRequest, got %T", request)
+				return fmt.Errorf("couldn't assert request as BCreateCreateRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
 			r.URL.Path += "/b/create"
@@ -99,20 +99,20 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, interfaceBCreateErrorDecode(statusCode)
+				return nil, bCreateErrorDecode(statusCode)
 			}
 			return nil, nil
 		},
-		append(opts.genericClientOption, opts.interfaceBCreateClientOption...)...,
+		append(opts.genericClientOption, opts.bCreateClientOption...)...,
 	).Endpoint()
-	c.createEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBCreateEndpointMiddleware...))(c.createEndpoint)
-	c.deleteEndpoint = http.NewClient(
+	c.bCreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bCreateEndpointMiddleware...))(c.bCreateEndpoint)
+	c.bDeleteEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(InterfaceBDeleteRequest)
+			req, ok := request.(BDeleteDeleteRequest)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as InterfaceBDeleteRequest, got %T", request)
+				return fmt.Errorf("couldn't assert request as BDeleteDeleteRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
 			r.URL.Path += "/b/delete"
@@ -125,29 +125,29 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, interfaceBDeleteErrorDecode(statusCode)
+				return nil, bDeleteErrorDecode(statusCode)
 			}
-			var resp InterfaceBDeleteRequest
+			var resp BDeleteDeleteRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
 				return nil, err
 			}
 			err = ffjson.Unmarshal(b, &resp)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBDeleteRequest: %s", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BDeleteDeleteRequest: %s", err)
 			}
 			return resp, nil
 		},
-		append(opts.genericClientOption, opts.interfaceBDeleteClientOption...)...,
+		append(opts.genericClientOption, opts.bDeleteClientOption...)...,
 	).Endpoint()
-	c.deleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBDeleteEndpointMiddleware...))(c.deleteEndpoint)
-	c.getEndpoint = http.NewClient(
+	c.bDeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bDeleteEndpointMiddleware...))(c.bDeleteEndpoint)
+	c.bGetEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(InterfaceBGetRequest)
+			req, ok := request.(BGetGetRequest)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as InterfaceBGetRequest, got %T", request)
+				return fmt.Errorf("couldn't assert request as BGetGetRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
 			r.URL.Path += "/b/get-test"
@@ -164,7 +164,7 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, interfaceBGetErrorDecode(statusCode)
+				return nil, bGetErrorDecode(statusCode)
 			}
 			var resp User
 			b, err := ioutil.ReadAll(r.Body)
@@ -173,23 +173,23 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 			}
 			err = ffjson.Unmarshal(b, &resp)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBGetRequest: %s", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BGetGetRequest: %s", err)
 			}
 			return resp, nil
 		},
-		append(opts.genericClientOption, opts.interfaceBGetClientOption...)...,
+		append(opts.genericClientOption, opts.bGetClientOption...)...,
 	).Endpoint()
-	c.getEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetEndpointMiddleware...))(c.getEndpoint)
-	c.getAllEndpoint = http.NewClient(
+	c.bGetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bGetEndpointMiddleware...))(c.bGetEndpoint)
+	c.bGetAllEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(InterfaceBGetAllRequest)
+			req, ok := request.(BGetAllGetAllRequest)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as InterfaceBGetAllRequest, got %T", request)
+				return fmt.Errorf("couldn't assert request as BGetAllGetAllRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
-			r.URL.Path += "/b/getAll"
+			r.URL.Path += "/b/get-all"
 			data, err := ffjson.Marshal(req)
 			if err != nil {
 				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
@@ -199,7 +199,7 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, interfaceBGetAllErrorDecode(statusCode)
+				return nil, bGetAllErrorDecode(statusCode)
 			}
 			var resp []*User
 			b, err := ioutil.ReadAll(r.Body)
@@ -208,23 +208,23 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 			}
 			err = ffjson.Unmarshal(b, &resp)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBGetAllRequest: %s", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BGetAllGetAllRequest: %s", err)
 			}
 			return resp, nil
 		},
-		append(opts.genericClientOption, opts.interfaceBGetAllClientOption...)...,
+		append(opts.genericClientOption, opts.bGetAllClientOption...)...,
 	).Endpoint()
-	c.getAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetAllEndpointMiddleware...))(c.getAllEndpoint)
-	c.testMethodEndpoint = http.NewClient(
+	c.bGetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bGetAllEndpointMiddleware...))(c.bGetAllEndpoint)
+	c.bTestMethodEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(InterfaceBTestMethodRequest)
+			req, ok := request.(BTestMethodTestMethodRequest)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as InterfaceBTestMethodRequest, got %T", request)
+				return fmt.Errorf("couldn't assert request as BTestMethodTestMethodRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
-			r.URL.Path += "/b/testMethod"
+			r.URL.Path += "/b/test-method"
 			data, err := ffjson.Marshal(req)
 			if err != nil {
 				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
@@ -234,7 +234,7 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, interfaceBTestMethodErrorDecode(statusCode)
+				return nil, bTestMethodErrorDecode(statusCode)
 			}
 			var resp map[string]map[int][]string
 			b, err := ioutil.ReadAll(r.Body)
@@ -243,23 +243,23 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 			}
 			err = ffjson.Unmarshal(b, &resp)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBTestMethodRequest: %s", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BTestMethodTestMethodRequest: %s", err)
 			}
 			return resp, nil
 		},
-		append(opts.genericClientOption, opts.interfaceBTestMethodClientOption...)...,
+		append(opts.genericClientOption, opts.bTestMethodClientOption...)...,
 	).Endpoint()
-	c.testMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodEndpointMiddleware...))(c.testMethodEndpoint)
-	c.testMethod2Endpoint = http.NewClient(
+	c.bTestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bTestMethodEndpointMiddleware...))(c.bTestMethodEndpoint)
+	c.bTestMethod2Endpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(InterfaceBTestMethod2Request)
+			req, ok := request.(BTestMethod2TestMethod2Request)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as InterfaceBTestMethod2Request, got %T", request)
+				return fmt.Errorf("couldn't assert request as BTestMethod2TestMethod2Request, got %T", request)
 			}
 			r.Method = http2.MethodPost
-			r.URL.Path += "/b/testMethod2"
+			r.URL.Path += "/b/test-method2"
 			data, err := ffjson.Marshal(req)
 			if err != nil {
 				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
@@ -269,12 +269,12 @@ func NewClientRESTInterfaceB(tgt string, options ...ClientOption) (InterfaceB, e
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, interfaceBTestMethod2ErrorDecode(statusCode)
+				return nil, bTestMethod2ErrorDecode(statusCode)
 			}
 			return nil, nil
 		},
-		append(opts.genericClientOption, opts.interfaceBTestMethod2ClientOption...)...,
+		append(opts.genericClientOption, opts.bTestMethod2ClientOption...)...,
 	).Endpoint()
-	c.testMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethod2EndpointMiddleware...))(c.testMethod2Endpoint)
+	c.bTestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bTestMethod2EndpointMiddleware...))(c.bTestMethod2Endpoint)
 	return c, nil
 }

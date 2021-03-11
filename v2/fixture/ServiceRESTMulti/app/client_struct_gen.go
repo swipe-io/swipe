@@ -17,38 +17,38 @@ type AppClient struct {
 }
 
 func NewClientREST(tgt string, opts ...ClientOption) (*AppClient, error) {
-	interfaceAClient, err := NewClientRESTInterfaceA(tgt, opts...)
+	aClient, err := NewClientRESTA(tgt, opts...)
 	if err != nil {
 		return nil, err
 	}
-	interfaceBClient, err := NewClientRESTInterfaceB(tgt, opts...)
+	bClient, err := NewClientRESTB(tgt, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return &AppClient{
-		AClient: interfaceAClient,
-		BClient: interfaceBClient,
+		AClient: aClient,
+		BClient: bClient,
 	}, nil
 }
 
 type ClientOption func(*clientOpts)
 type clientOpts struct {
-	interfaceATestMethodClientOption        []http.ClientOption
-	interfaceATestMethodEndpointMiddleware  []endpoint.Middleware
-	interfaceBCreateClientOption            []http.ClientOption
-	interfaceBCreateEndpointMiddleware      []endpoint.Middleware
-	interfaceBDeleteClientOption            []http.ClientOption
-	interfaceBDeleteEndpointMiddleware      []endpoint.Middleware
-	interfaceBGetClientOption               []http.ClientOption
-	interfaceBGetEndpointMiddleware         []endpoint.Middleware
-	interfaceBGetAllClientOption            []http.ClientOption
-	interfaceBGetAllEndpointMiddleware      []endpoint.Middleware
-	interfaceBTestMethodClientOption        []http.ClientOption
-	interfaceBTestMethodEndpointMiddleware  []endpoint.Middleware
-	interfaceBTestMethod2ClientOption       []http.ClientOption
-	interfaceBTestMethod2EndpointMiddleware []endpoint.Middleware
-	genericClientOption                     []http.ClientOption
-	genericEndpointMiddleware               []endpoint.Middleware
+	aTestMethodClientOption        []http.ClientOption
+	aTestMethodEndpointMiddleware  []endpoint.Middleware
+	bCreateClientOption            []http.ClientOption
+	bCreateEndpointMiddleware      []endpoint.Middleware
+	bDeleteClientOption            []http.ClientOption
+	bDeleteEndpointMiddleware      []endpoint.Middleware
+	bGetClientOption               []http.ClientOption
+	bGetEndpointMiddleware         []endpoint.Middleware
+	bGetAllClientOption            []http.ClientOption
+	bGetAllEndpointMiddleware      []endpoint.Middleware
+	bTestMethodClientOption        []http.ClientOption
+	bTestMethodEndpointMiddleware  []endpoint.Middleware
+	bTestMethod2ClientOption       []http.ClientOption
+	bTestMethod2EndpointMiddleware []endpoint.Middleware
+	genericClientOption            []http.ClientOption
+	genericEndpointMiddleware      []endpoint.Middleware
 }
 
 func GenericClientOptions(opt ...http.ClientOption) ClientOption {
@@ -59,99 +59,99 @@ func GenericClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
 	return func(c *clientOpts) { c.genericEndpointMiddleware = opt }
 }
 
-func InterfaceATestMethodClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.interfaceATestMethodClientOption = opt }
+func ATestMethodClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.aTestMethodClientOption = opt }
 }
 
-func InterfaceATestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.interfaceATestMethodEndpointMiddleware = opt }
+func ATestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.aTestMethodEndpointMiddleware = opt }
 }
 
-func InterfaceBCreateClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.interfaceBCreateClientOption = opt }
+func BCreateClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.bCreateClientOption = opt }
 }
 
-func InterfaceBCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.interfaceBCreateEndpointMiddleware = opt }
+func BCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.bCreateEndpointMiddleware = opt }
 }
 
-func InterfaceBDeleteClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.interfaceBDeleteClientOption = opt }
+func BDeleteClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.bDeleteClientOption = opt }
 }
 
-func InterfaceBDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.interfaceBDeleteEndpointMiddleware = opt }
+func BDeleteClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.bDeleteEndpointMiddleware = opt }
 }
 
-func InterfaceBGetClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.interfaceBGetClientOption = opt }
+func BGetClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.bGetClientOption = opt }
 }
 
-func InterfaceBGetClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.interfaceBGetEndpointMiddleware = opt }
+func BGetClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.bGetEndpointMiddleware = opt }
 }
 
-func InterfaceBGetAllClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.interfaceBGetAllClientOption = opt }
+func BGetAllClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.bGetAllClientOption = opt }
 }
 
-func InterfaceBGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.interfaceBGetAllEndpointMiddleware = opt }
+func BGetAllClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.bGetAllEndpointMiddleware = opt }
 }
 
-func InterfaceBTestMethodClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.interfaceBTestMethodClientOption = opt }
+func BTestMethodClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.bTestMethodClientOption = opt }
 }
 
-func InterfaceBTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.interfaceBTestMethodEndpointMiddleware = opt }
+func BTestMethodClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.bTestMethodEndpointMiddleware = opt }
 }
 
-func InterfaceBTestMethod2ClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.interfaceBTestMethod2ClientOption = opt }
+func BTestMethod2ClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.bTestMethod2ClientOption = opt }
 }
 
-func InterfaceBTestMethod2ClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.interfaceBTestMethod2EndpointMiddleware = opt }
+func BTestMethod2ClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.bTestMethod2EndpointMiddleware = opt }
 }
 
-type clientInterfaceA struct {
-	testMethodEndpoint endpoint.Endpoint
+type clientA struct {
+	aTestMethodEndpoint endpoint.Endpoint
 }
 
-func (c *clientInterfaceA) TestMethod() {
-	_, _ = c.testMethodEndpoint(context.Background(), nil)
+func (c *clientA) TestMethod() {
+	_, _ = c.aTestMethodEndpoint(context.Background(), nil)
 	return
 }
 
-type clientInterfaceB struct {
-	createEndpoint      endpoint.Endpoint
-	deleteEndpoint      endpoint.Endpoint
-	getEndpoint         endpoint.Endpoint
-	getAllEndpoint      endpoint.Endpoint
-	testMethodEndpoint  endpoint.Endpoint
-	testMethod2Endpoint endpoint.Endpoint
+type clientB struct {
+	bCreateEndpoint      endpoint.Endpoint
+	bDeleteEndpoint      endpoint.Endpoint
+	bGetEndpoint         endpoint.Endpoint
+	bGetAllEndpoint      endpoint.Endpoint
+	bTestMethodEndpoint  endpoint.Endpoint
+	bTestMethod2Endpoint endpoint.Endpoint
 }
 
-func (c *clientInterfaceB) Create(ctx context.Context, newData Data, name string, data []byte) error {
-	_, err := c.createEndpoint(ctx, InterfaceBCreateRequest{NewData: newData, Name: name, Data: data})
+func (c *clientB) Create(ctx context.Context, newData Data, name string, data []byte) error {
+	_, err := c.bCreateEndpoint(ctx, BCreateCreateRequest{NewData: newData, Name: name, Data: data})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *clientInterfaceB) Delete(ctx context.Context, id uint) (string, string, error) {
-	resp, err := c.deleteEndpoint(ctx, InterfaceBDeleteRequest{Id: id})
+func (c *clientB) Delete(ctx context.Context, id uint) (string, string, error) {
+	resp, err := c.bDeleteEndpoint(ctx, BDeleteDeleteRequest{Id: id})
 	if err != nil {
 		return "", "", err
 	}
-	response := resp.(InterfaceBDeleteResponse)
+	response := resp.(BDeleteDeleteResponse)
 	return response.A, response.B, nil
 }
 
-func (c *clientInterfaceB) Get(ctx context.Context, id int, name string, fname string, price float32, n int, b int, cc int) (User, error) {
-	resp, err := c.getEndpoint(ctx, InterfaceBGetRequest{Id: id, Name: name, Fname: fname, Price: price, N: n, B: b, Cc: cc})
+func (c *clientB) Get(ctx context.Context, id int, name string, fname string, price float32, n int, b int, cc int) (User, error) {
+	resp, err := c.bGetEndpoint(ctx, BGetGetRequest{Id: id, Name: name, Fname: fname, Price: price, N: n, B: b, Cc: cc})
 	if err != nil {
 		return User{}, err
 	}
@@ -159,8 +159,8 @@ func (c *clientInterfaceB) Get(ctx context.Context, id int, name string, fname s
 	return response, nil
 }
 
-func (c *clientInterfaceB) GetAll(ctx context.Context, members Members) ([]*User, error) {
-	resp, err := c.getAllEndpoint(ctx, InterfaceBGetAllRequest{Members: members})
+func (c *clientB) GetAll(ctx context.Context, members Members) ([]*User, error) {
+	resp, err := c.bGetAllEndpoint(ctx, BGetAllGetAllRequest{Members: members})
 	if err != nil {
 		return nil, err
 	}
@@ -168,8 +168,8 @@ func (c *clientInterfaceB) GetAll(ctx context.Context, members Members) ([]*User
 	return response, nil
 }
 
-func (c *clientInterfaceB) TestMethod(data map[string]interface{}, ss interface{}) (map[string]map[int][]string, error) {
-	resp, err := c.testMethodEndpoint(context.Background(), InterfaceBTestMethodRequest{Data: data, Ss: ss})
+func (c *clientB) TestMethod(data map[string]interface{}, ss interface{}) (map[string]map[int][]string, error) {
+	resp, err := c.bTestMethodEndpoint(context.Background(), BTestMethodTestMethodRequest{Data: data, Ss: ss})
 	if err != nil {
 		return nil, err
 	}
@@ -177,8 +177,8 @@ func (c *clientInterfaceB) TestMethod(data map[string]interface{}, ss interface{
 	return response, nil
 }
 
-func (c *clientInterfaceB) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
-	_, err := c.testMethod2Endpoint(ctx, InterfaceBTestMethod2Request{Ns: ns, Utype: utype, User: user, Restype: restype, Resource: resource, Permission: permission})
+func (c *clientB) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
+	_, err := c.bTestMethod2Endpoint(ctx, BTestMethod2TestMethod2Request{Ns: ns, Utype: utype, User: user, Restype: restype, Resource: resource, Permission: permission})
 	if err != nil {
 		return err
 	}

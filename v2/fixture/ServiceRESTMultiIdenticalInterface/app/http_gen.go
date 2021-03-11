@@ -21,7 +21,7 @@ func (e *httpError) Error() string {
 func (e *httpError) StatusCode() int {
 	return e.code
 }
-func appCreateErrorDecode(code int) (err error) {
+func app1CreateErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -29,7 +29,7 @@ func appCreateErrorDecode(code int) (err error) {
 	return
 }
 
-func appCreateErrorDecode(code int) (err error) {
+func app2CreateErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -60,26 +60,26 @@ func GenericServerEndpointMiddlewares(v ...endpoint.Middleware) ServerOption {
 
 type ServerOption func(*serverOpts)
 type serverOpts struct {
-	genericServerOption         []http.ServerOption
-	genericEndpointMiddleware   []endpoint.Middleware
-	appCreateServerOption       []http.ServerOption
-	appCreateEndpointMiddleware []endpoint.Middleware
-	appCreateServerOption       []http.ServerOption
-	appCreateEndpointMiddleware []endpoint.Middleware
+	genericServerOption          []http.ServerOption
+	genericEndpointMiddleware    []endpoint.Middleware
+	app1CreateServerOption       []http.ServerOption
+	app1CreateEndpointMiddleware []endpoint.Middleware
+	app2CreateServerOption       []http.ServerOption
+	app2CreateEndpointMiddleware []endpoint.Middleware
 }
 
-func AppCreateServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.appCreateServerOption = opt }
+func App1CreateServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.app1CreateServerOption = opt }
 }
 
-func AppCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.appCreateEndpointMiddleware = opt }
+func App1CreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.app1CreateEndpointMiddleware = opt }
 }
 
-func AppCreateServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.appCreateServerOption = opt }
+func App2CreateServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.app2CreateServerOption = opt }
 }
 
-func AppCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.appCreateEndpointMiddleware = opt }
+func App2CreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.app2CreateEndpointMiddleware = opt }
 }

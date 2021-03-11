@@ -18,11 +18,11 @@ import (
 
 // Deprecated
 func NewClientJSONRPC(tgt string, options ...ClientOption) (InterfaceB, error) {
-	return NewClientJSONRPCInterfaceB(tgt, options...)
+	return NewClientJSONRPCService(tgt, options...)
 }
-func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB, error) {
+func NewClientJSONRPCService(tgt string, options ...ClientOption) (InterfaceB, error) {
 	opts := &clientOpts{}
-	c := &clientInterfaceB{}
+	c := &clientService{}
 	for _, o := range options {
 		o(opts)
 	}
@@ -40,8 +40,8 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 	if u.Scheme == "" {
 		u.Scheme = "https"
 	}
-	opts.interfaceBCreateClientOption = append(
-		opts.interfaceBCreateClientOption,
+	opts.serviceCreateClientOption = append(
+		opts.serviceCreateClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
 			req, ok := obj.(CreateRequest)
 			if !ok {
@@ -55,19 +55,19 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		}),
 		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
 			if response.Error != nil {
-				return nil, interfaceBCreateErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+				return nil, serviceCreateErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
 			}
 			return nil, nil
 		}),
 	)
-	c.createEndpoint = jsonrpc.NewClient(
+	c.serviceCreateEndpoint = jsonrpc.NewClient(
 		u,
-		"service.create",
-		append(opts.genericClientOption, opts.interfaceBCreateClientOption...)...,
+		"service.serviceCreate",
+		append(opts.genericClientOption, opts.serviceCreateClientOption...)...,
 	).Endpoint()
-	c.createEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBCreateEndpointMiddleware...))(c.createEndpoint)
-	opts.interfaceBDeleteClientOption = append(
-		opts.interfaceBDeleteClientOption,
+	c.serviceCreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceCreateEndpointMiddleware...))(c.serviceCreateEndpoint)
+	opts.serviceDeleteClientOption = append(
+		opts.serviceDeleteClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
 			req, ok := obj.(DeleteRequest)
 			if !ok {
@@ -81,7 +81,7 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		}),
 		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
 			if response.Error != nil {
-				return nil, interfaceBDeleteErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+				return nil, serviceDeleteErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
 			}
 			var resp DeleteResponse
 			err := ffjson.Unmarshal(response.Result, &resp)
@@ -91,14 +91,14 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 			return resp, nil
 		}),
 	)
-	c.deleteEndpoint = jsonrpc.NewClient(
+	c.serviceDeleteEndpoint = jsonrpc.NewClient(
 		u,
-		"service.delete",
-		append(opts.genericClientOption, opts.interfaceBDeleteClientOption...)...,
+		"service.serviceDelete",
+		append(opts.genericClientOption, opts.serviceDeleteClientOption...)...,
 	).Endpoint()
-	c.deleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBDeleteEndpointMiddleware...))(c.deleteEndpoint)
-	opts.interfaceBGetClientOption = append(
-		opts.interfaceBGetClientOption,
+	c.serviceDeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceDeleteEndpointMiddleware...))(c.serviceDeleteEndpoint)
+	opts.serviceGetClientOption = append(
+		opts.serviceGetClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
 			req, ok := obj.(GetRequest)
 			if !ok {
@@ -112,7 +112,7 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		}),
 		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
 			if response.Error != nil {
-				return nil, interfaceBGetErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+				return nil, serviceGetErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
 			}
 			var resp User
 			err := ffjson.Unmarshal(response.Result, &resp)
@@ -122,14 +122,14 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 			return resp, nil
 		}),
 	)
-	c.getEndpoint = jsonrpc.NewClient(
+	c.serviceGetEndpoint = jsonrpc.NewClient(
 		u,
-		"service.get",
-		append(opts.genericClientOption, opts.interfaceBGetClientOption...)...,
+		"service.serviceGet",
+		append(opts.genericClientOption, opts.serviceGetClientOption...)...,
 	).Endpoint()
-	c.getEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetEndpointMiddleware...))(c.getEndpoint)
-	opts.interfaceBGetAllClientOption = append(
-		opts.interfaceBGetAllClientOption,
+	c.serviceGetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceGetEndpointMiddleware...))(c.serviceGetEndpoint)
+	opts.serviceGetAllClientOption = append(
+		opts.serviceGetAllClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
 			req, ok := obj.(GetAllRequest)
 			if !ok {
@@ -143,7 +143,7 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		}),
 		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
 			if response.Error != nil {
-				return nil, interfaceBGetAllErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+				return nil, serviceGetAllErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
 			}
 			var resp []*User
 			err := ffjson.Unmarshal(response.Result, &resp)
@@ -153,14 +153,14 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 			return resp, nil
 		}),
 	)
-	c.getAllEndpoint = jsonrpc.NewClient(
+	c.serviceGetAllEndpoint = jsonrpc.NewClient(
 		u,
-		"service.getAll",
-		append(opts.genericClientOption, opts.interfaceBGetAllClientOption...)...,
+		"service.serviceGetAll",
+		append(opts.genericClientOption, opts.serviceGetAllClientOption...)...,
 	).Endpoint()
-	c.getAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetAllEndpointMiddleware...))(c.getAllEndpoint)
-	opts.interfaceBTestMethodClientOption = append(
-		opts.interfaceBTestMethodClientOption,
+	c.serviceGetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceGetAllEndpointMiddleware...))(c.serviceGetAllEndpoint)
+	opts.serviceTestMethodClientOption = append(
+		opts.serviceTestMethodClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
 			req, ok := obj.(TestMethodRequest)
 			if !ok {
@@ -174,7 +174,7 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		}),
 		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
 			if response.Error != nil {
-				return nil, interfaceBTestMethodErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+				return nil, serviceTestMethodErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
 			}
 			var resp map[string]map[int][]string
 			err := ffjson.Unmarshal(response.Result, &resp)
@@ -184,14 +184,14 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 			return resp, nil
 		}),
 	)
-	c.testMethodEndpoint = jsonrpc.NewClient(
+	c.serviceTestMethodEndpoint = jsonrpc.NewClient(
 		u,
-		"service.testMethod",
-		append(opts.genericClientOption, opts.interfaceBTestMethodClientOption...)...,
+		"service.serviceTestMethod",
+		append(opts.genericClientOption, opts.serviceTestMethodClientOption...)...,
 	).Endpoint()
-	c.testMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodEndpointMiddleware...))(c.testMethodEndpoint)
-	opts.interfaceBTestMethod2ClientOption = append(
-		opts.interfaceBTestMethod2ClientOption,
+	c.serviceTestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceTestMethodEndpointMiddleware...))(c.serviceTestMethodEndpoint)
+	opts.serviceTestMethod2ClientOption = append(
+		opts.serviceTestMethod2ClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
 			req, ok := obj.(TestMethod2Request)
 			if !ok {
@@ -205,19 +205,19 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		}),
 		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
 			if response.Error != nil {
-				return nil, interfaceBTestMethod2ErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+				return nil, serviceTestMethod2ErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
 			}
 			return nil, nil
 		}),
 	)
-	c.testMethod2Endpoint = jsonrpc.NewClient(
+	c.serviceTestMethod2Endpoint = jsonrpc.NewClient(
 		u,
-		"service.testMethod2",
-		append(opts.genericClientOption, opts.interfaceBTestMethod2ClientOption...)...,
+		"service.serviceTestMethod2",
+		append(opts.genericClientOption, opts.serviceTestMethod2ClientOption...)...,
 	).Endpoint()
-	c.testMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethod2EndpointMiddleware...))(c.testMethod2Endpoint)
-	opts.interfaceBTestMethodOptionalsClientOption = append(
-		opts.interfaceBTestMethodOptionalsClientOption,
+	c.serviceTestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceTestMethod2EndpointMiddleware...))(c.serviceTestMethod2Endpoint)
+	opts.serviceTestMethodOptionalsClientOption = append(
+		opts.serviceTestMethodOptionalsClientOption,
 		jsonrpc.ClientRequestEncoder(func(_ context.Context, obj interface{}) (json.RawMessage, error) {
 			req, ok := obj.(TestMethodOptionalsRequest)
 			if !ok {
@@ -231,16 +231,16 @@ func NewClientJSONRPCInterfaceB(tgt string, options ...ClientOption) (InterfaceB
 		}),
 		jsonrpc.ClientResponseDecoder(func(_ context.Context, response jsonrpc.Response) (interface{}, error) {
 			if response.Error != nil {
-				return nil, interfaceBTestMethodOptionalsErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
+				return nil, serviceTestMethodOptionalsErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)
 			}
 			return nil, nil
 		}),
 	)
-	c.testMethodOptionalsEndpoint = jsonrpc.NewClient(
+	c.serviceTestMethodOptionalsEndpoint = jsonrpc.NewClient(
 		u,
-		"service.testMethodOptionals",
-		append(opts.genericClientOption, opts.interfaceBTestMethodOptionalsClientOption...)...,
+		"service.serviceTestMethodOptionals",
+		append(opts.genericClientOption, opts.serviceTestMethodOptionalsClientOption...)...,
 	).Endpoint()
-	c.testMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodOptionalsEndpointMiddleware...))(c.testMethodOptionalsEndpoint)
+	c.serviceTestMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceTestMethodOptionalsEndpointMiddleware...))(c.serviceTestMethodOptionalsEndpoint)
 	return c, nil
 }

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v2/internal/strings"
+	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
@@ -70,7 +70,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 		iface := g.options.Interfaces().At(i)
 
 		if !iface.External() {
-			g.W("func Make%[1]sEndpointCodecMap(ep %[1]sEndpointSet", iface.Name())
+			g.W("func Make%[1]sEndpointCodecMap(ep %[1]sEndpointSet", iface.NameExport())
 			g.W(",ns ...string) %s.EndpointCodecMap {\n", jsonrpcPkg)
 
 			g.W("var namespace string\n")
@@ -86,7 +86,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 				g.W("if ep.%sEndpoint != nil {\n", m.Name)
 
-				g.W("ecm[namespace+\"%s\"] = %s.EndpointCodec{\n", m.LcName, jsonrpcPkg)
+				g.W("ecm[namespace+\"%s\"] = %s.EndpointCodec{\n", strcase.ToLowerCamel(m.Name), jsonrpcPkg)
 				g.W("Endpoint: ep.%sEndpoint,\n", m.Name)
 				g.W("Decode: ")
 
@@ -146,9 +146,9 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 		if iface.External() {
 			hasGateway = true
-			g.W("%s %sOption", strings.LcFirst(iface.AppName()), iface.AppName())
+			g.W("%s %sOption", strcase.ToLowerCamel(iface.AppName()), iface.AppName())
 		} else {
-			g.W("svc%s %s", iface.Name(), typeStr)
+			g.W("svc%s %s", iface.NameExport(), typeStr)
 		}
 	}
 
@@ -178,14 +178,14 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 			lbPkg := g.i.Import("sd", "github.com/go-kit/kit/sd/lb")
 
 			if iface.External() {
-				g.W("%s := %s.%sEndpointSet{}\n", makeEpSetName(iface, g.options.Interfaces().Len()), pkgExtTransport, iface.Name())
+				g.W("%s := %s.%sEndpointSet{}\n", makeEpSetName(iface, g.options.Interfaces().Len()), pkgExtTransport, iface.NameExport())
 			} else {
-				g.W("%s := %sEndpointSet{}\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
+				g.W("%s := %sEndpointSet{}\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.NameExport())
 			}
 
 			for _, m := range iface.Methods() {
 				epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
-				optName := strings.LcFirst(iface.AppName())
+				optName := strcase.ToLowerCamel(iface.AppName())
 				epFactoryName := iface.LoweName() + "ClientEndpointFactory"
 				kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 				transportExtPkg := g.i.Import(iface.ExternalSwipePkg().Name, iface.ExternalSwipePkg().PkgPath)
@@ -217,7 +217,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 				})
 				g.W("return ")
 
-				g.W("%s.Make%sEndpoint(c), nil, nil\n", transportExtPkg, m.NameExport)
+				g.W("%s.Make%sEndpoint(c), nil, nil\n", transportExtPkg, m.UcName)
 
 				g.W("\n}\n\n")
 
@@ -232,17 +232,17 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 				)
 				g.W(
 					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-					m.NameUnExport, m.Name, epSetName,
+					m.LcName, m.Name, epSetName,
 				)
 				g.W("}\n")
 			}
 		} else {
-			g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
+			g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.NameExport())
 			epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
 			for _, m := range iface.Methods() {
 				g.W(
 					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-					m.NameUnExport, m.Name, epSetName,
+					m.LcName, m.Name, epSetName,
 				)
 			}
 		}
@@ -267,9 +267,9 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 		}
 		if iface.External() {
 			pkgExtTransport := g.i.Import(iface.ExternalSwipePkg().Name, iface.ExternalSwipePkg().PkgPath)
-			g.W("%s.Make%sEndpointCodecMap(%s, %s)", pkgExtTransport, iface.Name(), makeEpSetName(iface, g.options.Interfaces().Len()), strconv.Quote(iface.NameUnExport()))
+			g.W("%s.Make%sEndpointCodecMap(%s, %s)", pkgExtTransport, iface.NameExport(), makeEpSetName(iface, g.options.Interfaces().Len()), strconv.Quote(iface.NameUnExport()))
 		} else {
-			g.W("Make%sEndpointCodecMap(%s", iface.Name(), makeEpSetName(iface, g.options.Interfaces().Len()))
+			g.W("Make%sEndpointCodecMap(%s", iface.NameExport(), makeEpSetName(iface, g.options.Interfaces().Len()))
 			if g.options.Interfaces().Len() > 1 {
 				g.W(",%s", strconv.Quote(iface.NameUnExport()))
 			}

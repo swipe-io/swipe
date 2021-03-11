@@ -100,12 +100,12 @@ func (s *ServiceInstrumentingMiddleware) TestMethod2(ctx context.Context, ns str
 	return s.next.TestMethod2(ctx, ns, utype, user, restype, resource, permission)
 }
 
-func (s *ServiceInstrumentingMiddleware) TestMethodOptionals(ctx context.Context, ns string) error {
+func (s *ServiceInstrumentingMiddleware) TestMethodOptionals(ctx context.Context, ns string, options ...OptionService) error {
 	defer func(begin time.Time) {
 		s.opts.requestCount.With("method", "TestMethodOptionals").Add(1)
 		s.opts.requestLatency.With("method", "TestMethodOptionals").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return s.next.TestMethodOptionals(ctx, ns)
+	return s.next.TestMethodOptionals(ctx, ns, options...)
 }
 
 func NewInstrumentingServiceMiddleware(s InterfaceB, opts ...InstrumentingOption) InterfaceB {

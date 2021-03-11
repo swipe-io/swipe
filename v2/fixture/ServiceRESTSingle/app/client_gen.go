@@ -21,7 +21,11 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 )
 
+// Deprecated
 func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
+	return NewClientRESTAppInterface(tgt, options...)
+}
+func NewClientRESTAppInterface(tgt string, options ...ClientOption) (AppInterface, error) {
 	opts := &clientOpts{}
 	c := &clientAppInterface{}
 	for _, o := range options {
@@ -41,7 +45,7 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 	if u.Scheme == "" {
 		u.Scheme = "https"
 	}
-	c.createEndpoint = http.NewClient(
+	c.appInterfaceCreateEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
@@ -70,8 +74,8 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceCreateClientOption...)...,
 	).Endpoint()
-	c.createEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceCreateEndpointMiddleware...))(c.createEndpoint)
-	c.deleteEndpoint = http.NewClient(
+	c.appInterfaceCreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceCreateEndpointMiddleware...))(c.appInterfaceCreateEndpoint)
+	c.appInterfaceDeleteEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
@@ -105,8 +109,8 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceDeleteClientOption...)...,
 	).Endpoint()
-	c.deleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceDeleteEndpointMiddleware...))(c.deleteEndpoint)
-	c.getEndpoint = http.NewClient(
+	c.appInterfaceDeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceDeleteEndpointMiddleware...))(c.appInterfaceDeleteEndpoint)
+	c.appInterfaceGetEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
@@ -145,8 +149,8 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceGetClientOption...)...,
 	).Endpoint()
-	c.getEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceGetEndpointMiddleware...))(c.getEndpoint)
-	c.getAllEndpoint = http.NewClient(
+	c.appInterfaceGetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceGetEndpointMiddleware...))(c.appInterfaceGetEndpoint)
+	c.appInterfaceGetAllEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
@@ -155,7 +159,7 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 				return fmt.Errorf("couldn't assert request as GetAllRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
-			r.URL.Path += "/getAll"
+			r.URL.Path += "/get-all"
 			data, err := ffjson.Marshal(req)
 			if err != nil {
 				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
@@ -180,8 +184,8 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceGetAllClientOption...)...,
 	).Endpoint()
-	c.getAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceGetAllEndpointMiddleware...))(c.getAllEndpoint)
-	c.startEndpoint = http.NewClient(
+	c.appInterfaceGetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceGetAllEndpointMiddleware...))(c.appInterfaceGetAllEndpoint)
+	c.appInterfaceStartEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
@@ -197,8 +201,8 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceStartClientOption...)...,
 	).Endpoint()
-	c.startEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceStartEndpointMiddleware...))(c.startEndpoint)
-	c.testMethodEndpoint = http.NewClient(
+	c.appInterfaceStartEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceStartEndpointMiddleware...))(c.appInterfaceStartEndpoint)
+	c.appInterfaceTestMethodEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
@@ -207,7 +211,7 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 				return fmt.Errorf("couldn't assert request as TestMethodRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
-			r.URL.Path += "/testMethod"
+			r.URL.Path += "/test-method"
 			data, err := ffjson.Marshal(req)
 			if err != nil {
 				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
@@ -232,8 +236,8 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceTestMethodClientOption...)...,
 	).Endpoint()
-	c.testMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceTestMethodEndpointMiddleware...))(c.testMethodEndpoint)
-	c.testMethod2Endpoint = http.NewClient(
+	c.appInterfaceTestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceTestMethodEndpointMiddleware...))(c.appInterfaceTestMethodEndpoint)
+	c.appInterfaceTestMethod2Endpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
@@ -242,7 +246,7 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 				return fmt.Errorf("couldn't assert request as TestMethod2Request, got %T", request)
 			}
 			r.Method = http2.MethodPost
-			r.URL.Path += "/testMethod2"
+			r.URL.Path += "/test-method2"
 			data, err := ffjson.Marshal(req)
 			if err != nil {
 				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
@@ -258,17 +262,22 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceTestMethod2ClientOption...)...,
 	).Endpoint()
-	c.testMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceTestMethod2EndpointMiddleware...))(c.testMethod2Endpoint)
-	c.testMethodOptionalsEndpoint = http.NewClient(
-		"GET",
+	c.appInterfaceTestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceTestMethod2EndpointMiddleware...))(c.appInterfaceTestMethod2Endpoint)
+	c.appInterfaceTestMethodOptionalsEndpoint = http.NewClient(
+		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
 			req, ok := request.(TestMethodOptionalsRequest)
 			if !ok {
 				return fmt.Errorf("couldn't assert request as TestMethodOptionalsRequest, got %T", request)
 			}
-			r.Method = "GET"
-			r.URL.Path += "/testMethodOptionals"
+			r.Method = http2.MethodPost
+			r.URL.Path += "/test-method-optionals"
+			data, err := ffjson.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("couldn't marshal request %T: %s", req, err)
+			}
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 			return nil
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
@@ -279,6 +288,6 @@ func NewClientREST(tgt string, options ...ClientOption) (AppInterface, error) {
 		},
 		append(opts.genericClientOption, opts.appInterfaceTestMethodOptionalsClientOption...)...,
 	).Endpoint()
-	c.testMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceTestMethodOptionalsEndpointMiddleware...))(c.testMethodOptionalsEndpoint)
+	c.appInterfaceTestMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appInterfaceTestMethodOptionalsEndpointMiddleware...))(c.appInterfaceTestMethodOptionalsEndpoint)
 	return c, nil
 }

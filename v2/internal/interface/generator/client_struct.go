@@ -5,7 +5,8 @@ import (
 	"fmt"
 	stdtypes "go/types"
 
-	"github.com/swipe-io/swipe/v2/internal/strings"
+	"github.com/swipe-io/strcase"
+
 	"github.com/swipe-io/swipe/v2/internal/types"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
@@ -70,7 +71,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("%sClient, err := NewClient%s%s(tgt, opts...)\n", iface.LoweName(), g.options.Prefix(), iface.Name())
+			g.W("%sClient, err := NewClient%s%s(tgt, opts...)\n", iface.NameUnExport(), g.options.Prefix(), iface.NameExport())
 			g.WriteCheckErr(func() {
 				g.W("return nil, err")
 			})
@@ -79,7 +80,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 		g.W("return &AppClient{\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("%[1]sClient: %[2]sClient,\n", iface.NameExport(), iface.LoweName())
+			g.W("%[1]sClient: %[2]sClient,\n", iface.NameExport(), iface.NameUnExport())
 		}
 		g.W("}, nil\n")
 		g.W("}\n\n")
@@ -90,8 +91,8 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, m := range iface.Methods() {
-			g.W("%sClientOption []%s.ClientOption\n", m.NameUnExport, kitHTTPPkg)
-			g.W("%sEndpointMiddleware []%s.Middleware\n", m.NameUnExport, endpointPkg)
+			g.W("%sClientOption []%s.ClientOption\n", m.LcName, kitHTTPPkg)
+			g.W("%sEndpointMiddleware []%s.Middleware\n", m.LcName, endpointPkg)
 		}
 	}
 	g.W("genericClientOption []%s.ClientOption\n", kitHTTPPkg)
@@ -121,20 +122,20 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, m := range iface.Methods() {
-			g.WriteFunc(m.NameExport+"ClientOptions",
+			g.WriteFunc(m.UcName+"ClientOptions",
 				"",
 				[]string{"opt", "..." + kitHTTPPkg + ".ClientOption"},
 				[]string{"", clientOptionType},
 				func() {
-					g.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", m.NameUnExport)
+					g.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", m.LcName)
 				},
 			)
-			g.WriteFunc(m.NameExport+"ClientEndpointMiddlewares",
+			g.WriteFunc(m.UcName+"ClientEndpointMiddlewares",
 				"",
 				[]string{"opt", "..." + endpointPkg + ".Middleware"},
 				[]string{"", clientOptionType},
 				func() {
-					g.W("return func(c *clientOpts) { c.%sEndpointMiddleware = opt }\n", m.NameUnExport)
+					g.W("return func(c *clientOpts) { c.%sEndpointMiddleware = opt }\n", m.LcName)
 				},
 			)
 		}
@@ -143,7 +144,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		clientType := fmt.Sprintf("client%s", iface.Name())
+		clientType := fmt.Sprintf("client%s", iface.NameExport())
 
 		contextPkg = g.i.Import("context", "context")
 
@@ -163,6 +164,15 @@ func (g *clientStruct) Process(ctx context.Context) error {
 			}
 
 			params = append(params, types.NameTypeParams(m.Params, g.i.QualifyPkg, nil)...)
+
+			if m.ParamVariadic != nil {
+				pt := m.ParamVariadic.Type()
+				if t, ok := pt.(*stdtypes.Slice); ok {
+					pt = t.Elem()
+				}
+				params = append(params, m.ParamVariadic.Name(), "..."+stdtypes.TypeString(pt, g.i.QualifyPkg))
+			}
+
 			results := types.NameType(m.Results, g.i.QualifyPkg, nil)
 
 			if m.ReturnErr != nil {
@@ -199,6 +209,9 @@ func (g *clientStruct) Process(ctx context.Context) error {
 					params := structKeyValue(m.Params, func(p *stdtypes.Var) bool {
 						return !types.IsContext(p.Type())
 					})
+					if m.ParamVariadic != nil {
+						params = append(params, strcase.ToCamel(m.ParamVariadic.Name()), m.ParamVariadic.Name())
+					}
 					g.WriteStructAssign(params)
 				} else {
 					g.W(" nil")
@@ -241,7 +254,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 							if i > 0 {
 								g.W(",")
 							}
-							g.W("response.%s", strings.UcFirst(r.Name()))
+							g.W("response.%s", strcase.ToCamel(r.Name()))
 						}
 					} else {
 						g.W("response")

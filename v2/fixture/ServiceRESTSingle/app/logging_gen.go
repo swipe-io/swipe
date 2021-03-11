@@ -25,7 +25,8 @@ func (s *AppInterfaceLoggingMiddleware) Create(ctx context.Context, newData Data
 		if le, ok := err.(interface{ LogError() error }); ok {
 			logErr = le.LogError()
 		}
-		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "date", date, "err", logErr)
+		logger := log.WithPrefix(s.logger, "method", "Create", "took", time.Since(now))
+		logger.Log("name", name, "data", len(data), "date", date, "err", logErr)
 	}(time.Now())
 	err = s.next.Create(ctx, newData, name, data, date)
 	return err
@@ -51,7 +52,8 @@ func (s *AppInterfaceLoggingMiddleware) Get(ctx context.Context, id int, name st
 		if le, ok := err.(interface{ LogError() error }); ok {
 			logErr = le.LogError()
 		}
-		s.logger.Log("method", "Get", "took", time.Since(now), "id", id, "name", name, "fname", fname, "price", price, "n", n, "b", b, "cc", cc, "result", result.LogParams(), "err", logErr)
+		logger := log.WithPrefix(s.logger, "method", "Get", "took", time.Since(now))
+		logger.Log("id", id, "name", name, "fname", fname, "price", price, "n", n, "b", b, "cc", cc, "result", result.LogParams(), "err", logErr)
 	}(time.Now())
 	result, err = s.next.Get(ctx, id, name, fname, price, n, b, cc)
 	return result, err
@@ -91,11 +93,11 @@ func (s *AppInterfaceLoggingMiddleware) TestMethod2(ctx context.Context, ns stri
 	return err
 }
 
-func (s *AppInterfaceLoggingMiddleware) TestMethodOptionals(ctx context.Context, ns string) error {
+func (s *AppInterfaceLoggingMiddleware) TestMethodOptionals(ctx context.Context, ns string, options ...Option) error {
 	var (
 		err error
 	)
-	err = s.next.TestMethodOptionals(ctx, ns)
+	err = s.next.TestMethodOptionals(ctx, ns, options...)
 	return err
 }
 

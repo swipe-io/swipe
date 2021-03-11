@@ -70,50 +70,50 @@ func encodeResponseHTTP(ctx context.Context, w http2.ResponseWriter, response in
 }
 
 // MakeHandlerREST HTTP REST Transport
-func MakeHandlerREST(svcApp app1.App, svcApp app2.App, options ...ServerOption) (http2.Handler, error) {
+func MakeHandlerREST(svcApp1 app1.App, svcApp2 app2.App, options ...ServerOption) (http2.Handler, error) {
 	opts := &serverOpts{}
 	for _, o := range options {
 		o(opts)
 	}
 	opts.genericServerOption = append(opts.genericServerOption, http.ServerErrorEncoder(defaultErrorEncoder))
-	epSetApp1 := MakeAppEndpointSet(svcApp)
-	epSetApp2 := MakeAppEndpointSet(svcApp)
-	epSetApp1.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appCreateEndpointMiddleware...))(epSetApp1.CreateEndpoint)
-	epSetApp2.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appCreateEndpointMiddleware...))(epSetApp2.CreateEndpoint)
+	epSetApp1 := MakeApp1EndpointSet(svcApp1)
+	epSetApp2 := MakeApp2EndpointSet(svcApp2)
+	epSetApp1.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.app1CreateEndpointMiddleware...))(epSetApp1.CreateEndpoint)
+	epSetApp2.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.app2CreateEndpointMiddleware...))(epSetApp2.CreateEndpoint)
 	r := mux.NewRouter()
 	r.Methods(http2.MethodPost).Path("/app1/create").Handler(http.NewServer(
 		epSetApp1.CreateEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req AppCreateRequest
+			var req App1CreateCreateRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for AppCreateRequest: %w", err)
+				return nil, fmt.Errorf("couldn't read body for App1CreateCreateRequest: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to AppCreateRequest: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to App1CreateCreateRequest: %w", err)
 			}
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.appCreateServerOption...)...,
+		append(opts.genericServerOption, opts.app1CreateServerOption...)...,
 	))
 	r.Methods(http2.MethodPost).Path("/app2/create").Handler(http.NewServer(
 		epSetApp2.CreateEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req AppCreateRequest
+			var req App2CreateCreateRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for AppCreateRequest: %w", err)
+				return nil, fmt.Errorf("couldn't read body for App2CreateCreateRequest: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to AppCreateRequest: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to App2CreateCreateRequest: %w", err)
 			}
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.appCreateServerOption...)...,
+		append(opts.genericServerOption, opts.app2CreateServerOption...)...,
 	))
 	return r, nil
 }

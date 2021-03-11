@@ -88,6 +88,14 @@ func (g *logging) Process(ctx context.Context) error {
 
 			params = append(params, types.NameTypeParams(m.Params, g.i.QualifyPkg, nil)...)
 
+			if m.ParamVariadic != nil {
+				pt := m.ParamVariadic.Type()
+				if t, ok := pt.(*stdtypes.Slice); ok {
+					pt = t.Elem()
+				}
+				params = append(params, m.ParamVariadic.Name(), "..."+stdtypes.TypeString(pt, g.i.QualifyPkg))
+			}
+
 			if len(m.Results) > 0 {
 				if m.ResultsNamed {
 					results = types.NameType(m.Results, g.i.QualifyPkg, nil)
@@ -126,12 +134,25 @@ func (g *logging) Process(ctx context.Context) error {
 								g.W("logErr = le.LogError()\n")
 								g.W("}\n")
 							}
-							g.W("s.logger.Log(\"method\",\"%s\",\"took\",%s.Since(now),", m.Name, timePkg)
+
+							g.W("logger := %s.WithPrefix(s.logger, \"method\",\"%s\",\"took\",%s.Since(now))\n", loggerPkg, m.Name, timePkg)
+
+							if m.ParamVariadic != nil {
+								pt := m.ParamVariadic.Type()
+								if t, ok := pt.(*stdtypes.Slice); ok {
+									pt = t.Elem()
+								}
+								g.W("var variadicParam %s\n", stdtypes.TypeString(pt, g.i.QualifyPkg))
+								g.W("if len(%s) > 0 {\n", m.ParamVariadic.Name())
+								g.W("variadicParam = %s[0]\n", m.ParamVariadic.Name())
+								g.W("}\n")
+								g.W("logger = %s.WithPrefix(logger, \"%s\", variadicParam)\n", loggerPkg, m.ParamVariadic.Name())
+							}
+							g.W("logger.Log(")
 							g.W(strings.Join(logParams, ","))
 							g.W(")\n")
 						})
 					}
-
 				}
 
 				if len(m.Results) > 0 || m.ReturnErr != nil {
@@ -164,6 +185,9 @@ func (g *logging) Process(ctx context.Context) error {
 						g.W(",")
 					}
 					g.W(p.Name())
+				}
+				if m.ParamVariadic != nil {
+					g.W(",%s...", m.ParamVariadic.Name())
 				}
 				g.W(")\n")
 

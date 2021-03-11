@@ -33,7 +33,7 @@ func encodeResponseJSONRPC(_ context.Context, result interface{}) (json.RawMessa
 	return b, nil
 }
 
-func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
+func MakeServiceEndpointCodecMap(ep ServiceEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
 	var namespace string
 	if len(ns) > 0 {
 		namespace = strings.Join(ns, ".") + "."
@@ -141,21 +141,21 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 }
 
 // HTTP JSONRPC Transport
-func MakeHandlerJSONRPC(svcInterfaceB InterfaceB, options ...ServerOption) (http.Handler, error) {
+func MakeHandlerJSONRPC(svcService InterfaceB, options ...ServerOption) (http.Handler, error) {
 	opts := &serverOpts{}
 	for _, o := range options {
 		o(opts)
 	}
-	epSet := MakeInterfaceBEndpointSet(svcInterfaceB)
-	epSet.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBCreateEndpointMiddleware...))(epSet.CreateEndpoint)
-	epSet.DeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBDeleteEndpointMiddleware...))(epSet.DeleteEndpoint)
-	epSet.GetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetEndpointMiddleware...))(epSet.GetEndpoint)
-	epSet.GetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetAllEndpointMiddleware...))(epSet.GetAllEndpoint)
-	epSet.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodEndpointMiddleware...))(epSet.TestMethodEndpoint)
-	epSet.TestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethod2EndpointMiddleware...))(epSet.TestMethod2Endpoint)
-	epSet.TestMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodOptionalsEndpointMiddleware...))(epSet.TestMethodOptionalsEndpoint)
+	epSet := MakeServiceEndpointSet(svcService)
+	epSet.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceCreateEndpointMiddleware...))(epSet.CreateEndpoint)
+	epSet.DeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceDeleteEndpointMiddleware...))(epSet.DeleteEndpoint)
+	epSet.GetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceGetEndpointMiddleware...))(epSet.GetEndpoint)
+	epSet.GetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceGetAllEndpointMiddleware...))(epSet.GetAllEndpoint)
+	epSet.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceTestMethodEndpointMiddleware...))(epSet.TestMethodEndpoint)
+	epSet.TestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceTestMethod2EndpointMiddleware...))(epSet.TestMethod2Endpoint)
+	epSet.TestMethodOptionalsEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.serviceTestMethodOptionalsEndpointMiddleware...))(epSet.TestMethodOptionalsEndpoint)
 	r := mux.NewRouter()
-	handler := jsonrpc.NewServer(MakeInterfaceBEndpointCodecMap(epSet), opts.genericServerOption...)
+	handler := jsonrpc.NewServer(MakeServiceEndpointCodecMap(epSet), opts.genericServerOption...)
 	r.Methods("POST").Path("").Handler(handler)
 	return r, nil
 }

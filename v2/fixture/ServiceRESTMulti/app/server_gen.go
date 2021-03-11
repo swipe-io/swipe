@@ -69,21 +69,21 @@ func encodeResponseHTTP(ctx context.Context, w http2.ResponseWriter, response in
 }
 
 // MakeHandlerREST HTTP REST Transport
-func MakeHandlerREST(svcInterfaceA InterfaceA, svcInterfaceB InterfaceB, options ...ServerOption) (http2.Handler, error) {
+func MakeHandlerREST(svcA InterfaceA, svcB InterfaceB, options ...ServerOption) (http2.Handler, error) {
 	opts := &serverOpts{}
 	for _, o := range options {
 		o(opts)
 	}
 	opts.genericServerOption = append(opts.genericServerOption, http.ServerErrorEncoder(defaultErrorEncoder))
-	epSetA := MakeInterfaceAEndpointSet(svcInterfaceA)
-	epSetB := MakeInterfaceBEndpointSet(svcInterfaceB)
-	epSetA.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceATestMethodEndpointMiddleware...))(epSetA.TestMethodEndpoint)
-	epSetB.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBCreateEndpointMiddleware...))(epSetB.CreateEndpoint)
-	epSetB.DeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBDeleteEndpointMiddleware...))(epSetB.DeleteEndpoint)
-	epSetB.GetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetEndpointMiddleware...))(epSetB.GetEndpoint)
-	epSetB.GetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetAllEndpointMiddleware...))(epSetB.GetAllEndpoint)
-	epSetB.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodEndpointMiddleware...))(epSetB.TestMethodEndpoint)
-	epSetB.TestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethod2EndpointMiddleware...))(epSetB.TestMethod2Endpoint)
+	epSetA := MakeAEndpointSet(svcA)
+	epSetB := MakeBEndpointSet(svcB)
+	epSetA.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.aTestMethodEndpointMiddleware...))(epSetA.TestMethodEndpoint)
+	epSetB.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bCreateEndpointMiddleware...))(epSetB.CreateEndpoint)
+	epSetB.DeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bDeleteEndpointMiddleware...))(epSetB.DeleteEndpoint)
+	epSetB.GetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bGetEndpointMiddleware...))(epSetB.GetEndpoint)
+	epSetB.GetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bGetAllEndpointMiddleware...))(epSetB.GetAllEndpoint)
+	epSetB.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bTestMethodEndpointMiddleware...))(epSetB.TestMethodEndpoint)
+	epSetB.TestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bTestMethod2EndpointMiddleware...))(epSetB.TestMethod2Endpoint)
 	r := mux.NewRouter()
 	r.Methods("GET").Path("/a/testmethod").Handler(http.NewServer(
 		epSetA.TestMethodEndpoint,
@@ -91,53 +91,53 @@ func MakeHandlerREST(svcInterfaceA InterfaceA, svcInterfaceB InterfaceB, options
 			return nil, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.interfaceATestMethodServerOption...)...,
+		append(opts.genericServerOption, opts.aTestMethodServerOption...)...,
 	))
 	r.Methods(http2.MethodPost).Path("/b/create").Handler(http.NewServer(
 		epSetB.CreateEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req InterfaceBCreateRequest
+			var req BCreateCreateRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for InterfaceBCreateRequest: %w", err)
+				return nil, fmt.Errorf("couldn't read body for BCreateCreateRequest: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBCreateRequest: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BCreateCreateRequest: %w", err)
 			}
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.interfaceBCreateServerOption...)...,
+		append(opts.genericServerOption, opts.bCreateServerOption...)...,
 	))
 	r.Methods(http2.MethodPost).Path("/b/delete").Handler(http.NewServer(
 		epSetB.DeleteEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req InterfaceBDeleteRequest
+			var req BDeleteDeleteRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for InterfaceBDeleteRequest: %w", err)
+				return nil, fmt.Errorf("couldn't read body for BDeleteDeleteRequest: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBDeleteRequest: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BDeleteDeleteRequest: %w", err)
 			}
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.interfaceBDeleteServerOption...)...,
+		append(opts.genericServerOption, opts.bDeleteServerOption...)...,
 	))
 	r.Methods(http2.MethodPost).Path("/b/get-test").Handler(http.NewServer(
 		epSetB.GetEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req InterfaceBGetRequest
+			var req BGetGetRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for InterfaceBGetRequest: %w", err)
+				return nil, fmt.Errorf("couldn't read body for BGetGetRequest: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBGetRequest: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BGetGetRequest: %w", err)
 			}
 			q := r.URL.Query()
 			tmpcc := q.Get("cc")
@@ -151,58 +151,58 @@ func MakeHandlerREST(svcInterfaceA InterfaceA, svcInterfaceB InterfaceB, options
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.interfaceBGetServerOption...)...,
+		append(opts.genericServerOption, opts.bGetServerOption...)...,
 	))
 	r.Methods(http2.MethodPost).Path("/b/getall").Handler(http.NewServer(
 		epSetB.GetAllEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req InterfaceBGetAllRequest
+			var req BGetAllGetAllRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for InterfaceBGetAllRequest: %w", err)
+				return nil, fmt.Errorf("couldn't read body for BGetAllGetAllRequest: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBGetAllRequest: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BGetAllGetAllRequest: %w", err)
 			}
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.interfaceBGetAllServerOption...)...,
+		append(opts.genericServerOption, opts.bGetAllServerOption...)...,
 	))
 	r.Methods(http2.MethodPost).Path("/b/testmethod").Handler(http.NewServer(
 		epSetB.TestMethodEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req InterfaceBTestMethodRequest
+			var req BTestMethodTestMethodRequest
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for InterfaceBTestMethodRequest: %w", err)
+				return nil, fmt.Errorf("couldn't read body for BTestMethodTestMethodRequest: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBTestMethodRequest: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BTestMethodTestMethodRequest: %w", err)
 			}
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.interfaceBTestMethodServerOption...)...,
+		append(opts.genericServerOption, opts.bTestMethodServerOption...)...,
 	))
 	r.Methods(http2.MethodPost).Path("/b/testmethod2").Handler(http.NewServer(
 		epSetB.TestMethod2Endpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
-			var req InterfaceBTestMethod2Request
+			var req BTestMethod2TestMethod2Request
 			b, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't read body for InterfaceBTestMethod2Request: %w", err)
+				return nil, fmt.Errorf("couldn't read body for BTestMethod2TestMethod2Request: %w", err)
 			}
 			err = ffjson.Unmarshal(b, &req)
 			if err != nil && err != io.EOF {
-				return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBTestMethod2Request: %w", err)
+				return nil, fmt.Errorf("couldn't unmarshal body to BTestMethod2TestMethod2Request: %w", err)
 			}
 			return req, nil
 		},
 		encodeResponseHTTP,
-		append(opts.genericServerOption, opts.interfaceBTestMethod2ServerOption...)...,
+		append(opts.genericServerOption, opts.bTestMethod2ServerOption...)...,
 	))
 	return r, nil
 }

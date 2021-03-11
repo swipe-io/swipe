@@ -34,7 +34,7 @@ func encodeResponseJSONRPC(_ context.Context, result interface{}) (json.RawMessa
 	return b, nil
 }
 
-func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
+func MakeBEndpointCodecMap(ep BEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
 	var namespace string
 	if len(ns) > 0 {
 		namespace = strings.Join(ns, ".") + "."
@@ -44,10 +44,10 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 		ecm[namespace+"create"] = jsonrpc.EndpointCodec{
 			Endpoint: ep.CreateEndpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req InterfaceBCreateRequest
+				var req BCreateCreateRequest
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBCreateRequest: %s", err)
+					return nil, fmt.Errorf("couldn't unmarshal body to BCreateCreateRequest: %s", err)
 				}
 				return req, nil
 			},
@@ -58,15 +58,15 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 }
 
 // HTTP JSONRPC Transport
-func MakeHandlerJSONRPC(svcInterfaceB app.InterfaceB, options ...ServerOption) (http.Handler, error) {
+func MakeHandlerJSONRPC(svcB app.InterfaceB, options ...ServerOption) (http.Handler, error) {
 	opts := &serverOpts{}
 	for _, o := range options {
 		o(opts)
 	}
-	epSet := MakeInterfaceBEndpointSet(svcInterfaceB)
-	epSet.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBCreateEndpointMiddleware...))(epSet.CreateEndpoint)
+	epSet := MakeBEndpointSet(svcB)
+	epSet.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bCreateEndpointMiddleware...))(epSet.CreateEndpoint)
 	r := mux.NewRouter()
-	handler := jsonrpc.NewServer(MakeInterfaceBEndpointCodecMap(epSet), opts.genericServerOption...)
+	handler := jsonrpc.NewServer(MakeBEndpointCodecMap(epSet), opts.genericServerOption...)
 	r.Methods("POST").Path("").Handler(handler)
 	return r, nil
 }

@@ -3,7 +3,6 @@ package generator
 import (
 	"context"
 	stdtypes "go/types"
-	stdstrings "strings"
 
 	"github.com/swipe-io/swipe/v2/internal/types"
 
@@ -11,7 +10,6 @@ import (
 
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/importer"
-	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
@@ -44,7 +42,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 		}
 
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
-		epSetName := iface.Name() + "EndpointSet"
+		epSetName := iface.NameExport() + "EndpointSet"
 
 		g.W("type %s struct {\n", epSetName)
 		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
@@ -57,7 +55,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 			g.W("func Make%[1]s(svc %[2]s) %[1]s {\n", epSetName, typeStr)
 			g.W("return %s{\n", epSetName)
 			for _, m := range iface.Methods() {
-				g.W("%sEndpoint: Make%sEndpoint(svc),\n", m.Name, m.NameExport)
+				g.W("%sEndpoint: Make%sEndpoint(svc),\n", m.Name, m.UcName)
 
 			}
 			g.W("}\n")
@@ -68,10 +66,10 @@ func (g *endpoint) Process(ctx context.Context) error {
 			if len(m.Params) > 0 {
 				g.W("type %s struct {\n", m.NameRequest)
 				for _, p := range m.Params {
-					g.W("%s %s `json:\"%s\"`\n", strings.UcFirst(p.Name()), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(p.Name()))
+					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(p.Name()), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(p.Name()))
 				}
 				if m.ParamVariadic != nil {
-					g.W("%s %s `json:\"%s\"`\n", strings.UcFirst(m.ParamVariadic.Name()), stdtypes.TypeString(m.ParamVariadic.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(m.ParamVariadic.Name()))
+					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(m.ParamVariadic.Name()), stdtypes.TypeString(m.ParamVariadic.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(m.ParamVariadic.Name()))
 				}
 				g.W("}\n")
 			}
@@ -80,7 +78,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 				g.W("type %s struct {\n", m.NameResponse)
 				for _, p := range m.Results {
 					name := p.Name()
-					g.W("%s %s `json:\"%s\"`\n", strings.UcFirst(name), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(name))
+					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(name), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(name))
 				}
 				g.W("}\n")
 			}
@@ -118,7 +116,7 @@ func (g *endpoint) writeEndpointMake() {
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
 		for _, m := range iface.Methods() {
-			g.W("func Make%sEndpoint(s %s) %s.Endpoint {\n", m.NameExport, typeStr, kitEndpointPkg)
+			g.W("func Make%sEndpoint(s %s) %s.Endpoint {\n", m.UcName, typeStr, kitEndpointPkg)
 			g.W("return func (ctx %s.Context, request interface{}) (interface{}, error) {\n", contextPkg)
 
 			var callParams []string
@@ -130,15 +128,11 @@ func (g *endpoint) writeEndpointMake() {
 			methodParams = append(methodParams, m.Params...)
 
 			callParams = append(callParams, types.Params(m.Params, func(p *stdtypes.Var) []string {
-				name := p.Name()
-				name = stdstrings.ToUpper(name[:1]) + name[1:]
-				return []string{"req." + name}
+				return []string{"req." + strcase.ToCamel(p.Name())}
 			}, nil)...)
 
 			if m.ParamVariadic != nil {
-				name := m.ParamVariadic.Name()
-				name = stdstrings.ToUpper(name[:1]) + name[1:]
-				callParams = append(callParams, "req."+name+"...")
+				callParams = append(callParams, "req."+strcase.ToCamel(m.ParamVariadic.Name())+"...")
 			}
 
 			if len(m.Params) > 0 {

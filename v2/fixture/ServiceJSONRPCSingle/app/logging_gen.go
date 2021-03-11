@@ -26,7 +26,8 @@ func (s *ServiceLoggingMiddleware) Create(ctx context.Context, newData Data, nam
 		if le, ok := err.(interface{ LogError() error }); ok {
 			logErr = le.LogError()
 		}
-		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "err", logErr)
+		logger := log.WithPrefix(s.logger, "method", "Create", "took", time.Since(now))
+		logger.Log("name", name, "data", len(data), "err", logErr)
 	}(time.Now())
 	err = s.next.Create(ctx, newData, name, data)
 	return err
@@ -52,7 +53,8 @@ func (s *ServiceLoggingMiddleware) Get(ctx context.Context, id uuid.UUID, name s
 		if le, ok := err.(interface{ LogError() error }); ok {
 			logErr = le.LogError()
 		}
-		s.logger.Log("method", "Get", "took", time.Since(now), "id", id, "err", logErr)
+		logger := log.WithPrefix(s.logger, "method", "Get", "took", time.Since(now))
+		logger.Log("id", id, "err", logErr)
 	}(time.Now())
 	result, err = s.next.Get(ctx, id, name, fname, price, n, b, cc)
 	return result, err
@@ -84,11 +86,24 @@ func (s *ServiceLoggingMiddleware) TestMethod2(ctx context.Context, ns string, u
 	return err
 }
 
-func (s *ServiceLoggingMiddleware) TestMethodOptionals(ctx context.Context, ns string) error {
+func (s *ServiceLoggingMiddleware) TestMethodOptionals(ctx context.Context, ns string, options ...OptionService) error {
 	var (
 		err error
 	)
-	err = s.next.TestMethodOptionals(ctx, ns)
+	defer func(now time.Time) {
+		logErr := err
+		if le, ok := err.(interface{ LogError() error }); ok {
+			logErr = le.LogError()
+		}
+		logger := log.WithPrefix(s.logger, "method", "TestMethodOptionals", "took", time.Since(now))
+		var variadicParam OptionService
+		if len(options) > 0 {
+			variadicParam = options[0]
+		}
+		logger = log.WithPrefix(logger, "options", variadicParam)
+		logger.Log("ns", ns, "err", logErr)
+	}(time.Now())
+	err = s.next.TestMethodOptionals(ctx, ns, options...)
 	return err
 }
 

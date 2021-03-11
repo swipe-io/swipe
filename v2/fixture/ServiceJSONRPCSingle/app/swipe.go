@@ -32,6 +32,10 @@ func Swipe() {
 				swipe.LoggingParams([]string{"id"}, []string{}),
 			),
 
+			swipe.MethodOptions(InterfaceB.TestMethodOptionals,
+				swipe.Logging(true),
+			),
+
 			swipe.MethodDefaultOptions(
 				swipe.Logging(false),
 				swipe.Instrumenting(true),

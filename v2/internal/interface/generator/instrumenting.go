@@ -73,6 +73,15 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 			}
 
 			params = append(params, types.NameTypeParams(m.Params, g.i.QualifyPkg, nil)...)
+
+			if m.ParamVariadic != nil {
+				pt := m.ParamVariadic.Type()
+				if t, ok := pt.(*stdtypes.Slice); ok {
+					pt = t.Elem()
+				}
+				params = append(params, m.ParamVariadic.Name(), "..."+stdtypes.TypeString(pt, g.i.QualifyPkg))
+			}
+
 			results := types.NameType(m.Results, g.i.QualifyPkg, nil)
 
 			if m.ReturnErr != nil {
@@ -98,12 +107,14 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 				if m.ParamCtx != nil {
 					g.W("%s,", m.ParamCtx.Name())
 				}
-
 				for i, p := range m.Params {
 					if i > 0 {
 						g.W(",")
 					}
 					g.W(p.Name())
+				}
+				if m.ParamVariadic != nil {
+					g.W(",%s...", m.ParamVariadic.Name())
 				}
 
 				g.W(")\n")

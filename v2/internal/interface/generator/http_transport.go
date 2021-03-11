@@ -83,7 +83,7 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
 			for _, method := range iface.Methods() {
-				g.WriteFunc(method.NameUnExport+"ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
+				g.WriteFunc(method.LcName+"ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
 					g.W("switch code {\n")
 					g.W("default:\nerr = &httpError{code: code}\n")
 					if g.options.JSONRPCEnable() {
@@ -167,8 +167,8 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		iface := g.options.Interfaces().At(i)
 
 		for _, m := range iface.Methods() {
-			g.W("%sServerOption []%s\n", m.NameUnExport, kithttpServerOption)
-			g.W("%sEndpointMiddleware []%s\n", m.NameUnExport, endpointMiddlewareOption)
+			g.W("%sServerOption []%s\n", m.LcName, kithttpServerOption)
+			g.W("%sEndpointMiddleware []%s\n", m.LcName, endpointMiddlewareOption)
 		}
 	}
 	g.W("}\n")
@@ -177,22 +177,22 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		iface := g.options.Interfaces().At(i)
 		for _, m := range iface.Methods() {
 			g.WriteFunc(
-				fmt.Sprintf("%sServerOptions", m.NameExport),
+				fmt.Sprintf("%sServerOptions", m.UcName),
 				"",
 				[]string{"opt", "..." + kithttpServerOption},
 				[]string{"", serverOptionType},
 				func() {
-					g.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, m.NameUnExport)
+					g.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, m.LcName)
 				},
 			)
 
 			g.WriteFunc(
-				fmt.Sprintf("%sServerEndpointMiddlewares", m.NameExport),
+				fmt.Sprintf("%sServerEndpointMiddlewares", m.UcName),
 				"",
 				[]string{"opt", "..." + endpointMiddlewareOption},
 				[]string{"", serverOptionType},
 				func() {
-					g.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, m.NameUnExport)
+					g.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, m.LcName)
 				},
 			)
 		}

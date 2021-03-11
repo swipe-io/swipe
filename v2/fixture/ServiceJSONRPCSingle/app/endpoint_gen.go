@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func MakeInterfaceBCreateEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeServiceCreateEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(CreateRequest)
 		err := s.Create(ctx, req.NewData, req.Name, req.Data)
@@ -23,7 +23,7 @@ func MakeInterfaceBCreateEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBDeleteEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeServiceDeleteEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(DeleteRequest)
 		a, b, err := s.Delete(ctx, req.Id)
@@ -35,7 +35,7 @@ func MakeInterfaceBDeleteEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBGetEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeServiceGetEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(GetRequest)
 		result, err := s.Get(ctx, req.Id, req.Name, req.Fname, req.Price, req.N, req.B, req.Cc)
@@ -47,7 +47,7 @@ func MakeInterfaceBGetEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBGetAllEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeServiceGetAllEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(GetAllRequest)
 		result, err := s.GetAll(ctx, req.Members)
@@ -59,7 +59,7 @@ func MakeInterfaceBGetAllEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBTestMethodEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeServiceTestMethodEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(TestMethodRequest)
 		result, err := s.TestMethod(req.Data, req.Ss)
@@ -71,7 +71,7 @@ func MakeInterfaceBTestMethodEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBTestMethod2Endpoint(s InterfaceB) endpoint.Endpoint {
+func MakeServiceTestMethod2Endpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(TestMethod2Request)
 		err := s.TestMethod2(ctx, req.Ns, req.Utype, req.User, req.Restype, req.Resource, req.Permission)
@@ -83,7 +83,7 @@ func MakeInterfaceBTestMethod2Endpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBTestMethodOptionalsEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeServiceTestMethodOptionalsEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(TestMethodOptionalsRequest)
 		err := s.TestMethodOptionals(ctx, req.Ns, req.Options...)
@@ -95,7 +95,7 @@ func MakeInterfaceBTestMethodOptionalsEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-type InterfaceBEndpointSet struct {
+type ServiceEndpointSet struct {
 	CreateEndpoint              endpoint.Endpoint
 	DeleteEndpoint              endpoint.Endpoint
 	GetEndpoint                 endpoint.Endpoint
@@ -105,15 +105,15 @@ type InterfaceBEndpointSet struct {
 	TestMethodOptionalsEndpoint endpoint.Endpoint
 }
 
-func MakeInterfaceBEndpointSet(svc InterfaceB) InterfaceBEndpointSet {
-	return InterfaceBEndpointSet{
-		CreateEndpoint:              MakeInterfaceBCreateEndpoint(svc),
-		DeleteEndpoint:              MakeInterfaceBDeleteEndpoint(svc),
-		GetEndpoint:                 MakeInterfaceBGetEndpoint(svc),
-		GetAllEndpoint:              MakeInterfaceBGetAllEndpoint(svc),
-		TestMethodEndpoint:          MakeInterfaceBTestMethodEndpoint(svc),
-		TestMethod2Endpoint:         MakeInterfaceBTestMethod2Endpoint(svc),
-		TestMethodOptionalsEndpoint: MakeInterfaceBTestMethodOptionalsEndpoint(svc),
+func MakeServiceEndpointSet(svc InterfaceB) ServiceEndpointSet {
+	return ServiceEndpointSet{
+		CreateEndpoint:              MakeServiceCreateEndpoint(svc),
+		DeleteEndpoint:              MakeServiceDeleteEndpoint(svc),
+		GetEndpoint:                 MakeServiceGetEndpoint(svc),
+		GetAllEndpoint:              MakeServiceGetAllEndpoint(svc),
+		TestMethodEndpoint:          MakeServiceTestMethodEndpoint(svc),
+		TestMethod2Endpoint:         MakeServiceTestMethod2Endpoint(svc),
+		TestMethodOptionalsEndpoint: MakeServiceTestMethodOptionalsEndpoint(svc),
 	}
 }
 

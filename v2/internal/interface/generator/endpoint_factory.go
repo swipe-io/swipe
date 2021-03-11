@@ -45,7 +45,7 @@ func (g *endpointFactory) Process(ctx context.Context) error {
 				g.W("return nil, nil, err\n")
 			})
 			g.W("return ")
-			g.W("make%sEndpoint(c), nil, nil\n", m.NameExport)
+			g.W("make%sEndpoint(c), nil, nil\n", m.UcName)
 			g.W("\n}\n\n")
 		}
 

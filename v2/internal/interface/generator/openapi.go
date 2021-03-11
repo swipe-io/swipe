@@ -15,7 +15,6 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	iftypevisitor "github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
-	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	ustypevisitor "github.com/swipe-io/swipe/v2/internal/usecase/typevisitor"
@@ -289,9 +288,9 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 
 			if g.options.JSONRPCEnable() {
 				o = g.makeJSONRPCPath(m, ntc, paramsComment, prefix)
-				pathStr = "/" + strings.LcFirst(m.Name)
+				pathStr = "/" + strcase.ToLowerCamel(m.Name)
 				if prefix != "" {
-					pathStr = "/" + prefix + "." + strings.LcFirst(m.Name)
+					pathStr = "/" + prefix + "." + strcase.ToLowerCamel(m.Name)
 				}
 				methodName = "POST"
 				for _, ei := range m.Errors {

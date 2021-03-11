@@ -27,7 +27,8 @@ func (s *App1LoggingMiddleware) Create(ctx context.Context, name string, data []
 		if le, ok := err.(interface{ LogError() error }); ok {
 			logErr = le.LogError()
 		}
-		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "123", ctx.Value("123"), "err", logErr)
+		logger := log.WithPrefix(s.logger, "method", "Create", "took", time.Since(now))
+		logger.Log("name", name, "data", len(data), "123", ctx.Value("123"), "err", logErr)
 	}(time.Now())
 	err = s.next.Create(ctx, name, data)
 	return err
@@ -51,7 +52,8 @@ func (s *App2LoggingMiddleware) Create(ctx context.Context, name string, data []
 		if le, ok := err.(interface{ LogError() error }); ok {
 			logErr = le.LogError()
 		}
-		s.logger.Log("method", "Create", "took", time.Since(now), "name", name, "data", len(data), "123", ctx.Value("123"), "err", logErr)
+		logger := log.WithPrefix(s.logger, "method", "Create", "took", time.Since(now))
+		logger.Log("name", name, "data", len(data), "123", ctx.Value("123"), "err", logErr)
 	}(time.Now())
 	err = s.next.Create(ctx, name, data)
 	return err

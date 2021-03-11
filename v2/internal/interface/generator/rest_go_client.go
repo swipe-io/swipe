@@ -8,8 +8,6 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v2/internal/strings"
-
 	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
@@ -49,7 +47,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 			pkgIO      string
 		)
 		iface := g.options.Interfaces().At(i)
-		clientType := "client" + iface.Name()
+		clientType := "client" + iface.NameExport()
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
 		if g.options.UseFast() {
@@ -70,12 +68,15 @@ func (g *restGoClient) Process(_ context.Context) error {
 		netPkg = g.i.Import("net", "net")
 		stringsPkg = g.i.Import("strings", "strings")
 
-		var name string
-		if g.options.Interfaces().Len() > 1 {
-			name = iface.Name()
+		if g.options.Interfaces().Len() == 1 {
+			g.W("// Deprecated\nfunc NewClient%s(tgt string", g.options.Prefix())
+			g.W(" ,options ...ClientOption")
+			g.W(") (%s, error) {\n", typeStr)
+			g.W("return NewClient%s%s(tgt, options...)", g.options.Prefix(), iface.NameExport())
+			g.W("}\n")
 		}
 
-		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), name)
+		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.NameExport())
 		g.W(" ,options ...ClientOption")
 		g.W(") (%s, error) {\n", typeStr)
 		g.W("opts := &clientOpts{}\n")
@@ -113,7 +114,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 
 			pathStr := mopt.Path
 			if pathStr == "" {
-				pathStr = path.Join("/", m.LcName)
+				pathStr = path.Join("/", strcase.ToKebab(m.Name))
 			}
 
 			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
@@ -182,7 +183,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 				for _, p := range pathVars {
 					name := p.Name() + "Str"
 					pathVarNames = append(pathVarNames, name)
-					g.WriteFormatType(g.i.Import, name, "req."+strings.UcFirst(p.Name()), p)
+					g.WriteFormatType(g.i.Import, name, "req."+strcase.ToCamel(p.Name()), p)
 				}
 				if g.options.UseFast() {
 					g.W("r.SetRequestURI(")
@@ -209,7 +210,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 					}
 					for _, p := range queryVars {
 						name := p.Name() + "Str"
-						g.WriteFormatType(g.i.Import, name, "req."+strings.UcFirst(p.Name()), p)
+						g.WriteFormatType(g.i.Import, name, "req."+strcase.ToCamel(p.Name()), p)
 						g.W("q.Add(%s, %s)\n", strconv.Quote(mopt.QueryVars[p.Name()]), name)
 					}
 					if g.options.UseFast() {
@@ -220,7 +221,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 				}
 				for _, p := range headerVars {
 					name := p.Name() + "Str"
-					g.WriteFormatType(g.i.Import, name, "req."+strings.UcFirst(p.Name()), p)
+					g.WriteFormatType(g.i.Import, name, "req."+strcase.ToCamel(p.Name()), p)
 					g.W("r.Header.Add(%s, %s)\n", strconv.Quote(mopt.HeaderVars[p.Name()]), name)
 				}
 				switch stdstrings.ToUpper(httpMethod) {
@@ -260,7 +261,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 				}
 
 				g.W("if statusCode := %s; statusCode != %s.StatusOK {\n", statusCode, httpPkg)
-				g.W("return nil, %sErrorDecode(statusCode)\n", m.NameUnExport)
+				g.W("return nil, %sErrorDecode(statusCode)\n", m.LcName)
 				g.W("}\n")
 
 				if len(m.Results) > 0 {
@@ -307,14 +308,14 @@ func (g *restGoClient) Process(_ context.Context) error {
 
 			g.W(",\n")
 
-			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.NameUnExport)
+			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.LcName)
 
 			g.W(").Endpoint()\n")
 
 			g.W(
 				"c.%[1]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[2]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
 				m.LcName,
-				m.NameUnExport,
+				m.LcName,
 			)
 		}
 		g.W("return c, nil\n")
