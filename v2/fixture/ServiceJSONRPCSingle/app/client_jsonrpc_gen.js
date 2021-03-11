@@ -162,13 +162,9 @@ class JSONRPCClientService {
    * @param {string} name
    * @param {Array<number>} data
    **/
-  create(newData, name, data) {
+  serviceCreate(newData, name, data) {
     return this.scheduler
-      .__scheduleRequest("service.create", {
-        newData: newData,
-        name: name,
-        data: data
-      })
+      .__scheduleRequest("create", { newData: newData, name: name, data: data })
       .catch((e) => {
         throw interfaceBCreateConvertError(e);
       });
@@ -177,12 +173,10 @@ class JSONRPCClientService {
    * @param {number} id
    * @return {PromiseLike<{a: string, b: string}>}
    **/
-  delete(id) {
-    return this.scheduler
-      .__scheduleRequest("service.delete", { id: id })
-      .catch((e) => {
-        throw interfaceBDeleteConvertError(e);
-      });
+  serviceDelete(id) {
+    return this.scheduler.__scheduleRequest("delete", { id: id }).catch((e) => {
+      throw interfaceBDeleteConvertError(e);
+    });
   }
   /**
    *  Get item.
@@ -196,9 +190,9 @@ class JSONRPCClientService {
    * @param {number} cc
    * @return {PromiseLike<User>}
    **/
-  get(id, name, fname, price, n, b, cc) {
+  serviceGet(id, name, fname, price, n, b, cc) {
     return this.scheduler
-      .__scheduleRequest("service.get", {
+      .__scheduleRequest("get", {
         id: id,
         name: name,
         fname: fname,
@@ -218,9 +212,9 @@ class JSONRPCClientService {
    * @param {Members} members
    * @return {PromiseLike<Array<User>>}
    **/
-  getAll(members) {
+  serviceGetAll(members) {
     return this.scheduler
-      .__scheduleRequest("service.getAll", { members: members })
+      .__scheduleRequest("getAll", { members: members })
       .catch((e) => {
         throw interfaceBGetAllConvertError(e);
       });
@@ -230,9 +224,9 @@ class JSONRPCClientService {
    * @param {object} ss
    * @return {PromiseLike<Object<string, Object<string, Array<string>>>>}
    **/
-  testMethod(data, ss) {
+  serviceTestMethod(data, ss) {
     return this.scheduler
-      .__scheduleRequest("service.testMethod", { data: data, ss: ss })
+      .__scheduleRequest("testMethod", { data: data, ss: ss })
       .catch((e) => {
         throw interfaceBTestMethodConvertError(e);
       });
@@ -245,9 +239,9 @@ class JSONRPCClientService {
    * @param {string} resource
    * @param {string} permission
    **/
-  testMethod2(ns, utype, user, restype, resource, permission) {
+  serviceTestMethod2(ns, utype, user, restype, resource, permission) {
     return this.scheduler
-      .__scheduleRequest("service.testMethod2", {
+      .__scheduleRequest("testMethod2", {
         ns: ns,
         utype: utype,
         user: user,
@@ -263,12 +257,9 @@ class JSONRPCClientService {
    * @param {string} ns
    * @param {...OptionService} options
    **/
-  testMethodOptionals(ns, ...options) {
+  serviceTestMethodOptionals(ns, ...options) {
     return this.scheduler
-      .__scheduleRequest("service.testMethodOptionals", {
-        ns: ns,
-        options: options
-      })
+      .__scheduleRequest("testMethodOptionals", { ns: ns, options: options })
       .catch((e) => {
         throw interfaceBTestMethodOptionalsConvertError(e);
       });

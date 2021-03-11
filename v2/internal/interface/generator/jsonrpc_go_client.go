@@ -44,16 +44,18 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 
 		iface := g.options.Interfaces().At(i)
 
-		clientType := "client" + iface.Name()
+		clientType := "client" + iface.NameExport()
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
-		g.W("// Deprecated\nfunc NewClient%s(tgt string", g.options.Prefix())
-		g.W(" ,options ...ClientOption")
-		g.W(") (%s, error) {\n", typeStr)
-		g.W("return NewClient%s%s(tgt, options...)", g.options.Prefix(), iface.Name())
-		g.W("}\n")
+		if g.options.Interfaces().Len() == 1 {
+			g.W("// Deprecated\nfunc NewClient%s(tgt string", g.options.Prefix())
+			g.W(" ,options ...ClientOption")
+			g.W(") (%s, error) {\n", typeStr)
+			g.W("return NewClient%s%s(tgt, options...)", g.options.Prefix(), iface.NameExport())
+			g.W("}\n")
+		}
 
-		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.Name())
+		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.NameExport())
 		g.W(" ,options ...ClientOption")
 		g.W(") (%s, error) {\n", typeStr)
 		g.W("opts := &clientOpts{}\n")
@@ -94,7 +96,7 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		for _, m := range iface.Methods() {
 			mopt := g.options.MethodOption(m)
 
-			g.W("opts.%[1]sClientOption = append(\nopts.%[1]sClientOption,\n", m.NameUnExport)
+			g.W("opts.%[1]sClientOption = append(\nopts.%[1]sClientOption,\n", m.LcName)
 
 			g.W("%s.ClientRequestEncoder(", jsonrpcPkg)
 			g.W("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
@@ -117,7 +119,7 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 			g.W("%s.ClientResponseDecoder(", jsonrpcPkg)
 			g.W("func(_ %s.Context, response %s.Response) (interface{}, error) {\n", contextPkg, jsonrpcPkg)
 			g.W("if response.Error != nil {\n")
-			g.W("return nil, %sErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)\n", m.NameUnExport)
+			g.W("return nil, %sErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)\n", m.LcName)
 			g.W("}\n")
 
 			if len(m.Results) > 0 {
@@ -159,14 +161,14 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 			g.W("u,\n")
 			g.W("%s,\n", strconv.Quote(methodName))
 
-			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.NameUnExport)
+			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.LcName)
 
 			g.W(").Endpoint()\n")
 
 			g.W(
 				"c.%[1]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[2]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
 				m.LcName,
-				m.NameUnExport,
+				m.LcName,
 			)
 		}
 

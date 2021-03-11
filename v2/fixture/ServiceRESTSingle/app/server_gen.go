@@ -216,10 +216,18 @@ func MakeHandlerREST(svcAppInterface AppInterface, options ...ServerOption) (htt
 		encodeResponseHTTP,
 		append(opts.genericServerOption, opts.appInterfaceTestMethod2ServerOption...)...,
 	))
-	r.Methods("GET").Path("/testmethodoptionals").Handler(http.NewServer(
+	r.Methods(http2.MethodPost).Path("/testmethodoptionals").Handler(http.NewServer(
 		epSet.TestMethodOptionalsEndpoint,
 		func(ctx context.Context, r *http2.Request) (interface{}, error) {
 			var req TestMethodOptionalsRequest
+			b, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't read body for TestMethodOptionalsRequest: %w", err)
+			}
+			err = ffjson.Unmarshal(b, &req)
+			if err != nil && err != io.EOF {
+				return nil, fmt.Errorf("couldn't unmarshal body to TestMethodOptionalsRequest: %w", err)
+			}
 			return req, nil
 		},
 		encodeResponseHTTP,

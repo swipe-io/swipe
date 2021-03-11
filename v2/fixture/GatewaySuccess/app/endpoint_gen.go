@@ -11,9 +11,9 @@ import (
 	"github.com/swipe-io/swipe/v2/fixture/ServiceJSONRPCMulti/app"
 )
 
-func MakeInterfaceBCreateEndpoint(s app.InterfaceB) endpoint.Endpoint {
+func MakeBCreateEndpoint(s app.InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(InterfaceBCreateRequest)
+		req := request.(BCreateCreateRequest)
 		err := s.Create(ctx, req.NewData, req.Name, req.Data)
 		if err != nil {
 			return nil, err
@@ -23,17 +23,17 @@ func MakeInterfaceBCreateEndpoint(s app.InterfaceB) endpoint.Endpoint {
 
 }
 
-type InterfaceBEndpointSet struct {
+type BEndpointSet struct {
 	CreateEndpoint endpoint.Endpoint
 }
 
-func MakeInterfaceBEndpointSet(svc app.InterfaceB) InterfaceBEndpointSet {
-	return InterfaceBEndpointSet{
-		CreateEndpoint: MakeInterfaceBCreateEndpoint(svc),
+func MakeBEndpointSet(svc app.InterfaceB) BEndpointSet {
+	return BEndpointSet{
+		CreateEndpoint: MakeBCreateEndpoint(svc),
 	}
 }
 
-type InterfaceBCreateRequest struct {
+type BCreateCreateRequest struct {
 	NewData app.Data `json:"newData"`
 	Name    string   `json:"name"`
 	Data    []byte   `json:"data"`

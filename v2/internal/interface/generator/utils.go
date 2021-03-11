@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/swipe-io/strcase"
+
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/types"
 )
@@ -14,7 +16,7 @@ func structKeyValue(vars []*stdtypes.Var, filterFn types.FilterFn) (results []st
 		vars,
 		func(p *stdtypes.Var) []string {
 			name := p.Name()
-			fieldName := strings.ToUpper(name[:1]) + name[1:]
+			fieldName := strcase.ToCamel(name)
 			return []string{fieldName, name}
 		},
 		filterFn,

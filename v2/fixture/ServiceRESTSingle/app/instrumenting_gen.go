@@ -107,12 +107,12 @@ func (s *AppInterfaceInstrumentingMiddleware) TestMethod2(ctx context.Context, n
 	return s.next.TestMethod2(ctx, ns, utype, user, restype, resource, permission)
 }
 
-func (s *AppInterfaceInstrumentingMiddleware) TestMethodOptionals(ctx context.Context, ns string) error {
+func (s *AppInterfaceInstrumentingMiddleware) TestMethodOptionals(ctx context.Context, ns string, options ...Option) error {
 	defer func(begin time.Time) {
 		s.opts.requestCount.With("method", "TestMethodOptionals").Add(1)
 		s.opts.requestLatency.With("method", "TestMethodOptionals").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return s.next.TestMethodOptionals(ctx, ns)
+	return s.next.TestMethodOptionals(ctx, ns, options...)
 }
 
 func NewInstrumentingAppInterfaceMiddleware(s AppInterface, opts ...InstrumentingOption) AppInterface {

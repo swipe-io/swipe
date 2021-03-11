@@ -15,7 +15,6 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/option"
-	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/gateway"
 
@@ -315,26 +314,23 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 
 		comments, _ := g.commentFuncs[m.String()]
 
-		lcName := strings.LcFirst(m.Name())
-
-		nameExport := ifaceName + m.Name()
-		nameUnExport := ifaceLcName + m.Name()
+		nameUc := nameExport + m.Name()
+		nameLc := nameUnExport + m.Name()
 
 		nameRequest := m.Name() + "Request"
 		nameResponse := m.Name() + "Response"
 
 		if ifaceLen > 1 {
-			nameRequest = ifaceName + m.Name() + "Request"
-			nameResponse = ifaceName + m.Name() + "Response"
+			nameRequest = nameUc + m.Name() + "Request"
+			nameResponse = nameUc + m.Name() + "Response"
 		}
 
 		sm := model.ServiceMethod{
 			Type:         m,
 			T:            m.Type(),
 			Name:         m.Name(),
-			NameExport:   nameExport,
-			NameUnExport: nameUnExport,
-			LcName:       lcName,
+			UcName:       nameUc,
+			LcName:       nameLc,
 			NameRequest:  nameRequest,
 			NameResponse: nameResponse,
 			Comments:     comments,

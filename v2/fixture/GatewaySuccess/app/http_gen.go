@@ -32,16 +32,16 @@ func GenericServerEndpointMiddlewares(v ...endpoint.Middleware) ServerOption {
 
 type ServerOption func(*serverOpts)
 type serverOpts struct {
-	genericServerOption                []jsonrpc.ServerOption
-	genericEndpointMiddleware          []endpoint.Middleware
-	interfaceBCreateServerOption       []jsonrpc.ServerOption
-	interfaceBCreateEndpointMiddleware []endpoint.Middleware
+	genericServerOption       []jsonrpc.ServerOption
+	genericEndpointMiddleware []endpoint.Middleware
+	bCreateServerOption       []jsonrpc.ServerOption
+	bCreateEndpointMiddleware []endpoint.Middleware
 }
 
-func InterfaceBCreateServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBCreateServerOption = opt }
+func BCreateServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.bCreateServerOption = opt }
 }
 
-func InterfaceBCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBCreateEndpointMiddleware = opt }
+func BCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.bCreateEndpointMiddleware = opt }
 }

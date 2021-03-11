@@ -10,7 +10,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-func MakeInterfaceATestMethodEndpoint(s InterfaceA) endpoint.Endpoint {
+func MakeATestMethodEndpoint(s InterfaceA) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		s.TestMethod()
 		return nil, nil
@@ -18,9 +18,9 @@ func MakeInterfaceATestMethodEndpoint(s InterfaceA) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBCreateEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeBCreateEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(InterfaceBCreateRequest)
+		req := request.(BCreateCreateRequest)
 		err := s.Create(ctx, req.NewData, req.Name, req.Data)
 		if err != nil {
 			return nil, err
@@ -30,21 +30,21 @@ func MakeInterfaceBCreateEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBDeleteEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeBDeleteEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(InterfaceBDeleteRequest)
+		req := request.(BDeleteDeleteRequest)
 		a, b, err := s.Delete(ctx, req.Id)
 		if err != nil {
 			return nil, err
 		}
-		return InterfaceBDeleteResponse{A: a, B: b}, nil
+		return BDeleteDeleteResponse{A: a, B: b}, nil
 	}
 
 }
 
-func MakeInterfaceBGetEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeBGetEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(InterfaceBGetRequest)
+		req := request.(BGetGetRequest)
 		result, err := s.Get(ctx, req.Id, req.Name, req.Fname, req.Price, req.N, req.B, req.Cc)
 		if err != nil {
 			return nil, err
@@ -54,9 +54,9 @@ func MakeInterfaceBGetEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBGetAllEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeBGetAllEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(InterfaceBGetAllRequest)
+		req := request.(BGetAllGetAllRequest)
 		result, err := s.GetAll(ctx, req.Members)
 		if err != nil {
 			return nil, err
@@ -66,9 +66,9 @@ func MakeInterfaceBGetAllEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBTestMethodEndpoint(s InterfaceB) endpoint.Endpoint {
+func MakeBTestMethodEndpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(InterfaceBTestMethodRequest)
+		req := request.(BTestMethodTestMethodRequest)
 		result, err := s.TestMethod(req.Data, req.Ss)
 		if err != nil {
 			return nil, err
@@ -78,9 +78,9 @@ func MakeInterfaceBTestMethodEndpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-func MakeInterfaceBTestMethod2Endpoint(s InterfaceB) endpoint.Endpoint {
+func MakeBTestMethod2Endpoint(s InterfaceB) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(InterfaceBTestMethod2Request)
+		req := request.(BTestMethod2TestMethod2Request)
 		err := s.TestMethod2(ctx, req.Ns, req.Utype, req.User, req.Restype, req.Resource, req.Permission)
 		if err != nil {
 			return nil, err
@@ -90,17 +90,17 @@ func MakeInterfaceBTestMethod2Endpoint(s InterfaceB) endpoint.Endpoint {
 
 }
 
-type InterfaceAEndpointSet struct {
+type AEndpointSet struct {
 	TestMethodEndpoint endpoint.Endpoint
 }
 
-func MakeInterfaceAEndpointSet(svc InterfaceA) InterfaceAEndpointSet {
-	return InterfaceAEndpointSet{
-		TestMethodEndpoint: MakeInterfaceATestMethodEndpoint(svc),
+func MakeAEndpointSet(svc InterfaceA) AEndpointSet {
+	return AEndpointSet{
+		TestMethodEndpoint: MakeATestMethodEndpoint(svc),
 	}
 }
 
-type InterfaceBEndpointSet struct {
+type BEndpointSet struct {
 	CreateEndpoint      endpoint.Endpoint
 	DeleteEndpoint      endpoint.Endpoint
 	GetEndpoint         endpoint.Endpoint
@@ -109,30 +109,30 @@ type InterfaceBEndpointSet struct {
 	TestMethod2Endpoint endpoint.Endpoint
 }
 
-func MakeInterfaceBEndpointSet(svc InterfaceB) InterfaceBEndpointSet {
-	return InterfaceBEndpointSet{
-		CreateEndpoint:      MakeInterfaceBCreateEndpoint(svc),
-		DeleteEndpoint:      MakeInterfaceBDeleteEndpoint(svc),
-		GetEndpoint:         MakeInterfaceBGetEndpoint(svc),
-		GetAllEndpoint:      MakeInterfaceBGetAllEndpoint(svc),
-		TestMethodEndpoint:  MakeInterfaceBTestMethodEndpoint(svc),
-		TestMethod2Endpoint: MakeInterfaceBTestMethod2Endpoint(svc),
+func MakeBEndpointSet(svc InterfaceB) BEndpointSet {
+	return BEndpointSet{
+		CreateEndpoint:      MakeBCreateEndpoint(svc),
+		DeleteEndpoint:      MakeBDeleteEndpoint(svc),
+		GetEndpoint:         MakeBGetEndpoint(svc),
+		GetAllEndpoint:      MakeBGetAllEndpoint(svc),
+		TestMethodEndpoint:  MakeBTestMethodEndpoint(svc),
+		TestMethod2Endpoint: MakeBTestMethod2Endpoint(svc),
 	}
 }
 
-type InterfaceBCreateRequest struct {
+type BCreateCreateRequest struct {
 	NewData Data   `json:"newData"`
 	Name    string `json:"name"`
 	Data    []byte `json:"data"`
 }
-type InterfaceBDeleteRequest struct {
+type BDeleteDeleteRequest struct {
 	Id uint `json:"id"`
 }
-type InterfaceBDeleteResponse struct {
+type BDeleteDeleteResponse struct {
 	A string `json:"a"`
 	B string `json:"b"`
 }
-type InterfaceBGetRequest struct {
+type BGetGetRequest struct {
 	Id    int     `json:"id"`
 	Name  string  `json:"name"`
 	Fname string  `json:"fname"`
@@ -141,14 +141,14 @@ type InterfaceBGetRequest struct {
 	B     int     `json:"b"`
 	Cc    int     `json:"cc"`
 }
-type InterfaceBGetAllRequest struct {
+type BGetAllGetAllRequest struct {
 	Members Members `json:"members"`
 }
-type InterfaceBTestMethodRequest struct {
+type BTestMethodTestMethodRequest struct {
 	Data map[string]interface{} `json:"data"`
 	Ss   interface{}            `json:"ss"`
 }
-type InterfaceBTestMethod2Request struct {
+type BTestMethod2TestMethod2Request struct {
 	Ns         string `json:"ns"`
 	Utype      string `json:"utype"`
 	User       string `json:"user"`

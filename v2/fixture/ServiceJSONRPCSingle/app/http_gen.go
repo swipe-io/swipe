@@ -30,7 +30,7 @@ func (e *httpError) SetErrorData(data interface{}) {
 func (e *httpError) SetErrorMessage(message string) {
 	e.message = message
 }
-func interfaceBCreateErrorDecode(code int, message string, data interface{}) (err error) {
+func serviceCreateErrorDecode(code int, message string, data interface{}) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -46,7 +46,7 @@ func interfaceBCreateErrorDecode(code int, message string, data interface{}) (er
 	return
 }
 
-func interfaceBDeleteErrorDecode(code int, message string, data interface{}) (err error) {
+func serviceDeleteErrorDecode(code int, message string, data interface{}) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -60,7 +60,7 @@ func interfaceBDeleteErrorDecode(code int, message string, data interface{}) (er
 	return
 }
 
-func interfaceBGetErrorDecode(code int, message string, data interface{}) (err error) {
+func serviceGetErrorDecode(code int, message string, data interface{}) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -74,7 +74,7 @@ func interfaceBGetErrorDecode(code int, message string, data interface{}) (err e
 	return
 }
 
-func interfaceBGetAllErrorDecode(code int, message string, data interface{}) (err error) {
+func serviceGetAllErrorDecode(code int, message string, data interface{}) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -88,7 +88,7 @@ func interfaceBGetAllErrorDecode(code int, message string, data interface{}) (er
 	return
 }
 
-func interfaceBTestMethodErrorDecode(code int, message string, data interface{}) (err error) {
+func serviceTestMethodErrorDecode(code int, message string, data interface{}) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -102,7 +102,7 @@ func interfaceBTestMethodErrorDecode(code int, message string, data interface{})
 	return
 }
 
-func interfaceBTestMethod2ErrorDecode(code int, message string, data interface{}) (err error) {
+func serviceTestMethod2ErrorDecode(code int, message string, data interface{}) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -116,7 +116,7 @@ func interfaceBTestMethod2ErrorDecode(code int, message string, data interface{}
 	return
 }
 
-func interfaceBTestMethodOptionalsErrorDecode(code int, message string, data interface{}) (err error) {
+func serviceTestMethodOptionalsErrorDecode(code int, message string, data interface{}) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -153,76 +153,76 @@ func GenericServerEndpointMiddlewares(v ...endpoint.Middleware) ServerOption {
 
 type ServerOption func(*serverOpts)
 type serverOpts struct {
-	genericServerOption                             []jsonrpc.ServerOption
-	genericEndpointMiddleware                       []endpoint.Middleware
-	interfaceBCreateServerOption                    []jsonrpc.ServerOption
-	interfaceBCreateEndpointMiddleware              []endpoint.Middleware
-	interfaceBDeleteServerOption                    []jsonrpc.ServerOption
-	interfaceBDeleteEndpointMiddleware              []endpoint.Middleware
-	interfaceBGetServerOption                       []jsonrpc.ServerOption
-	interfaceBGetEndpointMiddleware                 []endpoint.Middleware
-	interfaceBGetAllServerOption                    []jsonrpc.ServerOption
-	interfaceBGetAllEndpointMiddleware              []endpoint.Middleware
-	interfaceBTestMethodServerOption                []jsonrpc.ServerOption
-	interfaceBTestMethodEndpointMiddleware          []endpoint.Middleware
-	interfaceBTestMethod2ServerOption               []jsonrpc.ServerOption
-	interfaceBTestMethod2EndpointMiddleware         []endpoint.Middleware
-	interfaceBTestMethodOptionalsServerOption       []jsonrpc.ServerOption
-	interfaceBTestMethodOptionalsEndpointMiddleware []endpoint.Middleware
+	genericServerOption                          []jsonrpc.ServerOption
+	genericEndpointMiddleware                    []endpoint.Middleware
+	serviceCreateServerOption                    []jsonrpc.ServerOption
+	serviceCreateEndpointMiddleware              []endpoint.Middleware
+	serviceDeleteServerOption                    []jsonrpc.ServerOption
+	serviceDeleteEndpointMiddleware              []endpoint.Middleware
+	serviceGetServerOption                       []jsonrpc.ServerOption
+	serviceGetEndpointMiddleware                 []endpoint.Middleware
+	serviceGetAllServerOption                    []jsonrpc.ServerOption
+	serviceGetAllEndpointMiddleware              []endpoint.Middleware
+	serviceTestMethodServerOption                []jsonrpc.ServerOption
+	serviceTestMethodEndpointMiddleware          []endpoint.Middleware
+	serviceTestMethod2ServerOption               []jsonrpc.ServerOption
+	serviceTestMethod2EndpointMiddleware         []endpoint.Middleware
+	serviceTestMethodOptionalsServerOption       []jsonrpc.ServerOption
+	serviceTestMethodOptionalsEndpointMiddleware []endpoint.Middleware
 }
 
-func InterfaceBCreateServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBCreateServerOption = opt }
+func ServiceCreateServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.serviceCreateServerOption = opt }
 }
 
-func InterfaceBCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBCreateEndpointMiddleware = opt }
+func ServiceCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.serviceCreateEndpointMiddleware = opt }
 }
 
-func InterfaceBDeleteServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBDeleteServerOption = opt }
+func ServiceDeleteServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.serviceDeleteServerOption = opt }
 }
 
-func InterfaceBDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBDeleteEndpointMiddleware = opt }
+func ServiceDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.serviceDeleteEndpointMiddleware = opt }
 }
 
-func InterfaceBGetServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetServerOption = opt }
+func ServiceGetServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.serviceGetServerOption = opt }
 }
 
-func InterfaceBGetServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetEndpointMiddleware = opt }
+func ServiceGetServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.serviceGetEndpointMiddleware = opt }
 }
 
-func InterfaceBGetAllServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetAllServerOption = opt }
+func ServiceGetAllServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.serviceGetAllServerOption = opt }
 }
 
-func InterfaceBGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetAllEndpointMiddleware = opt }
+func ServiceGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.serviceGetAllEndpointMiddleware = opt }
 }
 
-func InterfaceBTestMethodServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethodServerOption = opt }
+func ServiceTestMethodServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.serviceTestMethodServerOption = opt }
 }
 
-func InterfaceBTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethodEndpointMiddleware = opt }
+func ServiceTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.serviceTestMethodEndpointMiddleware = opt }
 }
 
-func InterfaceBTestMethod2ServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethod2ServerOption = opt }
+func ServiceTestMethod2ServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.serviceTestMethod2ServerOption = opt }
 }
 
-func InterfaceBTestMethod2ServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethod2EndpointMiddleware = opt }
+func ServiceTestMethod2ServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.serviceTestMethod2EndpointMiddleware = opt }
 }
 
-func InterfaceBTestMethodOptionalsServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethodOptionalsServerOption = opt }
+func ServiceTestMethodOptionalsServerOptions(opt ...jsonrpc.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.serviceTestMethodOptionalsServerOption = opt }
 }
 
-func InterfaceBTestMethodOptionalsServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethodOptionalsEndpointMiddleware = opt }
+func ServiceTestMethodOptionalsServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.serviceTestMethodOptionalsEndpointMiddleware = opt }
 }

@@ -20,9 +20,9 @@ import (
 	"github.com/swipe-io/swipe/v2/fixture/ServiceRESTMultiIdenticalInterface/app/controller/app2"
 )
 
-func NewClientRESTApp(tgt string, options ...ClientOption) (app1.App, error) {
+func NewClientRESTApp1(tgt string, options ...ClientOption) (app1.App, error) {
 	opts := &clientOpts{}
-	c := &clientApp{}
+	c := &clientApp1{}
 	for _, o := range options {
 		o(opts)
 	}
@@ -40,13 +40,13 @@ func NewClientRESTApp(tgt string, options ...ClientOption) (app1.App, error) {
 	if u.Scheme == "" {
 		u.Scheme = "https"
 	}
-	c.createEndpoint = http.NewClient(
+	c.app1CreateEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(AppCreateRequest)
+			req, ok := request.(App1CreateCreateRequest)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as AppCreateRequest, got %T", request)
+				return fmt.Errorf("couldn't assert request as App1CreateCreateRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
 			r.URL.Path += "/app1/create"
@@ -59,19 +59,19 @@ func NewClientRESTApp(tgt string, options ...ClientOption) (app1.App, error) {
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, appCreateErrorDecode(statusCode)
+				return nil, app1CreateErrorDecode(statusCode)
 			}
 			return nil, nil
 		},
-		append(opts.genericClientOption, opts.appCreateClientOption...)...,
+		append(opts.genericClientOption, opts.app1CreateClientOption...)...,
 	).Endpoint()
-	c.createEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appCreateEndpointMiddleware...))(c.createEndpoint)
+	c.app1CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.app1CreateEndpointMiddleware...))(c.app1CreateEndpoint)
 	return c, nil
 }
 
-func NewClientRESTApp(tgt string, options ...ClientOption) (app2.App, error) {
+func NewClientRESTApp2(tgt string, options ...ClientOption) (app2.App, error) {
 	opts := &clientOpts{}
-	c := &clientApp{}
+	c := &clientApp2{}
 	for _, o := range options {
 		o(opts)
 	}
@@ -89,13 +89,13 @@ func NewClientRESTApp(tgt string, options ...ClientOption) (app2.App, error) {
 	if u.Scheme == "" {
 		u.Scheme = "https"
 	}
-	c.createEndpoint = http.NewClient(
+	c.app2CreateEndpoint = http.NewClient(
 		http2.MethodPost,
 		u,
 		func(_ context.Context, r *http2.Request, request interface{}) error {
-			req, ok := request.(AppCreateRequest)
+			req, ok := request.(App2CreateCreateRequest)
 			if !ok {
-				return fmt.Errorf("couldn't assert request as AppCreateRequest, got %T", request)
+				return fmt.Errorf("couldn't assert request as App2CreateCreateRequest, got %T", request)
 			}
 			r.Method = http2.MethodPost
 			r.URL.Path += "/app2/create"
@@ -108,12 +108,12 @@ func NewClientRESTApp(tgt string, options ...ClientOption) (app2.App, error) {
 		},
 		func(_ context.Context, r *http2.Response) (interface{}, error) {
 			if statusCode := r.StatusCode; statusCode != http2.StatusOK {
-				return nil, appCreateErrorDecode(statusCode)
+				return nil, app2CreateErrorDecode(statusCode)
 			}
 			return nil, nil
 		},
-		append(opts.genericClientOption, opts.appCreateClientOption...)...,
+		append(opts.genericClientOption, opts.app2CreateClientOption...)...,
 	).Endpoint()
-	c.createEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.appCreateEndpointMiddleware...))(c.createEndpoint)
+	c.app2CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.app2CreateEndpointMiddleware...))(c.app2CreateEndpoint)
 	return c, nil
 }

@@ -109,13 +109,9 @@ class JSONRPCClientB {
    * @param {string} name
    * @param {Array<number>} data
    **/
-  create(newData, name, data) {
+  bCreate(newData, name, data) {
     return this.scheduler
-      .__scheduleRequest("b.create", {
-        newData: newData,
-        name: name,
-        data: data
-      })
+      .__scheduleRequest("create", { newData: newData, name: name, data: data })
       .catch((e) => {
         throw interfaceBCreateConvertError(e);
       });

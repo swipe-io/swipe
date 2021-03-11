@@ -12,9 +12,9 @@ import (
 	"github.com/swipe-io/swipe/v2/fixture/ServiceRESTMultiIdenticalInterface/app/controller/app2"
 )
 
-func MakeAppCreateEndpoint(s app1.App) endpoint.Endpoint {
+func MakeApp1CreateEndpoint(s app1.App) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(AppCreateRequest)
+		req := request.(App1CreateCreateRequest)
 		err := s.Create(ctx, req.Name, req.Data)
 		if err != nil {
 			return nil, err
@@ -24,9 +24,9 @@ func MakeAppCreateEndpoint(s app1.App) endpoint.Endpoint {
 
 }
 
-func MakeAppCreateEndpoint(s app2.App) endpoint.Endpoint {
+func MakeApp2CreateEndpoint(s app2.App) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(AppCreateRequest)
+		req := request.(App2CreateCreateRequest)
 		err := s.Create(ctx, req.Name, req.Data)
 		if err != nil {
 			return nil, err
@@ -36,31 +36,31 @@ func MakeAppCreateEndpoint(s app2.App) endpoint.Endpoint {
 
 }
 
-type AppEndpointSet struct {
+type App1EndpointSet struct {
 	CreateEndpoint endpoint.Endpoint
 }
 
-func MakeAppEndpointSet(svc app1.App) AppEndpointSet {
-	return AppEndpointSet{
-		CreateEndpoint: MakeAppCreateEndpoint(svc),
+func MakeApp1EndpointSet(svc app1.App) App1EndpointSet {
+	return App1EndpointSet{
+		CreateEndpoint: MakeApp1CreateEndpoint(svc),
 	}
 }
 
-type AppCreateRequest struct {
+type App1CreateCreateRequest struct {
 	Name string `json:"name"`
 	Data []byte `json:"data"`
 }
-type AppEndpointSet struct {
+type App2EndpointSet struct {
 	CreateEndpoint endpoint.Endpoint
 }
 
-func MakeAppEndpointSet(svc app2.App) AppEndpointSet {
-	return AppEndpointSet{
-		CreateEndpoint: MakeAppCreateEndpoint(svc),
+func MakeApp2EndpointSet(svc app2.App) App2EndpointSet {
+	return App2EndpointSet{
+		CreateEndpoint: MakeApp2CreateEndpoint(svc),
 	}
 }
 
-type AppCreateRequest struct {
+type App2CreateCreateRequest struct {
 	Name string `json:"name"`
 	Data []byte `json:"data"`
 }

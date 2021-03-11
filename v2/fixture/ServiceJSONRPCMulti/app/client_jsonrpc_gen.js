@@ -154,7 +154,7 @@ class JSONRPCClientA {
 
   /**
    **/
-  testMethod() {
+  aTestMethod() {
     return this.scheduler.__scheduleRequest("a.testMethod", {}).catch((e) => {
       throw interfaceATestMethodConvertError(e);
     });
@@ -173,7 +173,7 @@ class JSONRPCClientB {
    * @param {string} name
    * @param {Array<number>} data
    **/
-  create(newData, name, data) {
+  bCreate(newData, name, data) {
     return this.scheduler
       .__scheduleRequest("b.create", {
         newData: newData,
@@ -188,7 +188,7 @@ class JSONRPCClientB {
    * @param {number} id
    * @return {PromiseLike<{a: string, b: string}>}
    **/
-  delete(id) {
+  bDelete(id) {
     return this.scheduler
       .__scheduleRequest("b.delete", { id: id })
       .catch((e) => {
@@ -207,7 +207,7 @@ class JSONRPCClientB {
    * @param {number} cc
    * @return {PromiseLike<User>}
    **/
-  get(id, name, fname, price, n, b, cc) {
+  bGet(id, name, fname, price, n, b, cc) {
     return this.scheduler
       .__scheduleRequest("b.get", {
         id: id,
@@ -229,7 +229,7 @@ class JSONRPCClientB {
    * @param {Members} members
    * @return {PromiseLike<Array<User>>}
    **/
-  getAll(members) {
+  bGetAll(members) {
     return this.scheduler
       .__scheduleRequest("b.getAll", { members: members })
       .catch((e) => {
@@ -241,7 +241,7 @@ class JSONRPCClientB {
    * @param {object} ss
    * @return {PromiseLike<Object<string, Object<string, Array<string>>>>}
    **/
-  testMethod(data, ss) {
+  bTestMethod(data, ss) {
     return this.scheduler
       .__scheduleRequest("b.testMethod", { data: data, ss: ss })
       .catch((e) => {
@@ -256,7 +256,7 @@ class JSONRPCClientB {
    * @param {string} resource
    * @param {string} permission
    **/
-  testMethod2(ns, utype, user, restype, resource, permission) {
+  bTestMethod2(ns, utype, user, restype, resource, permission) {
     return this.scheduler
       .__scheduleRequest("b.testMethod2", {
         ns: ns,

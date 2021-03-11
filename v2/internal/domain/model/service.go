@@ -125,8 +125,7 @@ type DeclType struct {
 type ServiceMethod struct {
 	Type          *stdtypes.Func
 	Name          string
-	NameExport    string
-	NameUnExport  string
+	UcName        string
 	LcName        string
 	NameRequest   string
 	NameResponse  string

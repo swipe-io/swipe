@@ -21,7 +21,7 @@ func (e *httpError) Error() string {
 func (e *httpError) StatusCode() int {
 	return e.code
 }
-func interfaceATestMethodErrorDecode(code int) (err error) {
+func aTestMethodErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -29,7 +29,7 @@ func interfaceATestMethodErrorDecode(code int) (err error) {
 	return
 }
 
-func interfaceBCreateErrorDecode(code int) (err error) {
+func bCreateErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -37,7 +37,7 @@ func interfaceBCreateErrorDecode(code int) (err error) {
 	return
 }
 
-func interfaceBDeleteErrorDecode(code int) (err error) {
+func bDeleteErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -45,7 +45,7 @@ func interfaceBDeleteErrorDecode(code int) (err error) {
 	return
 }
 
-func interfaceBGetErrorDecode(code int) (err error) {
+func bGetErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -53,7 +53,7 @@ func interfaceBGetErrorDecode(code int) (err error) {
 	return
 }
 
-func interfaceBGetAllErrorDecode(code int) (err error) {
+func bGetAllErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -61,7 +61,7 @@ func interfaceBGetAllErrorDecode(code int) (err error) {
 	return
 }
 
-func interfaceBTestMethodErrorDecode(code int) (err error) {
+func bTestMethodErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -69,7 +69,7 @@ func interfaceBTestMethodErrorDecode(code int) (err error) {
 	return
 }
 
-func interfaceBTestMethod2ErrorDecode(code int) (err error) {
+func bTestMethod2ErrorDecode(code int) (err error) {
 	switch code {
 	default:
 		err = &httpError{code: code}
@@ -100,76 +100,76 @@ func GenericServerEndpointMiddlewares(v ...endpoint.Middleware) ServerOption {
 
 type ServerOption func(*serverOpts)
 type serverOpts struct {
-	genericServerOption                     []http.ServerOption
-	genericEndpointMiddleware               []endpoint.Middleware
-	interfaceATestMethodServerOption        []http.ServerOption
-	interfaceATestMethodEndpointMiddleware  []endpoint.Middleware
-	interfaceBCreateServerOption            []http.ServerOption
-	interfaceBCreateEndpointMiddleware      []endpoint.Middleware
-	interfaceBDeleteServerOption            []http.ServerOption
-	interfaceBDeleteEndpointMiddleware      []endpoint.Middleware
-	interfaceBGetServerOption               []http.ServerOption
-	interfaceBGetEndpointMiddleware         []endpoint.Middleware
-	interfaceBGetAllServerOption            []http.ServerOption
-	interfaceBGetAllEndpointMiddleware      []endpoint.Middleware
-	interfaceBTestMethodServerOption        []http.ServerOption
-	interfaceBTestMethodEndpointMiddleware  []endpoint.Middleware
-	interfaceBTestMethod2ServerOption       []http.ServerOption
-	interfaceBTestMethod2EndpointMiddleware []endpoint.Middleware
+	genericServerOption            []http.ServerOption
+	genericEndpointMiddleware      []endpoint.Middleware
+	aTestMethodServerOption        []http.ServerOption
+	aTestMethodEndpointMiddleware  []endpoint.Middleware
+	bCreateServerOption            []http.ServerOption
+	bCreateEndpointMiddleware      []endpoint.Middleware
+	bDeleteServerOption            []http.ServerOption
+	bDeleteEndpointMiddleware      []endpoint.Middleware
+	bGetServerOption               []http.ServerOption
+	bGetEndpointMiddleware         []endpoint.Middleware
+	bGetAllServerOption            []http.ServerOption
+	bGetAllEndpointMiddleware      []endpoint.Middleware
+	bTestMethodServerOption        []http.ServerOption
+	bTestMethodEndpointMiddleware  []endpoint.Middleware
+	bTestMethod2ServerOption       []http.ServerOption
+	bTestMethod2EndpointMiddleware []endpoint.Middleware
 }
 
-func InterfaceATestMethodServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceATestMethodServerOption = opt }
+func ATestMethodServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.aTestMethodServerOption = opt }
 }
 
-func InterfaceATestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceATestMethodEndpointMiddleware = opt }
+func ATestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.aTestMethodEndpointMiddleware = opt }
 }
 
-func InterfaceBCreateServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBCreateServerOption = opt }
+func BCreateServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.bCreateServerOption = opt }
 }
 
-func InterfaceBCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBCreateEndpointMiddleware = opt }
+func BCreateServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.bCreateEndpointMiddleware = opt }
 }
 
-func InterfaceBDeleteServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBDeleteServerOption = opt }
+func BDeleteServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.bDeleteServerOption = opt }
 }
 
-func InterfaceBDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBDeleteEndpointMiddleware = opt }
+func BDeleteServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.bDeleteEndpointMiddleware = opt }
 }
 
-func InterfaceBGetServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetServerOption = opt }
+func BGetServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.bGetServerOption = opt }
 }
 
-func InterfaceBGetServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetEndpointMiddleware = opt }
+func BGetServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.bGetEndpointMiddleware = opt }
 }
 
-func InterfaceBGetAllServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetAllServerOption = opt }
+func BGetAllServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.bGetAllServerOption = opt }
 }
 
-func InterfaceBGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBGetAllEndpointMiddleware = opt }
+func BGetAllServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.bGetAllEndpointMiddleware = opt }
 }
 
-func InterfaceBTestMethodServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethodServerOption = opt }
+func BTestMethodServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.bTestMethodServerOption = opt }
 }
 
-func InterfaceBTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethodEndpointMiddleware = opt }
+func BTestMethodServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.bTestMethodEndpointMiddleware = opt }
 }
 
-func InterfaceBTestMethod2ServerOptions(opt ...http.ServerOption) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethod2ServerOption = opt }
+func BTestMethod2ServerOptions(opt ...http.ServerOption) ServerOption {
+	return func(c *serverOpts) { c.bTestMethod2ServerOption = opt }
 }
 
-func InterfaceBTestMethod2ServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
-	return func(c *serverOpts) { c.interfaceBTestMethod2EndpointMiddleware = opt }
+func BTestMethod2ServerEndpointMiddlewares(opt ...endpoint.Middleware) ServerOption {
+	return func(c *serverOpts) { c.bTestMethod2EndpointMiddleware = opt }
 }

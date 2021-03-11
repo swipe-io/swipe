@@ -4,6 +4,8 @@ import (
 	"context"
 	stdtypes "go/types"
 
+	"github.com/swipe-io/strcase"
+
 	"github.com/swipe-io/swipe/v2/internal/importer"
 
 	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
@@ -213,12 +215,12 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 			}
 
 			var prefix string
-			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
+			if iface.IsNameChange() && g.options.Interfaces().Len() > 1 {
 				prefix = iface.NameUnExport() + "."
 			}
 
 			mw.W(") {\n")
-			mw.W("return this.scheduler.__scheduleRequest(\"%s\", {", prefix+m.LcName)
+			mw.W("return this.scheduler.__scheduleRequest(\"%s\", {", prefix+strcase.ToLowerCamel(m.Name))
 
 			for i, p := range m.Params {
 				if i > 0 {

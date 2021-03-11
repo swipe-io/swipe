@@ -8,7 +8,6 @@ import (
 
 	"github.com/swipe-io/strcase"
 
-	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/types"
 )
 
@@ -174,7 +173,7 @@ func (w *GoLangWriter) writeFormatBasicType(importFn func(string, string) string
 func (w *GoLangWriter) writeConvertBasicType(importFn func(string, string) string, name, assignId, valueId string, t *stdtypes.Basic, errRet []string, errSlice string, declareVar bool, msgErrTemplate string) {
 	useCheckErr := true
 
-	tmpId := stdstrings.ToLower(name) + strings.UcFirst(t.String())
+	tmpId := stdstrings.ToLower(name) + strcase.ToCamel(t.String())
 
 	funcName := w.getConvertFuncName(t.Kind())
 	if funcName != "" {
@@ -267,7 +266,7 @@ func (w *GoLangWriter) WriteConvertType(
 		switch t := t.Elem().(type) {
 		case *stdtypes.Basic:
 			if isNumeric(t.Kind()) {
-				tmpId = "parts" + stdstrings.ToLower(f.Name()) + strings.UcFirst(t.String())
+				tmpId = "parts" + stdstrings.ToLower(f.Name()) + strcase.ToCamel(t.String())
 				w.W("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
 				if declareVar {
 					w.W("var ")

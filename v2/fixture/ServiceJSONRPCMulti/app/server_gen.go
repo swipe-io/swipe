@@ -33,7 +33,7 @@ func encodeResponseJSONRPC(_ context.Context, result interface{}) (json.RawMessa
 	return b, nil
 }
 
-func MakeInterfaceAEndpointCodecMap(ep InterfaceAEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
+func MakeAEndpointCodecMap(ep AEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
 	var namespace string
 	if len(ns) > 0 {
 		namespace = strings.Join(ns, ".") + "."
@@ -51,7 +51,7 @@ func MakeInterfaceAEndpointCodecMap(ep InterfaceAEndpointSet, ns ...string) json
 	return ecm
 }
 
-func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
+func MakeBEndpointCodecMap(ep BEndpointSet, ns ...string) jsonrpc.EndpointCodecMap {
 	var namespace string
 	if len(ns) > 0 {
 		namespace = strings.Join(ns, ".") + "."
@@ -61,10 +61,10 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 		ecm[namespace+"create"] = jsonrpc.EndpointCodec{
 			Endpoint: ep.CreateEndpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req InterfaceBCreateRequest
+				var req BCreateCreateRequest
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBCreateRequest: %s", err)
+					return nil, fmt.Errorf("couldn't unmarshal body to BCreateCreateRequest: %s", err)
 				}
 				return req, nil
 			},
@@ -75,10 +75,10 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 		ecm[namespace+"delete"] = jsonrpc.EndpointCodec{
 			Endpoint: ep.DeleteEndpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req InterfaceBDeleteRequest
+				var req BDeleteDeleteRequest
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBDeleteRequest: %s", err)
+					return nil, fmt.Errorf("couldn't unmarshal body to BDeleteDeleteRequest: %s", err)
 				}
 				return req, nil
 			},
@@ -89,10 +89,10 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 		ecm[namespace+"get"] = jsonrpc.EndpointCodec{
 			Endpoint: ep.GetEndpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req InterfaceBGetRequest
+				var req BGetGetRequest
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBGetRequest: %s", err)
+					return nil, fmt.Errorf("couldn't unmarshal body to BGetGetRequest: %s", err)
 				}
 				return req, nil
 			},
@@ -103,10 +103,10 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 		ecm[namespace+"getAll"] = jsonrpc.EndpointCodec{
 			Endpoint: ep.GetAllEndpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req InterfaceBGetAllRequest
+				var req BGetAllGetAllRequest
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBGetAllRequest: %s", err)
+					return nil, fmt.Errorf("couldn't unmarshal body to BGetAllGetAllRequest: %s", err)
 				}
 				return req, nil
 			},
@@ -117,10 +117,10 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 		ecm[namespace+"testMethod"] = jsonrpc.EndpointCodec{
 			Endpoint: ep.TestMethodEndpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req InterfaceBTestMethodRequest
+				var req BTestMethodTestMethodRequest
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBTestMethodRequest: %s", err)
+					return nil, fmt.Errorf("couldn't unmarshal body to BTestMethodTestMethodRequest: %s", err)
 				}
 				return req, nil
 			},
@@ -131,10 +131,10 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 		ecm[namespace+"testMethod2"] = jsonrpc.EndpointCodec{
 			Endpoint: ep.TestMethod2Endpoint,
 			Decode: func(_ context.Context, msg json.RawMessage) (interface{}, error) {
-				var req InterfaceBTestMethod2Request
+				var req BTestMethod2TestMethod2Request
 				err := ffjson.Unmarshal(msg, &req)
 				if err != nil {
-					return nil, fmt.Errorf("couldn't unmarshal body to InterfaceBTestMethod2Request: %s", err)
+					return nil, fmt.Errorf("couldn't unmarshal body to BTestMethod2TestMethod2Request: %s", err)
 				}
 				return req, nil
 			},
@@ -145,22 +145,22 @@ func MakeInterfaceBEndpointCodecMap(ep InterfaceBEndpointSet, ns ...string) json
 }
 
 // HTTP JSONRPC Transport
-func MakeHandlerJSONRPC(svcInterfaceA InterfaceA, svcInterfaceB InterfaceB, options ...ServerOption) (http.Handler, error) {
+func MakeHandlerJSONRPC(svcA InterfaceA, svcB InterfaceB, options ...ServerOption) (http.Handler, error) {
 	opts := &serverOpts{}
 	for _, o := range options {
 		o(opts)
 	}
-	epSetA := MakeInterfaceAEndpointSet(svcInterfaceA)
-	epSetA.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceATestMethodEndpointMiddleware...))(epSetA.TestMethodEndpoint)
-	epSetB := MakeInterfaceBEndpointSet(svcInterfaceB)
-	epSetB.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBCreateEndpointMiddleware...))(epSetB.CreateEndpoint)
-	epSetB.DeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBDeleteEndpointMiddleware...))(epSetB.DeleteEndpoint)
-	epSetB.GetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetEndpointMiddleware...))(epSetB.GetEndpoint)
-	epSetB.GetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBGetAllEndpointMiddleware...))(epSetB.GetAllEndpoint)
-	epSetB.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethodEndpointMiddleware...))(epSetB.TestMethodEndpoint)
-	epSetB.TestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.interfaceBTestMethod2EndpointMiddleware...))(epSetB.TestMethod2Endpoint)
+	epSetA := MakeAEndpointSet(svcA)
+	epSetA.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.aTestMethodEndpointMiddleware...))(epSetA.TestMethodEndpoint)
+	epSetB := MakeBEndpointSet(svcB)
+	epSetB.CreateEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bCreateEndpointMiddleware...))(epSetB.CreateEndpoint)
+	epSetB.DeleteEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bDeleteEndpointMiddleware...))(epSetB.DeleteEndpoint)
+	epSetB.GetEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bGetEndpointMiddleware...))(epSetB.GetEndpoint)
+	epSetB.GetAllEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bGetAllEndpointMiddleware...))(epSetB.GetAllEndpoint)
+	epSetB.TestMethodEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bTestMethodEndpointMiddleware...))(epSetB.TestMethodEndpoint)
+	epSetB.TestMethod2Endpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.bTestMethod2EndpointMiddleware...))(epSetB.TestMethod2Endpoint)
 	r := mux.NewRouter()
-	handler := jsonrpc.NewServer(MergeEndpointCodecMaps(MakeInterfaceAEndpointCodecMap(epSetA, "a"), MakeInterfaceBEndpointCodecMap(epSetB, "b")), opts.genericServerOption...)
+	handler := jsonrpc.NewServer(MergeEndpointCodecMaps(MakeAEndpointCodecMap(epSetA, "a"), MakeBEndpointCodecMap(epSetB, "b")), opts.genericServerOption...)
 	r.Methods("POST").Path("").Handler(handler)
 	return r, nil
 }

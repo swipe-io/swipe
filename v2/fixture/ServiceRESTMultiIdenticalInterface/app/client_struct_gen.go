@@ -19,28 +19,28 @@ type AppClient struct {
 }
 
 func NewClientREST(tgt string, opts ...ClientOption) (*AppClient, error) {
-	appClient, err := NewClientRESTApp(tgt, opts...)
+	app1Client, err := NewClientRESTApp1(tgt, opts...)
 	if err != nil {
 		return nil, err
 	}
-	appClient, err := NewClientRESTApp(tgt, opts...)
+	app2Client, err := NewClientRESTApp2(tgt, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return &AppClient{
-		App1Client: appClient,
-		App2Client: appClient,
+		App1Client: app1Client,
+		App2Client: app2Client,
 	}, nil
 }
 
 type ClientOption func(*clientOpts)
 type clientOpts struct {
-	appCreateClientOption       []http.ClientOption
-	appCreateEndpointMiddleware []endpoint.Middleware
-	appCreateClientOption       []http.ClientOption
-	appCreateEndpointMiddleware []endpoint.Middleware
-	genericClientOption         []http.ClientOption
-	genericEndpointMiddleware   []endpoint.Middleware
+	app1CreateClientOption       []http.ClientOption
+	app1CreateEndpointMiddleware []endpoint.Middleware
+	app2CreateClientOption       []http.ClientOption
+	app2CreateEndpointMiddleware []endpoint.Middleware
+	genericClientOption          []http.ClientOption
+	genericEndpointMiddleware    []endpoint.Middleware
 }
 
 func GenericClientOptions(opt ...http.ClientOption) ClientOption {
@@ -51,40 +51,40 @@ func GenericClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
 	return func(c *clientOpts) { c.genericEndpointMiddleware = opt }
 }
 
-func AppCreateClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.appCreateClientOption = opt }
+func App1CreateClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.app1CreateClientOption = opt }
 }
 
-func AppCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.appCreateEndpointMiddleware = opt }
+func App1CreateClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.app1CreateEndpointMiddleware = opt }
 }
 
-func AppCreateClientOptions(opt ...http.ClientOption) ClientOption {
-	return func(c *clientOpts) { c.appCreateClientOption = opt }
+func App2CreateClientOptions(opt ...http.ClientOption) ClientOption {
+	return func(c *clientOpts) { c.app2CreateClientOption = opt }
 }
 
-func AppCreateClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
-	return func(c *clientOpts) { c.appCreateEndpointMiddleware = opt }
+func App2CreateClientEndpointMiddlewares(opt ...endpoint.Middleware) ClientOption {
+	return func(c *clientOpts) { c.app2CreateEndpointMiddleware = opt }
 }
 
-type clientApp struct {
-	createEndpoint endpoint.Endpoint
+type clientApp1 struct {
+	app1CreateEndpoint endpoint.Endpoint
 }
 
-func (c *clientApp) Create(ctx context.Context, name string, data []byte) error {
-	_, err := c.createEndpoint(ctx, AppCreateRequest{Name: name, Data: data})
+func (c *clientApp1) Create(ctx context.Context, name string, data []byte) error {
+	_, err := c.app1CreateEndpoint(ctx, App1CreateCreateRequest{Name: name, Data: data})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type clientApp struct {
-	createEndpoint endpoint.Endpoint
+type clientApp2 struct {
+	app2CreateEndpoint endpoint.Endpoint
 }
 
-func (c *clientApp) Create(ctx context.Context, name string, data []byte) error {
-	_, err := c.createEndpoint(ctx, AppCreateRequest{Name: name, Data: data})
+func (c *clientApp2) Create(ctx context.Context, name string, data []byte) error {
+	_, err := c.app2CreateEndpoint(ctx, App2CreateCreateRequest{Name: name, Data: data})
 	if err != nil {
 		return err
 	}

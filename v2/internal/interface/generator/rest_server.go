@@ -14,7 +14,6 @@ import (
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
-	"github.com/swipe-io/swipe/v2/internal/strings"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
@@ -71,7 +70,7 @@ func (g *restServer) Process(_ context.Context) error {
 		if i > 0 {
 			g.W(",")
 		}
-		g.W("svc%s %s", iface.Name(), typeStr)
+		g.W("svc%s %s", iface.NameExport(), typeStr)
 	}
 	g.W(", options ...ServerOption")
 	g.W(") (")
@@ -95,7 +94,7 @@ func (g *restServer) Process(_ context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.Name())
+		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.NameExport())
 	}
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
@@ -103,7 +102,7 @@ func (g *restServer) Process(_ context.Context) error {
 		for _, m := range iface.Methods() {
 			g.W(
 				"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-				m.NameUnExport, m.Name, epSetName,
+				m.LcName, m.Name, epSetName,
 			)
 		}
 	}
@@ -144,7 +143,7 @@ func (g *restServer) Process(_ context.Context) error {
 					urlPath = stdstrings.ReplaceAll(urlPath, "}", ">")
 					g.W(strconv.Quote(urlPath))
 				} else {
-					g.W(strconv.Quote("/" + m.LcName))
+					g.W(strconv.Quote("/" + strcase.ToKebab(m.Name)))
 				}
 				g.W(", ")
 			} else {
@@ -226,7 +225,7 @@ func (g *restServer) Process(_ context.Context) error {
 							} else {
 								valueID = "vars[" + strconv.Quote(p.Name()) + "]"
 							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, []string{"nil"}, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strcase.ToCamel(p.Name()), valueID, p, []string{"nil"}, "", false, "")
 						} else if queryName, ok := mopt.QueryVars[p.Name()]; ok {
 							var valueID string
 							if g.options.UseFast() {
@@ -239,7 +238,7 @@ func (g *restServer) Process(_ context.Context) error {
 							g.W("%s := %s\n", tmpID, valueID)
 
 							g.W("if %s != \"\" {\n", tmpID)
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), tmpID, p, []string{"nil"}, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strcase.ToCamel(p.Name()), tmpID, p, []string{"nil"}, "", false, "")
 							g.W("}\n")
 
 						} else if headerName, ok := mopt.HeaderVars[p.Name()]; ok {
@@ -249,7 +248,7 @@ func (g *restServer) Process(_ context.Context) error {
 							} else {
 								valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
 							}
-							g.WriteConvertType(g.i.Import, "req."+strings.UcFirst(p.Name()), valueID, p, []string{"nil"}, "", false, "")
+							g.WriteConvertType(g.i.Import, "req."+strcase.ToCamel(p.Name()), valueID, p, []string{"nil"}, "", false, "")
 						}
 					}
 					g.W("return req, nil\n")
@@ -283,7 +282,7 @@ func (g *restServer) Process(_ context.Context) error {
 			}
 			g.W(",\n")
 
-			g.W("append(opts.genericServerOption, opts.%sServerOption...)...,\n", m.NameUnExport)
+			g.W("append(opts.genericServerOption, opts.%sServerOption...)...,\n", m.LcName)
 			g.W(")")
 
 			if g.options.UseFast() {

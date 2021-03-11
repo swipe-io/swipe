@@ -107,18 +107,18 @@ func AppInterfaceTestMethodOptionalsClientEndpointMiddlewares(opt ...endpoint.Mi
 }
 
 type clientAppInterface struct {
-	createEndpoint              endpoint.Endpoint
-	deleteEndpoint              endpoint.Endpoint
-	getEndpoint                 endpoint.Endpoint
-	getAllEndpoint              endpoint.Endpoint
-	startEndpoint               endpoint.Endpoint
-	testMethodEndpoint          endpoint.Endpoint
-	testMethod2Endpoint         endpoint.Endpoint
-	testMethodOptionalsEndpoint endpoint.Endpoint
+	appInterfaceCreateEndpoint              endpoint.Endpoint
+	appInterfaceDeleteEndpoint              endpoint.Endpoint
+	appInterfaceGetEndpoint                 endpoint.Endpoint
+	appInterfaceGetAllEndpoint              endpoint.Endpoint
+	appInterfaceStartEndpoint               endpoint.Endpoint
+	appInterfaceTestMethodEndpoint          endpoint.Endpoint
+	appInterfaceTestMethod2Endpoint         endpoint.Endpoint
+	appInterfaceTestMethodOptionalsEndpoint endpoint.Endpoint
 }
 
 func (c *clientAppInterface) Create(ctx context.Context, newData Data, name string, data []byte, date time.Time) error {
-	_, err := c.createEndpoint(ctx, CreateRequest{NewData: newData, Name: name, Data: data, Date: date})
+	_, err := c.appInterfaceCreateEndpoint(ctx, CreateRequest{NewData: newData, Name: name, Data: data, Date: date})
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (c *clientAppInterface) Create(ctx context.Context, newData Data, name stri
 }
 
 func (c *clientAppInterface) Delete(ctx context.Context, id uint) (string, string, error) {
-	resp, err := c.deleteEndpoint(ctx, DeleteRequest{Id: id})
+	resp, err := c.appInterfaceDeleteEndpoint(ctx, DeleteRequest{Id: id})
 	if err != nil {
 		return "", "", err
 	}
@@ -135,7 +135,7 @@ func (c *clientAppInterface) Delete(ctx context.Context, id uint) (string, strin
 }
 
 func (c *clientAppInterface) Get(ctx context.Context, id int, name string, fname string, price float32, n int, b int, cc int) (User, error) {
-	resp, err := c.getEndpoint(ctx, GetRequest{Id: id, Name: name, Fname: fname, Price: price, N: n, B: b, Cc: cc})
+	resp, err := c.appInterfaceGetEndpoint(ctx, GetRequest{Id: id, Name: name, Fname: fname, Price: price, N: n, B: b, Cc: cc})
 	if err != nil {
 		return User{}, err
 	}
@@ -144,7 +144,7 @@ func (c *clientAppInterface) Get(ctx context.Context, id int, name string, fname
 }
 
 func (c *clientAppInterface) GetAll(ctx context.Context, members Members) ([]*User, error) {
-	resp, err := c.getAllEndpoint(ctx, GetAllRequest{Members: members})
+	resp, err := c.appInterfaceGetAllEndpoint(ctx, GetAllRequest{Members: members})
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (c *clientAppInterface) GetAll(ctx context.Context, members Members) ([]*Us
 }
 
 func (c *clientAppInterface) Start(ctx context.Context) error {
-	_, err := c.startEndpoint(ctx, nil)
+	_, err := c.appInterfaceStartEndpoint(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (c *clientAppInterface) Start(ctx context.Context) error {
 }
 
 func (c *clientAppInterface) TestMethod(data map[string]interface{}, ss interface{}) (map[string]map[int][]string, error) {
-	resp, err := c.testMethodEndpoint(context.Background(), TestMethodRequest{Data: data, Ss: ss})
+	resp, err := c.appInterfaceTestMethodEndpoint(context.Background(), TestMethodRequest{Data: data, Ss: ss})
 	if err != nil {
 		return nil, err
 	}
@@ -170,15 +170,15 @@ func (c *clientAppInterface) TestMethod(data map[string]interface{}, ss interfac
 }
 
 func (c *clientAppInterface) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
-	_, err := c.testMethod2Endpoint(ctx, TestMethod2Request{Ns: ns, Utype: utype, User: user, Restype: restype, Resource: resource, Permission: permission})
+	_, err := c.appInterfaceTestMethod2Endpoint(ctx, TestMethod2Request{Ns: ns, Utype: utype, User: user, Restype: restype, Resource: resource, Permission: permission})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *clientAppInterface) TestMethodOptionals(ctx context.Context, ns string) error {
-	_, err := c.testMethodOptionalsEndpoint(ctx, TestMethodOptionalsRequest{Ns: ns})
+func (c *clientAppInterface) TestMethodOptionals(ctx context.Context, ns string, options ...Option) error {
+	_, err := c.appInterfaceTestMethodOptionalsEndpoint(ctx, TestMethodOptionalsRequest{Ns: ns, Options: options})
 	if err != nil {
 		return err
 	}
