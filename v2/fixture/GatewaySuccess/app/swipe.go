@@ -5,7 +5,7 @@ package app
 import (
 	swipe "github.com/swipe-io/swipe/v2"
 
-	"github.com/swipe-io/swipe/v2/fixtures/ServiceJSONRPCMulti/app"
+	"github.com/swipe-io/swipe/v2/fixture/ServiceJSONRPCMulti/app"
 )
 
 func Swipe() {

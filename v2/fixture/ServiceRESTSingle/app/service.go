@@ -95,6 +95,9 @@ type AppInterface interface {
 	InterfaceB
 }
 
+type Option struct {
+}
+
 type InterfaceB interface {
 	// Create create comment.
 	// @newData param of new data.
@@ -107,6 +110,7 @@ type InterfaceB interface {
 	Delete(ctx context.Context, id uint) (a string, b string, err error)
 	TestMethod(data map[string]interface{}, ss interface{}) (states map[string]map[int][]string, err error)
 	TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error
+	TestMethodOptionals(ctx context.Context, ns string, options ...Option) error
 	Start(ctx context.Context) error
 }
 
@@ -134,5 +138,9 @@ func (s *serviceB) TestMethod(data map[string]interface{}, ss interface{}) (stat
 }
 
 func (s *serviceB) TestMethod2(ctx context.Context, ns string, utype string, user string, restype string, resource string, permission string) error {
+	panic("implement me")
+}
+
+func (s *serviceB) TestMethodOptionals(ctx context.Context, ns string, options ...Option) error {
 	panic("implement me")
 }

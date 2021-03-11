@@ -55,7 +55,7 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 		stdPrometheusPkg := g.i.Import("prometheus", "github.com/prometheus/client_golang/prometheus")
 		kitPrometheusPkg := g.i.Import("prometheus", "github.com/go-kit/kit/metrics/prometheus")
 
-		name := iface.Name() + "InstrumentingMiddleware"
+		name := iface.NameExport() + "InstrumentingMiddleware"
 		constructName := fmt.Sprintf("NewInstrumenting%sMiddleware", iface.NameExport())
 
 		g.W("type %s struct {\n", name)
