@@ -120,7 +120,7 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 			}
 			name := method.Name
 			if g.options.Interfaces().Len() > 1 {
-				name = iface.NameUnExport() + "." + method.Name
+				name = iface.LcName() + "." + method.Name
 			}
 			g.W("<a href=\"#%[1]s\">%[1]s</a>\n\n", name)
 		}
@@ -128,7 +128,7 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 		for _, method := range iface.Methods() {
 			name := method.Name
 			if g.options.Interfaces().Len() > 1 {
-				name = iface.NameUnExport() + "." + method.Name
+				name = iface.LcName() + "." + method.Name
 			}
 
 			g.W("### <a name=\"%[1]s\"></a>%[1]s(", name)

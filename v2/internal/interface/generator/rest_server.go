@@ -8,19 +8,16 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
-
 	"github.com/swipe-io/strcase"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
+	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
 type restServerOptionsGateway interface {
 	AppID() string
-	Prefix() string
 	UseFast() bool
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
@@ -62,15 +59,15 @@ func (g *restServer) Process(_ context.Context) error {
 	}
 	g.writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg)
 
-	g.W("// MakeHandler%[1]s HTTP %[1]s Transport\n", g.options.Prefix())
-	g.W("func MakeHandler%s(", g.options.Prefix())
+	g.W("// MakeHandler HTTP Transport\n")
+	g.W("func MakeHandlerREST(")
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 		if i > 0 {
 			g.W(",")
 		}
-		g.W("svc%s %s", iface.NameExport(), typeStr)
+		g.W("svc%s %s", iface.UcName(), typeStr)
 	}
 	g.W(", options ...ServerOption")
 	g.W(") (")
@@ -94,15 +91,15 @@ func (g *restServer) Process(_ context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface, g.options.Interfaces().Len()), iface.NameExport())
+		g.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(iface), iface.UcName())
 	}
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-		epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
+		epSetName := makeEpSetName(iface)
 		for _, m := range iface.Methods() {
 			g.W(
 				"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-				m.LcName, m.Name, epSetName,
+				m.IfaceLcName, m.Name, epSetName,
 			)
 		}
 	}
@@ -114,16 +111,11 @@ func (g *restServer) Process(_ context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-
-		svcPrefix := ""
-		if g.options.Interfaces().Len() > 1 {
-			prefix := strcase.ToKebab(iface.Name())
-			if iface.NameUnExport() != "" {
-				prefix = iface.NameUnExport()
-			}
-			svcPrefix = prefix + "/"
+		var prefix string
+		if iface.Namespace() != "" {
+			prefix = iface.Namespace()
 		}
-		epSetName := makeEpSetName(iface, g.options.Interfaces().Len())
+		epSetName := makeEpSetName(iface)
 		for _, m := range iface.Methods() {
 			mopt := g.options.MethodOption(m)
 			if g.options.UseFast() {
@@ -156,9 +148,9 @@ func (g *restServer) Process(_ context.Context) error {
 				g.W(").")
 				g.W("Path(")
 				if mopt.Path != "" {
-					g.W(strconv.Quote(path.Join("/", svcPrefix, mopt.Path)))
+					g.W(strconv.Quote(path.Join("/", prefix, mopt.Path)))
 				} else {
-					g.W(strconv.Quote(path.Join("/", svcPrefix, "/", stdstrings.ToLower(m.Name))))
+					g.W(strconv.Quote(path.Join("/", prefix, strcase.ToKebab(m.Name))))
 				}
 
 				g.W(").")
@@ -282,7 +274,7 @@ func (g *restServer) Process(_ context.Context) error {
 			}
 			g.W(",\n")
 
-			g.W("append(opts.genericServerOption, opts.%sServerOption...)...,\n", m.LcName)
+			g.W("append(opts.genericServerOption, opts.%sServerOption...)...,\n", m.IfaceLcName)
 			g.W(")")
 
 			if g.options.UseFast() {

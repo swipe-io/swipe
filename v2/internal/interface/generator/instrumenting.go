@@ -50,16 +50,17 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+		nextName := iface.UcNameWithPrefix() + "Interface"
+
 		timePkg := g.i.Import("time", "time")
 		stdPrometheusPkg := g.i.Import("prometheus", "github.com/prometheus/client_golang/prometheus")
 		kitPrometheusPkg := g.i.Import("prometheus", "github.com/go-kit/kit/metrics/prometheus")
 
-		name := iface.NameExport() + "InstrumentingMiddleware"
-		constructName := fmt.Sprintf("NewInstrumenting%sMiddleware", iface.NameExport())
+		name := iface.UcNameWithPrefix() + "InstrumentingMiddleware"
+		constructName := fmt.Sprintf("NewInstrumenting%sMiddleware", iface.UcNameWithPrefix())
 
 		g.W("type %s struct {\n", name)
-		g.W("next %s\n", typeStr)
+		g.W("next %s\n", nextName)
 		g.W("opts *instrumentingOpts\n")
 		g.W("}\n\n")
 
@@ -121,7 +122,7 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 			})
 		}
 
-		g.W("func %[1]s(s %[2]s, opts ...InstrumentingOption) %[2]s {\n", constructName, typeStr, metricsPkg)
+		g.W("func %[1]s(s %[2]s, opts ...InstrumentingOption) *%[3]s {\n", constructName, nextName, name)
 		g.W("i := &%s{next: s, opts: &instrumentingOpts{}}\n", name)
 
 		g.W("for _, o := range opts {\no(i.opts)\n}\n")

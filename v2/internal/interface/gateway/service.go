@@ -24,6 +24,7 @@ import (
 
 type serviceGateway struct {
 	pkg                      *packages.Package
+	pkgPath                  string
 	transportType            model.Transport
 	useFast                  bool
 	graphTypes               *graph.Graph
@@ -35,7 +36,6 @@ type serviceGateway struct {
 	defaultMethodOptions     model.MethodOption
 	clientsEnable            []string
 	errors                   map[uint32]*model.HTTPError
-	prefix                   string
 	openapiEnable            bool
 	openapiOutput            string
 	openapiInfo              openapi.Info
@@ -85,10 +85,6 @@ func (g *serviceGateway) AppName() string {
 
 func (g *serviceGateway) Interfaces() model.Interfaces {
 	return g.interfaces
-}
-
-func (g *serviceGateway) Prefix() string {
-	return g.prefix
 }
 
 func (g *serviceGateway) UseFast() bool {
@@ -233,13 +229,14 @@ func (g *serviceGateway) loadReadme(o *option.Option) error {
 
 func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]*model.HTTPError, ifaceLen int) (*model.ServiceInterface, error) {
 	ifaceOpt := option.MustOption(o.At("iface"))
-	nameOpt := option.MustOption(o.At("name"))
+	nsOpt := option.MustOption(o.At("ns"))
 
 	ifacePtr, ok := ifaceOpt.Value.Type().(*stdtypes.Pointer)
 	if !ok {
 		return nil, errors.NotePosition(o.Position,
 			fmt.Errorf("the iface option is required must be a pointer to an interface type; found %s", stdtypes.TypeString(o.Value.Type(), nil)))
 	}
+
 	ifaceType, ok := ifacePtr.Elem().Underlying().(*stdtypes.Interface)
 	if !ok {
 		return nil, errors.NotePosition(o.Position,
@@ -247,10 +244,11 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 	}
 
 	var graphTypes = g.graphTypes
+	var externalPkgFound bool
 
 	ifaceNamed := ifacePtr.Elem().(*stdtypes.Named)
 
-	var externalSwipePkg *packages.Package
+	appPkg := g.pkg
 
 	for _, extOpt := range g.externalOptions {
 		if ifaces, ok := extOpt.Option.Slice("Interface"); ok {
@@ -261,12 +259,15 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 					if ifaceExtType.NumEmbeddeds() > 0 {
 						for i := 0; i < ifaceExtType.NumEmbeddeds(); i++ {
 							if ifaceExtType.EmbeddedType(i).String() == ifacePtr.Elem().String() {
-								externalSwipePkg = extOpt.Pkg
+								appPkg = extOpt.Pkg
+								externalPkgFound = true
 							}
 						}
 					}
 					if ifaceExtPtr.Elem().String() == ifacePtr.Elem().String() {
-						externalSwipePkg = extOpt.Pkg
+						appPkg = extOpt.Pkg
+						externalPkgFound = true
+						break
 					}
 				}
 			}
@@ -278,27 +279,18 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 	external := basePkgService != basePkgInternal
 
 	var appName string
-	if externalSwipePkg != nil {
-		id := stdstrings.Split(externalSwipePkg.PkgPath, "/")[:3][2]
-		appName = strcase.ToCamel(id)
-	} else if external {
+	id := stdstrings.Split(appPkg.PkgPath, "/")[:3][2]
+	appName = strcase.ToCamel(id)
+
+	if external && !externalPkgFound {
 		return nil, errors.NotePosition(o.Position,
 			fmt.Errorf("you need to add an external service package for %s", stdtypes.TypeString(o.Value.Type(), nil)))
 	}
 
-	ifaceName := strcase.ToCamel(ifaceNamed.Obj().Name())
-	ifaceLcName := strcase.ToLowerCamel(ifaceName)
+	ifaceUcName := ifaceNamed.Obj().Name()
+	ifaceLcName := strcase.ToLowerCamel(ifaceUcName)
 
-	nameExport := ifaceName
-	nameUnExport := ifaceLcName
-	name := nameOpt.Value.String()
-	isNameChange := false
-
-	if name != "" {
-		nameExport = strcase.ToCamel(name)
-		nameUnExport = strcase.ToLowerCamel(name)
-		isNameChange = true
-	}
+	ns := nsOpt.Value.String()
 
 	var serviceMethods []model.ServiceMethod
 
@@ -314,23 +306,24 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 
 		comments, _ := g.commentFuncs[m.String()]
 
-		nameUc := nameExport + m.Name()
-		nameLc := nameUnExport + m.Name()
+		ifaceNameUc := ifaceUcName + m.Name()
+		ifaceNameLc := ifaceLcName + m.Name()
 
 		nameRequest := m.Name() + "Request"
 		nameResponse := m.Name() + "Response"
 
 		if ifaceLen > 1 {
-			nameRequest = nameUc + m.Name() + "Request"
-			nameResponse = nameUc + m.Name() + "Response"
+			nameRequest = ifaceNameUc + "Request"
+			nameResponse = ifaceNameUc + "Response"
 		}
 
 		sm := model.ServiceMethod{
 			Type:         m,
 			T:            m.Type(),
 			Name:         m.Name(),
-			UcName:       nameUc,
-			LcName:       nameLc,
+			LcName:       strcase.ToLowerCamel(m.Name()),
+			IfaceUcName:  ifaceNameUc,
+			IfaceLcName:  ifaceNameLc,
 			NameRequest:  nameRequest,
 			NameResponse: nameResponse,
 			Comments:     comments,
@@ -418,25 +411,25 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 		serviceMethods = append(serviceMethods, sm)
 	}
 	return model.NewServiceInterface(
-		ifaceName,
+		ifaceUcName,
 		ifaceLcName,
-		nameExport,
-		nameUnExport,
-		isNameChange,
 		ifacePtr.Elem(),
 		ifaceNamed,
 		ifaceType,
 		serviceMethods,
 		external,
-		externalSwipePkg,
+		appPkg,
 		appName,
+		ns,
 	), nil
 }
 
 func (g *serviceGateway) load(o *option.Option) error {
-	parts := filepath.SplitList(g.wd)
+
+	parts := stdstrings.Split(g.pkgPath, string(filepath.Separator))
+
 	g.appName = parts[len(parts)-1]
-	if nameOpt, ok := o.At("Name"); ok {
+	if nameOpt, ok := o.At("AppName"); ok {
 		if name := nameOpt.Value.String(); name != "" {
 			g.appName = strcase.ToCamel(name)
 		}
@@ -453,11 +446,6 @@ func (g *serviceGateway) load(o *option.Option) error {
 	}
 	if err := g.loadReadme(o); err != nil {
 		return err
-	}
-
-	g.prefix = "REST"
-	if g.jsonRPCEnable {
-		g.prefix = "JSONRPC"
 	}
 
 	errorMethodName := "StatusCode"
@@ -816,18 +804,10 @@ func httpBraceIndices(s string) ([]int, error) {
 	return idxs, nil
 }
 
-func NewServiceGateway(
-	pkg *packages.Package,
-	o *option.Option,
-	graphTypes *graph.Graph,
-	commentFuncs map[string][]string,
-	commentFields map[string]map[string]string,
-	enums *typeutil.Map,
-	wd string,
-	externalOptions []*option.ResultOption,
-) (gateway.ServiceGateway, error) {
+func NewServiceGateway(pkg *packages.Package, pkgPath string, o *option.Option, graphTypes *graph.Graph, commentFuncs map[string][]string, commentFields map[string]map[string]string, enums *typeutil.Map, wd string, externalOptions []*option.ResultOption) (gateway.ServiceGateway, error) {
 	g := &serviceGateway{
 		pkg:               pkg,
+		pkgPath:           pkgPath,
 		graphTypes:        graphTypes,
 		commentFuncs:      commentFuncs,
 		commentFields:     commentFields,

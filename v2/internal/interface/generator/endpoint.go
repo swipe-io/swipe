@@ -4,12 +4,10 @@ import (
 	"context"
 	stdtypes "go/types"
 
-	"github.com/swipe-io/swipe/v2/internal/types"
-
-	"github.com/swipe-io/swipe/v2/internal/domain/model"
-
 	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
+	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
@@ -41,8 +39,8 @@ func (g *endpoint) Process(ctx context.Context) error {
 			continue
 		}
 
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
-		epSetName := iface.NameExport() + "EndpointSet"
+		typeStr := iface.UcName() + "Interface"
+		epSetName := iface.UcName() + "EndpointSet"
 
 		g.W("type %s struct {\n", epSetName)
 		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
@@ -51,16 +49,14 @@ func (g *endpoint) Process(ctx context.Context) error {
 		}
 		g.W("}\n")
 
-		if !iface.External() {
-			g.W("func Make%[1]s(svc %[2]s) %[1]s {\n", epSetName, typeStr)
-			g.W("return %s{\n", epSetName)
-			for _, m := range iface.Methods() {
-				g.W("%sEndpoint: Make%sEndpoint(svc),\n", m.Name, m.UcName)
+		g.W("func Make%[1]s(svc %[2]s) %[1]s {\n", epSetName, typeStr)
+		g.W("return %s{\n", epSetName)
+		for _, m := range iface.Methods() {
+			g.W("%sEndpoint: Make%sEndpoint(svc),\n", m.Name, m.IfaceUcName)
 
-			}
-			g.W("}\n")
-			g.W("}\n")
 		}
+		g.W("}\n")
+		g.W("}\n")
 
 		for _, m := range iface.Methods() {
 			if len(m.Params) > 0 {
@@ -113,19 +109,16 @@ func (g *endpoint) writeEndpointMake() {
 
 		contextPkg := g.i.Import("context", "context")
 		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+		typeStr := iface.UcName() + "Interface"
 
 		for _, m := range iface.Methods() {
-			g.W("func Make%sEndpoint(s %s) %s.Endpoint {\n", m.UcName, typeStr, kitEndpointPkg)
+			g.W("func Make%sEndpoint(s %s) %s.Endpoint {\n", m.IfaceUcName, typeStr, kitEndpointPkg)
 			g.W("return func (ctx %s.Context, request interface{}) (interface{}, error) {\n", contextPkg)
 
 			var callParams []string
 			if m.ParamCtx != nil {
 				callParams = append(callParams, "ctx")
 			}
-
-			methodParams := model.VarSlice{}
-			methodParams = append(methodParams, m.Params...)
 
 			callParams = append(callParams, types.Params(m.Params, func(p *stdtypes.Var) []string {
 				return []string{"req." + strcase.ToCamel(p.Name())}

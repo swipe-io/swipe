@@ -5,6 +5,8 @@ import (
 	"go/ast"
 	stdtypes "go/types"
 
+	"github.com/swipe-io/strcase"
+
 	"golang.org/x/tools/go/packages"
 )
 
@@ -25,18 +27,20 @@ func (i Interfaces) At(index int) *ServiceInterface {
 }
 
 type ServiceInterface struct {
-	name             string
-	loweName         string
-	nameExport       string
-	nameUnExport     string
+	ucName           string
+	lcName           string
 	serviceType      stdtypes.Type
 	serviceTypeName  *stdtypes.Named
 	serviceIface     *stdtypes.Interface
 	serviceMethods   []ServiceMethod
-	isNameChange     bool
 	external         bool
 	externalSwipePkg *packages.Package
 	appName          string
+	ns               string
+}
+
+func (g *ServiceInterface) Namespace() string {
+	return g.ns
 }
 
 func (g *ServiceInterface) AppName() string {
@@ -51,24 +55,26 @@ func (g *ServiceInterface) External() bool {
 	return g.external
 }
 
-func (g *ServiceInterface) IsNameChange() bool {
-	return g.isNameChange
+func (g *ServiceInterface) UcName() string {
+	return g.ucName
 }
 
-func (g *ServiceInterface) NameExport() string {
-	return g.nameExport
+func (g *ServiceInterface) UcNameWithPrefix() string {
+	if g.external {
+		return g.appName + g.ucName
+	}
+	return g.ucName
 }
 
-func (g *ServiceInterface) NameUnExport() string {
-	return g.nameUnExport
+func (g *ServiceInterface) LcName() string {
+	return g.lcName
 }
 
-func (g *ServiceInterface) Name() string {
-	return g.name
-}
-
-func (g *ServiceInterface) LoweName() string {
-	return g.loweName
+func (g *ServiceInterface) LcNameWithPrefix() string {
+	if g.external {
+		return strcase.ToLowerCamel(g.appName) + g.ucName
+	}
+	return g.lcName
 }
 
 func (g *ServiceInterface) Methods() []ServiceMethod {
@@ -87,13 +93,19 @@ func (g *ServiceInterface) Interface() *stdtypes.Interface {
 	return g.serviceIface
 }
 
-func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNameChange bool, serviceType stdtypes.Type, serviceTypeName *stdtypes.Named, serviceIface *stdtypes.Interface, serviceMethods []ServiceMethod, external bool, externalSwipePkg *packages.Package, appName string) *ServiceInterface {
+func NewServiceInterface(
+	ucName, lcName string,
+	serviceType stdtypes.Type,
+	serviceTypeName *stdtypes.Named,
+	serviceIface *stdtypes.Interface,
+	serviceMethods []ServiceMethod,
+	external bool,
+	externalSwipePkg *packages.Package,
+	appName, ns string,
+) *ServiceInterface {
 	return &ServiceInterface{
-		name:             name,
-		loweName:         lowerName,
-		nameExport:       nameExport,
-		nameUnExport:     nameUnExport,
-		isNameChange:     isNameChange,
+		ucName:           ucName,
+		lcName:           lcName,
 		serviceType:      serviceType,
 		serviceTypeName:  serviceTypeName,
 		serviceIface:     serviceIface,
@@ -101,6 +113,7 @@ func NewServiceInterface(name, lowerName, nameExport, nameUnExport string, isNam
 		external:         external,
 		externalSwipePkg: externalSwipePkg,
 		appName:          appName,
+		ns:               ns,
 	}
 }
 
@@ -125,8 +138,9 @@ type DeclType struct {
 type ServiceMethod struct {
 	Type          *stdtypes.Func
 	Name          string
-	UcName        string
 	LcName        string
+	IfaceUcName   string
+	IfaceLcName   string
 	NameRequest   string
 	NameResponse  string
 	Params        VarSlice

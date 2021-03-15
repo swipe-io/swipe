@@ -83,7 +83,7 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
 			for _, method := range iface.Methods() {
-				g.WriteFunc(method.LcName+"ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
+				g.WriteFunc(method.IfaceLcName+"ErrorDecode", "", errorDecodeParams, []string{"err", "error"}, func() {
 					g.W("switch code {\n")
 					g.W("default:\nerr = &httpError{code: code}\n")
 					if g.options.JSONRPCEnable() {
@@ -132,15 +132,15 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.W("}\n")
 	g.W("}\n")
 
-	serverOptType := fmt.Sprintf("serverOpts")
-	serverOptionType := fmt.Sprintf("ServerOption")
-	kithttpServerOption := fmt.Sprintf("%s.ServerOption", kitHTTPPkg)
+	serverOptType := "serverOpts"
+	serverOptionType := "ServerOption"
+	kitHTTPServerOption := fmt.Sprintf("%s.ServerOption", kitHTTPPkg)
 	endpointMiddlewareOption := fmt.Sprintf("%s.Middleware", endpointPkg)
 
 	g.WriteFunc(
 		"GenericServerOptions",
 		"",
-		[]string{"v", "..." + kithttpServerOption},
+		[]string{"v", "..." + kitHTTPServerOption},
 		[]string{"", serverOptionType},
 		func() {
 			g.W("return func(o *%s) { o.genericServerOption = v }\n", serverOptType)
@@ -160,15 +160,15 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	g.W("type %s func (*%s)\n", serverOptionType, serverOptType)
 
 	g.W("type %s struct {\n", serverOptType)
-	g.W("genericServerOption []%s\n", kithttpServerOption)
+	g.W("genericServerOption []%s\n", kitHTTPServerOption)
 	g.W("genericEndpointMiddleware []%s\n", endpointMiddlewareOption)
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
 		for _, m := range iface.Methods() {
-			g.W("%sServerOption []%s\n", m.LcName, kithttpServerOption)
-			g.W("%sEndpointMiddleware []%s\n", m.LcName, endpointMiddlewareOption)
+			g.W("%sServerOption []%s\n", m.IfaceLcName, kitHTTPServerOption)
+			g.W("%sEndpointMiddleware []%s\n", m.IfaceLcName, endpointMiddlewareOption)
 		}
 	}
 	g.W("}\n")
@@ -176,23 +176,26 @@ func (g *httpTransport) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, m := range iface.Methods() {
+			fnPrefix := m.IfaceUcName
+			paramPrefix := m.IfaceLcName
+
 			g.WriteFunc(
-				fmt.Sprintf("%sServerOptions", m.UcName),
+				fmt.Sprintf("%sServerOptions", fnPrefix),
 				"",
-				[]string{"opt", "..." + kithttpServerOption},
+				[]string{"opt", "..." + kitHTTPServerOption},
 				[]string{"", serverOptionType},
 				func() {
-					g.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, m.LcName)
+					g.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, paramPrefix)
 				},
 			)
 
 			g.WriteFunc(
-				fmt.Sprintf("%sServerEndpointMiddlewares", m.UcName),
+				fmt.Sprintf("%sServerEndpointMiddlewares", fnPrefix),
 				"",
 				[]string{"opt", "..." + endpointMiddlewareOption},
 				[]string{"", serverOptionType},
 				func() {
-					g.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, m.LcName)
+					g.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, paramPrefix)
 				},
 			)
 		}

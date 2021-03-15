@@ -5,15 +5,13 @@ import (
 	stdtypes "go/types"
 
 	"github.com/swipe-io/strcase"
-
-	"github.com/swipe-io/swipe/v2/internal/importer"
-
-	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
-	"golang.org/x/tools/go/types/typeutil"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
+	"github.com/swipe-io/swipe/v2/internal/importer"
+	"github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
+
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 const jsonRPCClientBase = `
@@ -142,7 +140,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		mw.W("class JSONRPCClient%s {\n", iface.NameExport())
+		mw.W("class JSONRPCClient%s {\n", iface.UcName())
 		mw.W("constructor(transport) {\n")
 		mw.W("this.scheduler = new JSONRPCScheduler(transport);\n")
 		mw.W("}\n\n")
@@ -215,8 +213,8 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 			}
 
 			var prefix string
-			if iface.IsNameChange() && g.options.Interfaces().Len() > 1 {
-				prefix = iface.NameUnExport() + "."
+			if iface.Namespace() != "" {
+				prefix = iface.Namespace() + "."
 			}
 
 			mw.W(") {\n")
@@ -233,11 +231,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 			}
 
 			mw.W("}).catch(e => { throw ")
-			if iface.External() {
-				mw.W("%s%sConvertError(e)", iface.AppName(), m.Name)
-			} else {
-				mw.W("%s%sConvertError(e)", iface.LoweName(), m.Name)
-			}
+			mw.W("%s%sConvertError(e)", iface.LcName(), m.Name)
 			mw.W("; })\n")
 
 			mw.W("}\n")
@@ -258,7 +252,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("constructor(transport) {\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("this.%[1]s = new JSONRPCClient%[1]s(transport);\n", iface.NameExport())
+			g.W("this.%s = new JSONRPCClient%s(transport);\n", iface.LcName(), iface.UcName())
 		}
 		g.W("}\n")
 		g.W("}\n")
@@ -266,7 +260,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("export default JSONRPCClient\n\n")
 	} else if g.options.Interfaces().Len() == 1 {
 		iface := g.options.Interfaces().At(0)
-		g.W("export default JSONRPCClient%s\n\n", iface.NameExport())
+		g.W("export default JSONRPCClient%s\n\n", iface.UcName())
 	}
 
 	httpErrorsDub := map[string]struct{}{}
@@ -275,7 +269,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		iface := g.options.Interfaces().At(i)
 		for _, method := range iface.Methods() {
 			for _, e := range method.Errors {
-				errorName := iface.AppName() + e.Named.Obj().Name()
+				errorName := iface.UcName() + e.Named.Obj().Name()
 				if _, ok := httpErrorsDub[errorName]; ok {
 					continue
 				}
@@ -291,21 +285,13 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, method := range iface.Methods() {
-			if iface.External() {
-				g.W("function %s%sConvertError(e) {\n", iface.AppName(), method.Name)
-			} else {
-				g.W("function %s%sConvertError(e) {\n", iface.LoweName(), method.Name)
-			}
+			g.W("function %s%sConvertError(e) {\n", iface.LcName(), method.Name)
 			g.W("switch(e.code) {\n")
 			g.W("default:\n")
 			g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
 			for _, e := range method.Errors {
 				g.W("case %d:\n", e.Code)
-				if iface.External() {
-					g.W("return new %s%sError(e.message, e.data);\n", iface.AppName(), e.Named.Obj().Name())
-				} else {
-					g.W("return new %sError(e.message, e.data);\n", e.Named.Obj().Name())
-				}
+				g.W("return new %sError(e.message, e.data);\n", iface.UcName()+e.Named.Obj().Name())
 			}
 			g.W("}\n}\n")
 		}
@@ -317,14 +303,14 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	//		if !ok {
 	//			return
 	//		}
-	//		g.W("export const %sEnum = Object.freeze({\n", named.Obj().Name())
+	//		g.W("export const %sEnum = Object.freeze({\n", named.Obj().IfaceUcName())
 	//
 	//		for _, enum := range value.([]model.Enum) {
 	//			value := enum.Value
 	//			if b.Info() == stdtypes.IsString {
 	//				value = strconv.Quote(value)
 	//			}
-	//			g.W("%s: %s,\n", strconv.Quote(enum.Name), value)
+	//			g.W("%s: %s,\n", strconv.Quote(enum.IfaceUcName), value)
 	//		}
 	//		g.W("});\n")
 	//	}

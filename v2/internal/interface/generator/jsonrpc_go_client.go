@@ -2,7 +2,6 @@ package generator
 
 import (
 	"context"
-	"fmt"
 	stdtypes "go/types"
 	"strconv"
 
@@ -13,7 +12,6 @@ import (
 )
 
 type jsonRPCGoClientOptionsGateway interface {
-	Prefix() string
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	UseFast() bool
@@ -44,18 +42,19 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 
 		iface := g.options.Interfaces().At(i)
 
-		clientType := "client" + iface.NameExport()
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+		clientType := "client" + iface.UcName()
+
+		typeStr := iface.UcName() + "Interface"
 
 		if g.options.Interfaces().Len() == 1 {
-			g.W("// Deprecated\nfunc NewClient%s(tgt string", g.options.Prefix())
+			g.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
 			g.W(" ,options ...ClientOption")
 			g.W(") (%s, error) {\n", typeStr)
-			g.W("return NewClient%s%s(tgt, options...)", g.options.Prefix(), iface.NameExport())
+			g.W("return NewClientJSONRPC%s(tgt, options...)", iface.UcName())
 			g.W("}\n")
 		}
 
-		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.NameExport())
+		g.W("func NewClientJSONRPC%s(tgt string", iface.UcName())
 		g.W(" ,options ...ClientOption")
 		g.W(") (%s, error) {\n", typeStr)
 		g.W("opts := &clientOpts{}\n")
@@ -96,7 +95,7 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 		for _, m := range iface.Methods() {
 			mopt := g.options.MethodOption(m)
 
-			g.W("opts.%[1]sClientOption = append(\nopts.%[1]sClientOption,\n", m.LcName)
+			g.W("opts.%[1]sClientOption = append(\nopts.%[1]sClientOption,\n", m.IfaceLcName)
 
 			g.W("%s.ClientRequestEncoder(", jsonrpcPkg)
 			g.W("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
@@ -119,13 +118,13 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 			g.W("%s.ClientResponseDecoder(", jsonrpcPkg)
 			g.W("func(_ %s.Context, response %s.Response) (interface{}, error) {\n", contextPkg, jsonrpcPkg)
 			g.W("if response.Error != nil {\n")
-			g.W("return nil, %sErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)\n", m.LcName)
+			g.W("return nil, %sErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)\n", m.IfaceLcName)
 			g.W("}\n")
 
 			if len(m.Results) > 0 {
 				var responseType string
 				if m.ResultsNamed {
-					responseType = fmt.Sprintf("%s", m.NameResponse)
+					responseType = m.NameResponse
 				} else {
 					responseType = stdtypes.TypeString(m.Results[0].Type(), g.i.QualifyPkg)
 				}
@@ -151,24 +150,23 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 			}
 			g.W("}),\n")
 			g.W(")\n")
-
 			methodName := m.LcName
-			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
-				methodName = iface.NameUnExport() + "." + methodName
+			if iface.Namespace() != "" {
+				methodName = iface.Namespace() + "." + methodName
 			}
 
-			g.W("c.%sEndpoint = %s.NewClient(\n", m.LcName, jsonrpcPkg)
+			g.W("c.%sEndpoint = %s.NewClient(\n", m.IfaceLcName, jsonrpcPkg)
 			g.W("u,\n")
 			g.W("%s,\n", strconv.Quote(methodName))
 
-			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.LcName)
+			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.IfaceLcName)
 
 			g.W(").Endpoint()\n")
 
 			g.W(
 				"c.%[1]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[2]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
-				m.LcName,
-				m.LcName,
+				m.IfaceLcName,
+				m.IfaceLcName,
 			)
 		}
 

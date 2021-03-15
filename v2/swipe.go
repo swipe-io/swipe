@@ -116,12 +116,11 @@ func Service(opts ...ServiceOption) Option {
 	return "implementation not generated, run swipe"
 }
 
-func Interface(iface interface{}, name string) ServiceOption {
+func Interface(iface interface{}, ns string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-// Name override service name prefix.
-func ServiceNamePrefix(string) ServiceOption {
+func AppName(string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
