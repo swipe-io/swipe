@@ -62,7 +62,9 @@ func (l *Loader) Process() (data *Data, errs []error) {
 		err     error
 	)
 	if l.mod == nil {
-		pkgPath = strings.Split(l.wd, filepath.Join(build.Default.GOPATH, "src")+"/")[1]
+		basePath := strings.Replace(l.wd, filepath.Join(build.Default.GOPATH, "src")+string(filepath.Separator), "", -1)
+		parts := strings.Split(basePath, string(filepath.Separator))
+		pkgPath = strings.Join(parts[:3], string(filepath.Separator))
 	} else {
 		pkgPath = l.mod.Module.Mod.Path
 	}
