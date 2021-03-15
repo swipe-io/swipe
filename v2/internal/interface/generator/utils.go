@@ -104,12 +104,8 @@ func normalizeType(t stdtypes.Type) stdtypes.Type {
 	}
 }
 
-func makeEpSetName(iface *model.ServiceInterface, ifaceLen int) (epSetName string) {
-	epSetName = "epSet"
-	if ifaceLen > 1 {
-		epSetName = "epSet" + iface.NameExport()
-	}
-	return
+func makeEpSetName(iface *model.ServiceInterface) string {
+	return iface.LcNameWithPrefix() + "EpSet"
 }
 
 func parseMethodComments(comments []string) (methodComment string, paramsComment map[string]string) {
