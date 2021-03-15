@@ -14,7 +14,6 @@ type ServiceGateway interface {
 	TransportType() model.Transport
 	UseFast() bool
 	MethodOption(m model.ServiceMethod) model.MethodOption
-	Prefix() string
 	DefaultErrorEncoder() option.Value
 	Errors() map[uint32]*model.HTTPError
 

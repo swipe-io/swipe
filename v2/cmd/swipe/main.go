@@ -261,7 +261,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	}
 
 	log.Println(color.LightGreen.Render("Command execution completed successfully"))
-	log.Printf("%s %s", color.LightBlue.Render("Time"), color.Yellow.Render(time.Now().Sub(startCmd).String()))
+	log.Printf("%s %s", color.LightBlue.Render("Time"), color.Yellow.Render(time.Since(startCmd).String()))
 
 	return subcommands.ExitSuccess
 }

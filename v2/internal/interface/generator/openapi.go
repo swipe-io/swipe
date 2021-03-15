@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path"
 	"path/filepath"
 	"strconv"
 	stdstrings "strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	iftypevisitor "github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
+
 	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
@@ -277,20 +277,15 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			methodComment = stdstrings.Replace(methodComment, m.Name, "", len(m.Name))
 
 			var prefix string
-
-			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
-				if g.options.JSONRPCEnable() {
-					prefix = iface.NameUnExport()
-				} else {
-					prefix = strcase.ToKebab(iface.Name())
-				}
+			if iface.Namespace() != "" {
+				prefix = iface.Namespace()
 			}
 
 			if g.options.JSONRPCEnable() {
 				o = g.makeJSONRPCPath(m, ntc, paramsComment, prefix)
-				pathStr = "/" + strcase.ToLowerCamel(m.Name)
+				pathStr = "/" + m.LcName
 				if prefix != "" {
-					pathStr = "/" + prefix + "." + strcase.ToLowerCamel(m.Name)
+					pathStr = "/" + prefix + "." + m.LcName
 				}
 				methodName = "POST"
 				for _, ei := range m.Errors {
@@ -308,21 +303,19 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				}
 			} else {
 				o = g.makeRestPath(m, ntc, paramsComment)
-				pathStr = mopt.Path
-				if pathStr == "" {
-					pathStr = strcase.ToKebab(m.LcName)
-				}
-
-				if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
-					prefix = path.Join("/", prefix)
+				pathStr = strcase.ToKebab(m.Name)
+				if mopt.Path != "" {
+					pathStr = mopt.Path
 				}
 				for _, p := range m.Params {
 					if regexp, ok := mopt.PathVars[p.Name()]; ok {
 						pathStr = stdstrings.Replace(pathStr, ":"+regexp, "", -1)
 					}
 				}
-				pathStr = path.Join(prefix, "/", pathStr)
-
+				if iface.Namespace() != "" {
+					pathStr = iface.Namespace() + "/" + pathStr
+				}
+				pathStr = "/" + stdstrings.TrimLeft(pathStr, "/")
 				for _, ei := range m.Errors {
 					codeStr := strconv.FormatInt(ei.Code, 10)
 					o.Responses[codeStr] = openapi.Response{
@@ -339,9 +332,9 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			}
 
 			if g.options.Interfaces().Len() > 1 {
-				ifaceTag := strcase.ToLowerCamel(iface.Name())
-				if iface.NameExport() != "" {
-					ifaceTag = iface.NameExport()
+				ifaceTag := strcase.ToLowerCamel(iface.UcName())
+				if iface.UcName() != "" {
+					ifaceTag = iface.UcName()
 				}
 				tags = append(tags, ifaceTag)
 			}

@@ -23,8 +23,11 @@ import (
 var record = flag.Bool("record", false, "write expected result without running tests")
 var onlyDiff = flag.Bool("only-diff", false, "show only diff")
 
-func newGeneratorExecutor(wd string) ue.GenerationExecutor {
-	astl := astloader.NewLoader(wd, os.Environ(), []string{"."}, nil)
+func newGeneratorExecutor(wd string, pkgs []string) ue.GenerationExecutor {
+	patterns := []string{"."}
+	patterns = append(patterns, pkgs...)
+
+	astl := astloader.NewLoader(wd, os.Environ(), patterns, nil)
 	l := option.NewLoader(astl)
 	r := registry.NewRegistry(l)
 	i := factory.NewImporterFactory()
@@ -33,19 +36,27 @@ func newGeneratorExecutor(wd string) ue.GenerationExecutor {
 }
 
 func TestSwipe(t *testing.T) {
-	const testRoot = "fixture"
-
-	testdataEnts, err := ioutil.ReadDir(testRoot)
+	//testRoot, err := filepath.Abs("../..")
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	testdataEnts, err := filepath.Glob("../../../../github.pie.apple.com/ISS-Tools/zeus-gateway")
+	//testdataEnts, err := ioutil.ReadDir(testRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tests := make([]*testCase, 0, len(testdataEnts))
-	for _, ent := range testdataEnts {
-		name := ent.Name()
-		if !ent.IsDir() || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
-			continue
+	for _, name := range testdataEnts {
+		var pkgs []string
+		if data, err := ioutil.ReadFile(filepath.Join(name, "pkgs")); err == nil {
+			pkgs = strings.Split(string(data), "\n")
 		}
-		test, err := loadTestCase(filepath.Join(testRoot, name))
+
+		//name := ent.Name()
+		//if !ent.IsDir() || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+		//	continue
+		//}
+		test, err := loadTestCase(name, pkgs)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -53,7 +64,7 @@ func TestSwipe(t *testing.T) {
 		tests = append(tests, test)
 	}
 	for _, test := range tests {
-		ge := newGeneratorExecutor(test.testCasePath)
+		ge := newGeneratorExecutor(test.testCasePath, test.pkgs)
 
 		test := test
 		t.Run(test.name, func(t *testing.T) {
@@ -116,11 +127,12 @@ type testCase struct {
 	expectedError        bool
 	expectedErrorStrings []string
 	testCasePath         string
+	pkgs                 []string
 }
 
-func loadTestCase(root string) (*testCase, error) {
+func loadTestCase(root string, pkgs []string) (*testCase, error) {
 	name := filepath.Base(root)
-	testCasePath, err := filepath.Abs(filepath.Join(root, "app"))
+	testCasePath, err := filepath.Abs(filepath.Join(root, "pkg", "transport"))
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +161,7 @@ func loadTestCase(root string) (*testCase, error) {
 		expectedOutput:       expectedOutput,
 		expectedError:        false,
 		expectedErrorStrings: nil,
+		pkgs:                 pkgs,
 	}, nil
 
 }

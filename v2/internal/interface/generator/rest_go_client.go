@@ -2,14 +2,12 @@ package generator
 
 import (
 	"context"
-	"fmt"
 	stdtypes "go/types"
 	"path"
 	"strconv"
 	stdstrings "strings"
 
 	"github.com/swipe-io/strcase"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
@@ -17,7 +15,6 @@ import (
 )
 
 type restGoClientOptionsGateway interface {
-	Prefix() string
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	UseFast() bool
@@ -47,8 +44,8 @@ func (g *restGoClient) Process(_ context.Context) error {
 			pkgIO      string
 		)
 		iface := g.options.Interfaces().At(i)
-		clientType := "client" + iface.NameExport()
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+		clientType := "client" + iface.UcName()
+		typeStr := iface.UcName() + "Interface"
 
 		if g.options.UseFast() {
 			kitHTTPPkg = g.i.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
@@ -69,14 +66,14 @@ func (g *restGoClient) Process(_ context.Context) error {
 		stringsPkg = g.i.Import("strings", "strings")
 
 		if g.options.Interfaces().Len() == 1 {
-			g.W("// Deprecated\nfunc NewClient%s(tgt string", g.options.Prefix())
+			g.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
 			g.W(" ,options ...ClientOption")
 			g.W(") (%s, error) {\n", typeStr)
-			g.W("return NewClient%s%s(tgt, options...)", g.options.Prefix(), iface.NameExport())
+			g.W("return NewClientJSONRPC%s(tgt, options...)", iface.UcName())
 			g.W("}\n")
 		}
 
-		g.W("func NewClient%s%s(tgt string", g.options.Prefix(), iface.NameExport())
+		g.W("func NewClientJSONRPC%s(tgt string", iface.UcName())
 		g.W(" ,options ...ClientOption")
 		g.W(") (%s, error) {\n", typeStr)
 		g.W("opts := &clientOpts{}\n")
@@ -104,7 +101,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 		g.W("}\n")
 
 		for _, m := range iface.Methods() {
-			epName := m.LcName + "Endpoint"
+			epName := m.IfaceLcName + "Endpoint"
 			mopt := g.options.MethodOption(m)
 
 			httpMethod := mopt.MethodName
@@ -117,8 +114,8 @@ func (g *restGoClient) Process(_ context.Context) error {
 				pathStr = path.Join("/", strcase.ToKebab(m.Name))
 			}
 
-			if iface.IsNameChange() || g.options.Interfaces().Len() > 1 {
-				pathStr = path.Join("/", strcase.ToKebab(iface.NameUnExport()), "/", pathStr)
+			if iface.Namespace() != "" {
+				pathStr = path.Join("/", strcase.ToKebab(iface.Namespace()), "/", pathStr)
 			}
 
 			var (
@@ -261,13 +258,13 @@ func (g *restGoClient) Process(_ context.Context) error {
 				}
 
 				g.W("if statusCode := %s; statusCode != %s.StatusOK {\n", statusCode, httpPkg)
-				g.W("return nil, %sErrorDecode(statusCode)\n", m.LcName)
+				g.W("return nil, %sErrorDecode(statusCode)\n", m.IfaceLcName)
 				g.W("}\n")
 
 				if len(m.Results) > 0 {
 					var responseType string
 					if m.ResultsNamed {
-						responseType = fmt.Sprintf("%s", m.NameRequest)
+						responseType = m.NameRequest
 					} else {
 						responseType = stdtypes.TypeString(m.Results[0].Type(), g.i.QualifyPkg)
 					}
@@ -308,14 +305,14 @@ func (g *restGoClient) Process(_ context.Context) error {
 
 			g.W(",\n")
 
-			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.LcName)
+			g.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", m.IfaceLcName)
 
 			g.W(").Endpoint()\n")
 
 			g.W(
 				"c.%[1]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[2]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
-				m.LcName,
-				m.LcName,
+				m.IfaceLcName,
+				m.IfaceLcName,
 			)
 		}
 		g.W("return c, nil\n")

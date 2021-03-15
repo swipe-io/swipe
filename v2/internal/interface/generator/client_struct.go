@@ -6,17 +6,14 @@ import (
 	stdtypes "go/types"
 
 	"github.com/swipe-io/strcase"
-
-	"github.com/swipe-io/swipe/v2/internal/types"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
+	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
 type clientStructOptionsGateway interface {
-	Prefix() string
 	UseFast() bool
 	JSONRPCEnable() bool
 	Interfaces() model.Interfaces
@@ -54,24 +51,35 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	}
 
 	endpointPkg = g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-	clientOptionType := fmt.Sprintf("ClientOption")
+	clientOptionType := "ClientOption"
 
 	if g.options.Interfaces().Len() > 1 {
 		g.W("type AppClient struct {\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
-			g.W("%sClient %s\n", iface.NameExport(), typeStr)
+			typeStr := iface.UcName() + "Interface"
+			g.W("%sClient %s\n", iface.UcName(), typeStr)
 		}
 		g.W("}\n\n")
 
-		g.W("func NewClient%s(tgt string", g.options.Prefix())
+		if g.options.JSONRPCEnable() {
+			g.W("func NewClientJSONRPC(tgt string")
+		} else {
+			g.W("func NewClientREST(tgt string")
+		}
+
 		g.W(" ,opts ...ClientOption")
 		g.W(") (*AppClient, error) {\n")
 
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("%sClient, err := NewClient%s%s(tgt, opts...)\n", iface.NameUnExport(), g.options.Prefix(), iface.NameExport())
+
+			if g.options.JSONRPCEnable() {
+				g.W("%sClient, err := NewClientJSONRPC%s(tgt, opts...)\n", iface.LcName(), iface.UcName())
+			} else {
+				g.W("%sClient, err := NewClientREST%s(tgt, opts...)\n", iface.LcName(), iface.UcName())
+			}
+
 			g.WriteCheckErr(func() {
 				g.W("return nil, err")
 			})
@@ -80,7 +88,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 		g.W("return &AppClient{\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("%[1]sClient: %[2]sClient,\n", iface.NameExport(), iface.NameUnExport())
+			g.W("%[1]sClient: %[2]sClient,\n", iface.UcName(), iface.LcName())
 		}
 		g.W("}, nil\n")
 		g.W("}\n\n")
@@ -91,8 +99,8 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, m := range iface.Methods() {
-			g.W("%sClientOption []%s.ClientOption\n", m.LcName, kitHTTPPkg)
-			g.W("%sEndpointMiddleware []%s.Middleware\n", m.LcName, endpointPkg)
+			g.W("%sClientOption []%s.ClientOption\n", m.IfaceLcName, kitHTTPPkg)
+			g.W("%sEndpointMiddleware []%s.Middleware\n", m.IfaceLcName, endpointPkg)
 		}
 	}
 	g.W("genericClientOption []%s.ClientOption\n", kitHTTPPkg)
@@ -122,20 +130,20 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, m := range iface.Methods() {
-			g.WriteFunc(m.UcName+"ClientOptions",
+			g.WriteFunc(m.IfaceUcName+"ClientOptions",
 				"",
 				[]string{"opt", "..." + kitHTTPPkg + ".ClientOption"},
 				[]string{"", clientOptionType},
 				func() {
-					g.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", m.LcName)
+					g.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", m.IfaceLcName)
 				},
 			)
-			g.WriteFunc(m.UcName+"ClientEndpointMiddlewares",
+			g.WriteFunc(m.IfaceUcName+"ClientEndpointMiddlewares",
 				"",
 				[]string{"opt", "..." + endpointPkg + ".Middleware"},
 				[]string{"", clientOptionType},
 				func() {
-					g.W("return func(c *clientOpts) { c.%sEndpointMiddleware = opt }\n", m.LcName)
+					g.W("return func(c *clientOpts) { c.%sEndpointMiddleware = opt }\n", m.IfaceLcName)
 				},
 			)
 		}
@@ -144,13 +152,13 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		clientType := fmt.Sprintf("client%s", iface.NameExport())
+		clientType := fmt.Sprintf("client%s", iface.UcName())
 
 		contextPkg = g.i.Import("context", "context")
 
 		g.W("type %s struct {\n", clientType)
 		for _, m := range iface.Methods() {
-			g.W("%sEndpoint %s.Endpoint\n", m.LcName, endpointPkg)
+			g.W("%sEndpoint %s.Endpoint\n", m.IfaceLcName, endpointPkg)
 
 		}
 
@@ -196,7 +204,7 @@ func (g *clientStruct) Process(ctx context.Context) error {
 					g.W(" := ")
 				}
 
-				g.W("c.%sEndpoint(", m.LcName)
+				g.W("c.%sEndpoint(", m.IfaceLcName)
 
 				if m.ParamCtx != nil {
 					g.W("%s,", m.ParamCtx.Name())

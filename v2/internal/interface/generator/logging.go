@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/swipe-io/strcase"
-
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/types"
@@ -37,17 +36,18 @@ func (g *logging) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
+		interfaceType := iface.UcNameWithPrefix() + "Interface"
+
 		timePkg := g.i.Import("time", "time")
 		loggerPkg := g.i.Import("log", "github.com/go-kit/kit/log")
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
 
-		name := iface.NameExport() + "LoggingMiddleware"
-		constructName := fmt.Sprintf("NewLogging%sMiddleware", iface.NameExport())
+		name := iface.UcNameWithPrefix() + "LoggingMiddleware"
+		constructName := fmt.Sprintf("NewLogging%sMiddleware", iface.UcNameWithPrefix())
 
 		g.WriteTypeStruct(
 			name,
 			[]string{
-				"next", typeStr,
+				"next", interfaceType,
 				"logger", loggerPkg + ".Logger",
 			},
 		)
@@ -218,7 +218,7 @@ func (g *logging) Process(ctx context.Context) error {
 			})
 		}
 
-		g.W("func %[1]s(s %[2]s, logger %[4]s.Logger) %[2]s {\n return &%[3]s{next: s, logger: logger}\n}\n", constructName, typeStr, name, loggerPkg)
+		g.W("func %[1]s(s %[2]s, logger %[4]s.Logger) *%[3]s {\n return &%[3]s{next: s, logger: logger}\n}\n", constructName, interfaceType, name, loggerPkg)
 	}
 	return nil
 }
