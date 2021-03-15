@@ -36,12 +36,7 @@ func newGeneratorExecutor(wd string, pkgs []string) ue.GenerationExecutor {
 }
 
 func TestSwipe(t *testing.T) {
-	//testRoot, err := filepath.Abs("../..")
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	testdataEnts, err := filepath.Glob("../../../../github.pie.apple.com/ISS-Tools/zeus-gateway")
-	//testdataEnts, err := ioutil.ReadDir(testRoot)
+	testdataEnts, err := filepath.Glob("../../swipe-test*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,11 +46,6 @@ func TestSwipe(t *testing.T) {
 		if data, err := ioutil.ReadFile(filepath.Join(name, "pkgs")); err == nil {
 			pkgs = strings.Split(string(data), "\n")
 		}
-
-		//name := ent.Name()
-		//if !ent.IsDir() || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
-		//	continue
-		//}
 		test, err := loadTestCase(name, pkgs)
 		if err != nil {
 			t.Error(err)

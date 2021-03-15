@@ -1,12 +1,18 @@
 
-<a name="v2.0.0-rc4"></a>
-## [v2.0.0-rc4] - 2021-03-11
+<a name="v2.0.0-rc5"></a>
+## [v2.0.0-rc5] - 2021-03-15
 ### Bug Fixes
+- fixed generation of function and structure names
+- defining the service package path
 - error when generating logging in gateway if there are identical interface names
 - error when generating instrumenting in gateway if there are identical interface names
 
 ### Features
 - added support for optional parameters in the interface
+
+### BREAKING CHANGE
+
+the name specified in the Interface setting is now used only to define the scope of the API request, in REST it is /scope/service/path, in JSON RPC scope.service.methodName, the names of constructor functions for logging and instrumentation will change during generation.
 
 
 <a name="v2.0.0-rc3"></a>
@@ -759,8 +765,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc4...HEAD
-[v2.0.0-rc4]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc3...v2.0.0-rc4
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc5...HEAD
+[v2.0.0-rc5]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc3...v2.0.0-rc5
 [v2.0.0-rc3]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc2...v2.0.0-rc3
 [v2.0.0-rc2]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc1...v2.0.0-rc2
 [v2.0.0-rc1]: https://github.com/swipe-io/swipe/compare/v2.0.0-beta6...v2.0.0-rc1
