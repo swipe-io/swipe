@@ -22,7 +22,8 @@ func (p *serviceProcessor) Pkg() *packages.Package {
 }
 
 func (p *serviceProcessor) Generators() []ug.Generator {
-	var generators []ug.Generator
+	generators := []ug.Generator{generator.NewInterface(p.sg.Interfaces())}
+
 	if p.sg.FoundService() {
 		generators = append(generators, generator.NewEndpoint(p.sg))
 	}
@@ -64,7 +65,6 @@ func (p *serviceProcessor) Generators() []ug.Generator {
 		if p.sg.GoClientEnable() {
 			generators = append(generators,
 				generator.NewClientStruct(p.sg),
-				//generator.NewEndpointFactory(p.sg.Interfaces(), p.sg.Prefix()),
 			)
 		}
 		if p.sg.JSONRPCEnable() {
