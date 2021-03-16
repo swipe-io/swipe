@@ -49,7 +49,7 @@ func (g *interfaceGenerator) OutputDir() string {
 }
 
 func (g *interfaceGenerator) Filename() string {
-	return "interface.go"
+	return "interface_gen.go"
 }
 
 func (g *interfaceGenerator) SetImporter(i *importer.Importer) {
