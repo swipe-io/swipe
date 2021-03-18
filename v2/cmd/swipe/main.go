@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,10 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/swipe-io/strcase"
+
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
 
-	"github.com/swipe-io/strcase"
 	swipe "github.com/swipe-io/swipe/v2"
 	"github.com/swipe-io/swipe/v2/internal/astloader"
 	"github.com/swipe-io/swipe/v2/internal/fixcomment"
@@ -143,7 +143,12 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}
 	}
 
-	astLoader := astloader.NewLoader(wd, os.Environ(), packages(f), mod)
+	packages := f.Args()
+	if data, err := ioutil.ReadFile(filepath.Join(wd, "pkgs")); err == nil {
+		packages = append(packages, strings.Split(string(data), "\n")...)
+	}
+
+	astLoader := astloader.NewLoader(wd, os.Environ(), packages)
 	l := option.NewLoader(astLoader)
 	r := registry.NewRegistry(l)
 	i := factory.NewImporterFactory()
@@ -283,21 +288,22 @@ func (cmd *genTplCmd) SetFlags(set *flag.FlagSet) {
 }
 
 func (cmd *genTplCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	srcPath := filepath.Join(build.Default.GOPATH, "src")
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Println(colorFail("failed to get working directory: "), colorFail(err))
 		return subcommands.ExitFailure
 	}
-	basePkgName := strings.Replace(wd, srcPath+"/", "", -1)
-	projectName := f.Arg(0)
-	if projectName == "" {
-		log.Println(colorFail("project name required"))
+
+	pkgName := f.Arg(0)
+	if pkgName == "" {
+		log.Println(colorFail("package name required"))
 		return subcommands.ExitFailure
 	}
 
-	projectID := strcase.ToKebab(projectName)
-	pkgName := filepath.Join(basePkgName, projectID)
+	parts := strings.Split(pkgName, "/")
+
+	projectID := parts[len(parts)-1]
+	projectName := strcase.ToCamel(projectID)
 	templatePath := f.Arg(1)
 	if templatePath == "" {
 		log.Println(colorFail("template path required"))
@@ -321,6 +327,9 @@ func (cmd *genTplCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...inte
 		log.Println(colorFail("template path do not exists: ", templatePath))
 		return subcommands.ExitFailure
 	}
+
+	log.Println(colorAccent("config file: ", cmd.configFilepath))
+
 	_, err = stl.Process(templatePath, cmd.configFilepath)
 	if err != nil {
 		log.Println(colorFail(err.Error()))
@@ -354,7 +363,7 @@ func (c *fixComment) Execute(ctx context.Context, f *flag.FlagSet, args ...inter
 		log.Println(colorFail("failed to get working directory: "), colorFail(err))
 		return subcommands.ExitFailure
 	}
-	fixComment := fixcomment.NewFixComment(wd, os.Environ(), packages(f))
+	fixComment := fixcomment.NewFixComment(wd, os.Environ(), f.Args())
 	fixes, err := fixComment.Execute()
 	if err != nil {
 		log.Println(colorFail("failed to fix comments: "), colorFail(err))
@@ -367,14 +376,6 @@ func (c *fixComment) Execute(ctx context.Context, f *flag.FlagSet, args ...inter
 		}
 	}
 	return subcommands.ExitSuccess
-}
-
-func packages(f *flag.FlagSet) []string {
-	pkgs := f.Args()
-	if len(pkgs) == 0 {
-		pkgs = []string{"."}
-	}
-	return pkgs
 }
 
 func logErrors(errs []error) {

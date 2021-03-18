@@ -169,6 +169,29 @@ func MethodDefaultOptions(...MethodOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
+func AggregateBuilder() *aggregateBuilder {
+	return &aggregateBuilder{}
+}
+
+type aggregateBuilder struct {
+}
+
+func (*aggregateBuilder) From(interface{}) *aggregateBuilder {
+	return nil
+}
+
+func (*aggregateBuilder) MapField([]string) *aggregateBuilder {
+	return nil
+}
+
+func (*aggregateBuilder) SelectFields([]string) *aggregateBuilder {
+	return nil
+}
+
+func Aggregate(b *aggregateBuilder) MethodOption {
+	return "implementation not generated, run swipe"
+}
+
 // Logging a option enabled/disable logging middleware.
 func Logging(enable bool) MethodOption {
 	return "implementation not generated, run swipe"
