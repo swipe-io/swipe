@@ -3,15 +3,10 @@ package astloader
 import (
 	"context"
 	"go/ast"
-	"go/build"
 	"go/token"
 	stdtypes "go/types"
-	"path/filepath"
 	"strconv"
-	"strings"
 	stdstrings "strings"
-
-	"golang.org/x/mod/modfile"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/graph"
@@ -28,7 +23,7 @@ type nodeInfo struct {
 
 type Data struct {
 	WorkDir       string
-	PkgPath       string
+	Module        *packages.Module
 	CommentFuncs  map[string][]string
 	CommentFields map[string]map[string]string
 	Pkgs          []*packages.Package
@@ -41,7 +36,6 @@ type Loader struct {
 	wd       string
 	env      []string
 	patterns []string
-	mod      *modfile.File
 }
 
 func (l *Loader) Patterns() []string {
@@ -58,19 +52,11 @@ func (l *Loader) WorkDir() string {
 
 func (l *Loader) Process() (data *Data, errs []error) {
 	var (
-		pkgPath string
-		err     error
+		err error
 	)
-	if l.mod == nil {
-		basePath := strings.Replace(l.wd, filepath.Join(build.Default.GOPATH, "src")+string(filepath.Separator), "", -1)
-		parts := strings.Split(basePath, string(filepath.Separator))
-		pkgPath = strings.Join(parts[:3], string(filepath.Separator))
-	} else {
-		pkgPath = l.mod.Module.Mod.Path
-	}
+
 	data = &Data{
 		WorkDir:       l.wd,
-		PkgPath:       pkgPath,
 		CommentFuncs:  map[string][]string{},
 		CommentFields: map[string]map[string]string{},
 		GraphTypes:    graph.NewGraph(),
@@ -78,11 +64,12 @@ func (l *Loader) Process() (data *Data, errs []error) {
 	}
 	cfg := &packages.Config{
 		Context:    l.ctx,
-		Mode:       packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedImports | packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles,
+		Mode:       packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedImports | packages.NeedName | packages.NeedModule | packages.NeedFiles | packages.NeedCompiledGoFiles,
 		Dir:        l.wd,
 		Env:        l.env,
 		BuildFlags: []string{"-tags=swipe"},
 	}
+
 	escaped := make([]string, len(l.patterns))
 	for i := range l.patterns {
 		escaped[i] = "pattern=" + l.patterns[i]
@@ -92,9 +79,16 @@ func (l *Loader) Process() (data *Data, errs []error) {
 		return data, []error{err}
 	}
 
-	var astNodes []nodeInfo
+	var (
+		astNodes []nodeInfo
+		module   *packages.Module
+	)
 
 	for _, pkg := range data.Pkgs {
+		if module == nil && stdstrings.Contains(l.wd, pkg.Module.Dir) {
+			module = pkg.Module
+		}
+
 		for _, syntax := range pkg.Syntax {
 			for _, decl := range syntax.Decls {
 				switch v := decl.(type) {
@@ -181,6 +175,8 @@ func (l *Loader) Process() (data *Data, errs []error) {
 			}
 		}
 	}
+
+	data.Module = module
 
 	for _, ni := range astNodes {
 		for _, obj := range ni.objects {
@@ -317,11 +313,10 @@ func visitBlockStmt(p *packages.Package, stmt ast.Stmt) (values []stdtypes.TypeA
 	return
 }
 
-func NewLoader(wd string, env []string, patterns []string, mod *modfile.File) *Loader {
+func NewLoader(wd string, env []string, patterns []string) *Loader {
 	return &Loader{
 		wd:       wd,
 		env:      env,
 		patterns: patterns,
-		mod:      mod,
 	}
 }

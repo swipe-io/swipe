@@ -27,7 +27,7 @@ func newGeneratorExecutor(wd string, pkgs []string) ue.GenerationExecutor {
 	patterns := []string{"."}
 	patterns = append(patterns, pkgs...)
 
-	astl := astloader.NewLoader(wd, os.Environ(), patterns, nil)
+	astl := astloader.NewLoader(wd, os.Environ(), patterns)
 	l := option.NewLoader(astl)
 	r := registry.NewRegistry(l)
 	i := factory.NewImporterFactory()
