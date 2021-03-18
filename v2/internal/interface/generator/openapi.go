@@ -415,7 +415,13 @@ func (g *openapiDoc) makeJSONRPCPath(
 			schema.Description = paramsComment[p.Name()]
 			requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = schema
 		}
+		if m.ParamVariadic != nil {
+			schema := &openapi.Schema{}
+			iftypevisitor.OpenapiVisitor(schema).Visit(m.ParamVariadic.Type())
+			requestSchema.Properties[strcase.ToLowerCamel(m.ParamVariadic.Name())] = schema
+		}
 	} else {
+		requestSchema.Type = "null"
 		requestSchema.Example = json.RawMessage("null")
 	}
 
@@ -587,6 +593,11 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 		schema.Description = paramsComment[p.Name()]
 
 		requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = schema
+	}
+	if m.ParamVariadic != nil {
+		schema := &openapi.Schema{}
+		iftypevisitor.OpenapiVisitor(schema).Visit(m.ParamVariadic.Type())
+		requestSchema.Properties[strcase.ToLowerCamel(m.ParamVariadic.Name())] = schema
 	}
 	if len(m.Results) > 1 {
 		for _, r := range m.Results {

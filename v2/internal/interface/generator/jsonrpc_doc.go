@@ -140,6 +140,10 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 				g.W("%s", param.Name())
 			}
 
+			if method.ParamVariadic != nil {
+				g.W(", ...%s", method.ParamVariadic.Name())
+			}
+
 			g.W(") ⇒")
 
 			if len(method.Results) > 0 {
@@ -158,19 +162,25 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 
 			g.W("\n\n")
 
-			g.W("**Throws**:\n\n")
-
-			for _, e := range method.Errors {
-				g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
+			if len(method.Errors) > 0 {
+				g.W("**Throws**:\n\n")
+				for _, e := range method.Errors {
+					g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
+				}
 			}
 
 			g.W("\n\n")
 
-			if len(method.Params) > 0 {
+			if len(method.Params) > 0 || method.ParamVariadic != nil {
 				g.W("| Param | Type | Description |\n|------|------|------|\n")
 				for _, param := range method.Params {
 					comment := paramsComment[param.Name()]
 					g.W("|%s|<code>%s</code>|%s|\n", param.Name(), g.getJSType(param.Type()), comment)
+				}
+				if method.ParamVariadic != nil {
+					comment := paramsComment[method.ParamVariadic.Name()]
+					t := method.ParamVariadic.Type().(*stdtypes.Slice)
+					g.W("|%s|<code>%s</code>|%s|\n", method.ParamVariadic.Name(), g.getJSType(t.Elem()), comment)
 				}
 			}
 		}
