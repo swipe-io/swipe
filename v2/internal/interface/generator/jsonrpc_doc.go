@@ -112,24 +112,18 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 		iface := g.options.Interfaces().At(i)
 
 		for _, method := range iface.Methods() {
+			name := makeDocMethodName(iface, method)
 			for _, param := range method.Params {
 				g.appendExistsTypes(existsTypes, param.Type())
 			}
 			for _, result := range method.Results {
 				g.appendExistsTypes(existsTypes, result.Type())
 			}
-			name := method.Name
-			if g.options.Interfaces().Len() > 1 {
-				name = iface.LcName() + "." + method.Name
-			}
 			g.W("<a href=\"#%[1]s\">%[1]s</a>\n\n", name)
 		}
 
 		for _, method := range iface.Methods() {
-			name := method.Name
-			if g.options.Interfaces().Len() > 1 {
-				name = iface.LcName() + "." + method.Name
-			}
+			name := makeDocMethodName(iface, method)
 
 			g.W("### <a name=\"%[1]s\"></a>%[1]s(", name)
 
@@ -165,7 +159,11 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 			if len(method.Errors) > 0 {
 				g.W("**Throws**:\n\n")
 				for _, e := range method.Errors {
-					g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
+					if iface.External() {
+						g.W("<code>%sException</code>\n\n", makeErrorName(iface, e))
+					} else {
+						g.W("<code>%sException</code>\n\n", e.Named.Obj().Name())
+					}
 				}
 			}
 
@@ -251,28 +249,31 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 		}
 	}
 
-	if g.options.Enums().Len() > 0 {
-		g.W("## Enums\n")
-
-		g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
-			if named, ok := key.(*stdtypes.Named); ok {
-				typeName := ""
-				if b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic); ok {
-					switch b.Info() {
-					default:
-						typeName = "string"
-					case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
-						typeName = "number"
-					}
-				}
-				g.W("### <a name=\"%[1]s\"></a> %[1]sEnum <code>%[2]s</code>\n\n", named.Obj().Name(), typeName)
-				g.W("| Name | Value | Description |\n|------|------|------|\n")
-				for _, enum := range value.([]model.Enum) {
-					g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")
-				}
-			}
-		})
-	}
+	//if g.options.Enums().Len() > 0 {
+	//	g.W("## Enums\n")
+	//
+	//	g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
+	//		if named, ok := key.(*stdtypes.Named); ok {
+	//
+	//			enumName := named.Obj().Name()
+	//
+	//			typeName := ""
+	//			if b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic); ok {
+	//				switch b.Info() {
+	//				default:
+	//					typeName = "string"
+	//				case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
+	//					typeName = "number"
+	//				}
+	//			}
+	//			g.W("### <a name=\"%[1]s\"></a> %[1]sEnum <code>%[2]s</code>\n\n", enumName, typeName)
+	//			g.W("| Name | Value | Description |\n|------|------|------|\n")
+	//			for _, enum := range value.([]model.Enum) {
+	//				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")
+	//			}
+	//		}
+	//	})
+	//}
 
 	return nil
 }
@@ -347,4 +348,12 @@ func NewJsonrpcDoc(options jsonrpcDocOptionsGateway, workDir string) generator.G
 		options: options,
 		workDir: workDir,
 	}
+}
+
+func makeDocMethodName(iface *model.ServiceInterface, method model.ServiceMethod) (name string) {
+	name = method.Name
+	if iface.Namespace() != "" {
+		name = iface.Namespace() + "." + method.Name
+	}
+	return
 }
