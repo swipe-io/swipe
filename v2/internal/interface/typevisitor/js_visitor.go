@@ -36,6 +36,12 @@ func (v *jsTypeVisitor) VisitArray(t *stdtypes.Array, nested int) {
 }
 
 func (v *jsTypeVisitor) VisitSlice(t *stdtypes.Slice, nested int) {
+	if basic, ok := t.Elem().(*stdtypes.Basic); ok {
+		if basic.Kind() == stdtypes.Byte {
+			v.w("string")
+			return
+		}
+	}
 	v.w("Array<")
 	typevisitor.ConvertType(t.Elem()).Accept(v, nested)
 	v.w(">")
