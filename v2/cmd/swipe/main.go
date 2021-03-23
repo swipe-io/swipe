@@ -177,7 +177,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		goSrc := w.Bytes()
 		fmtSrc, err := format.Source(goSrc)
 		if err != nil {
-			log.Println(colorFail(fmt.Sprintf("error: %w\n ***\n%s\n***\n\n", err, string(goSrc))))
+			log.Println(colorFail(fmt.Sprintf("error: %s\n ***\n%s\n***\n\n", err, string(goSrc))))
 			return subcommands.ExitFailure
 		}
 		if err := ioutil.WriteFile(filepath.Join(swipePkgPath, "swipe.go"), fmtSrc, 0755); err != nil {
