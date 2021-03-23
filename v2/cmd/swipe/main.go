@@ -5,31 +5,37 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/format"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
-	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v2/internal/writer"
+
+	"github.com/swipe-io/swipe/v2/internal/interface/gateway"
+
+	"github.com/swipe-io/swipe/v2/internal/git"
+
+	up "github.com/swipe-io/swipe/v2/internal/usecase/processor"
 
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
 
-	swipe "github.com/swipe-io/swipe/v2"
+	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/astloader"
 	"github.com/swipe-io/swipe/v2/internal/fixcomment"
 	"github.com/swipe-io/swipe/v2/internal/interface/executor"
 	"github.com/swipe-io/swipe/v2/internal/interface/factory"
 	"github.com/swipe-io/swipe/v2/internal/interface/frame"
-	"github.com/swipe-io/swipe/v2/internal/interface/registry"
+	"github.com/swipe-io/swipe/v2/internal/interface/processor"
 	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/stcreator"
-
-	"golang.org/x/mod/modfile"
 )
+
+const Version = "v2.0.0-rc8"
 
 var (
 	colorSuccess = color.Green.Render
@@ -62,7 +68,7 @@ func main() {
 		"fix-comment": true,
 	}
 
-	log.Printf("%s %s", color.LightBlue.Render("Swipe"), color.Yellow.Render(swipe.Version))
+	log.Printf("%s %s", color.LightBlue.Render("Swipe"), color.Yellow.Render(Version))
 
 	var code int
 	if args := flag.Args(); len(args) == 0 || !allCmds[args[0]] {
@@ -75,7 +81,9 @@ func main() {
 }
 
 type genCmd struct {
-	verbose bool
+	verbose  bool
+	init     bool
+	swipePkg string
 }
 
 func (*genCmd) Name() string { return "gen" }
@@ -91,13 +99,13 @@ func (*genCmd) Usage() string {
 
 func (cmd *genCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.verbose, "v", false, "show verbose output")
+	f.BoolVar(&cmd.init, "init", false, "initial swipe project")
+	f.StringVar(&cmd.swipePkg, "swipe-pkg", "", "package for generating swipe options file")
 }
 
 func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	log.Printf("%s %s", color.Yellow.Render("Thanks for using"), color.LightBlue.Render("swipe"))
 	log.Println(color.Yellow.Render("Please wait the command is running, it may take some time"))
-
-	startCmd := time.Now()
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -105,67 +113,97 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		return subcommands.ExitFailure
 	}
 
-	log.Printf("%s: %s\n", color.Yellow.Render("Workdir"), wd)
-
-	modBytes, err := ioutil.ReadFile(filepath.Join(wd, "go.mod"))
-	if err != nil {
-		log.Println(colorFail("failed read go.mod file: "), colorFail(err))
-		return subcommands.ExitFailure
-	}
-
-	log.Printf("%s: %s\n", color.Yellow.Render("Read go.mod"), color.LightGreen.Render("ok"))
-
-	mod, err := modfile.Parse("go.mod", modBytes, nil)
-	if err != nil {
-		log.Println(colorFail("failed parse go.mod file: "), colorFail(err))
-		return subcommands.ExitFailure
-	}
-
-	log.Printf("%s: %s\n", color.Yellow.Render("Parse go.mod"), color.LightGreen.Render("ok"))
-
-	if mod.Module.Mod.Path != "github.com/swipe-io/swipe/v2" {
-		foundReplace := false
-		for _, replace := range mod.Replace {
-			if replace.Old.Path == "github.com/swipe-io/swipe/v2" {
-				log.Printf("%s\n", color.Red.Render("You are using replace for github.com/swipe-io/swipe/v2"))
-
-				foundReplace = true
-				break
-			}
-		}
-		if !foundReplace {
-			for _, require := range mod.Require {
-				if require.Mod.Path == "github.com/swipe-io/swipe/v2" && require.Mod.Version != swipe.Version {
-					log.Println(colorFail("swipe cli version (" + swipe.Version + ") does not match package version (" + require.Mod.Version + ")"))
-					return subcommands.ExitFailure
-				}
-			}
-		}
-	}
-
 	packages := f.Args()
 	if data, err := ioutil.ReadFile(filepath.Join(wd, "pkgs")); err == nil {
 		packages = append(packages, strings.Split(string(data), "\n")...)
 	}
 
+	log.Printf("%s: %s\n", color.Yellow.Render("Workdir"), wd)
+
+	if cmd.swipePkg == "" {
+		cmd.swipePkg = "pkg/swipe"
+	}
+
+	swipePkgPath := filepath.Join(wd, cmd.swipePkg)
+	if err := os.MkdirAll(swipePkgPath, 0755); err != nil {
+		log.Println(colorFail(err))
+		return subcommands.ExitFailure
+	}
+
+	parts := strings.Split(swipePkgPath, "/")
+	pkgName := parts[len(parts)-1]
+
+	gt := git.NewGIT()
+
+	processorFactory := processor.NewFactory()
+
+	processorFactory.Register(new(processor.Service).Name(), func(o *option.ResultOption, opr *option.Result) (up.Processor, error) {
+		serviceGateway, err := gateway.NewServiceGateway(o.Pkg, opr.Data.Module.Dir, o.Option, opr.Data.GraphTypes, opr.Data.CommentFuncs, opr.Data.CommentFields, opr.Data.Enums, opr.Data.WorkDir, opr.ExternalOptions)
+		if err != nil {
+			return nil, err
+		}
+		return &processor.Service{
+			ServiceGateway: serviceGateway,
+			GIT:            gt,
+		}, nil
+	}, processor.ServiceOptions)
+
+	processorFactory.Register(new(processor.Config).Name(), func(o *option.ResultOption, opr *option.Result) (up.Processor, error) {
+		configGateway := gateway.NewConfigGateway(o.Option)
+		return &processor.Config{
+			ConfigGateway: configGateway,
+		}, nil
+	}, processor.ConfigOptions)
+
 	astLoader := astloader.NewLoader(wd, os.Environ(), packages)
-	l := option.NewLoader(astLoader)
-	r := registry.NewRegistry(l)
-	i := factory.NewImporterFactory()
-	ff := frame.NewFrameFactory(swipe.Version)
-	ge := executor.NewGenerationExecutor(r, i, ff, l)
+	optionLoader := option.NewLoader(astLoader, pkgName)
+	importerFactory := factory.NewImporterFactory()
+	frameFactory := frame.NewFrameFactory(Version)
+	generationExecutor := executor.NewGenerationExecutor(processorFactory, importerFactory, frameFactory, optionLoader)
+
+	if cmd.init {
+		var w writer.GoLangWriter
+
+		w.W("// Code generated by Swipe %s. DO NOT EDIT.\n\n", Version)
+		w.W("package %s\n\n", pkgName)
+
+		w.W("// A Option is an option for a Swipe.\ntype Option string\n\n")
+		w.W("// Build the basic option for defining the generation.\nfunc Build(Option) {}\n\n")
+
+		for _, name := range processorFactory.Names() {
+			f, ok := processorFactory.GetOptGen(name)
+			if !ok {
+				continue
+			}
+			_, _ = w.Write(f())
+		}
+
+		goSrc := w.Bytes()
+		fmtSrc, err := format.Source(goSrc)
+		if err != nil {
+			log.Println(colorFail(fmt.Sprintf("error: %w\n ***\n%s\n***\n\n", err, string(goSrc))))
+			return subcommands.ExitFailure
+		}
+		if err := ioutil.WriteFile(filepath.Join(swipePkgPath, "swipe.go"), fmtSrc, 0755); err != nil {
+			log.Println(colorFail(err))
+			return subcommands.ExitFailure
+		}
+		return subcommands.ExitSuccess
+	}
 
 	// clear all before generated files.
 	_ = filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			if strings.Contains(info.Name(), "_gen") {
-				_ = os.Remove(path)
+		if !strings.Contains(path, "/vendor/") {
+			if !info.IsDir() {
+				if strings.Contains(info.Name(), "_gen") {
+					_ = os.Remove(path)
+				}
 			}
 		}
 		return nil
 	})
 
-	results, errs := ge.Execute()
+	results, errs := generationExecutor.Execute()
 
 	if len(errs) > 0 {
 		for _, err := range errs {
@@ -266,7 +304,6 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	}
 
 	log.Println(color.LightGreen.Render("Command execution completed successfully"))
-	log.Printf("%s %s", color.LightBlue.Render("Time"), color.Yellow.Render(time.Since(startCmd).String()))
 
 	return subcommands.ExitSuccess
 }
