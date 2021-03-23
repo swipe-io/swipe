@@ -119,12 +119,14 @@ func (l *Loader) findInjector(info *stdtypes.Info, fn *ast.FuncDecl) (*ast.CallE
 			if obj == nil || obj.Pkg() == nil {
 				continue
 			}
-			if obj.Pkg().Name() == l.pkgName && obj.Name() != "Build" {
+			if obj.Pkg().Name() != l.pkgName {
+				continue
+			}
+			if obj.Name() != "Build" {
 				continue
 			}
 			return call, nil
 		case *ast.EmptyStmt:
-
 			return nil, nil
 		}
 	}
