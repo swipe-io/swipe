@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gertd/go-pluralize"
+
 	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
@@ -150,4 +152,16 @@ func hasMethodLogParams(named *stdtypes.Named) bool {
 		}
 	}
 	return false
+}
+
+func makeErrorName(iface *model.ServiceInterface, e *model.HTTPError) (errorName string) {
+	errorName = e.Named.Obj().Name() + strcase.ToCamel(singular(e.Named.Obj().Pkg().Name()))
+	if iface.External() {
+		errorName = iface.AppName() + errorName
+	}
+	return
+}
+
+func singular(word string) string {
+	return pluralize.NewClient().Singular(word)
 }

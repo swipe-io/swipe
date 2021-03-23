@@ -6,6 +6,7 @@ require (
 	github.com/achiku/varfmt v0.0.0-20160708124000-f820e1efecee
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/structtag v1.2.0
+	github.com/gertd/go-pluralize v0.1.7 // indirect
 	github.com/google/go-cmp v0.4.0
 	github.com/google/subcommands v1.2.0
 	github.com/gookit/color v1.2.5

@@ -33,23 +33,6 @@ func NameType(vars []*types.Var, qf types.Qualifier, filterFn FilterFn) (results
 	}, filterFn)
 }
 
-//func DetectAppPath(pkg *packages.Package) (string, error) {
-//	basePath, err := DetectBasePath(pkg)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	srcPath := filepath.Join(build.Default.GOPATH, "src") + "/"
-//	index := strings.Index(basePath, srcPath)
-//
-//	fmt.Println(basePath, srcPath, pkg.PkgPath)
-//
-//	if index != -1 {
-//		return basePath[index+len(srcPath):], nil
-//	}
-//	return "", errors.New("fail detected app path")
-//}
-//
 func DetectBasePath(pkg *packages.Package) (string, error) {
 	paths := pkg.GoFiles
 	if len(paths) == 0 {
