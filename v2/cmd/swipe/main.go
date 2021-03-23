@@ -31,7 +31,7 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
-const Version = "v2.0.0-rc9"
+const Version = "v2.0.0-rc10"
 
 var (
 	colorSuccess = color.Green.Render
