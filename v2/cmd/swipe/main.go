@@ -13,29 +13,25 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/swipe-io/swipe/v2/internal/writer"
-
-	"github.com/swipe-io/swipe/v2/internal/interface/gateway"
-
-	"github.com/swipe-io/swipe/v2/internal/git"
-
-	up "github.com/swipe-io/swipe/v2/internal/usecase/processor"
-
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
 
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/astloader"
 	"github.com/swipe-io/swipe/v2/internal/fixcomment"
+	"github.com/swipe-io/swipe/v2/internal/git"
 	"github.com/swipe-io/swipe/v2/internal/interface/executor"
 	"github.com/swipe-io/swipe/v2/internal/interface/factory"
 	"github.com/swipe-io/swipe/v2/internal/interface/frame"
+	"github.com/swipe-io/swipe/v2/internal/interface/gateway"
 	"github.com/swipe-io/swipe/v2/internal/interface/processor"
 	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/stcreator"
+	up "github.com/swipe-io/swipe/v2/internal/usecase/processor"
+	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
-const Version = "v2.0.0-rc8"
+const Version = "v2.0.0-rc9"
 
 var (
 	colorSuccess = color.Green.Render
