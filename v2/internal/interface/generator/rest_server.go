@@ -3,7 +3,6 @@ package generator
 import (
 	"context"
 	"fmt"
-	stdtypes "go/types"
 	"path"
 	"strconv"
 	stdstrings "strings"
@@ -63,7 +62,7 @@ func (g *restServer) Process(_ context.Context) error {
 	g.W("func MakeHandlerREST(")
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+		typeStr := iface.LcNameWithPrefix() + "Interface"
 		if i > 0 {
 			g.W(",")
 		}
