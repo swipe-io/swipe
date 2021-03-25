@@ -1,4 +1,10 @@
 
+<a name="v2.0.0-rc12"></a>
+## [v2.0.0-rc12] - 2021-03-25
+### Bug Fixes
+- generating non-exportable structure for logging
+
+
 <a name="v2.0.0-rc11"></a>
 ## [v2.0.0-rc11] - 2021-03-25
 ### Bug Fixes
@@ -304,14 +310,14 @@ The swipe functions are no longer available in the github.com/swipe-io/swipe/pkg
 <a name="v1.26.7"></a>
 ## [v1.26.7] - 2020-09-09
 
-<a name="vv2.0.0-alpha.16"></a>
-## [vv2.0.0-alpha.16] - 2020-09-09
+<a name="vv2.0.0-alpha.15"></a>
+## [vv2.0.0-alpha.15] - 2020-09-09
 
 <a name="vv2.0.0-beta.1"></a>
 ## [vv2.0.0-beta.1] - 2020-09-09
 
-<a name="vv2.0.0-alpha.15"></a>
-## [vv2.0.0-alpha.15] - 2020-09-09
+<a name="vv2.0.0-alpha.16"></a>
+## [vv2.0.0-alpha.16] - 2020-09-09
 ### Features
 - Added Path property to EndpointFactory for concatenated to server URL.
 
@@ -805,7 +811,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc11...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc12...HEAD
+[v2.0.0-rc12]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc11...v2.0.0-rc12
 [v2.0.0-rc11]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc10...v2.0.0-rc11
 [v2.0.0-rc10]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc9...v2.0.0-rc10
 [v2.0.0-rc9]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc8...v2.0.0-rc9
@@ -846,10 +853,10 @@ if you used the ability to use the code in the generation description file, then
 [v2.0.0-alpha.3]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.2...v2.0.0-alpha.3
 [v2.0.0-alpha.2]: https://github.com/swipe-io/swipe/compare/v2.0.0-alpha.1...v2.0.0-alpha.2
 [v2.0.0-alpha.1]: https://github.com/swipe-io/swipe/compare/v1.26.7...v2.0.0-alpha.1
-[v1.26.7]: https://github.com/swipe-io/swipe/compare/vv2.0.0-alpha.16...v1.26.7
-[vv2.0.0-alpha.16]: https://github.com/swipe-io/swipe/compare/vv2.0.0-beta.1...vv2.0.0-alpha.16
-[vv2.0.0-beta.1]: https://github.com/swipe-io/swipe/compare/vv2.0.0-alpha.15...vv2.0.0-beta.1
-[vv2.0.0-alpha.15]: https://github.com/swipe-io/swipe/compare/v1.26.6...vv2.0.0-alpha.15
+[v1.26.7]: https://github.com/swipe-io/swipe/compare/vv2.0.0-alpha.15...v1.26.7
+[vv2.0.0-alpha.15]: https://github.com/swipe-io/swipe/compare/vv2.0.0-beta.1...vv2.0.0-alpha.15
+[vv2.0.0-beta.1]: https://github.com/swipe-io/swipe/compare/vv2.0.0-alpha.16...vv2.0.0-beta.1
+[vv2.0.0-alpha.16]: https://github.com/swipe-io/swipe/compare/v1.26.6...vv2.0.0-alpha.16
 [v1.26.6]: https://github.com/swipe-io/swipe/compare/v1.26.5...v1.26.6
 [v1.26.5]: https://github.com/swipe-io/swipe/compare/v1.26.4...v1.26.5
 [v1.26.4]: https://github.com/swipe-io/swipe/compare/v1.26.3...v1.26.4
