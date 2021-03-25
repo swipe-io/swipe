@@ -41,7 +41,7 @@ func (g *logging) Process(ctx context.Context) error {
 		timePkg := g.i.Import("time", "time")
 		loggerPkg := g.i.Import("log", "github.com/go-kit/kit/log")
 
-		name := iface.LcNameWithPrefix() + "LoggingMiddleware"
+		name := iface.UcNameWithPrefix() + "LoggingMiddleware"
 		constructName := fmt.Sprintf("NewLogging%sMiddleware", iface.UcNameWithPrefix())
 
 		g.WriteTypeStruct(
