@@ -2,7 +2,6 @@ package generator
 
 import (
 	"context"
-	stdtypes "go/types"
 	"strconv"
 	stdstrings "strings"
 
@@ -136,7 +135,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-		typeStr := stdtypes.TypeString(iface.Type(), g.i.QualifyPkg)
+		typeStr := iface.LcNameWithPrefix() + "Interface"
 		if i > 0 {
 			g.W(",")
 		}
