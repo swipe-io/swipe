@@ -94,6 +94,9 @@ func (e *generationExecutor) Execute() (results []executor.GenerateResult, errs 
 	if len(errs) > 0 {
 		return nil, errs
 	}
+	if len(opr.Options) == 0 {
+		return nil, []error{fmt.Errorf("swipe options not found")}
+	}
 	var wg sync.WaitGroup
 	for _, o := range opr.Options {
 		fn, ok := e.processorFactory.Get(o.Option.Name)

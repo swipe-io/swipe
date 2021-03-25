@@ -50,7 +50,7 @@ func (g *instrumentingGenerator) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		nextName := iface.UcNameWithPrefix() + "Interface"
+		nextName := iface.LcNameWithPrefix() + "Interface"
 
 		timePkg := g.i.Import("time", "time")
 		stdPrometheusPkg := g.i.Import("prometheus", "github.com/prometheus/client_golang/prometheus")

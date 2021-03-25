@@ -39,7 +39,7 @@ func (g *endpoint) Process(ctx context.Context) error {
 			continue
 		}
 
-		typeStr := iface.UcName() + "Interface"
+		typeStr := iface.LcName() + "Interface"
 		epSetName := iface.UcName() + "EndpointSet"
 
 		g.W("type %s struct {\n", epSetName)
@@ -109,7 +109,7 @@ func (g *endpoint) writeEndpointMake() {
 
 		contextPkg := g.i.Import("context", "context")
 		kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
-		typeStr := iface.UcName() + "Interface"
+		typeStr := iface.LcName() + "Interface"
 
 		for _, m := range iface.Methods() {
 			g.W("func Make%sEndpoint(s %s) %s.Endpoint {\n", m.IfaceUcName, typeStr, kitEndpointPkg)

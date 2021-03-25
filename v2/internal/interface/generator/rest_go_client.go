@@ -44,8 +44,12 @@ func (g *restGoClient) Process(_ context.Context) error {
 			pkgIO      string
 		)
 		iface := g.options.Interfaces().At(i)
-		clientType := "client" + iface.UcName()
-		typeStr := iface.UcName() + "Interface"
+
+		name := iface.UcName()
+		if iface.Namespace() != "" {
+			name = strcase.ToCamel(iface.Namespace())
+		}
+		clientType := name + "Client"
 
 		if g.options.UseFast() {
 			kitHTTPPkg = g.i.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
@@ -68,14 +72,14 @@ func (g *restGoClient) Process(_ context.Context) error {
 		if g.options.Interfaces().Len() == 1 {
 			g.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
 			g.W(" ,options ...ClientOption")
-			g.W(") (%s, error) {\n", typeStr)
-			g.W("return NewClientJSONRPC%s(tgt, options...)", iface.UcName())
+			g.W(") (*%s, error) {\n", name)
+			g.W("return NewClientJSONRPC%s(tgt, options...)", name)
 			g.W("}\n")
 		}
 
-		g.W("func NewClientJSONRPC%s(tgt string", iface.UcName())
+		g.W("func NewClientJSONRPC%s(tgt string", name)
 		g.W(" ,options ...ClientOption")
-		g.W(") (%s, error) {\n", typeStr)
+		g.W(") (*%s, error) {\n", name)
 		g.W("opts := &clientOpts{}\n")
 		g.W("c := &%s{}\n", clientType)
 		g.W("for _, o := range options {\n")

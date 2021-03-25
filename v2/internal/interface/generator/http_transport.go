@@ -165,10 +165,13 @@ func (g *httpTransport) Process(ctx context.Context) error {
 
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
-
 		for _, m := range iface.Methods() {
-			g.W("%sServerOption []%s\n", m.IfaceLcName, kitHTTPServerOption)
-			g.W("%sEndpointMiddleware []%s\n", m.IfaceLcName, endpointMiddlewareOption)
+			name := m.IfaceLcName
+			if iface.External() {
+				name = iface.LcNameWithPrefix() + m.Name
+			}
+			g.W("%sServerOption []%s\n", name, kitHTTPServerOption)
+			g.W("%sEndpointMiddleware []%s\n", name, endpointMiddlewareOption)
 		}
 	}
 	g.W("}\n")
@@ -178,6 +181,11 @@ func (g *httpTransport) Process(ctx context.Context) error {
 		for _, m := range iface.Methods() {
 			fnPrefix := m.IfaceUcName
 			paramPrefix := m.IfaceLcName
+
+			if iface.External() {
+				fnPrefix = iface.UcNameWithPrefix() + m.Name
+				paramPrefix = iface.LcNameWithPrefix() + m.Name
+			}
 
 			g.WriteFunc(
 				fmt.Sprintf("%sServerOptions", fnPrefix),

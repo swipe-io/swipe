@@ -36,12 +36,12 @@ func (g *logging) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		interfaceType := iface.UcNameWithPrefix() + "Interface"
+		interfaceType := iface.LcNameWithPrefix() + "Interface"
 
 		timePkg := g.i.Import("time", "time")
 		loggerPkg := g.i.Import("log", "github.com/go-kit/kit/log")
 
-		name := iface.UcNameWithPrefix() + "LoggingMiddleware"
+		name := iface.LcNameWithPrefix() + "LoggingMiddleware"
 		constructName := fmt.Sprintf("NewLogging%sMiddleware", iface.UcNameWithPrefix())
 
 		g.WriteTypeStruct(

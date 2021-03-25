@@ -5,6 +5,8 @@ import (
 	stdtypes "go/types"
 	"strconv"
 
+	"github.com/swipe-io/strcase"
+
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
@@ -42,21 +44,23 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 
 		iface := g.options.Interfaces().At(i)
 
-		clientType := "client" + iface.UcName()
-
-		typeStr := iface.UcName() + "Interface"
+		name := iface.UcName()
+		if iface.Namespace() != "" {
+			name = strcase.ToCamel(iface.Namespace())
+		}
+		clientType := name + "Client"
 
 		if g.options.Interfaces().Len() == 1 {
 			g.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
 			g.W(" ,options ...ClientOption")
-			g.W(") (%s, error) {\n", typeStr)
-			g.W("return NewClientJSONRPC%s(tgt, options...)", iface.UcName())
+			g.W(") (*%s, error) {\n", clientType)
+			g.W("return NewClientJSONRPC%s(tgt, options...)", name)
 			g.W("}\n")
 		}
 
-		g.W("func NewClientJSONRPC%s(tgt string", iface.UcName())
+		g.W("func NewClientJSONRPC%s(tgt string", name)
 		g.W(" ,options ...ClientOption")
-		g.W(") (%s, error) {\n", typeStr)
+		g.W(") (*%s, error) {\n", clientType)
 		g.W("opts := &clientOpts{}\n")
 		g.W("c := &%s{}\n", clientType)
 		g.W("for _, o := range options {\n")

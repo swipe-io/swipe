@@ -143,7 +143,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 		if iface.External() {
 			external = true
-			g.W("%s %sOption", iface.LcName(), iface.UcName())
+			g.W("%s %sOption", iface.LcNameWithPrefix(), iface.UcNameWithPrefix())
 		} else {
 			g.W("svc%s %s", iface.UcName(), typeStr)
 		}
@@ -183,7 +183,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 			}
 
 			for _, m := range iface.Methods() {
-				optName := iface.LcName()
+				optName := iface.LcNameWithPrefix()
 				epFactoryName := "endpointFactory"
 				kitEndpointPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 				transportExtPkg := g.i.Import(iface.ExternalSwipePkg().Name, iface.ExternalSwipePkg().PkgPath)
@@ -230,7 +230,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 				)
 				g.W(
 					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-					m.IfaceLcName, m.Name, epSetName,
+					iface.LcNameWithPrefix()+m.Name, m.Name, epSetName,
 				)
 				g.W("}\n")
 			}
