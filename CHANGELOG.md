@@ -1,4 +1,10 @@
 
+<a name="v2.0.0-rc13"></a>
+## [v2.0.0-rc13] - 2021-03-25
+### Features
+- using the generated interface in the handler constructor
+
+
 <a name="v2.0.0-rc12"></a>
 ## [v2.0.0-rc12] - 2021-03-25
 ### Bug Fixes
@@ -811,7 +817,8 @@ if you used the ability to use the code in the generation description file, then
 <a name="v1.0.0"></a>
 ## v1.0.0 - 2020-05-19
 
-[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc12...HEAD
+[Unreleased]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc13...HEAD
+[v2.0.0-rc13]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc12...v2.0.0-rc13
 [v2.0.0-rc12]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc11...v2.0.0-rc12
 [v2.0.0-rc11]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc10...v2.0.0-rc11
 [v2.0.0-rc10]: https://github.com/swipe-io/swipe/compare/v2.0.0-rc9...v2.0.0-rc10
