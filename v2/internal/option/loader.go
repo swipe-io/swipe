@@ -23,7 +23,6 @@ type Result struct {
 
 type Loader struct {
 	astLoader *astloader.Loader
-	pkgName   string
 }
 
 func (l *Loader) declProcess(pkg *packages.Package, decl ast.Decl) (*ResultOption, error) {
@@ -119,9 +118,6 @@ func (l *Loader) findInjector(info *stdtypes.Info, fn *ast.FuncDecl) (*ast.CallE
 			if obj == nil || obj.Pkg() == nil {
 				continue
 			}
-			if obj.Pkg().Name() != l.pkgName {
-				continue
-			}
 			if obj.Name() != "Build" {
 				continue
 			}
@@ -133,6 +129,6 @@ func (l *Loader) findInjector(info *stdtypes.Info, fn *ast.FuncDecl) (*ast.CallE
 	return nil, nil
 }
 
-func NewLoader(astLoader *astloader.Loader, pkgName string) *Loader {
-	return &Loader{astLoader: astLoader, pkgName: pkgName}
+func NewLoader(astLoader *astloader.Loader) *Loader {
+	return &Loader{astLoader: astLoader}
 }

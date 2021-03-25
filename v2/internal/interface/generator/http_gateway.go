@@ -68,7 +68,7 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 		if !s.External() {
 			continue
 		}
-		g.W("%s struct {\n", s.UcName())
+		g.W("%s struct {\n", s.UcNameWithPrefix())
 		for _, method := range s.Methods() {
 			g.W("%sEndpoint %s.Endpoint\n", method.Name, epPkg)
 		}
@@ -83,7 +83,7 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 
 		transportExtPkg := g.i.Import(s.ExternalSwipePkg().Name, s.ExternalSwipePkg().PkgPath)
 
-		g.W("type %sOption struct {\n", s.UcName())
+		g.W("type %sOption struct {\n", s.UcNameWithPrefix())
 		g.W("Instancer %s.Instancer \n", sdPkg)
 		g.W("Instance string \n")
 		g.W("ClientOptions []%s.ClientOption\n", transportExtPkg)
