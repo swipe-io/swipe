@@ -421,7 +421,8 @@ func (g *openapiDoc) makeJSONRPCPath(
 			requestSchema.Properties[strcase.ToLowerCamel(m.ParamVariadic.Name())] = schema
 		}
 	} else {
-		requestSchema.Type = "null"
+		requestSchema.Type = "object"
+		requestSchema.Nullable = true
 		requestSchema.Example = json.RawMessage("null")
 	}
 

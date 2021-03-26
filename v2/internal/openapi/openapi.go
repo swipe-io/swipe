@@ -37,6 +37,7 @@ type Schema struct {
 	Description string      `yaml:"description,omitempty" json:"description,omitempty"`
 	Ref         string      `yaml:"$ref,omitempty" json:"$ref,omitempty"`
 	Type        string      `yaml:"type,omitempty" json:"type,omitempty"`
+	Nullable    bool        `yaml:"nullable,omitempty" json:"nullable,omitempty"`
 	Format      string      `yaml:"format,omitempty" json:"format,omitempty"`
 	Properties  Properties  `yaml:"properties,omitempty" json:"properties,omitempty"`
 	Items       *Schema     `yaml:"items,omitempty" json:"items,omitempty"`
