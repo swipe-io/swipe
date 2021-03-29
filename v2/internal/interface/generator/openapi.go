@@ -331,13 +331,11 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				}
 			}
 
-			if g.options.Interfaces().Len() > 1 {
-				ifaceTag := strcase.ToLowerCamel(iface.UcName())
-				if iface.UcName() != "" {
-					ifaceTag = iface.UcName()
-				}
-				tags = append(tags, ifaceTag)
+			ifaceTag := strcase.ToLowerCamel(iface.UcName())
+			if iface.Namespace() != "" {
+				ifaceTag = iface.Namespace()
 			}
+			tags = append(tags, ifaceTag)
 
 			o.Description = methodComment
 			o.Tags = tags
