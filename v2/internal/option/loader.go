@@ -5,7 +5,6 @@ import (
 	stdtypes "go/types"
 	"sync"
 
-	"github.com/swipe-io/swipe/v2/internal/astloader"
 	"github.com/swipe-io/swipe/v2/internal/value"
 	"golang.org/x/tools/go/packages"
 )
@@ -16,13 +15,13 @@ type ResultOption struct {
 }
 
 type Result struct {
-	Data            *astloader.Data
+	Data            *ast.Data
 	Options         []*ResultOption
 	ExternalOptions []*ResultOption
 }
 
 type Loader struct {
-	astLoader *astloader.Loader
+	astLoader *ast.Loader
 }
 
 func (l *Loader) declProcess(pkg *packages.Package, decl ast.Decl) (*ResultOption, error) {
@@ -129,6 +128,6 @@ func (l *Loader) findInjector(info *stdtypes.Info, fn *ast.FuncDecl) (*ast.CallE
 	return nil, nil
 }
 
-func NewLoader(astLoader *astloader.Loader) *Loader {
+func NewLoader(astLoader *ast.Loader) *Loader {
 	return &Loader{astLoader: astLoader}
 }

@@ -2,42 +2,38 @@ package option
 
 import (
 	"fmt"
-	"go/ast"
-	"reflect"
+	goast "go/ast"
 
 	"golang.org/x/tools/go/ast/astutil"
-
 	"golang.org/x/tools/go/packages"
-
-	"github.com/swipe-io/swipe/v2/internal/astloader"
 )
 
 type Parser struct {
 }
 
-func (p *Parser) Parse(s interface{}, data *astloader.Data) interface{} {
+func (p *Parser) Parse(s interface{}) interface{} {
 
-	p.loadPackages(data.Pkgs)
+	//p.loadPackages(data.Pkgs)
 
-	v := reflect.ValueOf(s).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		valueField := v.Field(i)
-		typeField := v.Type().Field(i)
-		tag := typeField.Tag
-
-		fmt.Printf("Field Name: %s,\t Field Value: %v,\t Tag Value: %s\n", typeField.Name, valueField.Interface(), tag.Get("swipe"))
-	}
+	//v := reflect.ValueOf(s).Elem()
+	//for i := 0; i < v.NumField(); i++ {
+	//	valueField := v.Field(i)
+	//	typeField := v.Type().Field(i)
+	//	tag := typeField.Tag
+	//
+	//	fmt.Printf("Field Name: %s,\t Field Value: %v,\t Tag Value: %s\n", typeField.Name, valueField.Interface(), tag.Get("swipe"))
+	//}
 
 	return nil
 }
 
-func (p Parser) parseAST(pkg *packages.Package, expr ast.Expr) error {
+func (p Parser) parseAST(pkg *packages.Package, expr goast.Expr) error {
 	//exprPos := pkg.Fset.Position(expr.Pos())
 
 	expr = astutil.Unparen(expr)
 
 	switch v := expr.(type) {
-	case *ast.CallExpr:
+	case *goast.CallExpr:
 
 		obj := qualifiedObject(pkg, v.Fun)
 		fmt.Println(v, obj.Name())
@@ -47,15 +43,17 @@ func (p Parser) parseAST(pkg *packages.Package, expr ast.Expr) error {
 	return nil
 }
 
-func (p *Parser) loadDecl(pkg *packages.Package, decl ast.Decl) {
+func (p *Parser) loadDecl(pkg *packages.Package, decl goast.Decl) {
 	switch decl := decl.(type) {
-	case *ast.FuncDecl:
+	case *goast.FuncDecl:
 		call, err := findInjector(pkg.TypesInfo, decl)
 		if err != nil {
 			//return nil, err
 		}
 		if call != nil {
+
 			p.parseAST(pkg, call.Args[0])
+
 			//opt, err := NewParser(pkg).Parse(call.Args[0])
 			//if err != nil {
 			//	return nil, err

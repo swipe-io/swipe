@@ -17,7 +17,7 @@ import (
 	"github.com/gookit/color"
 
 	"github.com/swipe-io/strcase"
-	"github.com/swipe-io/swipe/v2/internal/astloader"
+	"github.com/swipe-io/swipe/v2/internal/ast"
 	"github.com/swipe-io/swipe/v2/internal/fixcomment"
 	"github.com/swipe-io/swipe/v2/internal/git"
 	"github.com/swipe-io/swipe/v2/internal/interface/executor"
@@ -148,7 +148,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}, nil
 	}, processor.ConfigOptions)
 
-	astLoader := astloader.NewLoader(wd, os.Environ(), packages)
+	astLoader := ast.NewLoader(wd, os.Environ(), packages)
 	optionLoader := option.NewLoader(astLoader)
 	importerFactory := factory.NewImporterFactory()
 	frameFactory := frame.NewFrameFactory(Version)

@@ -8,7 +8,7 @@ import (
 	"sort"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v2/internal/astcopy"
+	ast2 "github.com/swipe-io/swipe/v2/internal/ast"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -53,7 +53,7 @@ func (i *Importer) Import(name, path string) string {
 func (i *Importer) RewritePkgRefs(node ast.Node) ast.Node {
 	start, end := node.Pos(), node.End()
 
-	node = astcopy.CopyAST(node)
+	node = ast2.Copy(node)
 
 	node = astutil.Apply(node, func(c *astutil.Cursor) bool {
 		switch node := c.Node().(type) {

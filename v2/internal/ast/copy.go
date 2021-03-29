@@ -1,4 +1,4 @@
-package astcopy
+package ast
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-func CopyAST(original ast.Node) ast.Node {
+func Copy(original ast.Node) ast.Node {
 	m := make(map[ast.Node]ast.Node)
 	astutil.Apply(original, nil, func(c *astutil.Cursor) bool {
 		switch node := c.Node().(type) {

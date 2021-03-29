@@ -1,8 +1,11 @@
-package astloader
+package ast
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"go/ast"
+	"go/format"
 	"go/token"
 	stdtypes "go/types"
 	"strconv"
@@ -21,21 +24,154 @@ type nodeInfo struct {
 	objects []stdtypes.Object
 }
 
-type Data struct {
-	WorkDir       string
-	Module        *packages.Module
-	CommentFuncs  map[string][]string
-	CommentFields map[string]map[string]string
-	Pkgs          []*packages.Package
-	GraphTypes    *graph.Graph
-	Enums         *typeutil.Map
+type Loader struct {
+	ctx           context.Context
+	wd            string
+	env           []string
+	patterns      []string
+	module        *packages.Module
+	commentFuncs  map[string][]string
+	commentFields map[string]map[string]string
+	pkgs          []*packages.Package
+	graphTypes    *graph.Graph
+	enums         *typeutil.Map
 }
 
-type Loader struct {
-	ctx      context.Context
-	wd       string
-	env      []string
-	patterns []string
+func (l *Loader) FuncByName(name string) {
+
+	var conf stdtypes.Config
+
+	for _, pkg := range l.pkgs {
+
+		info := stdtypes.Info{
+			Types: make(map[ast.Expr]stdtypes.TypeAndValue),
+			Defs:  make(map[*ast.Ident]stdtypes.Object),
+			Uses:  make(map[*ast.Ident]stdtypes.Object),
+		}
+		conf.Check(pkg.Name, pkg.Fset, pkg.Syntax, &info)
+
+		//usesByObj := make(map[stdtypes.Object][]string)
+		//for id, obj := range info.Uses {
+		//	posn := pkg.Fset.Position(id.Pos())
+		//	lineCol := fmt.Sprintf("%d:%d", posn.Line, posn.Column)
+		//	usesByObj[obj] = append(usesByObj[obj], lineCol)
+		//}
+		//var items []string
+		//for obj, uses := range usesByObj {
+		//	sort.Strings(uses)
+		//
+		//	item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
+		//		stdtypes.ObjectString(obj, stdtypes.RelativeTo(pkgg)),
+		//		pkg.Fset.Position(obj.Pos()),
+		//		strings.Join(uses, ", "))
+		//	items = append(items, item)
+		//}
+		//sort.Strings(items) // sort by line:col, in effect
+		//fmt.Println(strings.Join(items, "\n"))
+		//fmt.Println()
+		//items = nil
+		var i int
+		for expr, tv := range info.Types {
+			//var buf bytes.Buffer
+
+			//posn := pkg.Fset.Position(expr.Pos())
+			tvstr := tv.Type.String()
+
+			if tv.Value != nil {
+				tvstr += " = " + tv.Value.String()
+			}
+
+			//if ident, ok := expr.(*ast.Ident); ok && ident.Name == "Build" {
+
+			//fmt.Println(tv.)
+
+			if exprString(pkg.Fset, expr) == `Build(
+	Service(
+		Interface((*ServiceA)(nil), ""),
+	),
+)` {
+
+				//if i == 25 {
+				fmt.Println(i)
+
+				fmt.Println(info.Uses[expr.(*ast.CallExpr).Fun.(*ast.Ident)].Name())
+
+				for _, arg := range expr.(*ast.CallExpr).Args {
+
+					fmt.Println(info.Types[arg.(*ast.CallExpr).Args[0].(*ast.CallExpr).Args[0]].Type.(*stdtypes.Pointer).Elem())
+
+					//fmt.Println(info.Uses[arg])
+				}
+
+				fmt.Println(exprString(pkg.Fset, expr))
+				fmt.Println()
+				//}
+			}
+			i++
+			// line:col | expr | mode : type = value
+			//fmt.Fprintf(&buf, "%2d:%2d | %-19s | %-7s : %s",
+			//	posn.Line, posn.Column, exprString(pkg.Fset, expr),
+			//	mode(tv), tvstr)
+
+			//}
+
+			//items = append(items, buf.String())
+		}
+
+		//sort.Strings(items)
+		//fmt.Println(strings.Join(items, "\n"))
+
+		//	for node := range pkg.TypesInfo.Scopes {
+		//
+		//		if decl, ok := node.(ast.Decl); ok {
+		//
+		//			fmt.Println(decl)
+		//			//fmt.Println(pkg.TypesInfo.ObjectOf())
+		//
+		//			//}
+		//
+		//			//if obj := scope.Lookup(name); obj != nil {
+		//			//	fmt.Println(obj)
+		//			//}
+		//		}
+		//	}
+	}
+}
+
+func mode(tv stdtypes.TypeAndValue) string {
+	switch {
+	case tv.IsVoid():
+		return "void"
+	case tv.IsType():
+		return "type"
+	case tv.IsBuiltin():
+		return "builtin"
+	case tv.IsNil():
+		return "nil"
+	case tv.Assignable():
+		if tv.Addressable() {
+			return "var"
+		}
+		return "mapindex"
+	case tv.IsValue():
+		return "value"
+	default:
+		return "unknown"
+	}
+}
+
+func exprString(fset *token.FileSet, expr ast.Expr) string {
+	var buf bytes.Buffer
+	format.Node(&buf, fset, expr)
+	return buf.String()
+}
+
+func (l *Loader) Interface(expr ast.Expr) {
+	for _, pkg := range l.pkgs {
+		if t := pkg.TypesInfo.TypeOf(expr); t != nil {
+
+		}
+	}
 }
 
 func (l *Loader) Patterns() []string {
@@ -50,45 +186,53 @@ func (l *Loader) WorkDir() string {
 	return l.wd
 }
 
-func (l *Loader) Process() (data *Data, errs []error) {
+func (l *Loader) run() (errs []error) {
 	var (
-		err error
+		astNodes []nodeInfo
+		err      error
 	)
 
-	data = &Data{
-		WorkDir:       l.wd,
-		CommentFuncs:  map[string][]string{},
-		CommentFields: map[string]map[string]string{},
-		GraphTypes:    graph.NewGraph(),
-		Enums:         new(typeutil.Map),
-	}
+	l.commentFuncs = map[string][]string{}
+	l.commentFields = map[string]map[string]string{}
+	l.graphTypes = graph.NewGraph()
+	l.enums = new(typeutil.Map)
+
 	cfg := &packages.Config{
-		Context:    l.ctx,
-		Mode:       packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedTypesSizes | packages.NeedImports | packages.NeedName | packages.NeedModule | packages.NeedFiles | packages.NeedCompiledGoFiles,
+		Context: l.ctx,
+		Mode: packages.NeedDeps |
+			packages.NeedSyntax |
+			packages.NeedTypesInfo |
+			packages.NeedTypes |
+			packages.NeedTypesSizes |
+			packages.NeedImports |
+			packages.NeedName |
+			packages.NeedModule |
+			packages.NeedFiles |
+			packages.NeedCompiledGoFiles,
 		Dir:        l.wd,
 		Env:        l.env,
 		BuildFlags: []string{"-tags=swipe"},
 	}
-
 	escaped := make([]string, len(l.patterns))
 	for i := range l.patterns {
 		escaped[i] = "pattern=" + l.patterns[i]
 	}
-	data.Pkgs, err = packages.Load(cfg, escaped...)
+	l.pkgs, err = packages.Load(cfg, escaped...)
 	if err != nil {
-		return data, []error{err}
+		return []error{err}
 	}
-
-	var (
-		astNodes []nodeInfo
-		module   *packages.Module
-	)
-
-	for _, pkg := range data.Pkgs {
-		if module == nil && stdstrings.Contains(l.wd, pkg.Module.Dir) {
-			module = pkg.Module
+	for _, p := range l.pkgs {
+		for _, e := range p.Errors {
+			errs = append(errs, e)
 		}
-
+	}
+	if len(errs) > 0 {
+		return errs
+	}
+	for _, pkg := range l.pkgs {
+		if l.module == nil && stdstrings.Contains(l.wd, pkg.Module.Dir) {
+			l.module = pkg.Module
+		}
 		for _, syntax := range pkg.Syntax {
 			for _, decl := range syntax.Decls {
 				switch v := decl.(type) {
@@ -99,7 +243,7 @@ func (l *Loader) Process() (data *Data, errs []error) {
 							sp := spec.(*ast.TypeSpec)
 							obj := pkg.TypesInfo.ObjectOf(sp.Name)
 							if obj != nil {
-								data.GraphTypes.Add(&graph.Node{Object: obj})
+								l.graphTypes.Add(&graph.Node{Object: obj})
 							}
 						}
 					case token.CONST:
@@ -152,7 +296,7 @@ func (l *Loader) Process() (data *Data, errs []error) {
 									}
 								}
 							}
-							data.Enums.Set(ti, enums)
+							l.enums.Set(ti, enums)
 						}
 					}
 				case *ast.FuncDecl:
@@ -160,7 +304,7 @@ func (l *Loader) Process() (data *Data, errs []error) {
 					if obj != nil {
 						n := &graph.Node{Object: obj}
 
-						data.GraphTypes.Add(n)
+						l.graphTypes.Add(n)
 
 						values, objects := visitBlockStmt(pkg, v.Body)
 
@@ -176,17 +320,15 @@ func (l *Loader) Process() (data *Data, errs []error) {
 		}
 	}
 
-	data.Module = module
-
 	for _, ni := range astNodes {
 		for _, obj := range ni.objects {
 			if sig, ok := obj.Type().(*stdtypes.Signature); ok {
 				if sig.Recv() != nil {
 					if _, ok := sig.Recv().Type().Underlying().(*stdtypes.Interface); ok {
-						data.GraphTypes.Iterate(func(n *graph.Node) {
-							data.GraphTypes.Traverse(n, func(n *graph.Node) bool {
+						l.graphTypes.Iterate(func(n *graph.Node) {
+							l.graphTypes.Traverse(n, func(n *graph.Node) bool {
 								if n.Object.Name() == obj.Name() && stdtypes.Identical(n.Object.Type(), obj.Type()) {
-									data.GraphTypes.AddEdge(ni.node, n)
+									l.graphTypes.AddEdge(ni.node, n)
 								}
 								return true
 							})
@@ -195,12 +337,12 @@ func (l *Loader) Process() (data *Data, errs []error) {
 					}
 				}
 			}
-			if nn := data.GraphTypes.Node(obj); nn != nil {
-				data.GraphTypes.AddEdge(ni.node, nn)
+			if nn := l.graphTypes.Node(obj); nn != nil {
+				l.graphTypes.AddEdge(ni.node, nn)
 			}
 		}
 	}
-	types.Inspect(data.Pkgs, func(p *packages.Package, n ast.Node) bool {
+	types.Inspect(l.pkgs, func(p *packages.Package, n ast.Node) bool {
 		if ts, ok := n.(*ast.TypeSpec); ok {
 			obj := p.TypesInfo.ObjectOf(ts.Name)
 			if st, ok := ts.Type.(*ast.StructType); ok {
@@ -215,7 +357,7 @@ func (l *Loader) Process() (data *Data, errs []error) {
 					}
 				}
 				if len(comments) > 0 {
-					data.CommentFields[obj.String()] = comments
+					l.commentFields[obj.String()] = comments
 				}
 			}
 		} else if spec, ok := n.(*ast.Field); ok {
@@ -235,18 +377,13 @@ func (l *Loader) Process() (data *Data, errs []error) {
 				if len(comments) > 0 {
 					for _, name := range spec.Names {
 						obj := p.TypesInfo.ObjectOf(name)
-						data.CommentFuncs[obj.String()] = comments
+						l.commentFuncs[obj.String()] = comments
 					}
 				}
 			}
 		}
 		return true
 	})
-	for _, p := range data.Pkgs {
-		for _, e := range p.Errors {
-			errs = append(errs, e)
-		}
-	}
 	return
 }
 
@@ -313,10 +450,15 @@ func visitBlockStmt(p *packages.Package, stmt ast.Stmt) (values []stdtypes.TypeA
 	return
 }
 
-func NewLoader(wd string, env []string, patterns []string) *Loader {
-	return &Loader{
+func NewLoader(wd string, env []string, patterns []string) (*Loader, []error) {
+	l := &Loader{
 		wd:       wd,
 		env:      env,
 		patterns: patterns,
 	}
+	errs := l.run()
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	return l, nil
 }
