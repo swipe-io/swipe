@@ -29,6 +29,8 @@ func (i Interfaces) At(index int) *ServiceInterface {
 type ServiceInterface struct {
 	ucName           string
 	lcName           string
+	clientUcName     string
+	clientLcName     string
 	serviceType      stdtypes.Type
 	serviceTypeName  *stdtypes.Named
 	serviceIface     *stdtypes.Interface
@@ -37,6 +39,14 @@ type ServiceInterface struct {
 	externalSwipePkg *packages.Package
 	appName          string
 	ns               string
+}
+
+func (g *ServiceInterface) ClientLcName() string {
+	return g.clientLcName
+}
+
+func (g *ServiceInterface) ClientUcName() string {
+	return g.clientUcName
 }
 
 func (g *ServiceInterface) Namespace() string {
@@ -103,9 +113,19 @@ func NewServiceInterface(
 	externalSwipePkg *packages.Package,
 	appName, ns string,
 ) *ServiceInterface {
+	clientUcName := ucName
+	if ns != "" {
+		clientUcName = strcase.ToCamel(ns)
+	}
+	if external {
+		clientUcName = appName + clientUcName
+	}
+	clientLcName := strcase.ToLowerCamel(clientUcName)
 	return &ServiceInterface{
 		ucName:           ucName,
 		lcName:           lcName,
+		clientUcName:     clientUcName,
+		clientLcName:     clientLcName,
 		serviceType:      serviceType,
 		serviceTypeName:  serviceTypeName,
 		serviceIface:     serviceIface,

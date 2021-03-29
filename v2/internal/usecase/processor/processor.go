@@ -6,6 +6,6 @@ import (
 )
 
 type Processor interface {
-	Generators() []generator.Generator
-	Pkg() *packages.Package
+	Name() string
+	Generators(pkg *packages.Package, wd string) []generator.Generator
 }

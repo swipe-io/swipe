@@ -57,8 +57,15 @@ func (g *clientStruct) Process(ctx context.Context) error {
 		g.W("type AppClient struct {\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			typeStr := iface.UcName() + "Interface"
-			g.W("%sClient %s\n", iface.UcName(), typeStr)
+
+			name := iface.UcName()
+			if iface.Namespace() != "" {
+				name = strcase.ToCamel(iface.Namespace())
+			}
+
+			clientType := name + "Client"
+
+			g.W("%s *%s\n", name, clientType)
 		}
 		g.W("}\n\n")
 
@@ -74,10 +81,16 @@ func (g *clientStruct) Process(ctx context.Context) error {
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
 
+			name := iface.UcName()
+			if iface.Namespace() != "" {
+				name = strcase.ToCamel(iface.Namespace())
+			}
+			lcName := strcase.ToLowerCamel(name)
+
 			if g.options.JSONRPCEnable() {
-				g.W("%sClient, err := NewClientJSONRPC%s(tgt, opts...)\n", iface.LcName(), iface.UcName())
+				g.W("%s, err := NewClientJSONRPC%s(tgt, opts...)\n", lcName, name)
 			} else {
-				g.W("%sClient, err := NewClientREST%s(tgt, opts...)\n", iface.LcName(), iface.UcName())
+				g.W("%s, err := NewClientREST%s(tgt, opts...)\n", lcName, name)
 			}
 
 			g.WriteCheckErr(func() {
@@ -88,7 +101,13 @@ func (g *clientStruct) Process(ctx context.Context) error {
 		g.W("return &AppClient{\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("%[1]sClient: %[2]sClient,\n", iface.UcName(), iface.LcName())
+			name := iface.UcName()
+			if iface.Namespace() != "" {
+				name = strcase.ToCamel(iface.Namespace())
+			}
+			lcName := strcase.ToLowerCamel(name)
+
+			g.W("%[1]s: %[2]s,\n", name, lcName)
 		}
 		g.W("}, nil\n")
 		g.W("}\n\n")
@@ -152,7 +171,12 @@ func (g *clientStruct) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		clientType := fmt.Sprintf("client%s", iface.UcName())
+		name := iface.UcName()
+		if iface.Namespace() != "" {
+			name = strcase.ToCamel(iface.Namespace())
+		}
+
+		clientType := fmt.Sprintf("%sClient", name)
 
 		contextPkg = g.i.Import("context", "context")
 

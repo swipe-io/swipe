@@ -140,7 +140,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
-		mw.W("class JSONRPCClient%s {\n", iface.UcName())
+		mw.W("class JSONRPCClient%s {\n", iface.ClientUcName())
 		mw.W("constructor(transport) {\n")
 		mw.W("this.scheduler = new JSONRPCScheduler(transport);\n")
 		mw.W("}\n\n")
@@ -231,7 +231,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 			}
 
 			mw.W("}).catch(e => { throw ")
-			mw.W("%s%sConvertError(e)", iface.LcName(), m.Name)
+			mw.W("%s%sConvertError(e)", iface.ClientLcName(), m.Name)
 			mw.W("; })\n")
 
 			mw.W("}\n")
@@ -252,7 +252,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("constructor(transport) {\n")
 		for i := 0; i < g.options.Interfaces().Len(); i++ {
 			iface := g.options.Interfaces().At(i)
-			g.W("this.%s = new JSONRPCClient%s(transport);\n", iface.LcName(), iface.UcName())
+			g.W("this.%s = new JSONRPCClient%s(transport);\n", iface.ClientLcName(), iface.ClientUcName())
 		}
 		g.W("}\n")
 		g.W("}\n")
@@ -260,22 +260,21 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 		g.W("export default JSONRPCClient\n\n")
 	} else if g.options.Interfaces().Len() == 1 {
 		iface := g.options.Interfaces().At(0)
-		g.W("export default JSONRPCClient%s\n\n", iface.UcName())
+		g.W("export default JSONRPCClient%s\n\n", iface.ClientUcName())
 	}
 
 	httpErrorsDub := map[string]struct{}{}
-
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, method := range iface.Methods() {
 			for _, e := range method.Errors {
-				errorName := iface.UcName() + e.Named.Obj().Name()
+				errorName := makeErrorName(iface, e)
 				if _, ok := httpErrorsDub[errorName]; ok {
 					continue
 				}
 				httpErrorsDub[errorName] = struct{}{}
 				g.W(
-					"export class %[1]sError extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]sError\", %[2]d, data);\n}\n}\n",
+					"export class %[1]s extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]s\", %[2]d, data);\n}\n}\n",
 					errorName, e.Code,
 				)
 			}
@@ -285,13 +284,14 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 		for _, method := range iface.Methods() {
-			g.W("function %s%sConvertError(e) {\n", iface.LcName(), method.Name)
+			g.W("function %s%sConvertError(e) {\n", iface.ClientLcName(), method.Name)
 			g.W("switch(e.code) {\n")
 			g.W("default:\n")
 			g.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
 			for _, e := range method.Errors {
+				errorName := makeErrorName(iface, e)
 				g.W("case %d:\n", e.Code)
-				g.W("return new %sError(e.message, e.data);\n", iface.UcName()+e.Named.Obj().Name())
+				g.W("return new %s(e.message, e.data);\n", errorName)
 			}
 			g.W("}\n}\n")
 		}
@@ -303,6 +303,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	//		if !ok {
 	//			return
 	//		}
+	//
 	//		g.W("export const %sEnum = Object.freeze({\n", named.Obj().IfaceUcName())
 	//
 	//		for _, enum := range value.([]model.Enum) {

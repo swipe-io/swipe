@@ -25,7 +25,7 @@ func (g *interfaceGenerator) Process(ctx context.Context) (err error) {
 	for i := 0; i < g.interfaces.Len(); i++ {
 		iface := g.interfaces.At(i)
 
-		interfaceType := iface.UcNameWithPrefix() + "Interface"
+		interfaceType := iface.LcNameWithPrefix() + "Interface"
 
 		g.W("type %s interface {\n", interfaceType)
 		for _, m := range iface.Methods() {

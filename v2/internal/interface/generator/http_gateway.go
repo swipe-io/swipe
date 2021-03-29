@@ -20,7 +20,6 @@ func (g *httpGatewayGenerator) Prepare(ctx context.Context) error {
 }
 
 func (g *httpGatewayGenerator) Process(ctx context.Context) error {
-	ioPkg := g.i.Import("io", "io")
 	contextPkg := g.i.Import("context", "context")
 	epPkg := g.i.Import("endpoint", "github.com/go-kit/kit/endpoint")
 	httpKitPkg := g.i.Import("endpoint", "github.com/go-kit/kit/transport/http")
@@ -69,7 +68,7 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 		if !s.External() {
 			continue
 		}
-		g.W("%s struct {\n", s.UcName())
+		g.W("%s struct {\n", s.UcNameWithPrefix())
 		for _, method := range s.Methods() {
 			g.W("%sEndpoint %s.Endpoint\n", method.Name, epPkg)
 		}
@@ -84,13 +83,7 @@ func (g *httpGatewayGenerator) Process(ctx context.Context) error {
 
 		transportExtPkg := g.i.Import(s.ExternalSwipePkg().Name, s.ExternalSwipePkg().PkgPath)
 
-		g.W("type %sEndpointFactory interface {\n", s.UcName())
-		for _, method := range s.Methods() {
-			g.W("%sEndpointFactory(instance string) (%s.Endpoint, %s.Closer, error)\n", method.Name, epPkg, ioPkg)
-		}
-		g.W("}\n\n")
-
-		g.W("type %sOption struct {\n", s.UcName())
+		g.W("type %sOption struct {\n", s.UcNameWithPrefix())
 		g.W("Instancer %s.Instancer \n", sdPkg)
 		g.W("Instance string \n")
 		g.W("ClientOptions []%s.ClientOption\n", transportExtPkg)

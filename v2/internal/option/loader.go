@@ -3,7 +3,6 @@ package option
 import (
 	"go/ast"
 	stdtypes "go/types"
-	"strings"
 	"sync"
 
 	"github.com/swipe-io/swipe/v2/internal/astloader"
@@ -38,7 +37,6 @@ func (l *Loader) declProcess(pkg *packages.Package, decl ast.Decl) (*ResultOptio
 			if err != nil {
 				return nil, err
 			}
-
 			return &ResultOption{
 				Pkg:    pkg,
 				Option: opt,
@@ -96,10 +94,7 @@ func (l *Loader) Load() (result *Result, errs []error) {
 	}()
 
 	for option := range optionsCh {
-		optRootPkg := strings.Join(strings.Split(option.Pkg.PkgPath, "/")[:3], "/")
-		pkgPath := strings.Join(strings.Split(data.PkgPath, "/")[:3], "/")
-
-		if optRootPkg != pkgPath {
+		if data.Module.GoMod != option.Pkg.Module.GoMod {
 			result.ExternalOptions = append(result.ExternalOptions, option)
 			continue
 		}
@@ -128,7 +123,6 @@ func (l *Loader) findInjector(info *stdtypes.Info, fn *ast.FuncDecl) (*ast.CallE
 			}
 			return call, nil
 		case *ast.EmptyStmt:
-
 			return nil, nil
 		}
 	}
