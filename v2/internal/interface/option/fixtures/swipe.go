@@ -68,11 +68,13 @@ func Service(opts ...ServiceOption) Option {
 	return "implementation not generated, run swipe"
 }
 
+// @type:"repeat"
+// @go:"value"
 func Interface(iface interface{}, ns string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-func AppName(string) ServiceOption {
+func AppName(value string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -81,11 +83,11 @@ func ReadmeEnable() ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-func ReadmeOutput(string) ServiceOption {
+func ReadmeOutput(value string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
-func ReadmeTemplatePath(string) ServiceOption {
+func ReadmeTemplatePath(value string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -95,7 +97,7 @@ func JSONRPCEnable() ServiceOption {
 }
 
 // JSONRPCPath sets the end point for transport.
-func JSONRPCPath(string) ServiceOption {
+func JSONRPCPath(value string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -117,7 +119,7 @@ func MethodOptions(signature interface{}, opts ...MethodOption) ServiceOption {
 }
 
 // MethodDefaultOptions option for defining for all methods default settings.
-func MethodDefaultOptions(...MethodOption) ServiceOption {
+func MethodDefaultOptions(opts ...MethodOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -149,7 +151,7 @@ func InstrumentingDisable() MethodOption {
 }
 
 // RESTMethod sets http method, default is GET.
-func RESTMethod(string) MethodOption {
+func RESTMethod(value string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -159,56 +161,56 @@ func RESTMethod(string) MethodOption {
 //  ...code here...
 //  WrapResponse("data")
 //  ... code here ...
-func RESTWrapResponse(string) MethodOption {
+func RESTWrapResponse(value string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // Path sets http path, default is lowecase method name with the prefix "/",
 // for example: the Get method will look like " /get".
-func RESTPath(string) MethodOption {
+func RESTPath(value string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // HeaderVars sets the key/value array to get method values from headers,
 // where the key is the name of the method parameter,
 // and the value is the name of the header.
-func RESTHeaderVars([]string) MethodOption {
+func RESTHeaderVars(value ...string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // QueryVars sets the key/value array to get method values from query args,
 // where the key is the name of the method parameter,
 // and the value is the name of the query args.
-func RESTQueryVars([]string) MethodOption {
+func RESTQueryVars(value ...string) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // DefaultErrorEncoder is responsible for encoding the server error.
-func DefaultErrorEncoder(f interface{}) ServiceOption {
+func DefaultErrorEncoder(fn interface{}) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 
 // ServerEncodeResponseFunc sets the encoding function of the passed
 // response object to the response writer.
-func ServerEncodeResponseFunc(interface{}) MethodOption {
+func ServerEncodeResponseFunc(fn interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // ServerDecodeRequestFunc sets a function to extract the user's domain
 // request object from the request object.
-func ServerDecodeRequestFunc(interface{}) MethodOption {
+func ServerDecodeRequestFunc(fn interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // ClientEncodeRequestFunc sets the function to encode the passed
 // request object into an object.
-func ClientEncodeRequestFunc(interface{}) MethodOption {
+func ClientEncodeRequestFunc(fn interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
 // ClientDecodeResponseFunc sets a function to extract the user's domain
 // response object from the response object.
-func ClientDecodeResponseFunc(interface{}) MethodOption {
+func ClientDecodeResponseFunc(fn interface{}) MethodOption {
 	return "implementation not generated, run swipe"
 }
 
@@ -238,7 +240,7 @@ func OpenapiTags(methods []interface{}, tags []string) ServiceOption {
 }
 
 // OpenapiOutput sets output directory, path relative to the file, default is "./".
-func OpenapiOutput(string) ServiceOption {
+func OpenapiOutput(value string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
 

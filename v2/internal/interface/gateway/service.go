@@ -16,13 +16,11 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/types"
-	"github.com/swipe-io/swipe/v2/internal/usecase/gateway"
-
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 )
 
-type serviceGateway struct {
+type ServiceGateway struct {
 	pkg                      *packages.Package
 	pkgPath                  string
 	transportType            model.Transport
@@ -54,48 +52,38 @@ type serviceGateway struct {
 	appName                  string
 	appID                    string
 	defaultErrorEncoder      option.Value
-	foundService             bool
-	foundServiceGateway      bool
 	externalOptions          []*option.ResultOption
 }
 
-func (g *serviceGateway) FoundService() bool {
-	return g.foundService
-}
-
-func (g *serviceGateway) FoundServiceGateway() bool {
-	return g.foundServiceGateway
-}
-
-func (g *serviceGateway) Enums() *typeutil.Map {
+func (g *ServiceGateway) Enums() *typeutil.Map {
 	return g.enums
 }
 
-func (g *serviceGateway) CommentFields() map[string]map[string]string {
+func (g *ServiceGateway) CommentFields() map[string]map[string]string {
 	return g.commentFields
 }
 
-func (g *serviceGateway) AppID() string {
+func (g *ServiceGateway) AppID() string {
 	return g.appID
 }
 
-func (g *serviceGateway) AppName() string {
+func (g *ServiceGateway) AppName() string {
 	return g.appName
 }
 
-func (g *serviceGateway) Interfaces() model.Interfaces {
+func (g *ServiceGateway) Interfaces() model.Interfaces {
 	return g.interfaces
 }
 
-func (g *serviceGateway) UseFast() bool {
+func (g *ServiceGateway) UseFast() bool {
 	return g.useFast
 }
 
-func (g *serviceGateway) DefaultErrorEncoder() option.Value {
+func (g *ServiceGateway) DefaultErrorEncoder() option.Value {
 	return g.defaultErrorEncoder
 }
 
-func (g *serviceGateway) MethodOption(m model.ServiceMethod) model.MethodOption {
+func (g *ServiceGateway) MethodOption(m model.ServiceMethod) model.MethodOption {
 	if sign, ok := m.T.(*stdtypes.Signature); ok && sign.Recv() != nil {
 		ifaceName := stdtypes.TypeString(sign.Recv().Type(), func(p *stdtypes.Package) string {
 			return ""
@@ -108,11 +96,11 @@ func (g *serviceGateway) MethodOption(m model.ServiceMethod) model.MethodOption 
 	return g.defaultMethodOptions
 }
 
-func (g *serviceGateway) ClientEnable() bool {
+func (g *ServiceGateway) ClientEnable() bool {
 	return len(g.clientsEnable) > 0
 }
 
-func (g *serviceGateway) GoClientEnable() bool {
+func (g *ServiceGateway) GoClientEnable() bool {
 	for _, client := range g.clientsEnable {
 		if client == "go" {
 			return true
@@ -121,7 +109,7 @@ func (g *serviceGateway) GoClientEnable() bool {
 	return false
 }
 
-func (g *serviceGateway) JSClientEnable() bool {
+func (g *ServiceGateway) JSClientEnable() bool {
 	for _, client := range g.clientsEnable {
 		if client == "js" {
 			return true
@@ -130,63 +118,63 @@ func (g *serviceGateway) JSClientEnable() bool {
 	return false
 }
 
-func (g *serviceGateway) OpenapiEnable() bool {
+func (g *ServiceGateway) OpenapiEnable() bool {
 	return g.openapiEnable
 }
 
-func (g *serviceGateway) OpenapiOutput() string {
+func (g *ServiceGateway) OpenapiOutput() string {
 	return g.openapiOutput
 }
 
-func (g *serviceGateway) OpenapiInfo() openapi.Info {
+func (g *ServiceGateway) OpenapiInfo() openapi.Info {
 	return g.openapiInfo
 }
 
-func (g *serviceGateway) OpenapiServers() []openapi.Server {
+func (g *ServiceGateway) OpenapiServers() []openapi.Server {
 	return g.openapiServers
 }
 
-func (g *serviceGateway) OpenapiMethodTags(name string) []string {
+func (g *ServiceGateway) OpenapiMethodTags(name string) []string {
 	return g.openapiMethodTags[name]
 }
 
-func (g *serviceGateway) OpenapiDefaultMethodTags() []string {
+func (g *ServiceGateway) OpenapiDefaultMethodTags() []string {
 	return g.openapiDefaultMethodTags
 }
 
-func (g *serviceGateway) TransportType() model.Transport {
+func (g *ServiceGateway) TransportType() model.Transport {
 	return g.transportType
 }
 
-func (g *serviceGateway) JSONRPCEnable() bool {
+func (g *ServiceGateway) JSONRPCEnable() bool {
 	return g.jsonRPCEnable
 }
 
-func (g *serviceGateway) JSONRPCDocEnable() bool {
+func (g *ServiceGateway) JSONRPCDocEnable() bool {
 	return g.jsonRPCDocEnable
 }
 
-func (g *serviceGateway) JSONRPCDocOutput() string {
+func (g *ServiceGateway) JSONRPCDocOutput() string {
 	return g.jsonRPCDocOutputDir
 }
 
-func (g *serviceGateway) JSONRPCPath() string {
+func (g *ServiceGateway) JSONRPCPath() string {
 	return g.jsonRPCPath
 }
 
-func (g *serviceGateway) ReadmeOutput() string {
+func (g *ServiceGateway) ReadmeOutput() string {
 	return g.readmeOutput
 }
 
-func (g *serviceGateway) ReadmeTemplatePath() string {
+func (g *ServiceGateway) ReadmeTemplatePath() string {
 	return g.readmeTemplatePath
 }
 
-func (g *serviceGateway) Errors() map[uint32]*model.HTTPError {
+func (g *ServiceGateway) Errors() map[uint32]*model.HTTPError {
 	return g.errors
 }
 
-func (g *serviceGateway) InstrumentingEnable() bool {
+func (g *ServiceGateway) InstrumentingEnable() bool {
 	if g.defaultMethodOptions.InstrumentingEnable {
 		return true
 	}
@@ -198,7 +186,7 @@ func (g *serviceGateway) InstrumentingEnable() bool {
 	return false
 }
 
-func (g *serviceGateway) LoggingEnable() bool {
+func (g *ServiceGateway) LoggingEnable() bool {
 	if g.defaultMethodOptions.LoggingEnable {
 		return true
 	}
@@ -210,11 +198,11 @@ func (g *serviceGateway) LoggingEnable() bool {
 	return false
 }
 
-func (g *serviceGateway) ReadmeEnable() bool {
+func (g *ServiceGateway) ReadmeEnable() bool {
 	return g.readmeEnable
 }
 
-func (g *serviceGateway) loadReadme(o *option.Option) error {
+func (g *ServiceGateway) loadReadme(o *option.Option) error {
 	if _, ok := o.At("ReadmeEnable"); ok {
 		g.readmeEnable = true
 	}
@@ -227,7 +215,7 @@ func (g *serviceGateway) loadReadme(o *option.Option) error {
 	return nil
 }
 
-func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]*model.HTTPError, ifaceLen int) (*model.ServiceInterface, error) {
+func (g *ServiceGateway) loadService(o *option.Option, genericErrors map[uint32]*model.HTTPError, ifaceLen int) (*model.ServiceInterface, error) {
 	ifaceOpt := option.MustOption(o.At("iface"))
 	nsOpt := option.MustOption(o.At("ns"))
 
@@ -424,7 +412,7 @@ func (g *serviceGateway) loadService(o *option.Option, genericErrors map[uint32]
 	), nil
 }
 
-func (g *serviceGateway) load(o *option.Option) error {
+func (g *ServiceGateway) load(o *option.Option) error {
 
 	parts := stdstrings.Split(g.pkgPath, string(filepath.Separator))
 
@@ -495,28 +483,17 @@ func (g *serviceGateway) load(o *option.Option) error {
 		})
 	})
 
-	var foundServiceGateway bool
-	var serviceCount int
 	if ifaces, ok := o.Slice("Interface"); ok {
 		for _, iface := range ifaces {
 			svc, err := g.loadService(iface, genericErrors, len(ifaces))
 			if err != nil {
 				return err
 			}
-
 			if len(svc.Methods()) > 0 {
-				if svc.External() {
-					foundServiceGateway = true
-				} else {
-					serviceCount++
-				}
 				g.interfaces = append(g.interfaces, svc)
 			}
 		}
 	}
-
-	g.foundService = serviceCount > 0
-	g.foundServiceGateway = foundServiceGateway
 
 	if o, ok := o.At("DefaultErrorEncoder"); ok {
 		g.defaultErrorEncoder = o.Value
@@ -534,7 +511,7 @@ func (g *serviceGateway) load(o *option.Option) error {
 	return nil
 }
 
-func (g *serviceGateway) findError(named *stdtypes.Named, methodName string) *model.HTTPError {
+func (g *ServiceGateway) findError(named *stdtypes.Named, methodName string) *model.HTTPError {
 	for i := 0; i < named.NumMethods(); i++ {
 		if named.Method(i).Name() != methodName {
 			continue
@@ -567,7 +544,7 @@ func (g *serviceGateway) findError(named *stdtypes.Named, methodName string) *mo
 	return nil
 }
 
-func (g *serviceGateway) loadOpenapi(o *option.Option) (err error) {
+func (g *ServiceGateway) loadOpenapi(o *option.Option) (err error) {
 	if _, ok := o.At("OpenapiEnable"); ok {
 		g.openapiEnable = true
 	}
@@ -634,7 +611,7 @@ func (g *serviceGateway) loadOpenapi(o *option.Option) (err error) {
 	return nil
 }
 
-func (g *serviceGateway) loadMethodOptions(o *option.Option) (err error) {
+func (g *ServiceGateway) loadMethodOptions(o *option.Option) (err error) {
 	if methodDefaultOpt, ok := o.At("MethodDefaultOptions"); ok {
 		g.defaultMethodOptions, err = getMethodOptions(methodDefaultOpt, model.MethodOption{})
 		if err != nil {
@@ -666,7 +643,7 @@ func (g *serviceGateway) loadMethodOptions(o *option.Option) (err error) {
 	return
 }
 
-func (g *serviceGateway) loadJSONRPC(o *option.Option) (err error) {
+func (g *ServiceGateway) loadJSONRPC(o *option.Option) (err error) {
 	if _, ok := o.At("JSONRPCEnable"); ok {
 		g.jsonRPCEnable = true
 	}
@@ -804,8 +781,8 @@ func httpBraceIndices(s string) ([]int, error) {
 	return idxs, nil
 }
 
-func NewServiceGateway(pkg *packages.Package, pkgPath string, o *option.Option, graphTypes *graph.Graph, commentFuncs map[string][]string, commentFields map[string]map[string]string, enums *typeutil.Map, wd string, externalOptions []*option.ResultOption) (gateway.ServiceGateway, error) {
-	g := &serviceGateway{
+func NewServiceGateway(pkg *packages.Package, pkgPath string, o *option.Option, graphTypes *graph.Graph, commentFuncs map[string][]string, commentFields map[string]map[string]string, enums *typeutil.Map, wd string, externalOptions []*option.ResultOption) (*ServiceGateway, error) {
+	g := &ServiceGateway{
 		pkg:               pkg,
 		pkgPath:           pkgPath,
 		graphTypes:        graphTypes,

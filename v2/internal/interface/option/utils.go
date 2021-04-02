@@ -2,10 +2,64 @@ package option
 
 import (
 	"go/ast"
+	goast "go/ast"
+	"go/constant"
 	"go/types"
+	stdtypes "go/types"
+	"regexp"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
+
+var paramCommentRegexp = regexp.MustCompile(`(?s)@([a-zA-Z0-9_]*) (.*)`)
+
+func parseMethodComments(comments []string) (methodComment string, paramsComment map[string]string) {
+	paramsComment = make(map[string]string)
+	for _, comment := range comments {
+		comment = strings.TrimSpace(comment)
+		if strings.HasPrefix(comment, "@") {
+			matches := paramCommentRegexp.FindAllStringSubmatch(comment, -1)
+			if len(matches) == 1 && len(matches[0]) == 3 {
+				paramsComment[matches[0][1]] = matches[0][2]
+			}
+			continue
+		}
+		methodComment += comment
+	}
+	return
+}
+
+func getValue(v constant.Value) interface{} {
+	switch v.Kind() {
+	case constant.String:
+		return constant.StringVal(v)
+	case constant.Bool:
+		return constant.BoolVal(v)
+	case constant.Float:
+		result, _ := constant.Float64Val(v)
+		return result
+	case constant.Int:
+		result, _ := constant.Int64Val(v)
+		return result
+	}
+	return nil
+}
+
+func makeStringSlice(elts []goast.Expr, info *stdtypes.Info) (result []string) {
+	for _, expr := range elts {
+		tv := info.Types[expr]
+		result = append(result, getValue(tv.Value).(string))
+	}
+	return
+}
+
+func sigParamAt(sig *stdtypes.Signature, i int) *stdtypes.Var {
+	if sig.Variadic() && i >= sig.Params().Len()-1 {
+		return sig.Params().At(sig.Params().Len() - 1)
+	}
+	return sig.Params().At(i)
+}
 
 func qualifiedObject(pkg *packages.Package, expr ast.Expr) types.Object {
 	switch expr := expr.(type) {
@@ -23,33 +77,6 @@ func qualifiedObject(pkg *packages.Package, expr ast.Expr) types.Object {
 	default:
 		return nil
 	}
-}
-
-func findInjector(info *types.Info, fn *ast.FuncDecl) (*ast.CallExpr, error) {
-	if fn.Body == nil {
-		return nil, nil
-	}
-	for _, stmt := range fn.Body.List {
-		switch stmt := stmt.(type) {
-		case *ast.ExprStmt:
-			call, ok := stmt.X.(*ast.CallExpr)
-			if !ok {
-				continue
-			}
-			obj := qualifiedIdentObject(info, call.Fun)
-			if obj == nil || obj.Pkg() == nil {
-				continue
-			}
-			if obj.Name() != "Build" {
-				continue
-			}
-			return call, nil
-		case *ast.EmptyStmt:
-
-			return nil, nil
-		}
-	}
-	return nil, nil
 }
 
 func qualifiedIdentObject(info *types.Info, expr ast.Expr) types.Object {

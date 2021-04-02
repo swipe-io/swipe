@@ -29,7 +29,7 @@ type Loader struct {
 	wd            string
 	env           []string
 	patterns      []string
-	module        *packages.Module
+	pkg           *packages.Package
 	commentFuncs  map[string][]string
 	commentFields map[string]map[string]string
 	pkgs          []*packages.Package
@@ -37,105 +37,29 @@ type Loader struct {
 	enums         *typeutil.Map
 }
 
-func (l *Loader) FuncByName(name string) {
-
-	var conf stdtypes.Config
-
+func (l *Loader) FindPkgByID(path string) *packages.Package {
 	for _, pkg := range l.pkgs {
-
-		info := stdtypes.Info{
-			Types: make(map[ast.Expr]stdtypes.TypeAndValue),
-			Defs:  make(map[*ast.Ident]stdtypes.Object),
-			Uses:  make(map[*ast.Ident]stdtypes.Object),
+		if pkg.PkgPath == path {
+			return pkg
 		}
-		conf.Check(pkg.Name, pkg.Fset, pkg.Syntax, &info)
-
-		//usesByObj := make(map[stdtypes.Object][]string)
-		//for id, obj := range info.Uses {
-		//	posn := pkg.Fset.Position(id.Pos())
-		//	lineCol := fmt.Sprintf("%d:%d", posn.Line, posn.Column)
-		//	usesByObj[obj] = append(usesByObj[obj], lineCol)
-		//}
-		//var items []string
-		//for obj, uses := range usesByObj {
-		//	sort.Strings(uses)
-		//
-		//	item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
-		//		stdtypes.ObjectString(obj, stdtypes.RelativeTo(pkgg)),
-		//		pkg.Fset.Position(obj.Pos()),
-		//		strings.Join(uses, ", "))
-		//	items = append(items, item)
-		//}
-		//sort.Strings(items) // sort by line:col, in effect
-		//fmt.Println(strings.Join(items, "\n"))
-		//fmt.Println()
-		//items = nil
-		var i int
-		for expr, tv := range info.Types {
-			//var buf bytes.Buffer
-
-			//posn := pkg.Fset.Position(expr.Pos())
-			tvstr := tv.Type.String()
-
-			if tv.Value != nil {
-				tvstr += " = " + tv.Value.String()
-			}
-
-			//if ident, ok := expr.(*ast.Ident); ok && ident.Name == "Build" {
-
-			//fmt.Println(tv.)
-
-			if exprString(pkg.Fset, expr) == `Build(
-	Service(
-		Interface((*ServiceA)(nil), ""),
-	),
-)` {
-
-				//if i == 25 {
-				fmt.Println(i)
-
-				fmt.Println(info.Uses[expr.(*ast.CallExpr).Fun.(*ast.Ident)].Name())
-
-				for _, arg := range expr.(*ast.CallExpr).Args {
-
-					fmt.Println(info.Types[arg.(*ast.CallExpr).Args[0].(*ast.CallExpr).Args[0]].Type.(*stdtypes.Pointer).Elem())
-
-					//fmt.Println(info.Uses[arg])
-				}
-
-				fmt.Println(exprString(pkg.Fset, expr))
-				fmt.Println()
-				//}
-			}
-			i++
-			// line:col | expr | mode : type = value
-			//fmt.Fprintf(&buf, "%2d:%2d | %-19s | %-7s : %s",
-			//	posn.Line, posn.Column, exprString(pkg.Fset, expr),
-			//	mode(tv), tvstr)
-
-			//}
-
-			//items = append(items, buf.String())
-		}
-
-		//sort.Strings(items)
-		//fmt.Println(strings.Join(items, "\n"))
-
-		//	for node := range pkg.TypesInfo.Scopes {
-		//
-		//		if decl, ok := node.(ast.Decl); ok {
-		//
-		//			fmt.Println(decl)
-		//			//fmt.Println(pkg.TypesInfo.ObjectOf())
-		//
-		//			//}
-		//
-		//			//if obj := scope.Lookup(name); obj != nil {
-		//			//	fmt.Println(obj)
-		//			//}
-		//		}
-		//	}
 	}
+	return nil
+}
+
+func (l *Loader) CommentFields() map[string]map[string]string {
+	return l.commentFields
+}
+
+func (l *Loader) CommentFuncs() map[string][]string {
+	return l.commentFuncs
+}
+
+func (l *Loader) Pkg() *packages.Package {
+	return l.pkg
+}
+
+func (l *Loader) Pkgs() []*packages.Package {
+	return l.pkgs
 }
 
 func mode(tv stdtypes.TypeAndValue) string {
@@ -152,7 +76,7 @@ func mode(tv stdtypes.TypeAndValue) string {
 		if tv.Addressable() {
 			return "var"
 		}
-		return "mapindex"
+		return "map"
 	case tv.IsValue():
 		return "value"
 	default:
@@ -184,6 +108,46 @@ func (l *Loader) Env() []string {
 
 func (l *Loader) WorkDir() string {
 	return l.wd
+}
+
+func (l *Loader) normalizeStmt(pkg *packages.Package, stmt ast.Stmt) interface{} {
+	switch v := stmt.(type) {
+	case *ast.SelectStmt:
+		return l.normalizeBlockStmt(nil, v.Body)
+	case *ast.RangeStmt:
+		return l.normalizeBlockStmt(nil, v.Body)
+	case *ast.ForStmt:
+		return l.normalizeBlockStmt(nil, v.Body)
+	case *ast.TypeSwitchStmt:
+		return l.normalizeBlockStmt(nil, v.Body)
+	case *ast.SwitchStmt:
+		return l.normalizeBlockStmt(nil, v.Body)
+	case *ast.IfStmt:
+		return l.normalizeBlockStmt(nil, v.Body)
+	case *ast.BlockStmt:
+		return l.normalizeBlockStmt(nil, v)
+	case *ast.ReturnStmt:
+		for _, result := range v.Results {
+			if callExpr, ok := result.(*ast.CallExpr); ok {
+
+				fmt.Println(callExpr.Fun)
+			}
+
+			//v := pkg.TypesInfo.Types[result]
+			//
+			//fmt.Println(v)
+
+		}
+	}
+
+	return nil
+}
+
+func (l *Loader) normalizeBlockStmt(pkg *packages.Package, blockStmt *ast.BlockStmt) interface{} {
+	for _, stmt := range blockStmt.List {
+		l.normalizeStmt(pkg, stmt)
+	}
+	return nil
 }
 
 func (l *Loader) run() (errs []error) {
@@ -226,12 +190,24 @@ func (l *Loader) run() (errs []error) {
 			errs = append(errs, e)
 		}
 	}
+
+	for _, pkg := range l.pkgs {
+		for _, syntax := range pkg.Syntax {
+			for _, decl := range syntax.Decls {
+				switch t := decl.(type) {
+				case *ast.FuncDecl:
+					l.normalizeBlockStmt(pkg, t.Body)
+				}
+			}
+		}
+	}
+
 	if len(errs) > 0 {
 		return errs
 	}
 	for _, pkg := range l.pkgs {
-		if l.module == nil && stdstrings.Contains(l.wd, pkg.Module.Dir) {
-			l.module = pkg.Module
+		if l.pkg == nil && stdstrings.Contains(l.wd, pkg.Module.Dir) {
+			l.pkg = pkg
 		}
 		for _, syntax := range pkg.Syntax {
 			for _, decl := range syntax.Decls {
@@ -376,9 +352,23 @@ func (l *Loader) run() (errs []error) {
 				}
 				if len(comments) > 0 {
 					for _, name := range spec.Names {
-						obj := p.TypesInfo.ObjectOf(name)
-						l.commentFuncs[obj.String()] = comments
+						if obj := p.TypesInfo.ObjectOf(name); obj != nil {
+							l.commentFuncs[obj.String()] = comments
+						}
 					}
+				}
+			}
+		} else if spec, ok := n.(*ast.FuncDecl); ok {
+			obj := p.TypesInfo.ObjectOf(spec.Name)
+			if obj != nil {
+				var comments []string
+				if spec.Doc != nil {
+					for _, comment := range spec.Doc.List {
+						comments = append(comments, stdstrings.TrimLeft(comment.Text, "/"))
+					}
+				}
+				if len(comments) > 0 {
+					l.commentFuncs[obj.String()] = comments
 				}
 			}
 		}
@@ -416,8 +406,6 @@ func visitBlockStmt(p *packages.Package, stmt ast.Stmt) (values []stdtypes.TypeA
 	case *ast.ReturnStmt:
 		for _, result := range v.Results {
 			switch vv := result.(type) {
-			case *ast.StructType:
-
 			case *ast.FuncLit:
 				otherValues, otherObjects := visitBlockStmts(p, vv.Body.List)
 				values = append(values, otherValues...)

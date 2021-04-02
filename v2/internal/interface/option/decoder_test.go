@@ -1,6 +1,8 @@
 package option
 
 import (
+	"fmt"
+	goast "go/ast"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,10 +11,19 @@ import (
 )
 
 type Interface struct {
+	Type      *IfaceType `mapstructure:"iface"`
+	Namespace string     `mapstructure:"ns"`
 }
 
-type TestStruct struct {
-	Interfaces []Interface `swipe:"Interface"`
+type OpenapiTag struct {
+	Methods []goast.SelectorExpr `mapstructure:"methods"`
+	Tags    []string             `mapstructure:"tags"`
+}
+
+type ServiceOptions struct {
+	HTTPEnable  bool         `mapstructure:"HTTPServer"`
+	Interfaces  []Interface  `mapstructure:"Interface"`
+	OpenapiTags []OpenapiTag `mapstructure:"OpenapiTags"`
 }
 
 func TestParser_Parse(t *testing.T) {
@@ -20,7 +31,7 @@ func TestParser_Parse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	astLoader, errs := ast.NewLoader(wd, os.Environ(), []string{"./fixtures/.."})
+	astLoader, errs := ast.NewLoader(wd, os.Environ(), []string{"./fixtures/..", "github.pie.apple.com/ISS-Tools/zeus-service/pkg/..."})
 	if len(errs) > 0 {
 		for _, err := range errs {
 			t.Log(err)
@@ -28,7 +39,21 @@ func TestParser_Parse(t *testing.T) {
 		t.Fatal("AST loader failed")
 	}
 
-	astLoader.FuncByName("Build")
+	d := NewDecoder(astLoader)
+
+	result, err := d.Decode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, build := range result {
+
+		for _, b := range build.Builds {
+
+			fmt.Println(b)
+		}
+
+	}
 
 	//p := NewParser()
 	//p.Parse(nil)

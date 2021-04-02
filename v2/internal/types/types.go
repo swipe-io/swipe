@@ -90,10 +90,31 @@ func HasNoEmptyValue(t types.Type) bool {
 	return false
 }
 
-func ZeroValue(t types.Type, qf types.Qualifier) string {
+//func ZeroValue(t types.Type, qf types.Qualifier) string {
+//	switch u := t.Underlying().(type) {
+//	case *types.Array, *types.Struct:
+//		return types.TypeString(t, qf) + "{}"
+//	case *types.Basic:
+//		info := u.Info()
+//		switch {
+//		case info&types.IsBoolean != 0:
+//			return "false"
+//		case info&(types.IsInteger|types.IsFloat|types.IsComplex) != 0:
+//			return "0"
+//		case info&types.IsString != 0:
+//			return `""`
+//		default:
+//			panic("unreachable")
+//		}
+//	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
+//		return "nil"
+//	default:
+//		panic("unreachable")
+//	}
+//}
+
+func ZeroValue(t types.Type) string {
 	switch u := t.Underlying().(type) {
-	case *types.Array, *types.Struct:
-		return types.TypeString(t, qf) + "{}"
 	case *types.Basic:
 		info := u.Info()
 		switch {
