@@ -88,9 +88,9 @@ func (g *clientStruct) Process(ctx context.Context) error {
 			lcName := strcase.ToLowerCamel(name)
 
 			if g.options.JSONRPCEnable() {
-				g.W("%s, err := NewClientJSONRPC%s(tgt, opts...)\n", lcName, name)
+				g.W("%s, err := NewClientJSONRPC%s(tgt, opts...)\n", lcName, iface.UcName())
 			} else {
-				g.W("%s, err := NewClientREST%s(tgt, opts...)\n", lcName, name)
+				g.W("%s, err := NewClientREST%s(tgt, opts...)\n", lcName, iface.UcName())
 			}
 
 			g.WriteCheckErr(func() {
