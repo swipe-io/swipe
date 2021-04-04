@@ -46,9 +46,9 @@ func (g *restGoClient) Process(_ context.Context) error {
 		iface := g.options.Interfaces().At(i)
 
 		name := iface.UcName()
-		if iface.Namespace() != "" {
-			name = strcase.ToCamel(iface.Namespace())
-		}
+		//if iface.Namespace() != "" {
+		//	name = strcase.ToCamel(iface.Namespace())
+		//}
 		clientType := name + "Client"
 
 		if g.options.UseFast() {
@@ -70,14 +70,14 @@ func (g *restGoClient) Process(_ context.Context) error {
 		stringsPkg = g.i.Import("strings", "strings")
 
 		if g.options.Interfaces().Len() == 1 {
-			g.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
+			g.W("// Deprecated\nfunc NewClientREST(tgt string")
 			g.W(" ,options ...ClientOption")
 			g.W(") (*%s, error) {\n", name)
-			g.W("return NewClientJSONRPC%s(tgt, options...)", name)
+			g.W("return NewClientREST%s(tgt, options...)", name)
 			g.W("}\n")
 		}
 
-		g.W("func NewClientJSONRPC%s(tgt string", name)
+		g.W("func NewClientREST%s(tgt string", name)
 		g.W(" ,options ...ClientOption")
 		g.W(") (*%s, error) {\n", name)
 		g.W("opts := &clientOpts{}\n")
