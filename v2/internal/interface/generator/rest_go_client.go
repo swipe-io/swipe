@@ -72,14 +72,14 @@ func (g *restGoClient) Process(_ context.Context) error {
 		if g.options.Interfaces().Len() == 1 {
 			g.W("// Deprecated\nfunc NewClientREST(tgt string")
 			g.W(" ,options ...ClientOption")
-			g.W(") (*%s, error) {\n", name)
+			g.W(") (*%s, error) {\n", clientType)
 			g.W("return NewClientREST%s(tgt, options...)", name)
 			g.W("}\n")
 		}
 
 		g.W("func NewClientREST%s(tgt string", name)
 		g.W(" ,options ...ClientOption")
-		g.W(") (*%s, error) {\n", name)
+		g.W(") (*%s, error) {\n", clientType)
 		g.W("opts := &clientOpts{}\n")
 		g.W("c := &%s{}\n", clientType)
 		g.W("for _, o := range options {\n")
