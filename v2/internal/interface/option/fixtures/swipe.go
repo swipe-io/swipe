@@ -69,7 +69,6 @@ func Service(opts ...ServiceOption) Option {
 }
 
 // @type:"repeat"
-// @go:"value"
 func Interface(iface interface{}, ns string) ServiceOption {
 	return "implementation not generated, run swipe"
 }
@@ -112,8 +111,8 @@ func JSONRPCDocOutput(output string) ServiceOption {
 }
 
 // MethodOptions option for defining method settings.
-// Given signature is interface method, for example:
-//  pkg.Iface.Create
+// Given signature is interface method, for example: pkg.Interface.Create
+// @type:"repeat"
 func MethodOptions(signature interface{}, opts ...MethodOption) ServiceOption {
 	return "implementation not generated, run swipe"
 }
@@ -260,6 +259,7 @@ func OpenapiLicence(name, url string) ServiceOption {
 }
 
 // OpenapiServer sets openapi server.
+// @type:"repeat"
 func OpenapiServer(description, url string) ServiceOption {
 	return "implementation not generated, run swipe"
 }

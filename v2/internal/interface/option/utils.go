@@ -30,26 +30,10 @@ func parseMethodComments(comments []string) (methodComment string, paramsComment
 	return
 }
 
-func getValue(v constant.Value) interface{} {
-	switch v.Kind() {
-	case constant.String:
-		return constant.StringVal(v)
-	case constant.Bool:
-		return constant.BoolVal(v)
-	case constant.Float:
-		result, _ := constant.Float64Val(v)
-		return result
-	case constant.Int:
-		result, _ := constant.Int64Val(v)
-		return result
-	}
-	return nil
-}
-
 func makeStringSlice(elts []goast.Expr, info *stdtypes.Info) (result []string) {
 	for _, expr := range elts {
 		tv := info.Types[expr]
-		result = append(result, getValue(tv.Value).(string))
+		result = append(result, constant.Val(tv.Value).(string))
 	}
 	return
 }

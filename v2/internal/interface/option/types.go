@@ -77,3 +77,16 @@ type BasicType struct {
 	Name string
 	Zero string
 }
+
+type SelectorType struct {
+	Sel interface{}
+	X   interface{}
+}
+
+type PositionType struct {
+	Column   int
+	Filename string
+	Line     int
+	Offset   int
+	IsValid  bool
+}

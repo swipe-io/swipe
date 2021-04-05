@@ -9,6 +9,7 @@ require (
 	github.com/google/subcommands v1.2.0
 	github.com/gookit/color v1.2.5
 	github.com/lib/pq v1.8.0
+	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/pquerna/ffjson v0.0.0-20190930134022-aa0246cd15f7
 	github.com/swipe-io/strcase v0.1.5
 	golang.org/x/mod v0.4.2 // indirect

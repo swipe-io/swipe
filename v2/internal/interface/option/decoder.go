@@ -1,15 +1,20 @@
 package option
 
 import (
+	"errors"
 	goast "go/ast"
+	"go/constant"
+	"go/token"
 	stdtypes "go/types"
-	"strings"
+
+	"github.com/swipe-io/swipe/v2/internal/annotation"
+
+	"golang.org/x/tools/go/ast/astutil"
 
 	"github.com/fatih/structtag"
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/types"
 
-	"github.com/swipe-io/swipe/v2/internal/annotation"
 	"github.com/swipe-io/swipe/v2/internal/ast"
 
 	"golang.org/x/tools/go/packages"
@@ -23,7 +28,7 @@ type namedObject interface {
 type Build struct {
 	PkgPath string
 	PkgName string
-	Option  interface{}
+	Option  map[string]interface{}
 }
 
 type Module struct {
@@ -213,19 +218,39 @@ func (d *Decoder) decode(pkg *packages.Package, expr goast.Expr) (interface{}, e
 			return d.normalizeObject(pkg.TypesInfo.Uses[vt]), nil
 		case *goast.ArrayType:
 			switch elt := vt.Elt.(type) {
+			default:
+				var value []*SelectorType
+				for _, expr := range e.Elts {
+					if selExpr, ok := expr.(*goast.SelectorExpr); ok {
+						var (
+							selObj stdtypes.Object
+							xObj   stdtypes.Object
+						)
+						selObj = pkg.TypesInfo.Uses[selExpr.Sel]
+						if xIdent, ok := selExpr.X.(*goast.Ident); ok {
+							xObj = pkg.TypesInfo.Uses[xIdent]
+						}
+
+						value = append(value, &SelectorType{
+							Sel: d.normalizeObject(selObj),
+							X:   d.normalizeObject(xObj),
+						})
+					}
+				}
+				return value, nil
 			case *goast.Ident:
 				switch elt.Name {
 				case "string":
 					return makeStringSlice(e.Elts, pkg.TypesInfo), nil
 				}
 			}
-			return e.Elts, nil
+
 		}
 	case *goast.BasicLit:
 		var value interface{}
 		tv := pkg.TypesInfo.Types[e]
 		if tv.IsValue() {
-			value = getValue(tv.Value)
+			value = constant.Val(tv.Value)
 		}
 		return value, nil
 	case *goast.Ident:
@@ -239,69 +264,74 @@ func (d *Decoder) decode(pkg *packages.Package, expr goast.Expr) (interface{}, e
 	case *goast.SelectorExpr:
 		return d.normalizeObject(pkg.TypesInfo.Uses[e.Sel]), nil
 	case *goast.CallExpr:
-		switch v := e.Fun.(type) {
-		default:
-			return d.decode(pkg, e.Fun)
-		case *goast.Ident:
-			if fnObj := pkg.TypesInfo.Uses[v]; fnObj != nil {
-				sig := fnObj.Type().(*stdtypes.Signature)
-				if len(e.Args) > 0 {
-					result := make(map[string]interface{}, len(e.Args))
-					for i, arg := range e.Args {
-						var key string
-						var valueType = "value"
-
-						if callArg, ok := arg.(*goast.CallExpr); ok {
-							if callIdent, ok := callArg.Fun.(*goast.Ident); ok {
-								callObj := pkg.TypesInfo.Uses[callIdent]
-								if callObj == nil {
-									continue
-								}
-								key = callObj.Name()
-
-								comments := d.loader.CommentFuncs()[callObj.String()]
-								annotationOpts, _ := annotation.Parse(strings.Join(comments, " "))
-								if annotationOpts != nil {
-									if annotationOpt, err := annotationOpts.Get("type"); err == nil {
-										valueType = annotationOpt.Value()
-									}
-								}
-							}
-						}
-						if key == "" {
-							vr := sigParamAt(sig, i)
-							if vr.Name() == "" {
-								continue
-							}
-							key = vr.Name()
-						}
-						val, err := d.decode(pkg, arg)
-						if err != nil {
-							return nil, err
-						}
-
-						if valueType == "repeat" {
-							if _, ok := result[key]; !ok {
-								result[key] = []interface{}{}
-							}
-
-							v := result[key].([]interface{})
-							v = append(v, val)
-							result[key] = v
-
-						} else {
-							result[key] = val
-						}
-					}
-					return map[string]interface{}{
-						fnObj.Name(): result,
-					}, nil
-				}
-				return true, nil
-			}
-		}
+		return d.decode(pkg, e.Fun)
 	}
 	return nil, nil
+}
+
+func (d *Decoder) callDecodeArgs(pkg *packages.Package, obj stdtypes.Object, args []goast.Expr) (map[string]interface{}, error) {
+	result := map[string]interface{}{}
+	sig := obj.Type().(*stdtypes.Signature)
+
+	for i, arg := range args {
+		if callExpr, ok := arg.(*goast.CallExpr); ok {
+			fnExpr := astutil.Unparen(callExpr.Fun)
+			if _, ok := fnExpr.(*goast.StarExpr); !ok {
+				obj := qualifiedIdentObject(pkg.TypesInfo, fnExpr)
+				if obj == nil {
+					return nil, errors.New("failed get object")
+				}
+				val, err := d.callDecodeArgs(pkg, obj, callExpr.Args)
+				if err != nil {
+					return nil, err
+				}
+				var valueType string
+				comments := d.loader.CommentFuncs()[obj.String()]
+				for _, comment := range comments {
+					if annotationOpts, _ := annotation.Parse(comment); annotationOpts != nil {
+						if annotationOpt, err := annotationOpts.Get("type"); err == nil {
+							valueType = annotationOpt.Value()
+						}
+					}
+				}
+				name := obj.Name()
+				if valueType == "repeat" {
+					if _, ok := result[name]; !ok {
+						result[name] = []interface{}{}
+					}
+					v := result[name].([]interface{})
+					v = append(v, val)
+					result[name] = v
+
+				} else {
+					result[name] = val
+				}
+				continue
+			}
+		}
+		vr := sigParamAt(sig, i)
+		if vr.Name() == "" {
+			return nil, errors.New("failed params name")
+		}
+		val, err := d.decode(pkg, arg)
+		if err != nil {
+			return nil, err
+		}
+		result[vr.Name()] = val
+	}
+	return result, nil
+}
+
+func (d *Decoder) callDecode(pkg *packages.Package, e *goast.CallExpr) (map[string]interface{}, error) {
+	obj := qualifiedIdentObject(pkg.TypesInfo, astutil.Unparen(e.Fun))
+	if obj == nil {
+		return nil, errors.New("failed get object")
+	}
+	result, err := d.callDecodeArgs(pkg, obj, e.Args)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{obj.Name(): result}, nil
 }
 
 func (d *Decoder) Decode() (result map[string]*Module, err error) {
@@ -317,32 +347,41 @@ func (d *Decoder) Decode() (result map[string]*Module, err error) {
 			if !ok {
 				continue
 			}
-			fnObj := pkg.TypesInfo.Uses[callIdent]
-			if fnObj == nil {
+			obj := pkg.TypesInfo.Uses[callIdent]
+			if obj == nil {
 				continue
 			}
-			if fnObj.Name() == "Build" {
+			if obj.Name() == "Build" {
 				if _, ok := result[pkg.Module.Path]; !ok {
 					result[pkg.Module.Path] = &Module{
 						Path:     pkg.Module.Path,
 						External: d.loader.Pkg().Module.Path != pkg.Module.Path,
 					}
 				}
-				for _, arg := range callExpr.Args {
-					val, err := d.decode(pkg, arg)
-					if err != nil {
-						return nil, err
-					}
-					result[pkg.Module.Path].Builds = append(result[pkg.Module.Path].Builds, &Build{
-						PkgPath: pkg.PkgPath,
-						PkgName: pkg.Name,
-						Option:  val,
-					})
+				option, err := d.callDecodeArgs(pkg, obj, callExpr.Args)
+				if err != nil {
+					return nil, err
 				}
+				build := &Build{
+					PkgPath: pkg.PkgPath,
+					PkgName: pkg.Name,
+					Option:  option,
+				}
+				result[pkg.Module.Path].Builds = append(result[pkg.Module.Path].Builds, build)
 			}
 		}
 	}
 	return
+}
+
+func (d *Decoder) normalizePosition(pos token.Position) *PositionType {
+	return &PositionType{
+		Column:   pos.Column,
+		Filename: pos.Filename,
+		Line:     pos.Line,
+		Offset:   pos.Offset,
+		IsValid:  pos.IsValid(),
+	}
 }
 
 func NewDecoder(loader *ast.Loader) *Decoder {

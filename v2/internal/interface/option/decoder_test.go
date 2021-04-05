@@ -2,10 +2,12 @@ package option
 
 import (
 	"fmt"
-	goast "go/ast"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
+
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/swipe-io/swipe/v2/internal/ast"
 )
@@ -16,14 +18,29 @@ type Interface struct {
 }
 
 type OpenapiTag struct {
-	Methods []goast.SelectorExpr `mapstructure:"methods"`
-	Tags    []string             `mapstructure:"tags"`
+	Methods []*SelectorType `mapstructure:"methods"`
+	Tags    []string        `mapstructure:"tags"`
 }
 
+//type HTTPServer struct{}
+
 type ServiceOptions struct {
-	HTTPEnable  bool         `mapstructure:"HTTPServer"`
-	Interfaces  []Interface  `mapstructure:"Interface"`
-	OpenapiTags []OpenapiTag `mapstructure:"OpenapiTags"`
+	HTTPServer  *struct{}
+	Interfaces  []*Interface `mapstructure:"Interface"`
+	OpenapiTags *OpenapiTag  `mapstructure:"OpenapiTags"`
+}
+
+func TestParser_GenOptions(t *testing.T) {
+	val := reflect.ValueOf(&ServiceOptions{}).Elem()
+
+	for i := 0; i < val.NumField(); i++ {
+		//valueField := val.Field(i)
+		typeField := val.Type().Field(i)
+
+		fmt.Println(typeField.Type)
+
+		t.Log(typeField.Tag.Get("mapstructure"))
+	}
 }
 
 func TestParser_Parse(t *testing.T) {
@@ -41,18 +58,19 @@ func TestParser_Parse(t *testing.T) {
 
 	d := NewDecoder(astLoader)
 
-	result, err := d.Decode()
+	modules, err := d.Decode()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, build := range result {
-
-		for _, b := range build.Builds {
-
-			fmt.Println(b)
+	for _, module := range modules {
+		for _, build := range module.Builds {
+			if opts, ok := build.Option["Service"]; ok {
+				var o ServiceOptions
+				err = mapstructure.Decode(opts, &o)
+				fmt.Println(o, err)
+			}
 		}
-
 	}
 
 	//p := NewParser()
