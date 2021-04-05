@@ -54,7 +54,7 @@ func (g *jsonRPCGoClient) Process(ctx context.Context) error {
 			g.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
 			g.W(" ,options ...ClientOption")
 			g.W(") (*%s, error) {\n", clientType)
-			g.W("return NewClientJSONRP`C%s(tgt, options...)", iface.UcName())
+			g.W("return NewClientJSONRPC%s(tgt, options...)", iface.UcName())
 			g.W("}\n")
 		}
 
