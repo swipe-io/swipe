@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/mitchellh/mapstructure"
@@ -22,8 +21,6 @@ type OpenapiTag struct {
 	Tags    []string        `mapstructure:"tags"`
 }
 
-//type HTTPServer struct{}
-
 type ServiceOptions struct {
 	HTTPServer  *struct{}
 	Interfaces  []*Interface `mapstructure:"Interface"`
@@ -31,16 +28,7 @@ type ServiceOptions struct {
 }
 
 func TestParser_GenOptions(t *testing.T) {
-	val := reflect.ValueOf(&ServiceOptions{}).Elem()
-
-	for i := 0; i < val.NumField(); i++ {
-		//valueField := val.Field(i)
-		typeField := val.Type().Field(i)
-
-		fmt.Println(typeField.Type)
-
-		t.Log(typeField.Tag.Get("mapstructure"))
-	}
+	Encode(&ServiceOptions{})
 }
 
 func TestParser_Parse(t *testing.T) {
