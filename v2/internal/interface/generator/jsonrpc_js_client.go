@@ -167,9 +167,15 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 				if t, ok := vt.(*stdtypes.Slice); ok {
 					vt = t.Elem()
 				}
+				if t, ok := vt.(*stdtypes.Pointer); ok {
+					vt = t.Elem()
+				}
+
 				tdc.Visit(vt)
 
-				mw.W("* @param {...%s} %s\n", stdtypes.TypeString(vt, g.i.QualifyPkg), m.ParamVariadic.Name())
+				mw.W("* @param {...%s} %s\n", stdtypes.TypeString(vt, func(p *stdtypes.Package) string {
+					return ""
+				}), m.ParamVariadic.Name())
 			}
 
 			if len(m.Results) > 0 {
