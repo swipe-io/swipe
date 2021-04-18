@@ -14,7 +14,6 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/errors"
 	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/openapi"
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
@@ -51,8 +50,8 @@ type ServiceGateway struct {
 	hasher                   typeutil.Hasher
 	appName                  string
 	appID                    string
-	defaultErrorEncoder      option.Value
-	externalOptions          []*option.ResultOption
+	defaultErrorEncoder      _option.Value
+	externalOptions          []*_option.ResultOption
 }
 
 func (g *ServiceGateway) Enums() *typeutil.Map {
@@ -79,7 +78,7 @@ func (g *ServiceGateway) UseFast() bool {
 	return g.useFast
 }
 
-func (g *ServiceGateway) DefaultErrorEncoder() option.Value {
+func (g *ServiceGateway) DefaultErrorEncoder() _option.Value {
 	return g.defaultErrorEncoder
 }
 
@@ -202,7 +201,7 @@ func (g *ServiceGateway) ReadmeEnable() bool {
 	return g.readmeEnable
 }
 
-func (g *ServiceGateway) loadReadme(o *option.Option) error {
+func (g *ServiceGateway) loadReadme(o *_option.Option) error {
 	if _, ok := o.At("ReadmeEnable"); ok {
 		g.readmeEnable = true
 	}
@@ -215,9 +214,9 @@ func (g *ServiceGateway) loadReadme(o *option.Option) error {
 	return nil
 }
 
-func (g *ServiceGateway) loadService(o *option.Option, genericErrors map[uint32]*model.HTTPError, ifaceLen int) (*model.ServiceInterface, error) {
-	ifaceOpt := option.MustOption(o.At("iface"))
-	nsOpt := option.MustOption(o.At("ns"))
+func (g *ServiceGateway) loadService(o *_option.Option, genericErrors map[uint32]*model.HTTPError, ifaceLen int) (*model.ServiceInterface, error) {
+	ifaceOpt := _option.MustOption(o.At("iface"))
+	nsOpt := _option.MustOption(o.At("ns"))
 
 	ifacePtr, ok := ifaceOpt.Value.Type().(*stdtypes.Pointer)
 	if !ok {
@@ -241,7 +240,7 @@ func (g *ServiceGateway) loadService(o *option.Option, genericErrors map[uint32]
 	for _, extOpt := range g.externalOptions {
 		if ifaces, ok := extOpt.Option.Slice("Interface"); ok {
 			for _, o := range ifaces {
-				ifaceExtOpt := option.MustOption(o.At("iface"))
+				ifaceExtOpt := _option.MustOption(o.At("iface"))
 				if ifaceExtPtr, ok := ifaceExtOpt.Value.Type().(*stdtypes.Pointer); ok {
 					ifaceExtType := ifaceExtPtr.Elem().Underlying().(*stdtypes.Interface)
 					if ifaceExtType.NumEmbeddeds() > 0 {
@@ -412,7 +411,7 @@ func (g *ServiceGateway) loadService(o *option.Option, genericErrors map[uint32]
 	), nil
 }
 
-func (g *ServiceGateway) load(o *option.Option) error {
+func (g *ServiceGateway) load(o *_option.Option) error {
 
 	parts := stdstrings.Split(g.pkgPath, string(filepath.Separator))
 
@@ -544,7 +543,7 @@ func (g *ServiceGateway) findError(named *stdtypes.Named, methodName string) *mo
 	return nil
 }
 
-func (g *ServiceGateway) loadOpenapi(o *option.Option) (err error) {
+func (g *ServiceGateway) loadOpenapi(o *_option.Option) (err error) {
 	if _, ok := o.At("OpenapiEnable"); ok {
 		g.openapiEnable = true
 	}
@@ -553,29 +552,29 @@ func (g *ServiceGateway) loadOpenapi(o *option.Option) (err error) {
 	}
 	if v, ok := o.At("OpenapiInfo"); ok {
 		g.openapiInfo = openapi.Info{
-			Title:       option.MustOption(v.At("title")).Value.String(),
-			Description: option.MustOption(v.At("description")).Value.String(),
-			Version:     option.MustOption(v.At("version")).Value.String(),
+			Title:       _option.MustOption(v.At("title")).Value.String(),
+			Description: _option.MustOption(v.At("description")).Value.String(),
+			Version:     _option.MustOption(v.At("version")).Value.String(),
 		}
 	}
 	if v, ok := o.At("OpenapiContact"); ok {
 		g.openapiInfo.Contact = &openapi.Contact{
-			Name:  option.MustOption(v.At("name")).Value.String(),
-			Email: option.MustOption(v.At("email")).Value.String(),
-			URL:   option.MustOption(v.At("url")).Value.String(),
+			Name:  _option.MustOption(v.At("name")).Value.String(),
+			Email: _option.MustOption(v.At("email")).Value.String(),
+			URL:   _option.MustOption(v.At("url")).Value.String(),
 		}
 	}
 	if v, ok := o.At("OpenapiLicence"); ok {
 		g.openapiInfo.License = &openapi.License{
-			Name: option.MustOption(v.At("name")).Value.String(),
-			URL:  option.MustOption(v.At("url")).Value.String(),
+			Name: _option.MustOption(v.At("name")).Value.String(),
+			URL:  _option.MustOption(v.At("url")).Value.String(),
 		}
 	}
 	if s, ok := o.Slice("OpenapiServer"); ok {
 		for _, v := range s {
 			g.openapiServers = append(g.openapiServers, openapi.Server{
-				Description: option.MustOption(v.At("description")).Value.String(),
-				URL:         option.MustOption(v.At("url")).Value.String(),
+				Description: _option.MustOption(v.At("description")).Value.String(),
+				URL:         _option.MustOption(v.At("url")).Value.String(),
 			})
 		}
 	}
@@ -611,7 +610,7 @@ func (g *ServiceGateway) loadOpenapi(o *option.Option) (err error) {
 	return nil
 }
 
-func (g *ServiceGateway) loadMethodOptions(o *option.Option) (err error) {
+func (g *ServiceGateway) loadMethodOptions(o *_option.Option) (err error) {
 	if methodDefaultOpt, ok := o.At("MethodDefaultOptions"); ok {
 		g.defaultMethodOptions, err = getMethodOptions(methodDefaultOpt, model.MethodOption{})
 		if err != nil {
@@ -620,7 +619,7 @@ func (g *ServiceGateway) loadMethodOptions(o *option.Option) (err error) {
 	}
 	if methods, ok := o.Slice("MethodOptions"); ok {
 		for _, methodOpt := range methods {
-			signOpt := option.MustOption(methodOpt.At("signature"))
+			signOpt := _option.MustOption(methodOpt.At("signature"))
 			fnSel, ok := signOpt.Value.Expr().(*ast.SelectorExpr)
 			if !ok {
 				return errors.NotePosition(signOpt.Position, fmt.Errorf("the signature must be selector"))
@@ -643,7 +642,7 @@ func (g *ServiceGateway) loadMethodOptions(o *option.Option) (err error) {
 	return
 }
 
-func (g *ServiceGateway) loadJSONRPC(o *option.Option) (err error) {
+func (g *ServiceGateway) loadJSONRPC(o *_option.Option) (err error) {
 	if _, ok := o.At("JSONRPCEnable"); ok {
 		g.jsonRPCEnable = true
 	}
@@ -659,7 +658,7 @@ func (g *ServiceGateway) loadJSONRPC(o *option.Option) (err error) {
 	return
 }
 
-func getMethodOptions(o *option.Option, baseMethodOpts model.MethodOption) (model.MethodOption, error) {
+func getMethodOptions(o *_option.Option, baseMethodOpts model.MethodOption) (model.MethodOption, error) {
 	if opt, ok := o.At("Exclude"); ok {
 		baseMethodOpts.Exclude = opt.Value.Bool()
 	}
@@ -670,8 +669,8 @@ func getMethodOptions(o *option.Option, baseMethodOpts model.MethodOption) (mode
 		baseMethodOpts.LoggingIncludeParams = map[string]struct{}{}
 		baseMethodOpts.LoggingExcludeParams = map[string]struct{}{}
 
-		includes := option.MustOption(opt.At("includes")).Value.StringSlice()
-		excludes := option.MustOption(opt.At("excludes")).Value.StringSlice()
+		includes := _option.MustOption(opt.At("includes")).Value.StringSlice()
+		excludes := _option.MustOption(opt.At("excludes")).Value.StringSlice()
 		for _, field := range includes {
 			baseMethodOpts.LoggingIncludeParams[field] = struct{}{}
 		}
@@ -684,8 +683,8 @@ func getMethodOptions(o *option.Option, baseMethodOpts model.MethodOption) (mode
 
 	if opts, ok := o.Slice("LoggingContext"); ok {
 		for _, opt := range opts {
-			key := option.MustOption(opt.At("key")).Value.Expr()
-			name := option.MustOption(opt.At("name")).Value.String()
+			key := _option.MustOption(opt.At("key")).Value.Expr()
+			name := _option.MustOption(opt.At("name")).Value.String()
 			baseMethodOpts.LoggingContext[name] = key
 		}
 	}
@@ -781,7 +780,7 @@ func httpBraceIndices(s string) ([]int, error) {
 	return idxs, nil
 }
 
-func NewServiceGateway(pkg *packages.Package, pkgPath string, o *option.Option, graphTypes *graph.Graph, commentFuncs map[string][]string, commentFields map[string]map[string]string, enums *typeutil.Map, wd string, externalOptions []*option.ResultOption) (*ServiceGateway, error) {
+func NewServiceGateway(pkg *packages.Package, pkgPath string, o *_option.Option, graphTypes *graph.Graph, commentFuncs map[string][]string, commentFields map[string]map[string]string, enums *typeutil.Map, wd string, externalOptions []*_option.ResultOption) (*ServiceGateway, error) {
 	g := &ServiceGateway{
 		pkg:               pkg,
 		pkgPath:           pkgPath,

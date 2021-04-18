@@ -15,19 +15,6 @@ var (
 	NilType   = types.Universe.Lookup("nil").Type()
 )
 
-func GetBitSize(kind types.BasicKind) string {
-	switch kind {
-	case types.Int8, types.Uint8:
-		return "8"
-	case types.Int16, types.Uint16:
-		return "16"
-	case types.Int32, types.Float32, types.Uint32:
-		return "32"
-	default: // for types.Int, types.Uint, types.Float64, types.Uint64, types.Int64 and other.
-		return "64"
-	}
-}
-
 func IsNil(t types.Type) bool {
 	return types.Identical(t, NilType)
 }

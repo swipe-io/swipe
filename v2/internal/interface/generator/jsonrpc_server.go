@@ -22,7 +22,7 @@ type jsonRPCServerOptionsGateway interface {
 }
 
 type jsonRPCServer struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options jsonRPCServerOptionsGateway
 	i       *importer.Importer
 }

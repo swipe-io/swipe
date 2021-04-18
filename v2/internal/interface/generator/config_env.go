@@ -114,7 +114,7 @@ func walkStruct(st *stdtypes.Struct, fn func(f, parent *stdtypes.Var, opts fldOp
 }
 
 type config struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	i        *importer.Importer
 	st       *stdtypes.Struct
 	stType   stdtypes.Type

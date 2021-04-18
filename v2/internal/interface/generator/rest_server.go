@@ -10,7 +10,6 @@ import (
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/importer"
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
@@ -21,11 +20,11 @@ type restServerOptionsGateway interface {
 	Interfaces() model.Interfaces
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	JSONRPCEnable() bool
-	DefaultErrorEncoder() option.Value
+	DefaultErrorEncoder() _option.Value
 }
 
 type restServer struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options restServerOptionsGateway
 	i       *importer.Importer
 }

@@ -20,7 +20,7 @@ type clientStructOptionsGateway interface {
 }
 
 type clientStruct struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options clientStructOptionsGateway
 	i       *importer.Importer
 }

@@ -7,12 +7,12 @@ import (
 )
 
 func Source(src []byte) ([]byte, error) {
-	var useGoimports bool
+	var useGoImports bool
 	_, err := exec.LookPath("goimports")
 	if err == nil {
-		useGoimports = true
+		useGoImports = true
 	}
-	if useGoimports {
+	if useGoImports {
 		cmd := exec.Command("goimports")
 		stdin, err := cmd.StdinPipe()
 		if err != nil {

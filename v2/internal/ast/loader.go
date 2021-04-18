@@ -37,15 +37,6 @@ type Loader struct {
 	enums         *typeutil.Map
 }
 
-func (l *Loader) FindPkgByID(path string) *packages.Package {
-	for _, pkg := range l.pkgs {
-		if pkg.PkgPath == path {
-			return pkg
-		}
-	}
-	return nil
-}
-
 func (l *Loader) CommentFields() map[string]map[string]string {
 	return l.commentFields
 }

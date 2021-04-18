@@ -4,8 +4,10 @@ go 1.16
 
 require (
 	github.com/achiku/varfmt v0.0.0-20160708124000-f820e1efecee
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fatih/structtag v1.2.0
 	github.com/gertd/go-pluralize v0.1.7
+	github.com/goccy/go-reflect v1.1.0 // indirect
 	github.com/google/subcommands v1.2.0
 	github.com/gookit/color v1.2.5
 	github.com/lib/pq v1.8.0

@@ -1,12 +1,7 @@
 package types
 
 import (
-	"errors"
-	"fmt"
 	"go/types"
-	"path/filepath"
-
-	"golang.org/x/tools/go/packages"
 )
 
 type FilterFn func(p *types.Var) bool
@@ -31,18 +26,4 @@ func NameType(vars []*types.Var, qf types.Qualifier, filterFn FilterFn) (results
 	return Params(vars, func(p *types.Var) []string {
 		return []string{"", types.TypeString(p.Type(), qf)}
 	}, filterFn)
-}
-
-func DetectBasePath(pkg *packages.Package) (string, error) {
-	paths := pkg.GoFiles
-	if len(paths) == 0 {
-		return "", errors.New("no files to derive output directory from")
-	}
-	dir := filepath.Dir(paths[0])
-	for _, p := range paths[1:] {
-		if dir2 := filepath.Dir(p); dir2 != dir {
-			return "", fmt.Errorf("found conflicting directories %q and %q", dir, dir2)
-		}
-	}
-	return dir, nil
 }

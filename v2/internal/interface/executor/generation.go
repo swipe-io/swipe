@@ -9,7 +9,6 @@ import (
 
 	"github.com/swipe-io/swipe/v2/internal/errors"
 	"github.com/swipe-io/swipe/v2/internal/importer"
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/executor"
 	"github.com/swipe-io/swipe/v2/internal/usecase/factory"
@@ -27,7 +26,7 @@ type generationExecutor struct {
 	processorFactory processor.Factory
 	importerFactory  factory.ImporterFactory
 	frameFactory     frame.Factory
-	optionLoader     *option.Loader
+	optionLoader     *_option.Loader
 }
 
 func (e *generationExecutor) processGenerate(pkg *packages.Package, generators []generator.Generator) <-chan executor.GenerateResult {
@@ -41,7 +40,6 @@ func (e *generationExecutor) processGenerate(pkg *packages.Package, generators [
 				defer wg.Done()
 
 				generated := executor.GenerateResult{}
-
 				defer func() {
 					outCh <- generated
 				}()
@@ -127,7 +125,7 @@ func NewGenerationExecutor(
 	processorFactory processor.Factory,
 	importerFactory factory.ImporterFactory,
 	frameFactory frame.Factory,
-	optionLoader *option.Loader,
+	optionLoader *_option.Loader,
 ) executor.GenerationExecutor {
 	return &generationExecutor{processorFactory: processorFactory, importerFactory: importerFactory, frameFactory: frameFactory, optionLoader: optionLoader}
 

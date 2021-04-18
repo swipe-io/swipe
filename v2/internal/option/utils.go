@@ -1,11 +1,14 @@
 package option
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
 	goast "go/ast"
 	"go/constant"
 	"go/types"
 	stdtypes "go/types"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -78,5 +81,51 @@ func qualifiedIdentObject(info *types.Info, expr ast.Expr) types.Object {
 		return info.ObjectOf(expr.Sel)
 	default:
 		return nil
+	}
+}
+
+func findPkgByID(pkgs []*packages.Package, path string) *packages.Package {
+	for _, pkg := range pkgs {
+		if pkg.PkgPath == path {
+			return pkg
+		}
+	}
+	return nil
+}
+
+func detectBasePath(pkg *packages.Package) (string, error) {
+	paths := pkg.GoFiles
+	if len(paths) == 0 {
+		return "", errors.New("no files to derive output directory from")
+	}
+	dir := filepath.Dir(paths[0])
+	for _, p := range paths[1:] {
+		if dir2 := filepath.Dir(p); dir2 != dir {
+			return "", fmt.Errorf("found conflicting directories %q and %q", dir, dir2)
+		}
+	}
+	return dir, nil
+}
+
+func zeroValue(t types.Type) string {
+	switch u := t.Underlying().(type) {
+	case *types.Basic:
+		info := u.Info()
+		switch {
+		case info&types.IsBoolean != 0:
+			return "false"
+		case info&(types.IsInteger|types.IsFloat|types.IsComplex) != 0:
+			return "0"
+		case info&types.IsString != 0:
+			return `""`
+		default:
+			panic("unreachable")
+		}
+	case *types.Struct:
+		return "{}"
+	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
+		return "nil"
+	default:
+		panic("unreachable")
 	}
 }

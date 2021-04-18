@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	stdtypes "go/types"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/usecase/gateway"
 )
 
@@ -41,9 +40,9 @@ func (g *configGateway) FuncName() string {
 	return g.funcName
 }
 
-func (g *configGateway) load(o *option.Option) {
+func (g *configGateway) load(o *_option.Option) {
 
-	os := option.MustOption(o.At("optionsStruct"))
+	os := _option.MustOption(o.At("optionsStruct"))
 
 	g.stExpr = os.Value.Expr()
 	g.stType = os.Value.Type()
@@ -65,7 +64,7 @@ func (g *configGateway) load(o *option.Option) {
 	}
 }
 
-func NewConfigGateway(o *option.Option) gateway.ConfigGateway {
+func NewConfigGateway(o *_option.Option) gateway.ConfigGateway {
 	g := &configGateway{}
 	g.load(o)
 	return g

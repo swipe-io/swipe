@@ -20,7 +20,7 @@ type instrumentingGeneratorOptionsGateway interface {
 }
 
 type instrumentingGenerator struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options instrumentingGeneratorOptionsGateway
 	i       *importer.Importer
 }

@@ -21,7 +21,7 @@ type restGoClientOptionsGateway interface {
 }
 
 type restGoClient struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options restGoClientOptionsGateway
 	i       *importer.Importer
 }

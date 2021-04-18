@@ -89,7 +89,7 @@ func (p *Service) Generators(pkg *packages.Package, wd string) []ug.Generator {
 }
 
 func ServiceOptions() []byte {
-	var w writer.GoLangWriter
+	var w writer.GoWriter
 	w.W("// A ServiceOption is an option service.\ntype ServiceOption string\n\n")
 	w.W("// A MethodOption is an option method.\ntype MethodOption string\n\n")
 	w.W("// A OpenapiServersOption is an openapi servers option.\ntype OpenapiServersOption string\n\n")

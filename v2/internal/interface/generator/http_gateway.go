@@ -10,7 +10,7 @@ import (
 )
 
 type httpGatewayGenerator struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	i        *importer.Importer
 	services model.Interfaces
 }

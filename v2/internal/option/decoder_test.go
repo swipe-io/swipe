@@ -1,4 +1,4 @@
-package option
+package option_test
 
 import (
 	"fmt"
@@ -6,29 +6,27 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/swipe-io/swipe/v2/internal/option"
+
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/swipe-io/swipe/v2/internal/ast"
 )
 
 type Interface struct {
-	Type      *IfaceType `mapstructure:"iface"`
-	Namespace string     `mapstructure:"ns"`
+	Type      *option.IfaceType `mapstructure:"iface"`
+	Namespace string            `mapstructure:"ns"`
 }
 
 type OpenapiTag struct {
-	Methods []*SelectorType `mapstructure:"methods"`
-	Tags    []string        `mapstructure:"tags"`
+	Methods []*option.SelectorType `mapstructure:"methods"`
+	Tags    []string               `mapstructure:"tags"`
 }
 
 type ServiceOptions struct {
 	HTTPServer  *struct{}
 	Interfaces  []*Interface `mapstructure:"Interface"`
 	OpenapiTags *OpenapiTag  `mapstructure:"OpenapiTags"`
-}
-
-func TestParser_GenOptions(t *testing.T) {
-	Encode(&ServiceOptions{})
 }
 
 func TestParser_Parse(t *testing.T) {
@@ -44,9 +42,7 @@ func TestParser_Parse(t *testing.T) {
 		t.Fatal("AST loader failed")
 	}
 
-	d := NewDecoder(astLoader)
-
-	modules, err := d.Decode()
+	modules, err := option.Decode(astLoader.Pkg(), astLoader.Pkgs(), astLoader.CommentFuncs())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,7 +20,7 @@ type EndpointOption struct {
 }
 
 type endpoint struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options endpointOptionsGateway
 	i       *importer.Importer
 }

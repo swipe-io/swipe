@@ -19,7 +19,7 @@ type httpTransportOptionsGateway interface {
 }
 
 type httpTransport struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options httpTransportOptionsGateway
 	i       *importer.Importer
 }

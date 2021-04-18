@@ -20,7 +20,7 @@ type jsonRPCGoClientOptionsGateway interface {
 }
 
 type jsonRPCGoClient struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options jsonRPCGoClientOptionsGateway
 	i       *importer.Importer
 }

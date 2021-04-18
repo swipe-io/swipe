@@ -23,7 +23,7 @@ type loggingGeneratorOptionsGateway interface {
 }
 
 type logging struct {
-	writer.GoLangWriter
+	writer.GoWriter
 	options loggingGeneratorOptionsGateway
 	i       *importer.Importer
 }
@@ -62,7 +62,7 @@ func (g *logging) Process(ctx context.Context) error {
 					return errors.New(m.Name + " using LoggingContext need added context var")
 				}
 				for name, key := range mopt.LoggingContext {
-					var buf writer.GoLangWriter
+					var buf writer.GoWriter
 					buf.W("ctx.Value(")
 					writer.WriteAST(&buf, g.i, key)
 					buf.W(")")

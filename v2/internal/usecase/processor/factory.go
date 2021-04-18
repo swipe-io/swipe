@@ -1,8 +1,6 @@
 package processor
 
-import "github.com/swipe-io/swipe/v2/internal/option"
-
-type FactoryFn func(o *option.ResultOption, opr *option.Result) (Processor, error)
+type FactoryFn func(o *_option.ResultOption, opr *_option.Result) (Processor, error)
 
 type Factory interface {
 	Register(name string, fn FactoryFn, optFn func() []byte)
