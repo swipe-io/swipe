@@ -299,7 +299,7 @@ func (g *restServer) writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, j
 
 	g.W("func defaultErrorEncoder(ctx %s.Context, err error, ", contextPkg)
 	if g.options.UseFast() {
-		g.W("w %s.RequestCtx) {\n", httpPkg)
+		g.W("w *%s.RequestCtx) {\n", httpPkg)
 	} else {
 		g.W("w %s.ResponseWriter) {\n", httpPkg)
 	}
