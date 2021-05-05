@@ -9,11 +9,12 @@ import (
 	"sort"
 	stdstrings "strings"
 
+	openapi2 "github.com/swipe-io/swipe/v2/internal/plugin/gokit/openapi"
+
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/errors"
 	"github.com/swipe-io/swipe/v2/internal/graph"
-	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
@@ -35,8 +36,8 @@ type ServiceGateway struct {
 	errors                   map[uint32]*model.HTTPError
 	openapiEnable            bool
 	openapiOutput            string
-	openapiInfo              openapi.Info
-	openapiServers           []openapi.Server
+	openapiInfo              openapi2.Info
+	openapiServers           []openapi2.Server
 	openapiMethodTags        map[string][]string
 	openapiDefaultMethodTags []string
 	jsonRPCEnable            bool
@@ -125,11 +126,11 @@ func (g *ServiceGateway) OpenapiOutput() string {
 	return g.openapiOutput
 }
 
-func (g *ServiceGateway) OpenapiInfo() openapi.Info {
+func (g *ServiceGateway) OpenapiInfo() openapi2.Info {
 	return g.openapiInfo
 }
 
-func (g *ServiceGateway) OpenapiServers() []openapi.Server {
+func (g *ServiceGateway) OpenapiServers() []openapi2.Server {
 	return g.openapiServers
 }
 
@@ -547,38 +548,38 @@ func (g *ServiceGateway) loadOpenapi(o *_option.Option) (err error) {
 	if _, ok := o.At("OpenapiEnable"); ok {
 		g.openapiEnable = true
 	}
-	if v, ok := o.At("OpenapiOutput"); ok {
+	if v, ok := o.At("Output"); ok {
 		g.openapiOutput = v.Value.String()
 	}
-	if v, ok := o.At("OpenapiInfo"); ok {
-		g.openapiInfo = openapi.Info{
+	if v, ok := o.At("Info"); ok {
+		g.openapiInfo = openapi2.Info{
 			Title:       _option.MustOption(v.At("title")).Value.String(),
 			Description: _option.MustOption(v.At("description")).Value.String(),
 			Version:     _option.MustOption(v.At("version")).Value.String(),
 		}
 	}
 	if v, ok := o.At("OpenapiContact"); ok {
-		g.openapiInfo.Contact = &openapi.Contact{
+		g.openapiInfo.Contact = &openapi2.Contact{
 			Name:  _option.MustOption(v.At("name")).Value.String(),
 			Email: _option.MustOption(v.At("email")).Value.String(),
 			URL:   _option.MustOption(v.At("url")).Value.String(),
 		}
 	}
 	if v, ok := o.At("OpenapiLicence"); ok {
-		g.openapiInfo.License = &openapi.License{
+		g.openapiInfo.License = &openapi2.License{
 			Name: _option.MustOption(v.At("name")).Value.String(),
 			URL:  _option.MustOption(v.At("url")).Value.String(),
 		}
 	}
 	if s, ok := o.Slice("OpenapiServer"); ok {
 		for _, v := range s {
-			g.openapiServers = append(g.openapiServers, openapi.Server{
+			g.openapiServers = append(g.openapiServers, openapi2.Server{
 				Description: _option.MustOption(v.At("description")).Value.String(),
 				URL:         _option.MustOption(v.At("url")).Value.String(),
 			})
 		}
 	}
-	if openapiTags, ok := o.Slice("OpenapiTags"); ok {
+	if openapiTags, ok := o.Slice("Tags"); ok {
 		for _, openapiTagsOpt := range openapiTags {
 			var methods []string
 			if methodsOpt, ok := openapiTagsOpt.At("methods"); ok {

@@ -305,15 +305,15 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 
 	//g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
 	//	if named, ok := key.(*stdtypes.Named); ok {
-	//		b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic)
+	//		b, ok := named.Named().Type().Underlying().(*stdtypes.Basic)
 	//		if !ok {
 	//			return
 	//		}
 	//
-	//		g.W("export const %sEnum = Object.freeze({\n", named.Obj().IfaceUcName())
+	//		g.W("export const %sEnum = Object.freeze({\n", named.Named().IfaceUcName())
 	//
 	//		for _, enum := range value.([]model.Enum) {
-	//			value := enum.Value
+	//			value := enum.ValueType
 	//			if b.Info() == stdtypes.IsString {
 	//				value = strconv.Quote(value)
 	//			}

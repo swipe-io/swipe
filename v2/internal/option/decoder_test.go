@@ -26,7 +26,7 @@ type OpenapiTag struct {
 type ServiceOptions struct {
 	HTTPServer  *struct{}
 	Interfaces  []*Interface `mapstructure:"Interface"`
-	OpenapiTags *OpenapiTag  `mapstructure:"OpenapiTags"`
+	OpenapiTags *OpenapiTag  `mapstructure:"Tags"`
 }
 
 func TestParser_Parse(t *testing.T) {
@@ -42,7 +42,7 @@ func TestParser_Parse(t *testing.T) {
 		t.Fatal("AST loader failed")
 	}
 
-	modules, err := option.Decode(astLoader.Pkg(), astLoader.Pkgs(), astLoader.CommentFuncs())
+	modules, err := option.Decode(astLoader.Pkg(), astLoader.Pkgs(), astLoader.CommentFuncs(), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

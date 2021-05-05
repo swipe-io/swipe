@@ -2,26 +2,24 @@ package option
 
 import (
 	"errors"
+	"fmt"
 	goast "go/ast"
 	"go/constant"
 	"go/token"
 	stdtypes "go/types"
 
+	"github.com/swipe-io/swipe/v2/internal/graph"
+
+	"golang.org/x/tools/go/types/typeutil"
+
 	"github.com/fatih/structtag"
 
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/annotation"
-	"github.com/swipe-io/swipe/v2/internal/types"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 )
-
-type namedObject interface {
-	Exported() bool
-	Name() string
-	Pkg() *stdtypes.Package
-}
 
 type Build struct {
 	Pkg      *PackageType
@@ -40,66 +38,55 @@ type Result struct {
 }
 
 type Decoder struct {
-	pkg          *packages.Package
-	pkgs         []*packages.Package
-	commentFuncs map[string][]string
+	pkg            *packages.Package
+	pkgs           []*packages.Package
+	commentFuncMap map[string][]string
+	callGraph      *graph.Graph
+	findStmt       func(p *stdtypes.Interface)
+	typesCache     map[uint32]interface{}
+	hasher         typeutil.Hasher
 }
 
-func normalizeName(v namedObject) NameType {
+func normalizeName(name string, exported bool) NameType {
 	nt := NameType{}
-
-	nt.Origin = v.Name()
-
-	if v.Exported() {
-		nt.UpperCase = v.Name()
-		nt.Var = strcase.ToLowerCamel(v.Name())
+	nt.Origin = name
+	if exported {
+		nt.UpperCase = name
+		nt.Var = strcase.ToLowerCamel(name)
 		nt.LowerCase = nt.Var
 	} else {
-		nt.UpperCase = strcase.ToCamel(v.Name())
-		nt.Var = v.Name()
+		nt.UpperCase = strcase.ToCamel(name)
+		nt.Var = name
 		nt.LowerCase = nt.Var
 	}
 	return nt
 }
 
-func (d *Decoder) normalizeVar(t *stdtypes.Var, comment string) *VarType {
+func (d *Decoder) normalizeVar(pkg *packages.Package, t *stdtypes.Var, comment string, visited map[uint32]interface{}) *VarType {
 	if t == nil {
 		return nil
 	}
-	var pkg *PackageType
-	if t.Pkg() != nil {
-		pkg = &PackageType{
-			Name: t.Pkg().Name(),
-			Path: t.Pkg().Path(),
-		}
-	}
 	return &VarType{
-		Name:     normalizeName(t),
+		Name:     normalizeName(t.Name(), t.Exported()),
 		Embedded: t.Embedded(),
 		Exported: t.Exported(),
 		IsField:  t.IsField(),
-		Type:     d.normalizeType(t.Type().Underlying(), pkg, false),
+		Type:     d.normalizeType(pkg, t.Type(), false, visited),
 		Zero:     zeroValue(t.Type().Underlying()),
 		Comment:  comment,
 	}
 }
 
-func (d *Decoder) normalizeStruct(obj *stdtypes.TypeName, t *stdtypes.Struct, pkg *PackageType, isPointer bool) *StructType {
+func (d *Decoder) normalizeStruct(pkg *packages.Package, t *stdtypes.Struct, isPointer bool, visited map[uint32]interface{}) *StructType {
 	if t == nil {
 		return nil
 	}
-	var name NameType
-	if obj != nil {
-		name = normalizeName(obj)
-	}
 	result := &StructType{
-		Name:      name,
-		Pkg:       pkg,
 		IsPointer: isPointer,
 	}
 	for i := 0; i < t.NumFields(); i++ {
 		f := &StructFieldType{
-			Var: d.normalizeVar(t.Field(i), ""),
+			Var: d.normalizeVar(pkg, t.Field(i), "", visited),
 		}
 		if tags, err := structtag.Parse(t.Tag(i)); err == nil {
 			f.Tags = tags
@@ -109,29 +96,64 @@ func (d *Decoder) normalizeStruct(obj *stdtypes.TypeName, t *stdtypes.Struct, pk
 	return result
 }
 
-func (d *Decoder) normalizeType(t stdtypes.Type, pkg *PackageType, isPointer bool) interface{} {
+func (d *Decoder) normalizeType(pkg *packages.Package, t interface{}, isPointer bool, visited map[uint32]interface{}) interface{} {
 	switch t := t.(type) {
 	case *stdtypes.Map:
-		return d.normalizeMap(t.Key(), t.Elem(), pkg, isPointer)
+		return d.normalizeMap(pkg, t.Key(), t.Elem(), isPointer, visited)
 	case *stdtypes.Slice:
-		return d.normalizeSlice(t.Elem(), pkg, isPointer)
+		return d.normalizeSlice(pkg, t.Elem(), isPointer, visited)
 	case *stdtypes.Array:
-		return d.normalizeArray(t.Elem(), t.Len(), pkg, isPointer)
+		return d.normalizeArray(pkg, t.Elem(), t.Len(), isPointer, visited)
 	case *stdtypes.Pointer:
-		return d.normalizeType(t.Elem(), pkg, true)
+		return d.normalizeType(pkg, t.Elem(), true, visited)
 	case *stdtypes.Struct:
-		return d.normalizeStruct(nil, t, pkg, isPointer)
+		return d.normalizeStruct(pkg, t, isPointer, visited)
 	case *stdtypes.Signature:
-		return d.normalizeSignature(t, nil)
+		return d.normalizeSignature(pkg, t, nil, visited)
+	case *stdtypes.Interface:
+		return d.normalizeInterface(pkg, t, visited)
 	case *stdtypes.Named:
-		switch tt := t.Obj().Type().Underlying().(type) {
-		case *stdtypes.Interface:
-			return d.normalizeInterface(t.Obj(), tt, pkg)
-		case *stdtypes.Struct:
-			return d.normalizeStruct(t.Obj(), tt, pkg, isPointer)
-		}
+		return d.normalizeNamed(pkg, t, isPointer, visited)
 	case *stdtypes.Basic:
 		return d.normalizeBasic(t, isPointer)
+	}
+	return nil
+}
+
+func (d *Decoder) normalizeNamed(pkg *packages.Package, named *stdtypes.Named, isPointer bool, visited map[uint32]interface{}) *NamedType {
+	k := d.hasher.Hash(named)
+	if v, ok := visited[k]; ok {
+		return v.(*NamedType)
+	}
+
+	nt := &NamedType{
+		Pkg:       d.normalizePkg(named.Obj().Pkg()),
+		IsPointer: isPointer,
+	}
+
+	visited[k] = nt
+
+	nt.Name = normalizeName(named.Obj().Name(), named.Obj().Exported())
+	nt.Type = d.normalizeType(pkg, named.Obj().Type().Underlying(), false, visited)
+
+	for i := 0; i < named.NumMethods(); i++ {
+		nt.Methods = append(nt.Methods, d.normalizeFunc(pkg, named.Method(i), visited))
+	}
+	return nt
+}
+
+func (d *Decoder) normalizePkg(pkg *stdtypes.Package) *PackageType {
+	if pkg != nil {
+		var module *ModuleType
+		fndPkg := findPkgByID(d.pkgs, pkg.Path())
+		if fndPkg != nil {
+			module = d.normalizeModule(fndPkg.Module)
+		}
+		return &PackageType{
+			Name:   pkg.Name(),
+			Path:   pkg.Path(),
+			Module: module,
+		}
 	}
 	return nil
 }
@@ -144,111 +166,110 @@ func (d *Decoder) normalizeBasic(t *stdtypes.Basic, isPointer bool) *BasicType {
 	}
 }
 
-func (d *Decoder) normalizeInterface(obj *stdtypes.TypeName, t *stdtypes.Interface, pkg *PackageType) *IfaceType {
-	it := &IfaceType{
-		Name: normalizeName(obj),
-		Pkg:  pkg,
-	}
+func (d *Decoder) normalizeInterface(pkg *packages.Package, t *stdtypes.Interface, visited map[uint32]interface{}) *IfaceType {
+	it := &IfaceType{}
+
+	d.findStmt(t)
+
 	for i := 0; i < t.NumMethods(); i++ {
-		it.Methods = append(it.Methods, d.normalizeFunc(t.Method(i)))
+		it.Methods = append(it.Methods, d.normalizeFunc(pkg, t.Method(i), visited))
 	}
 	for i := 0; i < t.NumEmbeddeds(); i++ {
-		it.Embeddeds = append(it.Embeddeds, d.normalizeType(t.EmbeddedType(i), nil, false))
+		it.Embeddeds = append(it.Embeddeds, d.normalizeType(pkg, t.EmbeddedType(i), false, visited))
 	}
 	for i := 0; i < t.NumExplicitMethods(); i++ {
-		it.ExplicitMethods = append(it.ExplicitMethods, d.normalizeFunc(t.ExplicitMethod(i)))
+		it.ExplicitMethods = append(it.ExplicitMethods, d.normalizeFunc(pkg, t.ExplicitMethod(i), visited))
 	}
 	return it
 }
 
-func (d *Decoder) normalizeFunc(t *stdtypes.Func) *FuncType {
-	comments := d.commentFuncs[t.String()]
-
+func (d *Decoder) normalizeFunc(pkg *packages.Package, t *stdtypes.Func, visited map[uint32]interface{}) *FuncType {
+	comments := d.commentFuncMap[t.String()]
 	comment, paramsComment := parseMethodComments(comments)
 
 	return &FuncType{
 		FullName: t.FullName(),
-		Name:     normalizeName(t),
+		Name:     normalizeName(t.Name(), t.Exported()),
 		Exported: t.Exported(),
-		Sig:      d.normalizeSignature(t.Type().(*stdtypes.Signature), paramsComment),
+		Sig:      d.normalizeSignature(pkg, t.Type().(*stdtypes.Signature), paramsComment, visited),
 		Comment:  comment,
 	}
 }
 
-func (d *Decoder) normalizeSignature(t *stdtypes.Signature, comments map[string]string) *SignType {
+func (d *Decoder) normalizeSignature(pkg *packages.Package, t *stdtypes.Signature, comments map[string]string, visited map[uint32]interface{}) *SignType {
 	if t == nil {
 		return nil
 	}
+	k := d.hasher.Hash(t)
+	if v, ok := visited[k]; ok {
+		return v.(*SignType)
+	}
+
 	st := &SignType{
-		Recv: d.normalizeVar(t.Recv(), ""),
+		IsVariadic: t.Variadic(),
 	}
-	var paramOffset int
-	if t.Variadic() {
-		st.Variadic = d.normalizeVar(t.Params().At(t.Params().Len()-1), "")
-		paramOffset = 1
+
+	visited[k] = st
+
+	if t.Recv() != nil {
+		st.Recv = d.normalizeType(pkg, t.Recv().Type(), false, visited)
 	}
-	for i := 0; i < t.Params().Len()-paramOffset; i++ {
+
+	for i := 0; i < t.Params().Len(); i++ {
 		v := t.Params().At(i)
-		if types.IsContext(v.Type()) {
-			st.Ctx = d.normalizeVar(v, "")
-			continue
-		}
-		st.Params = append(st.Params, d.normalizeVar(v, comments[v.Name()]))
+		nv := d.normalizeVar(pkg, v, comments[v.Name()], visited)
+		st.Params = append(st.Params, nv)
+	}
+	if t.Variadic() {
+		st.Params[len(st.Params)-1].IsVariadic = true
 	}
 	for i := 0; i < t.Results().Len(); i++ {
 		v := t.Results().At(i)
-		if i == 0 && v.Name() != "" {
-			st.ResultNamed = true
+		nv := d.normalizeVar(pkg, v, comments[v.Name()], visited)
+		if nv.Name.Origin == "" {
+			nv.Name = normalizeName(fmt.Sprintf("r%d", i+1), v.Exported())
 		}
-		if types.IsError(v.Type()) {
-			st.Err = d.normalizeVar(v, "")
-			continue
-		}
-		st.Results = append(st.Results, d.normalizeVar(v, ""))
+		st.Results = append(st.Results, nv)
 	}
 	return st
 }
 
-func (d *Decoder) normalizeMap(key stdtypes.Type, val stdtypes.Type, pkg *PackageType, isPointer bool) *MapType {
+func (d *Decoder) normalizeMap(pkg *packages.Package, key stdtypes.Type, val stdtypes.Type, isPointer bool, visited map[uint32]interface{}) *MapType {
 	mapType := &MapType{IsPointer: isPointer}
-	mapType.Key = d.normalizeType(key, pkg, false)
-	mapType.Value = d.normalizeType(val, pkg, false)
+	mapType.KeyType = d.normalizeType(pkg, key, false, visited)
+	mapType.ValueType = d.normalizeType(pkg, val, false, visited)
 	return mapType
 }
 
-func (d *Decoder) normalizeSlice(val stdtypes.Type, pkg *PackageType, isPointer bool) *SliceType {
+func (d *Decoder) normalizeSlice(pkg *packages.Package, val stdtypes.Type, isPointer bool, visited map[uint32]interface{}) *SliceType {
 	return &SliceType{
-		Value:     d.normalizeType(val, pkg, false),
+		ValueType: d.normalizeType(pkg, val, false, visited),
 		IsPointer: isPointer,
 	}
 }
 
-func (d *Decoder) normalizeArray(val stdtypes.Type, len int64, pkg *PackageType, isPointer bool) *ArrayType {
+func (d *Decoder) normalizeArray(pkg *packages.Package, val stdtypes.Type, len int64, isPointer bool, visited map[uint32]interface{}) *ArrayType {
 	return &ArrayType{
-		Value:     d.normalizeType(val, pkg, false),
+		ValueType: d.normalizeType(pkg, val, false, visited),
 		Len:       len,
 		IsPointer: isPointer,
 	}
 }
 
-func (d *Decoder) normalizeObject(obj stdtypes.Object) interface{} {
-	var pkg *PackageType
-	if obj.Pkg() != nil {
-		pkg = &PackageType{}
-		fndPkg := findPkgByID(d.pkgs, obj.Pkg().Path())
-		if fndPkg != nil {
-			pkg.Name = fndPkg.Name
-			pkg.Path = fndPkg.PkgPath
-			if fndPkg.Module != nil {
-				pkg.Module = &ModuleType{
-					Version:  fndPkg.Module.Version,
-					Path:     fndPkg.Module.Path,
-					External: fndPkg.Module.Path != d.pkg.Module.Path,
-				}
-			}
+func (d *Decoder) normalize(pkg *packages.Package, obj stdtypes.Object) interface{} {
+	return d.normalizeType(pkg, obj.Type(), false, map[uint32]interface{}{})
+}
+
+func (d *Decoder) normalizeModule(module *packages.Module) *ModuleType {
+	if module != nil {
+		return &ModuleType{
+			Version:  module.Version,
+			Path:     module.Path,
+			Dir:      module.Dir,
+			External: module.Path != d.pkg.Module.Path,
 		}
 	}
-	return d.normalizeType(obj.Type(), pkg, false)
+	return nil
 }
 
 func (d *Decoder) normalizePosition(pos token.Position) *PositionType {
@@ -266,28 +287,19 @@ func (d *Decoder) decodeRecursive(pkg *packages.Package, expr goast.Expr) (inter
 	case *goast.CompositeLit:
 		switch vt := e.Type.(type) {
 		case *goast.SelectorExpr:
-			return d.normalizeObject(pkg.TypesInfo.Uses[vt.Sel]), nil
+			return d.normalize(pkg, pkg.TypesInfo.Uses[vt.Sel]), nil
 		case *goast.Ident:
-			return d.normalizeObject(pkg.TypesInfo.Uses[vt]), nil
+			return d.normalize(pkg, pkg.TypesInfo.Uses[vt]), nil
 		case *goast.ArrayType:
 			switch elt := vt.Elt.(type) {
 			default:
-				var value []*SelectorType
+				var value []interface{}
 				for _, expr := range e.Elts {
-					if selExpr, ok := expr.(*goast.SelectorExpr); ok {
-						var (
-							selObj stdtypes.Object
-							xObj   stdtypes.Object
-						)
-						selObj = pkg.TypesInfo.Uses[selExpr.Sel]
-						if xIdent, ok := selExpr.X.(*goast.Ident); ok {
-							xObj = pkg.TypesInfo.Uses[xIdent]
-						}
-
-						value = append(value, &SelectorType{
-							Sel: d.normalizeObject(selObj),
-							X:   d.normalizeObject(xObj),
-						})
+					switch st := expr.(type) {
+					case *goast.SelectorExpr:
+						value = append(value, d.normalizeSelector(pkg, pkg.TypesInfo.Uses[st.Sel]))
+					default:
+						return nil, errors.New("fail")
 					}
 				}
 				return value, nil
@@ -297,7 +309,6 @@ func (d *Decoder) decodeRecursive(pkg *packages.Package, expr goast.Expr) (inter
 					return makeStringSlice(e.Elts, pkg.TypesInfo), nil
 				}
 			}
-
 		}
 	case *goast.BasicLit:
 		var value interface{}
@@ -307,7 +318,13 @@ func (d *Decoder) decodeRecursive(pkg *packages.Package, expr goast.Expr) (inter
 		}
 		return value, nil
 	case *goast.Ident:
-		return d.normalizeObject(pkg.TypesInfo.Uses[e]), nil
+		switch e.Name {
+		case "true":
+			return true, nil
+		case "false":
+			return false, nil
+		}
+		return d.normalize(nil, pkg.TypesInfo.Uses[e]), nil
 	case *goast.StarExpr:
 		return d.decodeRecursive(pkg, e.X)
 	case *goast.UnaryExpr:
@@ -315,7 +332,11 @@ func (d *Decoder) decodeRecursive(pkg *packages.Package, expr goast.Expr) (inter
 	case *goast.ParenExpr:
 		return d.decodeRecursive(pkg, e.X)
 	case *goast.SelectorExpr:
-		return d.normalizeObject(pkg.TypesInfo.Uses[e.Sel]), nil
+		_, err := d.decodeRecursive(pkg, e.X)
+		if err != nil {
+			return nil, err
+		}
+		return d.normalizeSelector(pkg, pkg.TypesInfo.Uses[e.Sel]), nil
 	case *goast.CallExpr:
 		return d.decodeRecursive(pkg, e.Fun)
 	}
@@ -325,8 +346,8 @@ func (d *Decoder) decodeRecursive(pkg *packages.Package, expr goast.Expr) (inter
 func (d *Decoder) callDecodeArgs(pkg *packages.Package, obj stdtypes.Object, args []goast.Expr) (map[string]interface{}, error) {
 	result := map[string]interface{}{}
 	sig := obj.Type().(*stdtypes.Signature)
-
 	for i, arg := range args {
+		//exprPos := pkg.Fset.Position(arg.Pos())
 		if callExpr, ok := arg.(*goast.CallExpr); ok {
 			fnExpr := astutil.Unparen(callExpr.Fun)
 			if _, ok := fnExpr.(*goast.StarExpr); !ok {
@@ -339,7 +360,7 @@ func (d *Decoder) callDecodeArgs(pkg *packages.Package, obj stdtypes.Object, arg
 					return nil, err
 				}
 				var valueType string
-				comments := d.commentFuncs[obj.String()]
+				comments := d.commentFuncMap[obj.String()]
 				for _, comment := range comments {
 					if annotationOpts, _ := annotation.Parse(comment); annotationOpts != nil {
 						if annotationOpt, err := annotationOpts.Get("type"); err == nil {
@@ -438,10 +459,22 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 	return
 }
 
-func Decode(pkg *packages.Package, pkgs []*packages.Package, commentFuncs map[string][]string) (result map[string]*Module, err error) {
+func (d *Decoder) normalizeSelector(pkg *packages.Package, obj stdtypes.Object) interface{} {
+	return &NamedType{
+		Name:      normalizeName(obj.Name(), obj.Exported()),
+		Type:      d.normalizeType(pkg, obj.Type().Underlying(), false, map[uint32]interface{}{}),
+		Pkg:       d.normalizePkg(obj.Pkg()),
+		IsPointer: false,
+	}
+}
+
+func Decode(pkg *packages.Package, pkgs []*packages.Package, commentFuncs map[string][]string, callGraph *graph.Graph, findStmt func(p *stdtypes.Interface)) (result map[string]*Module, err error) {
 	return (&Decoder{
-		pkg:          pkg,
-		pkgs:         pkgs,
-		commentFuncs: commentFuncs,
+		pkg:            pkg,
+		pkgs:           pkgs,
+		commentFuncMap: commentFuncs,
+		callGraph:      callGraph,
+		findStmt:       findStmt,
+		hasher:         typeutil.MakeHasher(),
 	}).decode()
 }

@@ -2,7 +2,7 @@ package configenv
 
 import (
 	"github.com/mitchellh/mapstructure"
-	option2 "github.com/swipe-io/swipe/v2/internal/option"
+	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/swipe"
 )
 
@@ -17,8 +17,8 @@ type Func struct {
 }
 
 type Config struct {
-	Struct *option2.StructType `mapstructure:"optionsStruct"`
-	Func   *Func               `mapstructure:"ConfigEnvFuncName"`
+	Struct *option.NamedType `mapstructure:"optionsStruct"`
+	Func   *Func             `mapstructure:"ConfigEnvFuncName"`
 }
 
 type Plugin struct {
@@ -37,8 +37,11 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	return
 }
 
-func (p *Plugin) Configure(cfg *swipe.Config, module *option2.Module, build *option2.Build, config interface{}) error {
-	return mapstructure.Decode(config, &p.config)
+func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *option.Build, options map[string]interface{}) []error {
+	if err := mapstructure.Decode(options, &p.config); err != nil {
+		return []error{err}
+	}
+	return nil
 }
 
 func (p *Plugin) ID() string {

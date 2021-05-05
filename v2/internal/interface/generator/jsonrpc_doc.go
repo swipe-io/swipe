@@ -102,7 +102,7 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 		g.W("```javascript\nimport API from \"%s\"\n```\n\n", pkgImport)
 		g.W("Create a transport, only one method needs to be implemented: `doRequest(Array.<Object>) PromiseLike<Object>`.\n\n")
 		g.W("For example:\n\n```javascript\nclass FetchTransport {\n    constructor(url) {\n      this.url = url;\n    }\n\n    doRequest(requests) {\n        return fetch(this.url, {method: \"POST\", body: JSON.stringify(requests)})\n    }\n}\n```\n\n")
-		g.W("Now for a complete example:\n\n```javascript\nimport API from \"%s\"\nimport Transport from \"transport\"\n\nconst api = new API(new Transport(\"http://127.0.0.1\"))\n\n// call method here.\n```\n\n", pkgImport)
+		g.W("Now for a complete example:\n\n```javascript\nimport API from \"%s\"\nimport Helpers from \"transport\"\n\nconst api = new API(new Helpers(\"http://127.0.0.1\"))\n\n// call method here.\n```\n\n", pkgImport)
 		g.W("## API\n## Methods\n\n")
 	}
 
@@ -255,10 +255,10 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 	//	g.options.Enums().Iterate(func(key stdtypes.Type, value interface{}) {
 	//		if named, ok := key.(*stdtypes.Named); ok {
 	//
-	//			enumName := named.Obj().Name()
+	//			enumName := named.Named().Name()
 	//
 	//			typeName := ""
-	//			if b, ok := named.Obj().Type().Underlying().(*stdtypes.Basic); ok {
+	//			if b, ok := named.Named().Type().Underlying().(*stdtypes.Basic); ok {
 	//				switch b.Info() {
 	//				default:
 	//					typeName = "string"
@@ -267,9 +267,9 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 	//				}
 	//			}
 	//			g.W("### <a name=\"%[1]s\"></a> %[1]sEnum <code>%[2]s</code>\n\n", enumName, typeName)
-	//			g.W("| Name | Value | Description |\n|------|------|------|\n")
+	//			g.W("| Name | ValueType | Description |\n|------|------|------|\n")
 	//			for _, enum := range value.([]model.Enum) {
-	//				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")
+	//				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.ValueType, "")
 	//			}
 	//		}
 	//	})

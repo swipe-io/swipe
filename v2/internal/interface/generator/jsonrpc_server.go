@@ -128,7 +128,7 @@ func (g *jsonRPCServer) Process(ctx context.Context) error {
 
 	}
 
-	g.W("// HTTP Transport\n")
+	g.W("// HTTP Helpers\n")
 	g.W("func MakeHandlerJSONRPC(")
 
 	var external bool

@@ -139,9 +139,9 @@ func ServiceOptions() []byte {
 	w.W("// HTTPFast enable generate fast http server.\nfunc HTTPFast() ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
 
 	w.W("// OpenapiEnable enabled generate openapi documentation.\nfunc OpenapiEnable() ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
-	w.W("// OpenapiTags sets docs tags for method.\nfunc OpenapiTags(methods []interface{}, tags []string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
-	w.W("// OpenapiOutput sets output directory, path relative to the file, default is \"./\".\nfunc OpenapiOutput(string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
-	w.W("// OpenapiInfo sets info.\nfunc OpenapiInfo(title, description, version string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
+	w.W("// Tags sets docs tags for method.\nfunc Tags(methods []interface{}, tags []string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
+	w.W("// Output sets output directory, path relative to the file, default is \"./\".\nfunc Output(string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
+	w.W("// Info sets info.\nfunc Info(title, description, version string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
 	w.W("// OpenapiContact sets openapi contact.\nfunc OpenapiContact(name, email, url string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
 	w.W("// OpenapiLicence sets openapi licence.\nfunc OpenapiLicence(name, url string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")
 	w.W("// OpenapiServer sets openapi server.\nfunc OpenapiServer(description, url string) ServiceOption {\n\treturn \"implementation not generated, run swipe\"\n}\n\n")

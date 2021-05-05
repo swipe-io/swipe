@@ -114,7 +114,7 @@ func zeroValue(t types.Type) string {
 		switch {
 		case info&types.IsBoolean != 0:
 			return "false"
-		case info&(types.IsInteger|types.IsFloat|types.IsComplex) != 0:
+		case info&(types.IsInteger|types.IsFloat|types.IsComplex|types.IsUnsigned) != 0:
 			return "0"
 		case info&types.IsString != 0:
 			return `""`
@@ -123,7 +123,7 @@ func zeroValue(t types.Type) string {
 		}
 	case *types.Struct:
 		return "{}"
-	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
+	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return "nil"
 	default:
 		panic("unreachable")

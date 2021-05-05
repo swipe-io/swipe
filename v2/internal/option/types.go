@@ -14,19 +14,24 @@ type NameType struct {
 	Var       string
 }
 
+func (n NameType) String() string {
+	return n.Origin
+}
+
+type VarsType []*VarType
+
 type VarType struct {
-	Name     NameType
-	Embedded bool
-	Exported bool
-	IsField  bool
-	Type     interface{}
-	Comment  string
-	Zero     string
+	Name       NameType
+	Embedded   bool
+	Exported   bool
+	IsField    bool
+	IsVariadic bool
+	Type       interface{}
+	Comment    string
+	Zero       string
 }
 
 type StructType struct {
-	Name      NameType
-	Pkg       *PackageType
 	Fields    []*StructFieldType
 	IsPointer bool
 }
@@ -37,18 +42,10 @@ type StructFieldType struct {
 }
 
 type SignType struct {
-	Ctx         *VarType
-	Err         *VarType
-	Recv        *VarType
-	Variadic    *VarType
-	Params      []*VarType
-	Results     []*VarType
-	ResultNamed bool
-}
-
-type NamedType struct {
-	Name    NameType
-	Methods []*FuncType
+	Params     VarsType
+	Results    VarsType
+	IsVariadic bool
+	Recv       interface{}
 }
 
 type FuncType struct {
@@ -60,16 +57,15 @@ type FuncType struct {
 }
 
 type IfaceType struct {
-	Name            NameType
 	Methods         []*FuncType
 	Embeddeds       []interface{}
 	ExplicitMethods []*FuncType
-	Pkg             *PackageType
 }
 
 type ModuleType struct {
 	Version  string
 	Path     string
+	Dir      string
 	External bool
 }
 
@@ -77,6 +73,14 @@ type PackageType struct {
 	Name   string
 	Path   string
 	Module *ModuleType
+}
+
+type NamedType struct {
+	Name      NameType
+	Type      interface{}
+	Pkg       *PackageType
+	Methods   []*FuncType
+	IsPointer bool
 }
 
 type BasicType struct {
@@ -198,6 +202,10 @@ func (t BasicType) IsBool() bool {
 	return t.kind == stdtypes.Bool
 }
 
+func (t BasicType) IsByte() bool {
+	return t.kind == stdtypes.Byte
+}
+
 type SelectorType struct {
 	Sel interface{}
 	X   interface{}
@@ -212,18 +220,18 @@ type PositionType struct {
 }
 
 type MapType struct {
-	Key       interface{}
-	Value     interface{}
+	KeyType   interface{}
+	ValueType interface{}
 	IsPointer bool
 }
 
 type SliceType struct {
-	Value     interface{}
+	ValueType interface{}
 	IsPointer bool
 }
 
 type ArrayType struct {
-	Value     interface{}
+	ValueType interface{}
 	Len       int64
 	IsPointer bool
 }

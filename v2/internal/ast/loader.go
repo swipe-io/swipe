@@ -1,15 +1,15 @@
 package ast
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/token"
 	stdtypes "go/types"
 	"strconv"
 	stdstrings "strings"
+
+	"golang.org/x/tools/go/ast/astutil"
 
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/graph"
@@ -33,8 +33,113 @@ type Loader struct {
 	commentFuncs  map[string][]string
 	commentFields map[string]map[string]string
 	pkgs          []*packages.Package
-	graphTypes    *graph.Graph
+	callGraph     *graph.Graph
 	enums         *typeutil.Map
+}
+
+func (l *Loader) findFuncByName(name string) (f *ast.FuncDecl) {
+	for _, pkg := range l.pkgs {
+		for _, syntax := range pkg.Syntax {
+			astutil.Apply(syntax, nil, func(cursor *astutil.Cursor) bool {
+				if cursor.Name() == "Decls" {
+					var ok bool
+					if f, ok = cursor.Node().(*ast.FuncDecl); ok && f.Name.Name == name {
+						return false
+					}
+				}
+				return true
+			})
+		}
+	}
+	return
+}
+
+func (l *Loader) findCall(n ast.Node) *ast.CallExpr {
+
+	astutil.Apply(n, nil, func(cursor *astutil.Cursor) bool {
+
+		return true
+	})
+
+	return nil
+}
+
+func (l *Loader) findErrors(f *ast.FuncDecl) {
+	for _, stmt := range f.Body.List {
+		if n, ok := stmt.(*ast.ReturnStmt); ok {
+			for _, result := range n.Results {
+
+				switch t := result.(type) {
+				case *ast.UnaryExpr:
+
+					if ex, ok := t.X.(*ast.CompositeLit); ok {
+						if id, ok := ex.Type.(*ast.Ident); ok {
+							fmt.Println(id.Name)
+						}
+					}
+
+				case *ast.CallExpr:
+					if id, ok := t.Fun.(*ast.Ident); ok {
+						if id.Obj != nil {
+							switch nf := id.Obj.Decl.(type) {
+							case *ast.FuncDecl:
+								l.findErrors(nf)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (l *Loader) FindStmt(vIface *stdtypes.Interface) {
+	//f := l.findFuncByName(obj.Name())
+	//l.findErrors(f)
+	for _, pkg := range l.pkgs {
+		for _, obj := range pkg.TypesInfo.Uses {
+			if _, ok := obj.Type().Underlying().(*stdtypes.Struct); ok {
+				imp := stdtypes.Implements(stdtypes.NewPointer(obj.Type()).Underlying(), vIface)
+				if imp {
+					for _, p := range l.pkgs {
+						for _, s := range p.Syntax {
+							for _, decl := range s.Decls {
+								v := decl.(*ast.FuncDecl)
+
+								//p.TypesInfo.TypeOf(decl)
+							}
+						}
+					}
+
+					//n := obj.Type().(*stdtypes.Named).NumMethods()
+
+					//stdtypes.Identical()
+
+					//for i := 0; i < n; i++ {
+					//	fmt.Println(obj.Type().(*stdtypes.Named).Method(i).Id())
+					//}
+
+					//fmt.Println(imp, obj.Type(), n)
+				}
+			}
+		}
+
+		//for _, scope := range pkg.TypesInfo.Scopes {
+		//	for _, name := range scope.Names() {
+		//		obj := scope.Lookup(name)
+		//		if _, ok := obj.Type().Underlying().(*stdtypes.Struct); ok {
+		//			ptr := stdtypes.NewPointer(obj.Type())
+		//			imp := stdtypes.Implements(ptr.Underlying(), vIface)
+		//
+		//			fmt.Println(imp)
+		//		}
+		//	}
+		//}
+	}
+}
+
+func (l *Loader) CallGraph() *graph.Graph {
+	return l.callGraph
 }
 
 func (l *Loader) CommentFields() map[string]map[string]string {
@@ -53,41 +158,27 @@ func (l *Loader) Pkgs() []*packages.Package {
 	return l.pkgs
 }
 
-func mode(tv stdtypes.TypeAndValue) string {
-	switch {
-	case tv.IsVoid():
-		return "void"
-	case tv.IsType():
-		return "type"
-	case tv.IsBuiltin():
-		return "builtin"
-	case tv.IsNil():
-		return "nil"
-	case tv.Assignable():
-		if tv.Addressable() {
-			return "var"
-		}
-		return "map"
-	case tv.IsValue():
-		return "value"
-	default:
-		return "unknown"
-	}
-}
-
-func exprString(fset *token.FileSet, expr ast.Expr) string {
-	var buf bytes.Buffer
-	format.Node(&buf, fset, expr)
-	return buf.String()
-}
-
-func (l *Loader) Interface(expr ast.Expr) {
-	for _, pkg := range l.pkgs {
-		if t := pkg.TypesInfo.TypeOf(expr); t != nil {
-
-		}
-	}
-}
+//func mode(tv stdtypes.TypeAndValue) string {
+//	switch {
+//	case tv.IsVoid():
+//		return "void"
+//	case tv.IsType():
+//		return "type"
+//	case tv.IsBuiltin():
+//		return "builtin"
+//	case tv.IsNil():
+//		return "nil"
+//	case tv.Assignable():
+//		if tv.Addressable() {
+//			return "var"
+//		}
+//		return "map"
+//	case tv.IsValue():
+//		return "value"
+//	default:
+//		return "unknown"
+//	}
+//}
 
 func (l *Loader) Patterns() []string {
 	return l.patterns
@@ -101,45 +192,45 @@ func (l *Loader) WorkDir() string {
 	return l.wd
 }
 
-func (l *Loader) normalizeStmt(pkg *packages.Package, stmt ast.Stmt) interface{} {
-	switch v := stmt.(type) {
-	case *ast.SelectStmt:
-		return l.normalizeBlockStmt(nil, v.Body)
-	case *ast.RangeStmt:
-		return l.normalizeBlockStmt(nil, v.Body)
-	case *ast.ForStmt:
-		return l.normalizeBlockStmt(nil, v.Body)
-	case *ast.TypeSwitchStmt:
-		return l.normalizeBlockStmt(nil, v.Body)
-	case *ast.SwitchStmt:
-		return l.normalizeBlockStmt(nil, v.Body)
-	case *ast.IfStmt:
-		return l.normalizeBlockStmt(nil, v.Body)
-	case *ast.BlockStmt:
-		return l.normalizeBlockStmt(nil, v)
-	case *ast.ReturnStmt:
-		for _, result := range v.Results {
-			if callExpr, ok := result.(*ast.CallExpr); ok {
-
-				fmt.Println(callExpr.Fun)
-			}
-
-			//v := pkg.TypesInfo.Types[result]
-			//
-			//fmt.Println(v)
-
-		}
-	}
-
-	return nil
-}
-
-func (l *Loader) normalizeBlockStmt(pkg *packages.Package, blockStmt *ast.BlockStmt) interface{} {
-	for _, stmt := range blockStmt.List {
-		l.normalizeStmt(pkg, stmt)
-	}
-	return nil
-}
+//func (l *Loader) normalizeStmt(pkg *packages.Package, stmt ast.Stmt) interface{} {
+//	switch v := stmt.(type) {
+//	case *ast.SelectStmt:
+//		return l.normalizeBlockStmt(nil, v.Body)
+//	case *ast.RangeStmt:
+//		return l.normalizeBlockStmt(nil, v.Body)
+//	case *ast.ForStmt:
+//		return l.normalizeBlockStmt(nil, v.Body)
+//	case *ast.TypeSwitchStmt:
+//		return l.normalizeBlockStmt(nil, v.Body)
+//	case *ast.SwitchStmt:
+//		return l.normalizeBlockStmt(nil, v.Body)
+//	case *ast.IfStmt:
+//		return l.normalizeBlockStmt(nil, v.Body)
+//	case *ast.BlockStmt:
+//		return l.normalizeBlockStmt(nil, v)
+//	case *ast.ReturnStmt:
+//		for _, result := range v.Results {
+//			if callExpr, ok := result.(*ast.CallExpr); ok {
+//
+//				fmt.Println(callExpr.Fun)
+//			}
+//
+//			//v := pkg.TypesInfo.Types[result]
+//			//
+//			//fmt.Println(v)
+//
+//		}
+//	}
+//
+//	return nil
+//}
+//
+//func (l *Loader) normalizeBlockStmt(pkg *packages.Package, blockStmt *ast.BlockStmt) interface{} {
+//	for _, stmt := range blockStmt.List {
+//		l.normalizeStmt(pkg, stmt)
+//	}
+//	return nil
+//}
 
 func (l *Loader) run() (errs []error) {
 	var (
@@ -149,7 +240,7 @@ func (l *Loader) run() (errs []error) {
 
 	l.commentFuncs = map[string][]string{}
 	l.commentFields = map[string]map[string]string{}
-	l.graphTypes = graph.NewGraph()
+	l.callGraph = graph.NewGraph()
 	l.enums = new(typeutil.Map)
 
 	cfg := &packages.Config{
@@ -182,17 +273,6 @@ func (l *Loader) run() (errs []error) {
 		}
 	}
 
-	for _, pkg := range l.pkgs {
-		for _, syntax := range pkg.Syntax {
-			for _, decl := range syntax.Decls {
-				switch t := decl.(type) {
-				case *ast.FuncDecl:
-					l.normalizeBlockStmt(pkg, t.Body)
-				}
-			}
-		}
-	}
-
 	if len(errs) > 0 {
 		return errs
 	}
@@ -210,7 +290,7 @@ func (l *Loader) run() (errs []error) {
 							sp := spec.(*ast.TypeSpec)
 							obj := pkg.TypesInfo.ObjectOf(sp.Name)
 							if obj != nil {
-								l.graphTypes.Add(&graph.Node{Object: obj})
+								l.callGraph.Add(&graph.Node{Object: obj})
 							}
 						}
 					case token.CONST:
@@ -270,13 +350,9 @@ func (l *Loader) run() (errs []error) {
 					obj := pkg.TypesInfo.ObjectOf(v.Name)
 					if obj != nil {
 						n := &graph.Node{Object: obj}
-
-						l.graphTypes.Add(n)
-
+						l.callGraph.Add(n)
 						values, objects := visitBlockStmt(pkg, v.Body)
-
 						n.AddValue(values...)
-
 						astNodes = append(astNodes, nodeInfo{
 							node:    n,
 							objects: objects,
@@ -292,10 +368,10 @@ func (l *Loader) run() (errs []error) {
 			if sig, ok := obj.Type().(*stdtypes.Signature); ok {
 				if sig.Recv() != nil {
 					if _, ok := sig.Recv().Type().Underlying().(*stdtypes.Interface); ok {
-						l.graphTypes.Iterate(func(n *graph.Node) {
-							l.graphTypes.Traverse(n, func(n *graph.Node) bool {
+						l.callGraph.Iterate(func(n *graph.Node) {
+							l.callGraph.Traverse(n, func(n *graph.Node) bool {
 								if n.Object.Name() == obj.Name() && stdtypes.Identical(n.Object.Type(), obj.Type()) {
-									l.graphTypes.AddEdge(ni.node, n)
+									l.callGraph.AddEdge(ni.node, n)
 								}
 								return true
 							})
@@ -304,8 +380,8 @@ func (l *Loader) run() (errs []error) {
 					}
 				}
 			}
-			if nn := l.graphTypes.Node(obj); nn != nil {
-				l.graphTypes.AddEdge(ni.node, nn)
+			if nn := l.callGraph.Node(obj); nn != nil {
+				l.callGraph.AddEdge(ni.node, nn)
 			}
 		}
 	}

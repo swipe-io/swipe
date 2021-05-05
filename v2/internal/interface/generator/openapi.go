@@ -10,37 +10,37 @@ import (
 	stdstrings "strings"
 
 	"github.com/pquerna/ffjson/ffjson"
+
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	iftypevisitor "github.com/swipe-io/swipe/v2/internal/interface/typevisitor"
-
-	"github.com/swipe-io/swipe/v2/internal/openapi"
+	openapi2 "github.com/swipe-io/swipe/v2/internal/plugin/gokit/openapi"
 	"github.com/swipe-io/swipe/v2/internal/types"
 	"github.com/swipe-io/swipe/v2/internal/usecase/generator"
 	ustypevisitor "github.com/swipe-io/swipe/v2/internal/usecase/typevisitor"
 )
 
-func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
-	return openapi.Schemas{
+func getOpenapiJSONRPCErrorSchemas() openapi2.Schemas {
+	return openapi2.Schemas{
 		"ParseError": {
 			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
+			Properties: openapi2.Properties{
+				"jsonrpc": &openapi2.Schema{
 					Type:    "string",
 					Example: "2.0",
 				},
-				"id": &openapi.Schema{
+				"id": &openapi2.Schema{
 					Type:    "string",
 					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
 				},
-				"error": &openapi.Schema{
+				"error": &openapi2.Schema{
 					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
+					Properties: openapi2.Properties{
+						"code": &openapi2.Schema{
 							Type:    "integer",
 							Example: -32700,
 						},
-						"message": &openapi.Schema{
+						"message": &openapi2.Schema{
 							Type:    "string",
 							Example: "Parse error",
 						},
@@ -50,23 +50,23 @@ func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 		},
 		"InvalidRequestError": {
 			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
+			Properties: openapi2.Properties{
+				"jsonrpc": &openapi2.Schema{
 					Type:    "string",
 					Example: "2.0",
 				},
-				"id": &openapi.Schema{
+				"id": &openapi2.Schema{
 					Type:    "string",
 					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
 				},
-				"error": &openapi.Schema{
+				"error": &openapi2.Schema{
 					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
+					Properties: openapi2.Properties{
+						"code": &openapi2.Schema{
 							Type:    "integer",
 							Example: -32600,
 						},
-						"message": &openapi.Schema{
+						"message": &openapi2.Schema{
 							Type:    "string",
 							Example: "Invalid Request",
 						},
@@ -76,23 +76,23 @@ func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 		},
 		"MethodNotFoundError": {
 			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
+			Properties: openapi2.Properties{
+				"jsonrpc": &openapi2.Schema{
 					Type:    "string",
 					Example: "2.0",
 				},
-				"id": &openapi.Schema{
+				"id": &openapi2.Schema{
 					Type:    "string",
 					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
 				},
-				"error": &openapi.Schema{
+				"error": &openapi2.Schema{
 					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
+					Properties: openapi2.Properties{
+						"code": &openapi2.Schema{
 							Type:    "integer",
 							Example: -32601,
 						},
-						"message": &openapi.Schema{
+						"message": &openapi2.Schema{
 							Type:    "string",
 							Example: "Method not found",
 						},
@@ -102,23 +102,23 @@ func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 		},
 		"InvalidParamsError": {
 			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
+			Properties: openapi2.Properties{
+				"jsonrpc": &openapi2.Schema{
 					Type:    "string",
 					Example: "2.0",
 				},
-				"id": &openapi.Schema{
+				"id": &openapi2.Schema{
 					Type:    "string",
 					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
 				},
-				"error": &openapi.Schema{
+				"error": &openapi2.Schema{
 					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
+					Properties: openapi2.Properties{
+						"code": &openapi2.Schema{
 							Type:    "integer",
 							Example: -32602,
 						},
-						"message": &openapi.Schema{
+						"message": &openapi2.Schema{
 							Type:    "string",
 							Example: "Invalid params",
 						},
@@ -128,23 +128,23 @@ func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 		},
 		"InternalError": {
 			Type: "object",
-			Properties: openapi.Properties{
-				"jsonrpc": &openapi.Schema{
+			Properties: openapi2.Properties{
+				"jsonrpc": &openapi2.Schema{
 					Type:    "string",
 					Example: "2.0",
 				},
-				"id": &openapi.Schema{
+				"id": &openapi2.Schema{
 					Type:    "string",
 					Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
 				},
-				"error": &openapi.Schema{
+				"error": &openapi2.Schema{
 					Type: "object",
-					Properties: openapi.Properties{
-						"code": &openapi.Schema{
+					Properties: openapi2.Properties{
+						"code": &openapi2.Schema{
 							Type:    "integer",
 							Example: -32603,
 						},
-						"message": &openapi.Schema{
+						"message": &openapi2.Schema{
 							Type:    "string",
 							Example: "Internal error",
 						},
@@ -155,11 +155,11 @@ func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 	}
 }
 
-func getOpenapiRESTErrorSchema() *openapi.Schema {
-	return &openapi.Schema{
+func getOpenapiRESTErrorSchema() *openapi2.Schema {
+	return &openapi2.Schema{
 		Type: "object",
-		Properties: openapi.Properties{
-			"error": &openapi.Schema{
+		Properties: openapi2.Properties{
+			"error": &openapi2.Schema{
 				Type: "string",
 			},
 		},
@@ -171,8 +171,8 @@ type openapiDocOptionsGateway interface {
 	MethodOption(m model.ServiceMethod) model.MethodOption
 	JSONRPCEnable() bool
 	OpenapiOutput() string
-	OpenapiInfo() openapi.Info
-	OpenapiServers() []openapi.Server
+	OpenapiInfo() openapi2.Info
+	OpenapiServers() []openapi2.Server
 	OpenapiMethodTags(name string) []string
 	OpenapiDefaultMethodTags() []string
 }
@@ -194,13 +194,13 @@ func (g *openapiDoc) Prepare(ctx context.Context) error {
 }
 
 func (g *openapiDoc) Process(ctx context.Context) error {
-	swg := openapi.OpenAPI{
+	swg := openapi2.OpenAPI{
 		OpenAPI: "3.0.0",
 		Info:    g.options.OpenapiInfo(),
 		Servers: g.options.OpenapiServers(),
-		Paths:   map[string]*openapi.Path{},
-		Components: openapi.Components{
-			Schemas: openapi.Schemas{},
+		Paths:   map[string]*openapi2.Path{},
+		Components: openapi2.Components{
+			Schemas: openapi2.Schemas{},
 		},
 	}
 
@@ -217,27 +217,27 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 
 		for _, method := range iface.Methods() {
 			for _, e := range method.Errors {
-				var s *openapi.Schema
+				var s *openapi2.Schema
 				if g.options.JSONRPCEnable() {
-					s = &openapi.Schema{
+					s = &openapi2.Schema{
 						Type: "object",
-						Properties: openapi.Properties{
-							"jsonrpc": &openapi.Schema{
+						Properties: openapi2.Properties{
+							"jsonrpc": &openapi2.Schema{
 								Type:    "string",
 								Example: "2.0",
 							},
-							"id": &openapi.Schema{
+							"id": &openapi2.Schema{
 								Type:    "string",
 								Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
 							},
-							"error": &openapi.Schema{
+							"error": &openapi2.Schema{
 								Type: "object",
-								Properties: openapi.Properties{
-									"code": &openapi.Schema{
+								Properties: openapi2.Properties{
+									"code": &openapi2.Schema{
 										Type:    "integer",
 										Example: e.Code,
 									},
-									"message": &openapi.Schema{
+									"message": &openapi2.Schema{
 										Type: "string",
 									},
 								},
@@ -245,10 +245,10 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 						},
 					}
 				} else {
-					s = &openapi.Schema{
+					s = &openapi2.Schema{
 						Type: "object",
-						Properties: openapi.Properties{
-							"error": &openapi.Schema{
+						Properties: openapi2.Properties{
+							"error": &openapi2.Schema{
 								Type: "string",
 							},
 						},
@@ -265,7 +265,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			mopt := g.options.MethodOption(m)
 
 			var (
-				o       *openapi.Operation
+				o       *openapi2.Operation
 				pathStr string
 			)
 
@@ -290,11 +290,11 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				methodName = "POST"
 				for _, ei := range m.Errors {
 					codeStr := strconv.FormatInt(ei.Code, 10)
-					o.Responses["x"+codeStr] = openapi.Response{
+					o.Responses["x"+codeStr] = openapi2.Response{
 						Description: ei.Named.Obj().Name(),
-						Content: openapi.Content{
+						Content: openapi2.Content{
 							"application/json": {
-								Schema: &openapi.Schema{
+								Schema: &openapi2.Schema{
 									Ref: "#/components/schemas/" + ei.Named.Obj().Name(),
 								},
 							},
@@ -318,11 +318,11 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				pathStr = "/" + stdstrings.TrimLeft(pathStr, "/")
 				for _, ei := range m.Errors {
 					codeStr := strconv.FormatInt(ei.Code, 10)
-					o.Responses[codeStr] = openapi.Response{
+					o.Responses[codeStr] = openapi2.Response{
 						Description: ei.Named.Obj().Name(),
-						Content: openapi.Content{
+						Content: openapi2.Content{
 							"application/json": {
-								Schema: &openapi.Schema{
+								Schema: &openapi2.Schema{
 									Ref: "#/components/schemas/" + ei.Named.Obj().Name(),
 								},
 							},
@@ -341,7 +341,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 			o.Tags = tags
 
 			if _, ok := swg.Paths[pathStr]; !ok {
-				swg.Paths[pathStr] = &openapi.Path{}
+				swg.Paths[pathStr] = &openapi2.Path{}
 			}
 
 			switch methodName {
@@ -359,7 +359,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 		}
 	}
 	for _, t := range ntc.TypeDefs() {
-		schema := &openapi.Schema{}
+		schema := &openapi2.Schema{}
 		iftypevisitor.OpenapiDefVisitor(schema).Visit(t)
 		swg.Components.Schemas[t.Obj().Name()] = schema
 	}
@@ -392,29 +392,29 @@ func (g *openapiDoc) Imports() []string {
 
 func (g *openapiDoc) makeJSONRPCPath(
 	m model.ServiceMethod, ntc ustypevisitor.NamedTypeCollector, paramsComment map[string]string, prefix string,
-) *openapi.Operation {
+) *openapi2.Operation {
 	mopt := g.options.MethodOption(m)
-	responseSchema := &openapi.Schema{
+	responseSchema := &openapi2.Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*openapi2.Schema{},
 	}
-	requestSchema := &openapi.Schema{
+	requestSchema := &openapi2.Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*openapi2.Schema{},
 	}
 
 	if len(m.Params) > 0 {
 		for _, p := range m.Params {
 			ntc.Visit(p.Type())
 
-			schema := &openapi.Schema{}
+			schema := &openapi2.Schema{}
 			iftypevisitor.OpenapiVisitor(schema).Visit(p.Type())
 
 			schema.Description = paramsComment[p.Name()]
 			requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = schema
 		}
 		if m.ParamVariadic != nil {
-			schema := &openapi.Schema{}
+			schema := &openapi2.Schema{}
 			iftypevisitor.OpenapiVisitor(schema).Visit(m.ParamVariadic.Type())
 			requestSchema.Properties[strcase.ToLowerCamel(m.ParamVariadic.Name())] = schema
 		}
@@ -427,34 +427,34 @@ func (g *openapiDoc) makeJSONRPCPath(
 	if len(m.Results) > 1 {
 		for _, r := range m.Results {
 			ntc.Visit(r.Type())
-			schema := &openapi.Schema{}
+			schema := &openapi2.Schema{}
 			iftypevisitor.OpenapiVisitor(schema).Visit(r.Type())
 			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = schema
 		}
 	} else if len(m.Results) == 1 {
 		ntc.Visit(m.Results[0].Type())
-		responseSchema = &openapi.Schema{}
+		responseSchema = &openapi2.Schema{}
 		iftypevisitor.OpenapiVisitor(responseSchema).Visit(m.Results[0].Type())
 	} else {
 		responseSchema.Example = json.RawMessage("null")
 	}
 
 	if mopt.WrapResponse.Enable {
-		properties := openapi.Properties{}
+		properties := openapi2.Properties{}
 		properties[mopt.WrapResponse.Name] = responseSchema
-		responseSchema = &openapi.Schema{
+		responseSchema = &openapi2.Schema{
 			Properties: properties,
 		}
 	}
 
-	response := &openapi.Schema{
+	response := &openapi2.Schema{
 		Type: "object",
-		Properties: openapi.Properties{
-			"jsonrpc": &openapi.Schema{
+		Properties: openapi2.Properties{
+			"jsonrpc": &openapi2.Schema{
 				Type:    "string",
 				Example: "2.0",
 			},
-			"id": &openapi.Schema{
+			"id": &openapi2.Schema{
 				Type:    "string",
 				Example: "c9b14c57-7503-447a-9fb9-be6f8920f31f",
 			},
@@ -467,18 +467,18 @@ func (g *openapiDoc) makeJSONRPCPath(
 		methodName = prefix + "." + methodName
 	}
 
-	request := &openapi.Schema{
+	request := &openapi2.Schema{
 		Type: "object",
-		Properties: openapi.Properties{
-			"jsonrpc": &openapi.Schema{
+		Properties: openapi2.Properties{
+			"jsonrpc": &openapi2.Schema{
 				Type:    "string",
 				Example: "2.0",
 			},
-			"id": &openapi.Schema{
+			"id": &openapi2.Schema{
 				Type:    "string",
 				Example: "c9b14c57-7503-447a-9fb9-be6f8920f31f",
 			},
-			"method": &openapi.Schema{
+			"method": &openapi2.Schema{
 				Type: "string",
 				Enum: []string{methodName},
 			},
@@ -486,19 +486,19 @@ func (g *openapiDoc) makeJSONRPCPath(
 		},
 	}
 
-	return &openapi.Operation{
-		RequestBody: &openapi.RequestBody{
+	return &openapi2.Operation{
+		RequestBody: &openapi2.RequestBody{
 			Required: true,
-			Content: map[string]openapi.Media{
+			Content: map[string]openapi2.Media{
 				"application/json": {
 					Schema: request,
 				},
 			},
 		},
-		Responses: map[string]openapi.Response{
+		Responses: map[string]openapi2.Response{
 			"200": {
 				Description: "OK",
-				Content: openapi.Content{
+				Content: openapi2.Content{
 					"application/json": {
 						Schema: response,
 					},
@@ -506,9 +506,9 @@ func (g *openapiDoc) makeJSONRPCPath(
 			},
 			"x-32700": {
 				Description: "Parse error. Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
-				Content: openapi.Content{
+				Content: openapi2.Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &openapi2.Schema{
 							Ref: "#/components/schemas/ParseError",
 						},
 					},
@@ -516,9 +516,9 @@ func (g *openapiDoc) makeJSONRPCPath(
 			},
 			"x-32600": {
 				Description: "Invalid Request. The JSON sent is not a valid Request object.",
-				Content: openapi.Content{
+				Content: openapi2.Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &openapi2.Schema{
 							Ref: "#/components/schemas/InvalidRequestError",
 						},
 					},
@@ -526,9 +526,9 @@ func (g *openapiDoc) makeJSONRPCPath(
 			},
 			"x-32601": {
 				Description: "Method not found. The method does not exist / is not available.",
-				Content: openapi.Content{
+				Content: openapi2.Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &openapi2.Schema{
 							Ref: "#/components/schemas/MethodNotFoundError",
 						},
 					},
@@ -536,9 +536,9 @@ func (g *openapiDoc) makeJSONRPCPath(
 			},
 			"x-32602": {
 				Description: "Invalid params. Invalid method parameters.",
-				Content: openapi.Content{
+				Content: openapi2.Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &openapi2.Schema{
 							Ref: "#/components/schemas/InvalidParamsError",
 						},
 					},
@@ -546,9 +546,9 @@ func (g *openapiDoc) makeJSONRPCPath(
 			},
 			"x-32603": {
 				Description: "Internal error. Internal JSON-RPC error.",
-				Content: openapi.Content{
+				Content: openapi2.Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &openapi2.Schema{
 							Ref: "#/components/schemas/InternalError",
 						},
 					},
@@ -558,16 +558,16 @@ func (g *openapiDoc) makeJSONRPCPath(
 	}
 }
 
-func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.NamedTypeCollector, paramsComment map[string]string) *openapi.Operation {
+func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.NamedTypeCollector, paramsComment map[string]string) *openapi2.Operation {
 	mopt := g.options.MethodOption(m)
-	responseSchema := &openapi.Schema{
+	responseSchema := &openapi2.Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*openapi2.Schema{},
 	}
 
-	requestSchema := &openapi.Schema{
+	requestSchema := &openapi2.Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*openapi2.Schema{},
 	}
 
 	for _, p := range m.Params {
@@ -586,7 +586,7 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 
 		ntc.Visit(p.Type())
 
-		schema := &openapi.Schema{}
+		schema := &openapi2.Schema{}
 		iftypevisitor.OpenapiVisitor(schema).Visit(p.Type())
 
 		schema.Description = paramsComment[p.Name()]
@@ -594,44 +594,44 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 		requestSchema.Properties[strcase.ToLowerCamel(p.Name())] = schema
 	}
 	if m.ParamVariadic != nil {
-		schema := &openapi.Schema{}
+		schema := &openapi2.Schema{}
 		iftypevisitor.OpenapiVisitor(schema).Visit(m.ParamVariadic.Type())
 		requestSchema.Properties[strcase.ToLowerCamel(m.ParamVariadic.Name())] = schema
 	}
 	if len(m.Results) > 1 {
 		for _, r := range m.Results {
 			ntc.Visit(r.Type())
-			schema := &openapi.Schema{}
+			schema := &openapi2.Schema{}
 			iftypevisitor.OpenapiVisitor(schema).Visit(r.Type())
 			responseSchema.Properties[strcase.ToLowerCamel(r.Name())] = schema
 		}
 	} else if len(m.Results) == 1 {
 		ntc.Visit(m.Results[0].Type())
-		responseSchema = &openapi.Schema{}
+		responseSchema = &openapi2.Schema{}
 		iftypevisitor.OpenapiVisitor(responseSchema).Visit(m.Results[0].Type())
 	}
 
 	if mopt.WrapResponse.Enable {
-		properties := openapi.Properties{}
+		properties := openapi2.Properties{}
 		properties[mopt.WrapResponse.Name] = responseSchema
-		responseSchema = &openapi.Schema{
+		responseSchema = &openapi2.Schema{
 			Properties: properties,
 		}
 	}
 
-	responses := map[string]openapi.Response{}
+	responses := map[string]openapi2.Response{}
 
 	if len(m.Results) == 0 {
-		responses["201"] = openapi.Response{
+		responses["201"] = openapi2.Response{
 			Description: "Created",
-			Content: openapi.Content{
+			Content: openapi2.Content{
 				"text/plain": {},
 			},
 		}
 	} else {
-		responses["200"] = openapi.Response{
+		responses["200"] = openapi2.Response{
 			Description: "OK",
-			Content: openapi.Content{
+			Content: openapi2.Content{
 				"application/json": {
 					Schema: responseSchema,
 				},
@@ -639,18 +639,18 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 		}
 	}
 
-	responses["500"] = openapi.Response{
+	responses["500"] = openapi2.Response{
 		Description: "Internal Server Error",
-		Content: openapi.Content{
+		Content: openapi2.Content{
 			"application/json": {
-				Schema: &openapi.Schema{
+				Schema: &openapi2.Schema{
 					Ref: "#/components/schemas/Error",
 				},
 			},
 		},
 	}
 
-	o := &openapi.Operation{
+	o := &openapi2.Operation{
 		Summary:   m.Name,
 		Responses: responses,
 	}
@@ -664,9 +664,9 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 			in = "query"
 		}
 		if in != "" {
-			schema := &openapi.Schema{}
+			schema := &openapi2.Schema{}
 			iftypevisitor.OpenapiVisitor(schema).Visit(p.Type())
-			o.Parameters = append(o.Parameters, openapi.Parameter{
+			o.Parameters = append(o.Parameters, openapi2.Parameter{
 				In:       in,
 				Name:     p.Name(),
 				Required: true,
@@ -676,9 +676,9 @@ func (g *openapiDoc) makeRestPath(m model.ServiceMethod, ntc ustypevisitor.Named
 	}
 	switch mopt.MethodName {
 	case "POST", "PUT", "PATCH":
-		o.RequestBody = &openapi.RequestBody{
+		o.RequestBody = &openapi2.RequestBody{
 			Required: true,
-			Content: map[string]openapi.Media{
+			Content: map[string]openapi2.Media{
 				"application/json": {
 					Schema: requestSchema,
 				},

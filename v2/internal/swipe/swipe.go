@@ -1,24 +1,24 @@
 package swipe
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
-	"github.com/swipe-io/swipe/v2/internal/interface/frame"
-
-	"github.com/swipe-io/swipe/v2/internal/importer"
-
 	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v2/internal/importer"
+	"github.com/swipe-io/swipe/v2/internal/interface/frame"
+)
+
+type ContextKey string
+
+const (
+	ImporterKey ContextKey = "importer"
 )
 
 type Importer interface {
 	Import(name string, path string) string
-}
-
-type Generator interface {
-	Generate(Importer) []byte
-	OutputDir() string
-	Filename() string
+	TypeString(v interface{}) string
 }
 
 type GenerateResult struct {
@@ -28,52 +28,56 @@ type GenerateResult struct {
 	Errs       []error
 }
 
-func Generate(cfg *Config) (result []GenerateResult) {
+func Generate(cfg *Config) (result []GenerateResult, errs []error) {
+	result = make([]GenerateResult, 0, 100)
+
 	importerMap := map[string]*importer.Importer{}
 	for _, module := range cfg.Modules {
 		for _, build := range module.Builds {
 			// importer cache for package.
-			i, ok := importerMap[build.Pkg.Path]
+			importerService, ok := importerMap[build.Pkg.Path]
 			if !ok {
-				i = importer.NewImporter(build.Pkg)
-				importerMap[build.Pkg.Path] = i
+				importerService = importer.NewImporter(build.Pkg)
+				importerMap[build.Pkg.Path] = importerService
 			}
-			for id, config := range build.Option {
-				generated := GenerateResult{
-					PkgPath: build.Pkg.Path,
-				}
+			for id, options := range build.Option {
 				p, ok := registeredPlugins[id]
 				if !ok {
-					generated.Errs = append(generated.Errs, &warnError{Err: fmt.Errorf("plugin %q not found", id)})
+					errs = append(errs, &warnError{Err: fmt.Errorf("plugin %q not found", id)})
 					continue
 				}
-				if err := p.Configure(cfg, module, build, config); err != nil {
-					generated.Errs = append(generated.Errs, err)
+				cfgErrs := p.Configure(cfg, module, build, options.(map[string]interface{}))
+				if len(cfgErrs) > 0 {
+					errs = append(errs, cfgErrs...)
 					continue
 				}
-				generators, errs := p.Generators()
-				if len(errs) > 0 {
-					for _, err := range errs {
-						generated.Errs = append(generated.Errs, err)
-						continue
-					}
+				generators, genErrs := p.Generators()
+				if len(genErrs) > 0 {
+					errs = append(errs, genErrs...)
+					continue
 				}
-				for _, g := range generators {
+				generatorResult := make([]GenerateResult, len(generators))
+				for i, g := range generators {
+					generatorResult[i].PkgPath = build.Pkg.Path
+
 					outputDir := g.OutputDir()
 					if outputDir == "" {
 						outputDir = build.BasePath
 					}
-					filename := "_swipe_gen_" + strcase.ToSnake(p.ID()) + "_" + g.Filename()
-					generated.OutputPath = filepath.Join(outputDir, filename)
-					f := frame.NewFrame("v1.0.0", filename, i, build.Pkg)
-					data, err := f.Frame(g.Generate(i))
+					filename := "swipe_gen_" + strcase.ToSnake(p.ID()) + "_" + g.Filename()
+					generatorResult[i].OutputPath = filepath.Join(outputDir, filename)
+					f := frame.NewFrame("v1.0.0", filename, importerService, build.Pkg)
+
+					ctx := context.WithValue(context.TODO(), ImporterKey, importerService)
+
+					data, err := f.Frame(g.Generate(ctx))
 					if err != nil {
-						generated.Errs = append(generated.Errs, err)
+						generatorResult[i].Errs = append(generatorResult[i].Errs, err)
 						continue
 					}
-					generated.Content = data
+					generatorResult[i].Content = data
 				}
-				result = append(result, generated)
+				result = append(result, generatorResult...)
 			}
 		}
 	}

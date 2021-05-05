@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	stdtypes "go/types"
 
-	"github.com/fatih/structtag"
+	openapi2 "github.com/swipe-io/swipe/v2/internal/plugin/gokit/openapi"
 
-	"github.com/swipe-io/swipe/v2/internal/openapi"
+	"github.com/fatih/structtag"
 
 	"github.com/swipe-io/swipe/v2/internal/usecase/typevisitor"
 )
 
 type openapiVisitor struct {
-	schema *openapi.Schema
+	schema *openapi2.Schema
 }
 
 func (v *openapiVisitor) populateSchema(st *stdtypes.Struct) {
@@ -28,7 +28,7 @@ func (v *openapiVisitor) populateSchema(st *stdtypes.Struct) {
 			if name == "-" {
 				continue
 			}
-			v.schema.Properties[name] = &openapi.Schema{}
+			v.schema.Properties[name] = &openapi2.Schema{}
 			OpenapiVisitor(v.schema.Properties[name]).Visit(f.Type())
 		} else {
 			var st *stdtypes.Struct
@@ -52,7 +52,7 @@ func (v *openapiVisitor) VisitPointer(t *stdtypes.Pointer, nested int) {
 
 func (v *openapiVisitor) VisitArray(t *stdtypes.Array, nested int) {
 	v.schema.Type = "array"
-	v.schema.Items = &openapi.Schema{}
+	v.schema.Items = &openapi2.Schema{}
 	OpenapiVisitor(v.schema.Items).Visit(t.Elem())
 }
 
@@ -63,13 +63,13 @@ func (v *openapiVisitor) VisitSlice(t *stdtypes.Slice, nested int) {
 		v.schema.Example = "U3dhZ2dlciByb2Nrcw=="
 	} else {
 		v.schema.Type = "array"
-		v.schema.Items = &openapi.Schema{}
+		v.schema.Items = &openapi2.Schema{}
 		OpenapiVisitor(v.schema.Items).Visit(t.Elem())
 	}
 }
 
 func (v *openapiVisitor) VisitMap(t *stdtypes.Map, nested int) {
-	v.schema.Properties = openapi.Properties{"key": &openapi.Schema{}}
+	v.schema.Properties = openapi2.Properties{"key": &openapi2.Schema{}}
 	OpenapiVisitor(v.schema.Properties["key"]).Visit(t.Elem())
 }
 
@@ -79,7 +79,7 @@ func (v *openapiVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 		v.schema.Ref = "#/components/schemas/" + t.Obj().Name()
 	case "encoding/json.RawMessage":
 		v.schema.Type = "object"
-		v.schema.Properties = openapi.Properties{}
+		v.schema.Properties = openapi2.Properties{}
 		return
 	case "time.Time":
 		v.schema.Type = "string"
@@ -97,7 +97,7 @@ func (v *openapiVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 
 func (v *openapiVisitor) VisitStruct(t *stdtypes.Struct, nested int) {
 	v.schema.Type = "object"
-	v.schema.Properties = openapi.Properties{}
+	v.schema.Properties = openapi2.Properties{}
 	v.populateSchema(t)
 }
 
@@ -136,9 +136,9 @@ func (v *openapiVisitor) VisitBasic(t *stdtypes.Basic, nested int) {
 func (v *openapiVisitor) VisitInterface(t *stdtypes.Interface, nested int) {
 	v.schema.Type = "object"
 	v.schema.Description = "Can be any value - string, number, boolean, array or object."
-	v.schema.Properties = openapi.Properties{}
+	v.schema.Properties = openapi2.Properties{}
 	v.schema.Example = json.RawMessage("null")
-	v.schema.AnyOf = []openapi.Schema{
+	v.schema.AnyOf = []openapi2.Schema{
 		{Type: "string", Example: "abc"},
 		{Type: "integer", Example: 1},
 		{Type: "number", Format: "float", Example: 1.11},
@@ -148,7 +148,7 @@ func (v *openapiVisitor) VisitInterface(t *stdtypes.Interface, nested int) {
 	}
 }
 
-func OpenapiVisitor(schema *openapi.Schema) typevisitor.TypeVisitor {
+func OpenapiVisitor(schema *openapi2.Schema) typevisitor.TypeVisitor {
 	return &openapiVisitor{
 		schema: schema,
 	}

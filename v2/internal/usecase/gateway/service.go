@@ -14,7 +14,7 @@ package gateway
 //	TransportType() model.Transport
 //	UseFast() bool
 //	MethodOption(m model.ServiceMethod) model.MethodOption
-//	DefaultErrorEncoder() option.Value
+//	DefaultErrorEncoder() option.ValueType
 //	Errors() map[uint32]*model.HTTPError
 //
 //	ReadmeEnable() bool
@@ -34,8 +34,8 @@ package gateway
 //	JSClientEnable() bool
 //
 //	OpenapiEnable() bool
-//	OpenapiOutput() string
-//	OpenapiInfo() openapi.Info
+//	Output() string
+//	Info() openapi.Info
 //	OpenapiServers() []openapi.Server
 //	OpenapiMethodTags(name string) []string
 //	OpenapiDefaultMethodTags() []string

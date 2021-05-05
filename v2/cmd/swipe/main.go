@@ -9,17 +9,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/swipe-io/swipe/v2/internal/ast"
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
 
 	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v2/internal/ast"
 	"github.com/swipe-io/swipe/v2/internal/fixcomment"
-	"github.com/swipe-io/swipe/v2/internal/stcreator"
-
 	_ "github.com/swipe-io/swipe/v2/internal/plugin/configenv"
+	_ "github.com/swipe-io/swipe/v2/internal/plugin/gokit"
+	"github.com/swipe-io/swipe/v2/internal/stcreator"
+	"github.com/swipe-io/swipe/v2/internal/swipe"
 )
 
 const Version = "v2.0.0-rc13"
@@ -120,11 +119,9 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		}
 		return subcommands.ExitFailure
 	}
-	cfg, errs := swipe.GetConfig(loader)
-	if len(errs) > 0 {
-		for _, err := range errs {
-			log.Println(colorFail(err))
-		}
+	cfg, err := swipe.GetConfig(loader)
+	if err != nil {
+		log.Println(colorFail(err))
 		return subcommands.ExitFailure
 	}
 
@@ -132,7 +129,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	_ = filepath.Walk(loader.WorkDir(), func(path string, info os.FileInfo, err error) error {
 		if !strings.Contains(path, "/vendor/") {
 			if !info.IsDir() {
-				if strings.Contains(info.Name(), "_swipe_gen_") {
+				if strings.Contains(info.Name(), "swipe_gen_") {
 					_ = os.Remove(path)
 				}
 			}
@@ -140,18 +137,23 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		return nil
 	})
 
-	result := swipe.Generate(cfg)
+	result, errs := swipe.Generate(cfg)
 	success := true
+
+	if len(errs) > 0 {
+		for _, err := range errs {
+			log.Println(colorFail(err))
+		}
+		success = false
+	}
 
 	for _, g := range result {
 		if len(g.Errs) > 0 {
-			if len(errs) > 0 {
-				for _, err := range errs {
-					log.Println(colorFail(err))
-				}
-				success = false
-				continue
+			for _, err := range g.Errs {
+				log.Println(colorFail(err))
 			}
+			success = false
+			continue
 		}
 		if len(g.Content) == 0 {
 			continue
@@ -190,7 +192,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 	//processorFactory := processor.NewFactory()
 	//
 	//processorFactory.Register(new(processor.Service).Name(), func(o *option.ResultOption, opr *option.Result) (up.Processor, error) {
-	//	serviceGateway, err := gateway.NewServiceGateway(o.Pkg, opr.Data.Module.Dir, o.Option, opr.Data.GraphTypes, opr.Data.CommentFuncs, opr.Data.CommentFields, opr.Data.Enums, opr.Data.WorkDir, opr.ExternalOptions)
+	//	serviceGateway, err := gateway.NewServiceGateway(o.Pkg, opr.Data.Module.Dir, o.Option, opr.Data.CallGraph, opr.Data.CommentFuncs, opr.Data.CommentFields, opr.Data.Enums, opr.Data.WorkDir, opr.ExternalOptions)
 	//	if err != nil {
 	//		return nil, err
 	//	}

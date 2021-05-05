@@ -2,7 +2,6 @@ package writer
 
 import (
 	"fmt"
-	stdtypes "go/types"
 	"strconv"
 	stdstrings "strings"
 
@@ -15,8 +14,8 @@ type GoWriter struct {
 	BaseWriter
 }
 
-func (w *GoWriter) WriteCheckErr(body func()) {
-	w.W("if err != nil {\n")
+func (w *GoWriter) WriteCheckErr(errName string, body func()) {
+	w.W("if %s != nil {\n", errName)
 	body()
 	w.W("}\n")
 }
@@ -25,33 +24,33 @@ func (w *GoWriter) WriteType(name string) {
 	w.W("type %s ", name)
 }
 
-func (w *GoWriter) WriteFunc(name, recv string, params, results []string, body func()) {
-	w.W("func")
+//func (w *GoWriter) WriteFunc(name, recv string, params, results []string, body func()) {
+//	w.W("func")
+//
+//	if recv != "" {
+//		w.W(" (%s)", recv)
+//	}
+//
+//	w.W(" %s(", name)
+//	w.WriteSignature(params)
+//	w.W(") ")
+//
+//	if len(results) > 0 {
+//		w.W("( ")
+//		w.WriteSignature(results)
+//		w.W(") ")
+//	}
+//
+//	w.W("{\n")
+//	body()
+//	w.W("}\n\n")
+//}
 
-	if recv != "" {
-		w.W(" (%s)", recv)
-	}
-
-	w.W(" %s(", name)
-	w.WriteSignature(params)
-	w.W(") ")
-
-	if len(results) > 0 {
-		w.W("( ")
-		w.WriteSignature(results)
-		w.W(") ")
-	}
-
-	w.W("{\n")
-	body()
-	w.W("}\n\n")
-}
-
-func (w *GoWriter) WriteVarGroup(body func()) {
-	w.W("var (\n")
-	body()
-	w.W("\n)\n")
-}
+//func (w *GoWriter) WriteVarGroup(body func()) {
+//	w.W("var (\n")
+//	body()
+//	w.W("\n)\n")
+//}
 
 func (w *GoWriter) WriteDefer(params []string, calls []string, body func()) {
 	w.W("defer func(")
@@ -63,24 +62,24 @@ func (w *GoWriter) WriteDefer(params []string, calls []string, body func()) {
 	w.W(")\n")
 }
 
-func (w *GoWriter) WriteSignature(keyvals []string) {
-	if len(keyvals) == 0 {
-		return
-	}
-	if len(keyvals)%2 != 0 {
-		panic("WriteSignature: missing Value")
-	}
-	for i := 0; i < len(keyvals); i += 2 {
-		if i > 0 {
-			w.W(", ")
-		}
-		name := ""
-		if keyvals[i] != "" {
-			name = keyvals[i]
-		}
-		w.W("%s %s", name, keyvals[i+1])
-	}
-}
+//func (w *GoWriter) WriteSignature(keyvals []string) {
+//	if len(keyvals) == 0 {
+//		return
+//	}
+//	if len(keyvals)%2 != 0 {
+//		panic("WriteSignature: missing ValueType")
+//	}
+//	for i := 0; i < len(keyvals); i += 2 {
+//		if i > 0 {
+//			w.W(", ")
+//		}
+//		name := ""
+//		if keyvals[i] != "" {
+//			name = keyvals[i]
+//		}
+//		w.W("%s %s", name, keyvals[i+1])
+//	}
+//}
 
 func (w *GoWriter) WriteTypeStruct(name string, keyvals []string) {
 	w.WriteType(name)
@@ -100,7 +99,7 @@ func (w *GoWriter) WriteStruct(keyvals []string, assign bool) {
 
 func (w *GoWriter) WriteStructDefined(keyvals []string) {
 	if len(keyvals)%2 != 0 {
-		panic("WriteStructDefined: missing Value")
+		panic("WriteStructDefined: missing ValueType")
 	}
 	w.W("{\n")
 	for i := 0; i < len(keyvals); i += 2 {
@@ -112,7 +111,7 @@ func (w *GoWriter) WriteStructDefined(keyvals []string) {
 
 func (w *GoWriter) WriteStructAssign(keyvals []string) {
 	if len(keyvals)%2 != 0 {
-		panic("WriteStructAssign: missing Value")
+		panic("WriteStructAssign: missing ValueType")
 	}
 	w.W("{")
 	for i := 0; i < len(keyvals); i += 2 {
@@ -162,24 +161,24 @@ func (w *GoWriter) getFormatFuncName(t *option.BasicType) string {
 	return ""
 }
 
-func (w *GoWriter) writeFormatBasicType(i swipe.Importer, assignId, valueId string, t *option.BasicType) {
+func (w *GoWriter) writeFormatBasicType(importer swipe.Importer, assignId, valueId string, t *option.BasicType) {
 	funcName := w.getFormatFuncName(t)
 	if funcName != "" {
-		strconvPkg := i.Import("strconv", "strconv")
+		strconvPkg := importer.Import("strconv", "strconv")
 		w.W("%s := %s.%s\n", assignId, strconvPkg, fmt.Sprintf(funcName, valueId))
 	} else {
 		w.W("%s := %s\n", assignId, valueId)
 	}
 }
 
-func (w *GoWriter) writeConvertBasicType(i swipe.Importer, name, assignId, valueId string, t *option.BasicType, errRet []string, errSlice string, declareVar bool, msgErrTemplate string) {
+func (w *GoWriter) WriteConvertBasicType(importer swipe.Importer, name, assignId, valueId string, t *option.BasicType, errRet []string, errSlice string, declareVar bool, msgErrTemplate string) {
 	useCheckErr := true
 
 	tmpId := stdstrings.ToLower(name) + strcase.ToCamel(t.Name)
 
 	funcName := w.getConvertFuncName(t)
 	if funcName != "" {
-		strconvPkg := i.Import("strconv", "strconv")
+		strconvPkg := importer.Import("strconv", "strconv")
 		w.W("%s, err := %s.%s\n", tmpId, strconvPkg, fmt.Sprintf(funcName, valueId))
 	} else {
 		useCheckErr = false
@@ -192,7 +191,7 @@ func (w *GoWriter) writeConvertBasicType(i swipe.Importer, name, assignId, value
 		errMsg := strconv.Quote(msgErrTemplate + ": %w")
 		w.W("if err != nil {\n")
 		if errSlice != "" {
-			w.W("%[1]s = append(%[1]s, %[2]s.Errorf(%[3]s, err))\n", errSlice, i.Import("fmt", "fmt"), errMsg)
+			w.W("%[1]s = append(%[1]s, %[2]s.Errorf(%[3]s, err))\n", errSlice, importer.Import("fmt", "fmt"), errMsg)
 		} else {
 			w.W("return ")
 			if len(errRet) > 0 {
@@ -214,48 +213,100 @@ func (w *GoWriter) writeConvertBasicType(i swipe.Importer, name, assignId, value
 	w.W("\n")
 }
 
-func (w *GoWriter) WriteFormatType(i swipe.Importer, assignId, valueId string, f *option.VarType) {
+func (w *GoWriter) WriteFormatType(importer swipe.Importer, assignId, valueId string, f *option.VarType) {
 	switch t := f.Type.(type) {
 	case *option.BasicType:
-		w.writeFormatBasicType(i, assignId, valueId, t)
-		//case *stdtypes.Named:
-		//	switch t.Obj().Type().String() {
-		//	case "github.com/google/uuid.UUID", "github.com/satori/uuid.UUID":
-		//		w.W("%s := %s.String() \n", assignId, valueId)
-		//	case "time.Duration":
-		//		w.W("%s := %s.String()\n", assignId, valueId)
-		//	case "time.Time":
-		//		timePkg := i.Import("time", "time")
-		//		w.W("%[1]s := %[3]s.Format(%[2]s.RFC3339)\n", assignId, timePkg, valueId)
-		//	}
+		w.writeFormatBasicType(importer, assignId, valueId, t)
+	case *option.NamedType:
+		switch t.Pkg.Path {
+		case "github.com/satori/uuid", "github.com/google/uuid":
+			if t.Name.Origin == "UUID" {
+				w.WriteFormatUUID(importer, t, assignId, valueId)
+			}
+		case "time":
+			w.WriteFormatTime(importer, t, assignId, valueId)
+		}
 	}
 }
 
+func (w *GoWriter) WriteFormatTime(importer swipe.Importer, t *option.NamedType, assignId, valueId string) {
+	switch t.Name.Origin {
+	case "Duration":
+		w.W("%s := %s.String()\n", assignId, valueId)
+	case "Time":
+		timePkg := importer.Import("time", "time")
+		w.W("%[1]s := %[3]sFormat(%[2]s.RFC3339)\n", assignId, timePkg, valueId)
+	}
+}
+
+func (w *GoWriter) WriteFormatUUID(_ swipe.Importer, t *option.NamedType, assignId, valueId string) {
+	w.W("%s := %s.String() \n", assignId, valueId)
+}
+
+func (w *GoWriter) WriteConvertTime(importer swipe.Importer, t *option.NamedType, valueId string) (tmpID string) {
+	switch t.Name.Origin {
+	case "Time":
+		tmpID = t.Name.LowerCase + "Time"
+		timePkg := importer.Import("time", "time")
+		w.W("%[1]s, err := %[2]s.Parse(%[2]s.RFC3339, %[3]s)\n", tmpID, timePkg, valueId)
+	case "Duration":
+		tmpID = t.Name.LowerCase + "Dur"
+		timePkg := importer.Import("time", "time")
+		w.W("%s, err := %s.ParseDuration(%s)\n", tmpID, timePkg, valueId)
+	}
+	return
+}
+
+func (w *GoWriter) WriteConvertUUID(importer swipe.Importer, t *option.NamedType, valueId string) (tmpID string) {
+	tmpID = t.Name.LowerCase + "UUID"
+	uuidPkg := importer.Import(t.Pkg.Name, t.Pkg.Path)
+
+	switch t.Pkg.Path {
+	case "github.com/google/uuid":
+		w.W("%s, err := %sParse(%s)\n", tmpID, uuidPkg, valueId)
+	case "github.com/satori/uuid":
+		w.W("%s, err := %sFromString(%s)\n", tmpID, uuidPkg, valueId)
+	}
+	return
+}
+
+func (w *GoWriter) WriteConvertURL(importer swipe.Importer, t *option.NamedType, valueId string) (tmpID string) {
+	switch t.Name.Origin {
+	case "URL":
+		tmpID = t.Name.LowerCase + "URL"
+		urlPkg := importer.Import("url", "net/url")
+		w.W("%s, err := %sParse(%s)\n", tmpID, urlPkg, valueId)
+	}
+	return
+}
+
 func (w *GoWriter) WriteConvertType(
-	i swipe.Importer, assignId, valueId string, f *option.VarType, errRet []string, errSlice string, declareVar bool, msgErrTemplate string,
+	importer swipe.Importer, assignId, valueId string, f *option.VarType, errRet []string, errSlice string, declareVar bool, msgErrTemplate string,
 ) {
-	var tmpId string
+	var (
+		tmpID string
+	)
 
 	switch t := f.Type.(type) {
 	case *option.BasicType:
-		w.writeConvertBasicType(i, f.Name.Origin, assignId, valueId, t, errRet, errSlice, declareVar, msgErrTemplate)
+		w.WriteConvertBasicType(importer, f.Name.Origin, assignId, valueId, t, errRet, errSlice, declareVar, msgErrTemplate)
 	case *option.MapType:
-		stringsPkg := i.Import("strings", "strings")
+		stringsPkg := importer.Import("strings", "strings")
 
-		if k, ok := t.Key.(*option.BasicType); ok && k.IsString() {
-			if v, ok := t.Value.(*option.BasicType); ok {
-				tmpId = "parts" + f.Name.LowerCase
-				w.W("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
-				w.W("%s = make(%s, len(%s))\n", assignId, k.Name, tmpId)
+		if k, ok := t.KeyType.(*option.BasicType); ok && k.IsString() {
+			if v, ok := t.ValueType.(*option.BasicType); ok {
+				tmpID = "parts" + f.Name.LowerCase
+				w.W("%s := %s.Split(%s, \",\")\n", tmpID, stringsPkg, valueId)
+				w.W("%s = make(%s, len(%s))\n", assignId, k.Name, tmpID)
 				if v.IsNumeric() {
-					w.W("for _, s := range %s {\n", tmpId)
+					w.W("for _, s := range %s {\n", tmpID)
 					w.W("kv := %s.Split(s, \"=\")\n", stringsPkg)
 					w.W("if len(kv) == 2 {\n")
-					w.writeConvertBasicType(i, "tmp", assignId+"[kv[0]]", "kv[1]", v, errRet, errSlice, false, msgErrTemplate)
+					w.WriteConvertBasicType(importer, "tmp", assignId+"[kv[0]]", "kv[1]", v, errRet, errSlice, false, msgErrTemplate)
 					w.W("}\n")
 					w.W("}\n")
 				} else {
-					w.W("for _, s := range %s {\n", tmpId)
+					w.W("for _, s := range %s {\n", tmpID)
 					w.W("kv := %s.Split(s, \"=\")\n", stringsPkg)
 					w.W("if len(kv) == 2 {\n")
 					w.W("%s[kv[0]] = kv[1]\n", assignId)
@@ -265,60 +316,33 @@ func (w *GoWriter) WriteConvertType(
 			}
 		}
 	case *option.SliceType:
-		stringsPkg := i.Import("strings", "strings")
-		switch t := t.Value.(type) {
+		stringsPkg := importer.Import("strings", "strings")
+		switch t := t.ValueType.(type) {
 		case *option.BasicType:
 			if t.IsNumeric() {
-				tmpId = "parts" + f.Name.LowerCase + strcase.ToCamel(t.Name)
-				w.W("%s := %s.Split(%s, \",\")\n", tmpId, stringsPkg, valueId)
+				tmpID = "parts" + f.Name.LowerCase + strcase.ToCamel(t.Name)
+				w.W("%s := %s.Split(%s, \",\")\n", tmpID, stringsPkg, valueId)
 				if declareVar {
 					w.W("var ")
 				}
-				w.W("%s = make([]%s, len(%s))\n", assignId, t.Name, tmpId)
-				w.W("for i, s := range %s {\n", tmpId)
-				w.writeConvertBasicType(i, "tmp", assignId+"[i]", "s", t, errRet, errSlice, false, msgErrTemplate)
+				w.W("%s = make([]%s, len(%s))\n", assignId, t.Name, tmpID)
+				w.W("for importer, s := range %s {\n", tmpID)
+				w.WriteConvertBasicType(importer, "tmp", assignId+"[importer]", "s", t, errRet, errSlice, false, msgErrTemplate)
 				w.W("}\n")
 			} else {
 				w.W("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
 			}
 		}
-	case *stdtypes.Pointer:
-		if t.Elem().String() == "net/url.URL" {
-			urlPkg := i.Import("url", "net/url")
-			tmpID := f.Name.LowerCase + "URL"
-			w.W("%s, err := %s.Parse(%s)\n", tmpID, urlPkg, valueId)
-			w.W("if err != nil {\n")
-			if errSlice != "" {
-				w.W("%[1]s = append(%[1]s, err)\n", errSlice)
-			} else {
-				w.W("return ")
-				if len(errRet) > 0 {
-					w.W("%s, ", stdstrings.Join(errRet, ","))
-				}
-				w.W("err")
+	case *option.NamedType:
+		switch t.Pkg.Path {
+		case "net/url":
+			tmpID = w.WriteConvertURL(importer, t, valueId)
+		case "github.com/satori/uuid", "github.com/google/uuid":
+			if t.Name.Origin == "UUID" {
+				tmpID = w.WriteConvertUUID(importer, t, valueId)
 			}
-			w.W("}\n")
-			if declareVar {
-				w.W("var ")
-			}
-			w.W("%s = %s\n", assignId, tmpID)
-		}
-	case *stdtypes.Named:
-		tmpID := f.Name.LowerCase + "Result"
-
-		switch t.Obj().Type().String() {
-		case "github.com/satori/uuid.UUID":
-			uuidPkg := i.Import(t.Obj().Pkg().Name(), t.Obj().Pkg().Path())
-			w.W("%s, err := %s.FromString(%s)\n", tmpID, uuidPkg, valueId)
-		case "github.com/google/uuid.UUID":
-			uuidPkg := i.Import(t.Obj().Pkg().Name(), t.Obj().Pkg().Path())
-			w.W("%s, err := %s.Parse(%s)\n", tmpID, uuidPkg, valueId)
-		case "time.Duration":
-			timePkg := i.Import("time", "time")
-			w.W("%s, err := %s.ParseDuration(%s)\n", tmpID, timePkg, valueId)
-		case "time.Time":
-			timePkg := i.Import("time", "time")
-			w.W("%[1]s, err := %[2]s.Parse(%[2]s.RFC3339, %[3]s)\n", tmpID, timePkg, valueId)
+		case "time":
+			tmpID = w.WriteConvertTime(importer, t, valueId)
 		}
 		w.W("if err != nil {\n")
 		if errSlice != "" {
@@ -336,4 +360,5 @@ func (w *GoWriter) WriteConvertType(
 		}
 		w.W("%s = %s\n", assignId, tmpID)
 	}
+
 }

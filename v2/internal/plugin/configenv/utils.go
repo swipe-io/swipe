@@ -3,10 +3,10 @@ package configenv
 import (
 	stdstrings "strings"
 
-	option2 "github.com/swipe-io/swipe/v2/internal/option"
-
 	"github.com/fatih/structtag"
+
 	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v2/internal/option"
 )
 
 type Bool bool
@@ -35,7 +35,7 @@ func (o fldOpts) tagName() string {
 	return "env"
 }
 
-func getFieldOpts(f *option2.VarType, tags *structtag.Tags) (result fldOpts) {
+func getFieldOpts(f *option.VarType, tags *structtag.Tags) (result fldOpts) {
 	result.name = strcase.ToScreamingSnake(f.Name.UpperCase)
 	result.fieldPath = f.Name.UpperCase
 
@@ -64,4 +64,58 @@ func getFieldOpts(f *option2.VarType, tags *structtag.Tags) (result fldOpts) {
 	}
 
 	return
+}
+
+type callbackFn func(f, parent *option.VarType, opts fldOpts)
+
+func walkStructRecursive(st *option.StructType, parent *option.VarType, fPOpts fldOpts, fn callbackFn) {
+
+	for _, field := range st.Fields {
+		fOpts := getFieldOpts(field.Var, field.Tags)
+		if fPOpts.name != "" && parent != nil {
+			fOpts.name = fPOpts.name + "_" + fOpts.name
+			fOpts.fieldPath = fPOpts.fieldPath + "." + fOpts.fieldPath
+		}
+
+		if !isExclusionStructType(field.Var) {
+			walkRecursive(field.Var.Type, field.Var, fOpts, fn)
+			continue
+		}
+
+		fn(field.Var, parent, fOpts)
+	}
+}
+
+func walk(t interface{}, fn callbackFn) {
+	walkRecursive(t, nil, fldOpts{}, fn)
+}
+
+func walkRecursive(t interface{}, parent *option.VarType, fPOpts fldOpts, fn callbackFn) {
+	switch t := t.(type) {
+	case *option.StructType:
+		walkStructRecursive(t, parent, fPOpts, fn)
+	case *option.NamedType:
+		walkRecursive(t.Type, parent, fPOpts, fn)
+	}
+}
+
+func isExclusionStructType(v *option.VarType) bool {
+	switch t := v.Type.(type) {
+	case *option.BasicType:
+		return true
+	case *option.NamedType:
+		switch t.Pkg.Path {
+		case "github.com/google/uuid":
+			switch t.Name.Origin {
+			case "UUID":
+				return true
+			}
+		case "net/url":
+			switch t.Name.Origin {
+			case "URL":
+				return true
+			}
+		}
+	}
+	return false
 }

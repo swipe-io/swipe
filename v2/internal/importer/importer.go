@@ -1,11 +1,12 @@
 package importer
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	stdstrings "strings"
 
-	option2 "github.com/swipe-io/swipe/v2/internal/option"
+	"github.com/swipe-io/swipe/v2/internal/option"
 )
 
 type ImportInfo struct {
@@ -14,7 +15,7 @@ type ImportInfo struct {
 }
 
 type Importer struct {
-	pkg     *option2.PackageType
+	pkg     *option.PackageType
 	imports map[string]ImportInfo
 }
 
@@ -37,7 +38,7 @@ func (i *Importer) Import(name, path string) string {
 		Name:    newName,
 		Differs: newName != name,
 	}
-	return newName + "."
+	return newName
 }
 
 //func (i *Importer) RewritePkgRefs(node ast.Node) ast.Node {
@@ -147,7 +148,6 @@ func (i *Importer) nameInFileScope(name string) bool {
 	}
 	//_, obj := i.pkg.Types.Scope().LookupParent(name, token.NoPos)
 	//return obj != nil
-
 	return false
 }
 
@@ -173,14 +173,74 @@ func (i *Importer) SortedImports() (result []string) {
 	return
 }
 
-//func (i *Importer) QualifyPkg(pkg *stdtypes.Package) string {
-//stdtypes.TypeString()
-//return i.Import(pkg.Name(), pkg.Path())
-//}
+func (i *Importer) TypeString(v interface{}) string {
+	switch t := v.(type) {
+	case *option.MapType:
+		return pointerPrefix(t.IsPointer) + fmt.Sprintf("map[%s]%s", i.TypeString(t.KeyType), i.TypeString(t.ValueType))
+	case *option.ArrayType:
+		return pointerPrefix(t.IsPointer) + fmt.Sprintf("[%d]%s", t.Len, i.TypeString(t.ValueType))
+	case *option.SliceType:
+		return pointerPrefix(t.IsPointer) + "[]" + i.TypeString(t.ValueType)
+	case *option.BasicType:
+		return pointerPrefix(t.IsPointer) + t.Name
+	case *option.VarType:
+		return t.Name.Origin + " " + i.TypeString(t.Type)
+	case option.VarsType:
+		var buf bytes.Buffer
+		buf.WriteByte('(')
+		for j, param := range t {
+			typ := param.Type
+			if j > 0 {
+				buf.WriteString(", ")
+			}
+			if param.Name.Origin != "" {
+				buf.WriteString(param.Name.Origin)
+				buf.WriteByte(' ')
+			}
+			if param.IsVariadic {
+				buf.WriteString("...")
+				if s, ok := typ.(*option.SliceType); ok {
+					typ = s.ValueType
+				}
+			}
+			buf.WriteString(i.TypeString(typ))
+		}
+		buf.WriteByte(')')
+		return buf.String()
+	case *option.SignType:
+		var buf bytes.Buffer
+		buf.WriteString(i.TypeString(t.Params))
+		n := len(t.Results)
+		if n == 0 {
+			return buf.String()
+		}
+		buf.WriteByte(' ')
+		if n == 1 && t.Results[0].Name.Origin == "" {
+			buf.WriteString(i.TypeString(t.Results[0].Type))
+			return buf.String()
+		}
+		buf.WriteString(i.TypeString(t.Results))
+		return buf.String()
+	case *option.NamedType:
+		if t.Pkg == nil {
+			return t.Name.Origin
+		}
+		pkg := i.Import(t.Pkg.Name, t.Pkg.Path)
+		return pointerPrefix(t.IsPointer) + pkg + "." + t.Name.Origin
+	}
+	return ""
+}
 
-func NewImporter(pkg *option2.PackageType) *Importer {
+func NewImporter(pkg *option.PackageType) *Importer {
 	return &Importer{
 		pkg:     pkg,
 		imports: map[string]ImportInfo{},
 	}
+}
+
+func pointerPrefix(isPointer bool) string {
+	if isPointer {
+		return "*"
+	}
+	return ""
 }

@@ -3,14 +3,15 @@ package typevisitor
 import (
 	stdtypes "go/types"
 
+	openapi2 "github.com/swipe-io/swipe/v2/internal/plugin/gokit/openapi"
+
 	"github.com/fatih/structtag"
 
-	"github.com/swipe-io/swipe/v2/internal/openapi"
 	"github.com/swipe-io/swipe/v2/internal/usecase/typevisitor"
 )
 
 type openapiDefVisitor struct {
-	schema *openapi.Schema
+	schema *openapi2.Schema
 	ov     typevisitor.TypeVisitor
 }
 
@@ -38,7 +39,7 @@ func (v *openapiDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 	switch stdtypes.TypeString(t, nil) {
 	case "encoding/json.RawMessage":
 		v.schema.Type = "object"
-		v.schema.Properties = openapi.Properties{}
+		v.schema.Properties = openapi2.Properties{}
 		return
 	case "time.Time":
 		v.schema.Type = "string"
@@ -59,7 +60,7 @@ func (v *openapiDefVisitor) VisitNamed(t *stdtypes.Named, nested int) {
 
 	case *stdtypes.Struct:
 		if nested == 0 {
-			v.schema.Properties = openapi.Properties{}
+			v.schema.Properties = openapi2.Properties{}
 			typevisitor.ConvertType(tp).Accept(v, nested)
 		} else {
 			v.schema.Type = "object"
@@ -101,7 +102,7 @@ func (v *openapiDefVisitor) VisitStruct(t *stdtypes.Struct, nested int) {
 		if name == "-" {
 			continue
 		}
-		v.schema.Properties[name] = &openapi.Schema{}
+		v.schema.Properties[name] = &openapi2.Schema{}
 		OpenapiVisitor(v.schema.Properties[name]).Visit(f.Type())
 
 	}
@@ -115,7 +116,7 @@ func (v *openapiDefVisitor) VisitInterface(t *stdtypes.Interface, nested int) {
 	v.ov.VisitInterface(t, nested)
 }
 
-func OpenapiDefVisitor(schema *openapi.Schema) typevisitor.TypeVisitor {
+func OpenapiDefVisitor(schema *openapi2.Schema) typevisitor.TypeVisitor {
 	return &openapiDefVisitor{
 		schema: schema,
 		ov:     OpenapiVisitor(schema),

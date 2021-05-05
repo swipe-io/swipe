@@ -3,12 +3,12 @@ package swipe
 import (
 	"log"
 
-	option2 "github.com/swipe-io/swipe/v2/internal/option"
+	"github.com/swipe-io/swipe/v2/internal/option"
 )
 
 type Plugin interface {
 	ID() string
-	Configure(cfg *Config, module *option2.Module, build *option2.Build, config interface{}) error
+	Configure(cfg *Config, module *option.Module, build *option.Build, options map[string]interface{}) []error
 	Generators() ([]Generator, []error)
 }
 
