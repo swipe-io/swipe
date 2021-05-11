@@ -61,6 +61,15 @@ func (g *Helpers) Generate(ctx context.Context) []byte {
 	}
 	g.w.W("}\n")
 
+	errorDecodeParams := []string{"code", "int"}
+	if g.JSONRPCEnable {
+		g.w.W("func (e *httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
+		g.w.W("func (e *httpError) SetErrorData(data interface{}) {\ne.data = data\n}\n")
+		g.w.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
+
+		errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
+	}
+
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
@@ -74,6 +83,46 @@ func (g *Helpers) Generate(ctx context.Context) []byte {
 
 			g.w.W("func %sServerEndpointMiddlewares(opt ...%s) %s {\n", fnPrefix, endpointMiddlewareOption, serverOptionType)
 			g.w.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, paramPrefix)
+			g.w.W("}\n")
+
+			g.w.W("func %sErrorDecode(", iface.Named.Name.LowerCase+m.Name.Origin)
+
+			for i := 0; i < len(errorDecodeParams); i += 2 {
+				if i > 0 {
+					g.w.W(",")
+				}
+				g.w.W("%s %s", errorDecodeParams[i], errorDecodeParams[i+1])
+			}
+
+			g.w.W(") (err error) {\n")
+
+			g.w.W("switch code {\n")
+			g.w.W("default:\nerr = &httpError{code: code}\n")
+			if g.JSONRPCEnable {
+				//for _, e := range method.Errors {
+				//	g.w.W("case %d:\n", e.Code)
+				//	pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
+				//	if pkgName != "" {
+				//		pkgName += "."
+				//	}
+				//	newPrefix := ""
+				//	if e.IsPointer {
+				//		newPrefix = "&"
+				//	}
+				//	g.w.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
+				//}
+			}
+			g.w.W("}\n")
+			if g.JSONRPCEnable {
+				g.w.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
+				g.w.W("err.SetErrorData(data)\n")
+				g.w.W("}\n")
+
+				g.w.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
+				g.w.W("err.SetErrorMessage(message)\n")
+				g.w.W("}\n")
+			}
+			g.w.W("return\n")
 			g.w.W("}\n")
 		}
 	}

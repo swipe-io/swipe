@@ -14,7 +14,7 @@ package gateway
 //	TransportType() model.Transport
 //	UseFast() bool
 //	MethodOption(m model.ServiceMethod) model.MethodOption
-//	DefaultErrorEncoder() option.ValueType
+//	DefaultErrorEncoder() option.Value
 //	Errors() map[uint32]*model.HTTPError
 //
 //	ReadmeEnable() bool

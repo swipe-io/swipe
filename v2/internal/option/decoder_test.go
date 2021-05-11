@@ -42,7 +42,7 @@ func TestParser_Parse(t *testing.T) {
 		t.Fatal("AST loader failed")
 	}
 
-	modules, err := option.Decode(astLoader.Pkg(), astLoader.Pkgs(), astLoader.CommentFuncs(), nil, nil)
+	modules, err := option.Decode(astLoader.Pkg(), astLoader.Pkgs(), astLoader.CommentFuncs())
 	if err != nil {
 		t.Fatal(err)
 	}

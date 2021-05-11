@@ -2,6 +2,23 @@ package config
 
 import "github.com/swipe-io/swipe/v2/internal/option"
 
+type ErrorType string
+
+const (
+	RESTErrorType ErrorType = "rest"
+	JRPCErrorType ErrorType = "jrpc"
+)
+
+type Error struct {
+	Name string
+	Type ErrorType
+	Code int64
+}
+
+type FuncTypeValue struct {
+	Value *option.FuncType
+}
+
 type SliceStringValue struct {
 	Value []string
 }
@@ -35,18 +52,22 @@ type LoggingContext struct {
 }
 
 type MethodOption struct {
-	Signature        *option.NamedType
-	Instrumenting    BoolValue
-	Logging          BoolValue
-	Exclude          BoolValue
-	LoggingParams    LoggingParams
-	LoggingContext   []*LoggingContext
-	RESTMethod       StringValue
-	RESTWrapResponse StringValue
-	RESTPath         StringValue
-	RESTHeaderVars   SliceStringValue
-	RESTQueryVars    SliceStringValue
-	RESTPathVars     map[string]string
+	Signature            *option.NamedType
+	Instrumenting        BoolValue
+	Logging              BoolValue
+	Exclude              BoolValue
+	LoggingParams        LoggingParams
+	LoggingContext       []LoggingContext
+	RESTMethod           StringValue
+	RESTWrapResponse     StringValue
+	RESTPath             StringValue
+	RESTHeaderVars       SliceStringValue
+	RESTQueryVars        SliceStringValue
+	RESTPathVars         map[string]string
+	ServerEncodeResponse FuncTypeValue
+	ServerDecodeRequest  FuncTypeValue
+	ClientEncodeRequest  FuncTypeValue
+	ClientDecodeResponse FuncTypeValue
 }
 
 type OpenapiInfo struct {
@@ -83,7 +104,7 @@ func (a Langs) Contains(v string) bool {
 type Config struct {
 	HTTPServer           *struct{}
 	HTTPFast             *struct{}
-	ClientsEnable        *ClientsEnable
+	ClientsEnable        ClientsEnable
 	JSONRPCEnable        *struct{}
 	JSONRPCPath          StringValue
 	JSONRPCDocEnable     *struct{}
@@ -97,10 +118,12 @@ type Config struct {
 	OpenapiLicence       OpenapiLicence
 	OpenapiServers       []OpenapiServer `mapstructure:"OpenapiServer"`
 	MethodOptions        []*MethodOption
-	MethodDefaultOptions *MethodOption
+	MethodDefaultOptions MethodOption
+	DefaultErrorEncoder  FuncTypeValue
 
-	LoggingEnable       bool                     `mapstructure:"-"`
-	InstrumentingEnable bool                     `mapstructure:"-"`
-	MethodOptionsMap    map[string]*MethodOption `mapstructure:"-"`
-	OpenapiMethodTags   map[string][]string      `mapstructure:"-"`
+	LoggingEnable       bool                          `mapstructure:"-"`
+	InstrumentingEnable bool                          `mapstructure:"-"`
+	MethodOptionsMap    map[string]*MethodOption      `mapstructure:"-"`
+	OpenapiMethodTags   map[string][]string           `mapstructure:"-"`
+	IfaceErrors         map[string]map[string][]Error `mapstructure:"-"`
 }

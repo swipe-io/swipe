@@ -1,10 +1,7 @@
 package swipe
 
 import (
-	stdtypes "go/types"
-
 	"github.com/swipe-io/swipe/v2/internal/ast"
-	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/option"
 
 	"golang.org/x/tools/go/packages"
@@ -37,8 +34,8 @@ type Config struct {
 	Pkg          *packages.Package
 	Packages     []*packages.Package
 	CommentFuncs map[string][]string
-	CallGraph    *graph.Graph
-	findStmt     func(*stdtypes.Interface)
+	//CallGraph    *graph.Graph
+	//findStmt     func(*stdtypes.Interface)
 }
 
 func GetConfig(loader *ast.Loader) (*Config, error) {
@@ -49,8 +46,8 @@ func GetConfig(loader *ast.Loader) (*Config, error) {
 		Pkg:          loader.Pkg(),
 		Packages:     loader.Pkgs(),
 		CommentFuncs: loader.CommentFuncs(),
-		CallGraph:    loader.CallGraph(),
-		findStmt:     loader.FindStmt,
+		//CallGraph:    loader.CallGraph(),
+		//findStmt:     loader.FindStmt,
 	}
 	if err := cfg.Load(); err != nil {
 		return nil, err
@@ -59,6 +56,6 @@ func GetConfig(loader *ast.Loader) (*Config, error) {
 }
 
 func (c *Config) Load() (err error) {
-	c.Modules, err = option.Decode(c.Pkg, c.Packages, c.CommentFuncs, c.CallGraph, c.findStmt)
+	c.Modules, err = option.Decode(c.Pkg, c.Packages, c.CommentFuncs)
 	return
 }

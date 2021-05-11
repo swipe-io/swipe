@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pterm/pterm"
+
 	"github.com/google/subcommands"
 	"github.com/gookit/color"
 
@@ -54,7 +56,8 @@ func main() {
 		"fix-comment": true,
 	}
 
-	log.Printf("%s %s", color.LightBlue.Render("Swipe"), color.Yellow.Render(Version))
+	header := pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgWhite))
+	pterm.Println(header.Sprint("Swipe - " + Version))
 
 	var code int
 	if args := flag.Args(); len(args) == 0 || !allCmds[args[0]] {
@@ -92,7 +95,18 @@ func (cmd *genCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	log.Printf("%s %s", color.Yellow.Render("Thanks for using"), color.LightBlue.Render("swipe"))
+
+	pterm.DefaultBox.Println("Thanks for using Swipe")
+
+	//pterm.Println("")
+
+	//progressbar, _ := pterm.DefaultProgressbar.WithTotal(10).Start()
+	//
+	//progressbar.Title = "Generate"
+
+	//progressbar.Increment()
+
+	//log.Printf("%s %s", color.Yellow.Render("Thanks for using"), color.LightBlue.Render("swipe"))
 	log.Println(color.Yellow.Render("Please wait the command is running, it may take some time"))
 
 	var err error

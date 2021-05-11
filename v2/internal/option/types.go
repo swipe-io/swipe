@@ -29,11 +29,15 @@ type VarType struct {
 	Type       interface{}
 	Comment    string
 	Zero       string
+
+	originType stdtypes.Type
 }
 
 type StructType struct {
 	Fields    []*StructFieldType
 	IsPointer bool
+
+	originType stdtypes.Type
 }
 
 type StructFieldType struct {
@@ -45,10 +49,12 @@ type SignType struct {
 	Params     VarsType
 	Results    VarsType
 	IsVariadic bool
+	IsNamed    bool
 	Recv       interface{}
 }
 
 type FuncType struct {
+	Pkg      *PackageType
 	FullName string
 	Name     NameType
 	Exported bool
@@ -57,6 +63,7 @@ type FuncType struct {
 }
 
 type IfaceType struct {
+	Origin          *stdtypes.Interface
 	Methods         []*FuncType
 	Embeddeds       []interface{}
 	ExplicitMethods []*FuncType
@@ -76,6 +83,7 @@ type PackageType struct {
 }
 
 type NamedType struct {
+	Obj       stdtypes.Object
 	Name      NameType
 	Type      interface{}
 	Pkg       *PackageType
@@ -220,18 +228,18 @@ type PositionType struct {
 }
 
 type MapType struct {
-	KeyType   interface{}
-	ValueType interface{}
+	Key       interface{}
+	Value     interface{}
 	IsPointer bool
 }
 
 type SliceType struct {
-	ValueType interface{}
+	Value     interface{}
 	IsPointer bool
 }
 
 type ArrayType struct {
-	ValueType interface{}
+	Value     interface{}
 	Len       int64
 	IsPointer bool
 }

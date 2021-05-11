@@ -313,7 +313,7 @@ func (g *jsonRPCJSClient) Process(_ context.Context) error {
 	//		g.W("export const %sEnum = Object.freeze({\n", named.Named().IfaceUcName())
 	//
 	//		for _, enum := range value.([]model.Enum) {
-	//			value := enum.ValueType
+	//			value := enum.Value
 	//			if b.Info() == stdtypes.IsString {
 	//				value = strconv.Quote(value)
 	//			}

@@ -63,7 +63,7 @@ func (g *logging) Process(ctx context.Context) error {
 				}
 				for name, key := range mopt.LoggingContext {
 					var buf writer.GoWriter
-					buf.W("ctx.ValueType(")
+					buf.W("ctx.Value(")
 					writer.WriteAST(&buf, g.i, key)
 					buf.W(")")
 					logParams = append(logParams, strconv.Quote(name), buf.String())

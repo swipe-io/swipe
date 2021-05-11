@@ -56,6 +56,18 @@ func NameInstrumentingMiddleware(named *option.NamedType) string {
 	return LcNameWithAppPrefix(named) + "InstrumentingMiddleware"
 }
 
+func NameEndpointSetName(named *option.NamedType) string {
+	return LcNameWithAppPrefix(named) + "EpSet"
+}
+
+func LcNameEndpoint(named *option.NamedType, fn *option.FuncType) string {
+	return named.Name.LowerCase + fn.Name.Origin + "Endpoint"
+}
+
+func NameIfaceMethod(named *option.NamedType, fn *option.FuncType) string {
+	return named.Name.UpperCase + fn.Name.UpperCase
+}
+
 func IsContext(v *option.VarType) bool {
 	if named, ok := v.Type.(*option.NamedType); ok {
 		if _, ok := named.Type.(*option.IfaceType); ok {

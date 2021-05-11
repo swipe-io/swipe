@@ -191,7 +191,7 @@ func (g *restServer) Process(_ context.Context) error {
 						if g.options.UseFast() {
 							fmtPkg := g.i.Import("fmt", "fmt")
 
-							g.W("vars, ok := ctx.ValueType(%s.ContextKeyRouter).(*%s.Context)\n", kitHTTPPkg, routerPkg)
+							g.W("vars, ok := ctx.Value(%s.ContextKeyRouter).(*%s.Context)\n", kitHTTPPkg, routerPkg)
 							g.W("if !ok {\n")
 							g.W("return nil, %s.Errorf(\"couldn't assert %s.ContextKeyRouter to *%s.Context\")\n", fmtPkg, kitHTTPPkg, routerPkg)
 							g.W("}\n")

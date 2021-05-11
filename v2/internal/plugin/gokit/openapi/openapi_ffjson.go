@@ -3390,7 +3390,7 @@ handle_Responses:
 			j.Responses = nil
 		} else {
 
-			j.Responses = make(map[string]Response, 0)
+			j.Responses = make(map[string]*Response, 0)
 
 			wantVal := true
 
@@ -3398,7 +3398,7 @@ handle_Responses:
 
 				var k string
 
-				var tmpJResponses Response
+				var tmpJResponses *Response
 
 				tok = fs.Scan()
 				if tok == fflib.FFTok_error {

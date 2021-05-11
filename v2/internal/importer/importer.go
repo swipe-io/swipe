@@ -176,11 +176,11 @@ func (i *Importer) SortedImports() (result []string) {
 func (i *Importer) TypeString(v interface{}) string {
 	switch t := v.(type) {
 	case *option.MapType:
-		return pointerPrefix(t.IsPointer) + fmt.Sprintf("map[%s]%s", i.TypeString(t.KeyType), i.TypeString(t.ValueType))
+		return pointerPrefix(t.IsPointer) + fmt.Sprintf("map[%s]%s", i.TypeString(t.Key), i.TypeString(t.Value))
 	case *option.ArrayType:
-		return pointerPrefix(t.IsPointer) + fmt.Sprintf("[%d]%s", t.Len, i.TypeString(t.ValueType))
+		return pointerPrefix(t.IsPointer) + fmt.Sprintf("[%d]%s", t.Len, i.TypeString(t.Value))
 	case *option.SliceType:
-		return pointerPrefix(t.IsPointer) + "[]" + i.TypeString(t.ValueType)
+		return pointerPrefix(t.IsPointer) + "[]" + i.TypeString(t.Value)
 	case *option.BasicType:
 		return pointerPrefix(t.IsPointer) + t.Name
 	case *option.VarType:
@@ -200,7 +200,7 @@ func (i *Importer) TypeString(v interface{}) string {
 			if param.IsVariadic {
 				buf.WriteString("...")
 				if s, ok := typ.(*option.SliceType); ok {
-					typ = s.ValueType
+					typ = s.Value
 				}
 			}
 			buf.WriteString(i.TypeString(typ))
@@ -221,6 +221,12 @@ func (i *Importer) TypeString(v interface{}) string {
 		}
 		buf.WriteString(i.TypeString(t.Results))
 		return buf.String()
+	case *option.FuncType:
+		if t.Pkg == nil {
+			return t.Name.Origin
+		}
+		pkg := i.Import(t.Pkg.Name, t.Pkg.Path)
+		return pkg + "." + t.Name.Origin
 	case *option.NamedType:
 		if t.Pkg == nil {
 			return t.Name.Origin

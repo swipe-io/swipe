@@ -19,7 +19,7 @@ type Logging struct {
 	w                    writer.GoWriter
 	Interfaces           []*config.Interface
 	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions *config.MethodOption
+	DefaultMethodOptions config.MethodOption
 }
 
 func (g *Logging) Generate(ctx context.Context) []byte {
@@ -43,7 +43,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 		)
 
 		for _, m := range ifaceType.Methods {
-			mopt := g.DefaultMethodOptions
+			mopt := &g.DefaultMethodOptions
 			if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
 				mopt = opt
 			}

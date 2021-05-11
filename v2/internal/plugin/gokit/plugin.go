@@ -33,9 +33,14 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 		return errs
 	}
 
+	funcDeclTypes := makeFuncDeclTypes(cfg.Packages)
+
+	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, cfg.Packages, p.config.Interfaces)
+
 	p.config.MethodOptionsMap = map[string]*config.MethodOption{}
 
 	for _, methodOption := range p.config.MethodOptions {
+
 		if err := mergo.Merge(methodOption, p.config.MethodDefaultOptions); err != nil {
 			errs = append(errs, err)
 			continue
@@ -84,12 +89,14 @@ func (p *Plugin) validateConfig() (errs []error) {
 
 func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	goClientEnable := p.config.ClientsEnable.Langs.Contains("go")
+	jsonRPCEnable := p.config.JSONRPCEnable != nil
+	useFast := p.config.HTTPFast != nil
 	result = append(result,
 		&generator.Helpers{
 			Interfaces:     p.config.Interfaces,
-			JSONRPCEnable:  p.config.JSONRPCEnable != nil,
+			JSONRPCEnable:  jsonRPCEnable,
 			GoClientEnable: goClientEnable,
-			UseFast:        p.config.HTTPFast != nil,
+			UseFast:        useFast,
 		},
 		&generator.Endpoint{
 			Interfaces: p.config.Interfaces,
@@ -114,15 +121,23 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	}
 	if goClientEnable {
 		result = append(result, &generator.ClientStruct{
-			UseFast:       p.config.HTTPFast != nil,
-			JSONRPCEnable: p.config.JSONRPCEnable != nil,
+			UseFast:       useFast,
+			JSONRPCEnable: jsonRPCEnable,
 			Interfaces:    p.config.Interfaces,
 		})
+		if jsonRPCEnable {
+		} else {
+			result = append(result, &generator.RESTClientGenerator{
+				Interfaces:           p.config.Interfaces,
+				UseFast:              useFast,
+				MethodOptions:        p.config.MethodOptionsMap,
+				DefaultMethodOptions: p.config.MethodDefaultOptions,
+			})
+		}
 	}
 	if p.config.OpenapiEnable != nil {
-
 		result = append(result, &generator.Openapi{
-			JSONRPCEnable:        p.config.JSONRPCEnable != nil,
+			JSONRPCEnable:        jsonRPCEnable,
 			Contact:              p.config.OpenapiContact,
 			Info:                 p.config.OpenapiInfo,
 			MethodTags:           p.config.OpenapiMethodTags,
@@ -132,8 +147,19 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			Interfaces:           p.config.Interfaces,
 			MethodOptions:        p.config.MethodOptionsMap,
 			DefaultMethodOptions: p.config.MethodDefaultOptions,
+			IfaceErrors:          p.config.IfaceErrors,
 		})
 	}
-
+	if jsonRPCEnable {
+	} else {
+		result = append(result, &generator.RESTServerGenerator{
+			UseFast:              useFast,
+			JSONRPCEnable:        jsonRPCEnable,
+			MethodOptions:        p.config.MethodOptionsMap,
+			DefaultMethodOptions: p.config.MethodDefaultOptions,
+			DefaultErrorEncoder:  p.config.DefaultErrorEncoder.Value,
+			Interfaces:           p.config.Interfaces,
+		})
+	}
 	return
 }

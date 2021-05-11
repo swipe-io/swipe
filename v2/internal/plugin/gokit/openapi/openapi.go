@@ -66,7 +66,7 @@ type Response struct {
 	Content     Content `yaml:"content,omitempty" json:"content,omitempty"`
 }
 
-type Responses map[string]Response
+type Responses map[string]*Response
 
 type RequestBody struct {
 	Description string  `yaml:"description,omitempty" json:"description,omitempty"`

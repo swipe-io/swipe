@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/token"
 	stdtypes "go/types"
-	"strconv"
 	stdstrings "strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 
-	"github.com/swipe-io/swipe/v2/internal/domain/model"
 	"github.com/swipe-io/swipe/v2/internal/graph"
 	"github.com/swipe-io/swipe/v2/internal/types"
 
@@ -93,54 +90,56 @@ func (l *Loader) findErrors(f *ast.FuncDecl) {
 	}
 }
 
-func (l *Loader) FindStmt(vIface *stdtypes.Interface) {
-	//f := l.findFuncByName(obj.Name())
-	//l.findErrors(f)
-	for _, pkg := range l.pkgs {
-		for _, obj := range pkg.TypesInfo.Uses {
-			if _, ok := obj.Type().Underlying().(*stdtypes.Struct); ok {
-				imp := stdtypes.Implements(stdtypes.NewPointer(obj.Type()).Underlying(), vIface)
-				if imp {
-					for _, p := range l.pkgs {
-						for _, s := range p.Syntax {
-							for _, decl := range s.Decls {
-								v := decl.(*ast.FuncDecl)
+//func (l *Loader) FindStmt(vIface *stdtypes.Interface) {
+//	//f := l.findFuncByName(obj.Name())
+//	//l.findErrors(f)
+//	for _, pkg := range l.pkgs {
+//		for _, obj := range pkg.TypesInfo.Uses {
+//			if _, ok := obj.Type().Underlying().(*stdtypes.Struct); ok {
+//				imp := stdtypes.Implements(stdtypes.NewPointer(obj.Type()).Underlying(), vIface)
+//				if imp {
+//					for _, p := range l.pkgs {
+//						for _, s := range p.Syntax {
+//							for _, decl := range s.Decls {
+//								v := decl.(*ast.FuncDecl)
+//
+//								//v.Body.List
+//
+//								//p.TypesInfo.TypeOf(decl)
+//							}
+//						}
+//					}
+//
+//					//n := obj.Type().(*stdtypes.Named).NumMethods()
+//
+//					//stdtypes.Identical()
+//
+//					//for i := 0; i < n; i++ {
+//					//	fmt.Println(obj.Type().(*stdtypes.Named).Method(i).Id())
+//					//}
+//
+//					//fmt.Println(imp, obj.Type(), n)
+//				}
+//			}
+//		}
+//
+//		//for _, scope := range pkg.TypesInfo.Scopes {
+//		//	for _, name := range scope.Names() {
+//		//		obj := scope.Lookup(name)
+//		//		if _, ok := obj.Type().Underlying().(*stdtypes.Struct); ok {
+//		//			ptr := stdtypes.NewPointer(obj.Type())
+//		//			imp := stdtypes.Implements(ptr.Underlying(), vIface)
+//		//
+//		//			fmt.Println(imp)
+//		//		}
+//		//	}
+//		//}
+//	}
+//}
 
-								//p.TypesInfo.TypeOf(decl)
-							}
-						}
-					}
-
-					//n := obj.Type().(*stdtypes.Named).NumMethods()
-
-					//stdtypes.Identical()
-
-					//for i := 0; i < n; i++ {
-					//	fmt.Println(obj.Type().(*stdtypes.Named).Method(i).Id())
-					//}
-
-					//fmt.Println(imp, obj.Type(), n)
-				}
-			}
-		}
-
-		//for _, scope := range pkg.TypesInfo.Scopes {
-		//	for _, name := range scope.Names() {
-		//		obj := scope.Lookup(name)
-		//		if _, ok := obj.Type().Underlying().(*stdtypes.Struct); ok {
-		//			ptr := stdtypes.NewPointer(obj.Type())
-		//			imp := stdtypes.Implements(ptr.Underlying(), vIface)
-		//
-		//			fmt.Println(imp)
-		//		}
-		//	}
-		//}
-	}
-}
-
-func (l *Loader) CallGraph() *graph.Graph {
-	return l.callGraph
-}
+//func (l *Loader) CallGraph() *graph.Graph {
+//	return l.callGraph
+//}
 
 func (l *Loader) CommentFields() map[string]map[string]string {
 	return l.commentFields
@@ -234,8 +233,8 @@ func (l *Loader) WorkDir() string {
 
 func (l *Loader) run() (errs []error) {
 	var (
-		astNodes []nodeInfo
-		err      error
+		//astNodes []nodeInfo
+		err error
 	)
 
 	l.commentFuncs = map[string][]string{}
@@ -279,112 +278,113 @@ func (l *Loader) run() (errs []error) {
 	for _, pkg := range l.pkgs {
 		if l.pkg == nil && stdstrings.Contains(l.wd, pkg.Module.Dir) {
 			l.pkg = pkg
+			break
 		}
-		for _, syntax := range pkg.Syntax {
-			for _, decl := range syntax.Decls {
-				switch v := decl.(type) {
-				case *ast.GenDecl:
-					switch v.Tok {
-					case token.TYPE:
-						for _, spec := range v.Specs {
-							sp := spec.(*ast.TypeSpec)
-							obj := pkg.TypesInfo.ObjectOf(sp.Name)
-							if obj != nil {
-								l.callGraph.Add(&graph.Node{Object: obj})
-							}
-						}
-					case token.CONST:
-						var (
-							iotaValue int
-							iotaIncr  int
-							enums     []model.Enum
-						)
-						if len(v.Specs) < 1 {
-							continue
-						}
-						vs, ok := v.Specs[0].(*ast.ValueSpec)
-						if !ok {
-							continue
-						}
-						if vs.Type == nil {
-							continue
-						}
-						ti := pkg.TypesInfo.TypeOf(vs.Type.(*ast.Ident))
-						if ti != nil {
-							if named, ok := ti.(*stdtypes.Named); ok && !named.Obj().Exported() {
-								continue
-							}
-							if b, ok := ti.Underlying().(*stdtypes.Basic); ok {
-								switch b.Info() {
-								case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
-									for _, spec := range v.Specs {
-										vs := spec.(*ast.ValueSpec)
-										if len(vs.Values) == 1 {
-											iotaValue, iotaIncr = types.EvalInt(vs.Values[0])
-										} else {
-											iotaValue += iotaIncr
-										}
-										enums = append(enums, model.Enum{
-											Name:  vs.Names[0].Name,
-											Value: strconv.Itoa(iotaValue),
-										})
-									}
-								case stdtypes.IsString:
-									for _, spec := range v.Specs {
-										vs := spec.(*ast.ValueSpec)
-										if len(vs.Values) == 1 {
-											lit := vs.Values[0].(*ast.BasicLit)
-											s, _ := strconv.Unquote(lit.Value)
-											enums = append(enums, model.Enum{
-												Name:  vs.Names[0].Name,
-												Value: s,
-											})
-										}
-									}
-								}
-							}
-							l.enums.Set(ti, enums)
-						}
-					}
-				case *ast.FuncDecl:
-					obj := pkg.TypesInfo.ObjectOf(v.Name)
-					if obj != nil {
-						n := &graph.Node{Object: obj}
-						l.callGraph.Add(n)
-						values, objects := visitBlockStmt(pkg, v.Body)
-						n.AddValue(values...)
-						astNodes = append(astNodes, nodeInfo{
-							node:    n,
-							objects: objects,
-						})
-					}
-				}
-			}
-		}
+		//for _, syntax := range pkg.Syntax {
+		//	for _, decl := range syntax.Decls {
+		//		switch v := decl.(type) {
+		//case *ast.GenDecl:
+		//switch v.Tok {
+		//case token.TYPE:
+		//	for _, spec := range v.Specs {
+		//		sp := spec.(*ast.TypeSpec)
+		//		obj := pkg.TypesInfo.ObjectOf(sp.Name)
+		//		if obj != nil {
+		//			l.callGraph.Add(&graph.Node{Object: obj})
+		//		}
+		//	}
+		//case token.CONST:
+		//	var (
+		//		iotaValue int
+		//		iotaIncr  int
+		//		enums     []model.Enum
+		//	)
+		//	if len(v.Specs) < 1 {
+		//		continue
+		//	}
+		//	vs, ok := v.Specs[0].(*ast.ValueSpec)
+		//	if !ok {
+		//		continue
+		//	}
+		//	if vs.Type == nil {
+		//		continue
+		//	}
+		//	ti := pkg.TypesInfo.TypeOf(vs.Type.(*ast.Ident))
+		//	if ti != nil {
+		//		if named, ok := ti.(*stdtypes.Named); ok && !named.Obj().Exported() {
+		//			continue
+		//		}
+		//		if b, ok := ti.Underlying().(*stdtypes.Basic); ok {
+		//			switch b.Info() {
+		//			case stdtypes.IsUnsigned | stdtypes.IsInteger, stdtypes.IsInteger:
+		//				for _, spec := range v.Specs {
+		//					vs := spec.(*ast.ValueSpec)
+		//					if len(vs.Values) == 1 {
+		//						iotaValue, iotaIncr = types.EvalInt(vs.Values[0])
+		//					} else {
+		//						iotaValue += iotaIncr
+		//					}
+		//					enums = append(enums, model.Enum{
+		//						Name:  vs.Names[0].Name,
+		//						Value: strconv.Itoa(iotaValue),
+		//					})
+		//				}
+		//			case stdtypes.IsString:
+		//				for _, spec := range v.Specs {
+		//					vs := spec.(*ast.ValueSpec)
+		//					if len(vs.Values) == 1 {
+		//						lit := vs.Values[0].(*ast.BasicLit)
+		//						s, _ := strconv.Unquote(lit.Value)
+		//						enums = append(enums, model.Enum{
+		//							Name:  vs.Names[0].Name,
+		//							Value: s,
+		//						})
+		//					}
+		//				}
+		//			}
+		//		}
+		//		l.enums.Set(ti, enums)
+		//	}
+		//}
+		//case *ast.FuncDecl:
+		//	obj := pkg.TypesInfo.ObjectOf(v.Name)
+		//	if obj != nil {
+		//		n := &graph.Node{Object: obj}
+		//		l.callGraph.Add(n)
+		//		values, objects := visitBlockStmt(pkg, v.Body)
+		//		n.AddValue(values...)
+		//		astNodes = append(astNodes, nodeInfo{
+		//			node:    n,
+		//			objects: objects,
+		//		})
+		//	}
+		//}
+		//}
+		//}
 	}
 
-	for _, ni := range astNodes {
-		for _, obj := range ni.objects {
-			if sig, ok := obj.Type().(*stdtypes.Signature); ok {
-				if sig.Recv() != nil {
-					if _, ok := sig.Recv().Type().Underlying().(*stdtypes.Interface); ok {
-						l.callGraph.Iterate(func(n *graph.Node) {
-							l.callGraph.Traverse(n, func(n *graph.Node) bool {
-								if n.Object.Name() == obj.Name() && stdtypes.Identical(n.Object.Type(), obj.Type()) {
-									l.callGraph.AddEdge(ni.node, n)
-								}
-								return true
-							})
-						})
-						continue
-					}
-				}
-			}
-			if nn := l.callGraph.Node(obj); nn != nil {
-				l.callGraph.AddEdge(ni.node, nn)
-			}
-		}
-	}
+	//for _, ni := range astNodes {
+	//	for _, obj := range ni.objects {
+	//		if sig, ok := obj.Type().(*stdtypes.Signature); ok {
+	//			if sig.Recv() != nil {
+	//				if _, ok := sig.Recv().Type().Underlying().(*stdtypes.Interface); ok {
+	//					l.callGraph.Iterate(func(n *graph.Node) {
+	//						l.callGraph.Traverse(n, func(n *graph.Node) bool {
+	//							if n.Object.Name() == obj.Name() && stdtypes.Identical(n.Object.Type(), obj.Type()) {
+	//								l.callGraph.AddEdge(ni.node, n)
+	//							}
+	//							return true
+	//						})
+	//					})
+	//					continue
+	//				}
+	//			}
+	//		}
+	//		if nn := l.callGraph.Node(obj); nn != nil {
+	//			l.callGraph.AddEdge(ni.node, nn)
+	//		}
+	//	}
+	//}
 	types.Inspect(l.pkgs, func(p *packages.Package, n ast.Node) bool {
 		if ts, ok := n.(*ast.TypeSpec); ok {
 			obj := p.TypesInfo.ObjectOf(ts.Name)

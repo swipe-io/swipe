@@ -118,14 +118,19 @@ func zeroValue(t types.Type) string {
 			return "0"
 		case info&types.IsString != 0:
 			return `""`
+		//case info&types.Pointer{}
+
 		default:
-			panic("unreachable")
+			fmt.Println("unreachable")
+
+			return "nil"
+			//panic("unreachable")
 		}
 	case *types.Struct:
 		return "{}"
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return "nil"
-	default:
-		panic("unreachable")
+
 	}
+	panic("unreachable")
 }

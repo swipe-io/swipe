@@ -67,7 +67,7 @@ func (w *GoWriter) WriteDefer(params []string, calls []string, body func()) {
 //		return
 //	}
 //	if len(keyvals)%2 != 0 {
-//		panic("WriteSignature: missing ValueType")
+//		panic("WriteSignature: missing Value")
 //	}
 //	for i := 0; i < len(keyvals); i += 2 {
 //		if i > 0 {
@@ -99,7 +99,7 @@ func (w *GoWriter) WriteStruct(keyvals []string, assign bool) {
 
 func (w *GoWriter) WriteStructDefined(keyvals []string) {
 	if len(keyvals)%2 != 0 {
-		panic("WriteStructDefined: missing ValueType")
+		panic("WriteStructDefined: missing Value")
 	}
 	w.W("{\n")
 	for i := 0; i < len(keyvals); i += 2 {
@@ -111,7 +111,7 @@ func (w *GoWriter) WriteStructDefined(keyvals []string) {
 
 func (w *GoWriter) WriteStructAssign(keyvals []string) {
 	if len(keyvals)%2 != 0 {
-		panic("WriteStructAssign: missing ValueType")
+		panic("WriteStructAssign: missing Value")
 	}
 	w.W("{")
 	for i := 0; i < len(keyvals); i += 2 {
@@ -293,8 +293,8 @@ func (w *GoWriter) WriteConvertType(
 	case *option.MapType:
 		stringsPkg := importer.Import("strings", "strings")
 
-		if k, ok := t.KeyType.(*option.BasicType); ok && k.IsString() {
-			if v, ok := t.ValueType.(*option.BasicType); ok {
+		if k, ok := t.Key.(*option.BasicType); ok && k.IsString() {
+			if v, ok := t.Value.(*option.BasicType); ok {
 				tmpID = "parts" + f.Name.LowerCase
 				w.W("%s := %s.Split(%s, \",\")\n", tmpID, stringsPkg, valueId)
 				w.W("%s = make(%s, len(%s))\n", assignId, k.Name, tmpID)
@@ -317,7 +317,7 @@ func (w *GoWriter) WriteConvertType(
 		}
 	case *option.SliceType:
 		stringsPkg := importer.Import("strings", "strings")
-		switch t := t.ValueType.(type) {
+		switch t := t.Value.(type) {
 		case *option.BasicType:
 			if t.IsNumeric() {
 				tmpID = "parts" + f.Name.LowerCase + strcase.ToCamel(t.Name)

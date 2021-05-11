@@ -267,9 +267,9 @@ func (g *jsonrpcDoc) Process(ctx context.Context) error {
 	//				}
 	//			}
 	//			g.W("### <a name=\"%[1]s\"></a> %[1]sEnum <code>%[2]s</code>\n\n", enumName, typeName)
-	//			g.W("| Name | ValueType | Description |\n|------|------|------|\n")
+	//			g.W("| Name | Value | Description |\n|------|------|------|\n")
 	//			for _, enum := range value.([]model.Enum) {
-	//				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.ValueType, "")
+	//				g.W("|%s|<code>%s</code>|%s|\n", enum.Name, enum.Value, "")
 	//			}
 	//		}
 	//	})

@@ -4,51 +4,51 @@ package _option
 //	return o
 //}
 //
-//type ValueType struct {
+//type Value struct {
 //	v    interface{}
 //	t    types.Type
 //	expr ast.Expr
 //	pos  token.Position
 //}
 //
-//func (v ValueType) Pos() token.Position {
+//func (v Value) Pos() token.Position {
 //	return v.pos
 //}
 //
-//func (v ValueType) Type() types.Type {
+//func (v Value) Type() types.Type {
 //	return v.t
 //}
 //
-//func (v ValueType) Expr() ast.Expr {
+//func (v Value) Expr() ast.Expr {
 //	return v.expr
 //}
 //
-//func (v ValueType) ExprSlice() (value []ast.Expr) {
+//func (v Value) ExprSlice() (value []ast.Expr) {
 //	value, _ = v.v.([]ast.Expr)
 //	return
 //}
 //
-//func (v ValueType) StringSlice() (value []string) {
+//func (v Value) StringSlice() (value []string) {
 //	value, _ = v.v.([]string)
 //	return
 //}
 //
-//func (v ValueType) String() (value string) {
+//func (v Value) String() (value string) {
 //	value, _ = v.v.(string)
 //	return
 //}
 //
-//func (v ValueType) Int() (value int) {
+//func (v Value) Int() (value int) {
 //	value, _ = v.v.(int)
 //	return
 //}
 //
-//func (v ValueType) Bool() (value bool) {
+//func (v Value) Bool() (value bool) {
 //	value, _ = v.v.(bool)
 //	return
 //}
 //
-//func (v ValueType) Float() (value float32) {
+//func (v Value) Float() (value float32) {
 //	value, _ = v.v.(float32)
 //	return
 //}
@@ -56,7 +56,7 @@ package _option
 //type Option struct {
 //	FnObj      types.Object
 //	Name       string
-//	ValueType      ValueType
+//	Value      Value
 //	Properties Properties
 //	Position   token.Position
 //}
@@ -129,20 +129,20 @@ package _option
 //			} else {
 //				t := p.pkg.TypesInfo.TypeOf(expr)
 //				value := p.getValue(expr)
-//				v := ValueType{
+//				v := Value{
 //					v:    value,
 //					t:    t,
 //					expr: v.Args[i],
 //					pos:  p.pkg.Fset.Position(v.Args[i].Pos()),
 //				}
 //				if fnSig.Params().Len() == 1 {
-//					result.ValueType = v
+//					result.Value = v
 //				} else {
 //					name := fnSig.Params().At(i).Name()
 //
 //					result.Properties[name] = append(
 //						result.Properties[name],
-//						&Option{FnObj: fnObj, Name: name, Position: exprPos, ValueType: v, Properties: map[string][]*Option{}},
+//						&Option{FnObj: fnObj, Name: name, Position: exprPos, Value: v, Properties: map[string][]*Option{}},
 //					)
 //				}
 //			}
@@ -154,16 +154,16 @@ package _option
 //func (p Parser) getValue(expr ast.Expr) interface{} {
 //	var v interface{}
 //	if tv, ok := p.pkg.TypesInfo.Types[expr]; ok {
-//		if tv.IsValue() && tv.ValueType != nil {
-//			switch tv.ValueType.Kind() {
+//		if tv.IsValue() && tv.Value != nil {
+//			switch tv.Value.Kind() {
 //			case constant.String:
-//				v = constant.StringVal(tv.ValueType)
+//				v = constant.StringVal(tv.Value)
 //			case constant.Bool:
-//				v = constant.BoolVal(tv.ValueType)
+//				v = constant.BoolVal(tv.Value)
 //			case constant.Float:
-//				v, _ = constant.Float64Val(tv.ValueType)
+//				v, _ = constant.Float64Val(tv.Value)
 //			case constant.Int:
-//				v, _ = constant.Int64Val(tv.ValueType)
+//				v, _ = constant.Int64Val(tv.Value)
 //			}
 //		} else {
 //			switch ve := expr.(type) {

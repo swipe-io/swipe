@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/swipe-io/swipe/v2/internal/option"
+
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/importer"
 	"github.com/swipe-io/swipe/v2/internal/interface/frame"
@@ -19,6 +21,10 @@ const (
 type Importer interface {
 	Import(name string, path string) string
 	TypeString(v interface{}) string
+}
+
+type AstFinder interface {
+	FindImplIface(ifaceType option.IfaceType)
 }
 
 type GenerateResult struct {
@@ -40,6 +46,7 @@ func Generate(cfg *Config) (result []GenerateResult, errs []error) {
 				importerService = importer.NewImporter(build.Pkg)
 				importerMap[build.Pkg.Path] = importerService
 			}
+
 			for id, options := range build.Option {
 				p, ok := registeredPlugins[id]
 				if !ok {
