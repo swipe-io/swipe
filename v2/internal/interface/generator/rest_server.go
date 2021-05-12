@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"container/list"
 	"context"
 	"fmt"
 	"path"
@@ -128,14 +129,19 @@ func (g *restServer) Process(_ context.Context) error {
 
 				g.W(", ")
 
+				var urlPath string
+
 				if mopt.Path != "" {
 					// replace brace indices for fasthttp router
-					urlPath := stdstrings.ReplaceAll(mopt.Path, "{", "<")
+					urlPath = stdstrings.ReplaceAll(mopt.Path, "{", "<")
 					urlPath = stdstrings.ReplaceAll(urlPath, "}", ">")
-					g.W(strconv.Quote(urlPath))
 				} else {
-					g.W(strconv.Quote("/" + strcase.ToKebab(m.Name)))
+					urlPath = "/" + strcase.ToKebab(m.Name)
 				}
+				if prefix != "" {
+					urlPath = prefix + urlPath
+				}
+				g.W(strconv.Quote(stdstrings.TrimRight(urlPath, "/")))
 				g.W(", ")
 			} else {
 				g.W("r.Methods(")
@@ -263,8 +269,32 @@ func (g *restServer) Process(_ context.Context) error {
 						} else {
 							responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
 						}
+
+						parts := stdstrings.Split(mopt.WrapResponse.Name, ".")
+
+						var fn func(e *list.Element) string
+						fn = func(e *list.Element) (out string) {
+							if next := e.Next(); next != nil {
+								out += " map[string]interface{}{"
+								out += strconv.Quote(e.Value.(string)) + ": "
+								out += fn(next)
+								out += "}"
+							} else {
+								out += "map[string]interface{}{" + strconv.Quote(e.Value.(string)) + ": response }"
+							}
+							return out
+						}
+
+						l := list.New()
+						if len(parts) > 0 {
+							e := l.PushFront(parts[0])
+							for i := 1; i < len(parts); i++ {
+								e = l.InsertAfter(parts[i], e)
+							}
+						}
+
 						g.W("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
-						g.W("return encodeResponseHTTP(ctx, w, map[string]interface{}{\"%s\": response})\n", mopt.WrapResponse.Name)
+						g.W("return encodeResponseHTTP(ctx, w, %s)\n", fn(l.Front()))
 						g.W("}")
 					} else {
 						g.W("encodeResponseHTTP")
