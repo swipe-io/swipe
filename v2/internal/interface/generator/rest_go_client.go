@@ -46,9 +46,9 @@ func (g *restGoClient) Process(_ context.Context) error {
 		iface := g.options.Interfaces().At(i)
 
 		name := iface.UcName()
-		//if iface.Namespace() != "" {
-		//	name = strcase.ToCamel(iface.Namespace())
-		//}
+		if iface.Namespace() != "" {
+			name = strcase.ToCamel(iface.Namespace())
+		}
 		clientType := name + "Client"
 
 		if g.options.UseFast() {
