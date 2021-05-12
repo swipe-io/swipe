@@ -397,11 +397,7 @@ func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string
 	g.W(", response interface{}) (err error) {\n")
 	g.W("contentType := \"application/json; charset=utf-8\"\n")
 	g.W("statusCode := 200\n")
-	if g.options.UseFast() {
-		g.W("h := w.Header\n")
-	} else {
-		g.W("h := w.Header()\n")
-	}
+
 	g.W("var data []byte\n")
 	g.W("if response != nil {\n")
 	g.W("data, err = %s.Marshal(response)\n", jsonPkg)
@@ -412,7 +408,13 @@ func (g *restServer) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string
 	g.W("contentType = \"text/plain; charset=utf-8\"\n")
 	g.W("statusCode = 201\n")
 	g.W("}\n")
-	g.W("h.Set(\"Content-Type\", contentType)\n")
+
+	if g.options.UseFast() {
+		g.W("w.Header.Set(\"Content-Type\", contentType)\n")
+	} else {
+		g.W("w.Header().Set(\"Content-Type\", contentType)\n")
+	}
+
 	if g.options.UseFast() {
 		g.W("w.SetStatusCode(statusCode)\n")
 	} else {
