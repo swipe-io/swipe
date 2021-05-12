@@ -1,7 +1,9 @@
 package generator
 
 import (
+	"container/list"
 	"context"
+	"fmt"
 	stdtypes "go/types"
 	"path"
 	"strconv"
@@ -272,8 +274,40 @@ func (g *restGoClient) Process(_ context.Context) error {
 					} else {
 						responseType = stdtypes.TypeString(m.Results[0].Type(), g.i.QualifyPkg)
 					}
+
+					var structPath string
+
 					if mopt.WrapResponse.Enable {
-						g.W("var resp struct {\nData %s `json:\"%s\"`\n}\n", responseType, mopt.WrapResponse.Name)
+						parts := stdstrings.Split(mopt.WrapResponse.Name, ".")
+
+						var fn func(e *list.Element) string
+						fn = func(e *list.Element) (out string) {
+							if next := e.Next(); next != nil {
+								out += " struct { "
+								out += strcase.ToCamel(e.Value.(string))
+								out += fn(next)
+								out += "}"
+							} else {
+								out += fmt.Sprintf(" struct {\nData %s `json:\"%s\"`\n}", responseType, e.Value)
+							}
+							if prev := e.Prev(); prev != nil {
+								out += " `json:\"" + prev.Value.(string) + "\"`"
+							}
+							return out
+						}
+
+						l := list.New()
+						if len(parts) > 0 {
+							structPath = strcase.ToCamel(parts[0])
+							e := l.PushFront(parts[0])
+							for i := 1; i < len(parts); i++ {
+								if i != len(parts)-1 {
+									structPath += strcase.ToCamel(parts[i])
+								}
+								e = l.InsertAfter(parts[i], e)
+							}
+						}
+						g.W("var resp %s\n", fn(l.Front()))
 					} else {
 						g.W("var resp %s\n", responseType)
 					}
@@ -296,7 +330,7 @@ func (g *restGoClient) Process(_ context.Context) error {
 					g.W("}\n")
 
 					if mopt.WrapResponse.Enable {
-						g.W("return resp.Data, nil\n")
+						g.W("return resp.%s.Data, nil\n", structPath)
 					} else {
 						g.W("return resp, nil\n")
 					}

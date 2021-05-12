@@ -305,7 +305,7 @@ func (g *openapiDoc) Process(ctx context.Context) error {
 				o = g.makeRestPath(m, ntc, paramsComment)
 				pathStr = strcase.ToKebab(m.Name)
 				if mopt.Path != "" {
-					pathStr = mopt.Path
+					pathStr = stdstrings.TrimLeft(mopt.Path, "/")
 				}
 				for _, p := range m.Params {
 					if regexp, ok := mopt.PathVars[p.Name()]; ok {
