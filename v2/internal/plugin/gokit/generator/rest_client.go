@@ -39,9 +39,6 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		name := iface.Named.Name.UpperCase
-		if iface.Namespace != "" {
-			name = strcase.ToCamel(iface.Namespace)
-		}
 		clientType := name + "Client"
 
 		if g.UseFast {

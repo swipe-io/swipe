@@ -32,8 +32,8 @@ func (e *generationExecutor) processGenerate(pkg *packages.Package, generators [
 
 	for _, g := range generators {
 
-				generated := executor.GenerateResult{}
-						if err := g.Prepare(context.TODO()); err != nil {
+		generated := executor.GenerateResult{}
+		if err := g.Prepare(context.TODO()); err != nil {
 			generated.Errs = append(generated.Errs, err)
 			result = append(result, generated)
 			continue

@@ -101,10 +101,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-		var prefix string
-		if iface.Namespace != "" {
-			prefix = iface.Namespace
-		}
 		epSetName := NameEndpointSetName(iface.Named)
 		for _, m := range ifaceType.Methods {
 			mopt := &g.DefaultMethodOptions
@@ -122,6 +118,16 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				headerVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
 			}
 
+			var urlPath string
+			if mopt.RESTPath.Value != "" {
+				urlPath = stdstrings.TrimLeft(mopt.RESTPath.Value, "/")
+			} else {
+				urlPath = strcase.ToKebab(m.Name.Origin)
+			}
+			if iface.Namespace != "" {
+				urlPath = path.Join(iface.Namespace, urlPath)
+			}
+
 			if g.UseFast {
 				g.w.W("r.To(")
 				if mopt.RESTMethod.Value != "" {
@@ -132,14 +138,12 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 				g.w.W(", ")
 
-				if mopt.RESTPath.Value != "" {
-					// replace brace indices for fasthttp router
-					urlPath := stdstrings.ReplaceAll(mopt.RESTPath.Value, "{", "<")
-					urlPath = stdstrings.ReplaceAll(urlPath, "}", ">")
-					g.w.W(strconv.Quote(urlPath))
-				} else {
-					g.w.W(strconv.Quote("/" + strcase.ToKebab(m.Name.Origin)))
-				}
+				// replace brace indices for fasthttp router
+				urlPath = stdstrings.ReplaceAll(mopt.RESTPath.Value, "{", "<")
+				urlPath = stdstrings.ReplaceAll(urlPath, "}", ">")
+
+				g.w.W(strconv.Quote(urlPath))
+
 				g.w.W(", ")
 			} else {
 				g.w.W("r.Methods(")
@@ -150,11 +154,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				}
 				g.w.W(").")
 				g.w.W("Path(")
-				if mopt.RESTPath.Value != "" {
-					g.w.W(strconv.Quote(path.Join("/", prefix, mopt.RESTPath.Value)))
-				} else {
-					g.w.W(strconv.Quote(path.Join("/", prefix, strcase.ToKebab(m.Name.Origin))))
-				}
+
+				g.w.W(strconv.Quote(urlPath))
 
 				g.w.W(").")
 				g.w.W("Handler(")

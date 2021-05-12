@@ -48,9 +48,6 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 
 		for _, iface := range g.Interfaces {
 			name := iface.Named.Name.UpperCase
-			if iface.Namespace != "" {
-				name = strcase.ToCamel(iface.Namespace)
-			}
 			clientType := name + "Client"
 			g.w.W("%s *%s\n", name, clientType)
 		}
@@ -67,9 +64,6 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 
 		for _, iface := range g.Interfaces {
 			name := iface.Named.Name.UpperCase
-			if iface.Namespace != "" {
-				name = strcase.ToCamel(iface.Namespace)
-			}
 			lcName := strcase.ToLowerCamel(name)
 
 			if g.JSONRPCEnable {
@@ -85,9 +79,6 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 		g.w.W("return &AppClient{\n")
 		for _, iface := range g.Interfaces {
 			name := iface.Named.Name.UpperCase
-			if iface.Namespace != "" {
-				name = strcase.ToCamel(iface.Namespace)
-			}
 			lcName := strcase.ToLowerCamel(name)
 			g.w.W("%[1]s: %[2]s,\n", name, lcName)
 		}
@@ -139,9 +130,6 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 			ifaceType := iface.Named.Type.(*option.IfaceType)
 
 			name := iface.Named.Name.UpperCase
-			if iface.Namespace != "" {
-				name = strcase.ToCamel(iface.Namespace)
-			}
 
 			clientType := fmt.Sprintf("%sClient", name)
 			g.w.W("type %s struct {\n", clientType)
