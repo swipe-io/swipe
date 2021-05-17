@@ -10,6 +10,104 @@ import (
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/openapi"
 )
 
+const jsonRPCClientBase = `
+export class JSONRPCError extends Error {
+	constructor(message, name, code, data) {
+	  	super(message);
+	  	this.name = name;
+	  	this.code = code;
+		this.data = data;
+	}
+}
+
+class JSONRPCScheduler {
+	/**
+	 *
+	 * @param {*} transport
+	 */
+	constructor(transport) {
+	  this._transport = transport;
+	  this._requestID = 0;
+	  this._scheduleRequests = {};
+	  this._commitTimerID = null;
+	  this._beforeRequest = null;
+	}
+	beforeRequest(fn) {
+	  this._beforeRequest = fn;
+	} 
+	__scheduleCommit() {
+	  if (this._commitTimerID) {
+		clearTimeout(this._commitTimerID);
+	  }
+	  this._commitTimerID = setTimeout(() => {
+		this._commitTimerID = null;
+		const scheduleRequests = { ...this._scheduleRequests };
+		this._scheduleRequests = {};
+		let requests = [];
+		for (let key in scheduleRequests) {
+		  requests.push(scheduleRequests[key].request);
+		}
+		this.__doRequest(requests)
+		  .then((responses) => {
+			for (let i = 0; i < responses.length; i++) {
+              const schedule = scheduleRequests[responses[i].id];
+			  if (responses[i].error) {
+				schedule.reject(responses[i].error);
+				continue;
+			  }
+			  schedule.resolve(responses[i].result);
+			}
+		  })
+         .catch((e) => {
+           for (let key in requests) {
+             if (!requests.hasOwnProperty(key)) {
+               continue;
+             }
+             if (scheduleRequests.hasOwnProperty(requests[key].id)) {
+               scheduleRequests[requests[key].id].reject(e)
+             }
+           }
+         });
+	  }, 0);
+	}
+	makeJSONRPCRequest(id, method, params) {
+	  return {
+		jsonrpc: "2.0",
+		id: id,
+		method: method,
+		params: params,
+	  };
+	}
+	/**
+    * @param {string} method
+    * @param {Object} params
+    * @returns {Promise<*>}
+    */
+	__scheduleRequest(method, params) {
+	  const p = new Promise((resolve, reject) => {
+		const request = this.makeJSONRPCRequest(
+		  this.__requestIDGenerate(),
+		  method,
+		  params
+		);
+		this._scheduleRequests[request.id] = {
+		  request,
+		  resolve,
+		  reject,
+		};
+	  });
+	  this.__scheduleCommit();
+	  return p;
+	}
+	__doRequest(request) {
+	  return this._transport.doRequest(request);
+	}
+	__requestIDGenerate() {
+	  return ++this._requestID;
+	}
+ }
+`
+
 func NameRequest(m *option.FuncType, named *option.NamedType) string {
 	var prefix string
 	if named != nil {
@@ -64,8 +162,12 @@ func LcNameEndpoint(named *option.NamedType, fn *option.FuncType) string {
 	return named.Name.LowerCase + fn.Name.Origin + "Endpoint"
 }
 
-func NameIfaceMethod(named *option.NamedType, fn *option.FuncType) string {
+func UcNameIfaceMethod(named *option.NamedType, fn *option.FuncType) string {
 	return named.Name.UpperCase + fn.Name.UpperCase
+}
+
+func LcNameIfaceMethod(named *option.NamedType, fn *option.FuncType) string {
+	return named.Name.LowerCase + fn.Name.UpperCase
 }
 
 func IsContext(v *option.VarType) bool {
@@ -331,4 +433,118 @@ func getOpenapiRESTErrorSchema() *openapi.Schema {
 			},
 		},
 	}
+}
+
+func jsTypeDef(i interface{}) string {
+	return jsTypeDefRecursive(i, 0, map[string]struct{}{})
+}
+
+func jsTypeDefRecursive(i interface{}, nested int, visited map[string]struct{}) string {
+	switch t := i.(type) {
+	case *option.NamedType:
+		switch t.Pkg.Path {
+		case "github.com/google/uuid", "github.com/pborman/uuid":
+			switch t.Name.Origin {
+			case "UUID":
+				return "string"
+			}
+		case "encoding/json":
+			switch t.Name.Origin {
+			case "RawMessage":
+				return "*"
+			}
+		case "time":
+			switch t.Name.Origin {
+			case "Time":
+				return "string"
+			}
+		}
+		return t.Name.Origin
+	case *option.StructType:
+		out := ""
+		for _, f := range t.Fields {
+			if jsonTag, err := f.Tags.Get("json"); err == nil {
+				if jsonTag.Name == "-" {
+					continue
+				}
+			}
+			if em, ok := f.Var.Type.(*option.StructType); ok && f.Var.Embedded {
+				out += jsTypeDefRecursive(em, nested, visited)
+				continue
+			}
+			out += "* @property {" + jsDocType(f.Var.Type) + "} " + f.Var.Name.LowerCase
+			out += "\n"
+		}
+		return out
+	}
+	return ""
+}
+
+func jsDocType(i interface{}) string {
+	return jsDocTypeRecursive(i, 0)
+}
+
+func jsDocTypeRecursive(i interface{}, nested int) string {
+	switch t := i.(type) {
+	case *option.StructType:
+		out := ""
+		for _, f := range t.Fields {
+			if jsonTag, err := f.Tags.Get("json"); err == nil {
+				if jsonTag.Name == "-" {
+					continue
+				}
+			}
+			if em, ok := f.Var.Type.(*option.StructType); ok && f.Var.Embedded {
+				out += jsDocTypeRecursive(em, nested)
+				continue
+			}
+			out += stdstrings.Repeat(" ", nested) + f.Var.Name.LowerCase + ": " + jsDocTypeRecursive(f.Var.Type, nested+1)
+			out += "\n"
+		}
+		return out
+	case *option.IfaceType:
+		return "object"
+	case *option.MapType:
+		return "Object<string, " + jsDocTypeRecursive(t.Value, nested) + ">"
+	case *option.SliceType:
+		if b, ok := t.Value.(*option.BasicType); ok {
+			if b.IsByte() {
+				return "string"
+			}
+		}
+		return "Array<" + jsDocTypeRecursive(t.Value, nested) + ">"
+	case *option.ArrayType:
+		return "Array<" + jsDocTypeRecursive(t.Value, nested) + ">"
+	case *option.NamedType:
+		switch t.Pkg.Path {
+		case "github.com/google/uuid", "github.com/pborman/uuid":
+			switch t.Name.Origin {
+			case "UUID":
+				return "string"
+			}
+		case "encoding/json":
+			switch t.Name.Origin {
+			case "RawMessage":
+				return "*"
+			}
+		case "time":
+			switch t.Name.Origin {
+			case "Time":
+				return "string"
+			}
+		}
+		return t.Name.Origin
+	case *option.BasicType:
+		if t.IsString() {
+			return "string"
+		}
+		if t.IsNumeric() {
+			return "number"
+		}
+		if t.IsBool() {
+			return "boolean"
+		}
+		return t.Name
+	}
+	return ""
 }

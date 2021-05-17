@@ -121,9 +121,12 @@ type Config struct {
 	MethodDefaultOptions MethodOption
 	DefaultErrorEncoder  FuncTypeValue
 
+	// non options params
 	LoggingEnable       bool                          `mapstructure:"-"`
 	InstrumentingEnable bool                          `mapstructure:"-"`
 	MethodOptionsMap    map[string]*MethodOption      `mapstructure:"-"`
 	OpenapiMethodTags   map[string][]string           `mapstructure:"-"`
 	IfaceErrors         map[string]map[string][]Error `mapstructure:"-"`
+	JSPkgImportPath     string                        `mapstructure:"-"`
+	AppName             string                        `mapstructure:"-"`
 }

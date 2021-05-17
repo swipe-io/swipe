@@ -1,7 +1,13 @@
 package gokit
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path"
+	"path/filepath"
+
+	"github.com/swipe-io/strcase"
 
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
@@ -33,14 +39,15 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 		return errs
 	}
 
+	_, appName := path.Split(module.Path)
+	p.config.AppName = strcase.ToCamel(appName)
+
 	funcDeclTypes := makeFuncDeclTypes(cfg.Packages)
 
 	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, cfg.Packages, p.config.Interfaces)
-
 	p.config.MethodOptionsMap = map[string]*config.MethodOption{}
 
 	for _, methodOption := range p.config.MethodOptions {
-
 		if err := mergo.Merge(methodOption, p.config.MethodDefaultOptions); err != nil {
 			errs = append(errs, err)
 			continue
@@ -75,6 +82,20 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 			p.config.OpenapiMethodTags[recv.Name.Origin+m.Name.Origin] = o.Tags
 		}
 	}
+
+	pkgJsonFilepath := filepath.Join(cfg.WorkDir, "package.json")
+	data, err := ioutil.ReadFile(pkgJsonFilepath)
+	if err == nil {
+		var packageJSON map[string]interface{}
+		err := json.Unmarshal(data, &packageJSON)
+		if err == nil {
+			if name, ok := packageJSON["name"].(string); ok {
+				p.config.JSPkgImportPath = name
+			}
+		} else {
+			errs = append(errs, err)
+		}
+	}
 	return nil
 }
 
@@ -89,6 +110,7 @@ func (p *Plugin) validateConfig() (errs []error) {
 
 func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	goClientEnable := p.config.ClientsEnable.Langs.Contains("go")
+	jsClientEnable := p.config.ClientsEnable.Langs.Contains("js")
 	jsonRPCEnable := p.config.JSONRPCEnable != nil
 	useFast := p.config.HTTPFast != nil
 	result = append(result,
@@ -126,6 +148,12 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			Interfaces:    p.config.Interfaces,
 		})
 		if jsonRPCEnable {
+			result = append(result, &generator.JSONRPCClientGenerator{
+				Interfaces:           p.config.Interfaces,
+				UseFast:              useFast,
+				MethodOptions:        p.config.MethodOptionsMap,
+				DefaultMethodOptions: p.config.MethodDefaultOptions,
+			})
 		} else {
 			result = append(result, &generator.RESTClientGenerator{
 				Interfaces:           p.config.Interfaces,
@@ -151,6 +179,20 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 		})
 	}
 	if jsonRPCEnable {
+		result = append(result, &generator.JSONRPCServerGenerator{
+			UseFast:              useFast,
+			Interfaces:           p.config.Interfaces,
+			MethodOptions:        p.config.MethodOptionsMap,
+			DefaultMethodOptions: p.config.MethodDefaultOptions,
+			DefaultErrorEncoder:  p.config.DefaultErrorEncoder.Value,
+			JSONRPCPath:          p.config.JSONRPCPath.Value,
+		})
+		if jsClientEnable {
+			result = append(result, &generator.JSONRPCJSClientGenerator{
+				Interfaces:  p.config.Interfaces,
+				IfaceErrors: p.config.IfaceErrors,
+			})
+		}
 	} else {
 		result = append(result, &generator.RESTServerGenerator{
 			UseFast:              useFast,

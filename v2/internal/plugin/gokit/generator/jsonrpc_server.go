@@ -6,17 +6,19 @@ import (
 	stdstrings "strings"
 
 	"github.com/swipe-io/swipe/v2/internal/option"
-
-	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v2/internal/swipe"
 	"github.com/swipe-io/swipe/v2/internal/writer"
 )
 
 type JSONRPCServerGenerator struct {
-	w          writer.GoWriter
-	UseFast    bool
-	Interfaces []*config.Interface
+	w                    writer.GoWriter
+	UseFast              bool
+	Interfaces           []*config.Interface
+	MethodOptions        map[string]*config.MethodOption
+	DefaultMethodOptions config.MethodOption
+	DefaultErrorEncoder  *option.FuncType
+	JSONRPCPath          string
 }
 
 func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
@@ -71,25 +73,29 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("ecm := %[1]s.EndpointCodecMap{}\n", jsonrpcPkg)
 
 			for _, m := range ifaceType.Methods {
-				mopt := g.options.MethodOption(m)
+				nameRequest := NameRequest(m, iface.Named)
+				mopt := &g.DefaultMethodOptions
+				if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
+					mopt = opt
+				}
 
 				g.w.W("if ep.%sEndpoint != nil {\n", m.Name)
 
-				g.w.W("ecm[namespace+\"%s\"] = %s.EndpointCodec{\n", strcase.ToLowerCamel(m.Name), jsonrpcPkg)
+				g.w.W("ecm[namespace+\"%s\"] = %s.EndpointCodec{\n", m.Name.LowerCase, jsonrpcPkg)
 				g.w.W("Endpoint: ep.%sEndpoint,\n", m.Name)
 				g.w.W("Decode: ")
 
-				if mopt.ServerRequestFunc.Expr != nil {
-					writer.WriteAST(g, g.i, mopt.ServerRequestFunc.Expr)
+				if mopt.ServerDecodeRequest.Value != nil {
+					g.w.W(importer.TypeString(mopt.ServerDecodeRequest.Value))
 				} else {
 					g.w.W("func(_ %s.Context, msg %s.RawMessage) (interface{}, error) {\n", contextPkg, jsonPkg)
 
 					if len(m.Sig.Params) > 0 {
 						fmtPkg := importer.Import("fmt", "fmt")
-						g.w.W("var req %s\n", m.NameRequest)
+						g.w.W("var req %s\n", nameRequest)
 						g.w.W("err := %s.Unmarshal(msg, &req)\n", ffJSONPkg)
 						g.w.W("if err != nil {\n")
-						g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, m.NameRequest)
+						g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, nameRequest)
 						g.w.W("}\n")
 						g.w.W("return req, nil\n")
 					} else {
@@ -97,46 +103,34 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 					}
 					g.w.W("}")
 				}
-
 				g.w.W(",\n")
-
-				g.w.W("Encode:")
-
-				if mopt.WrapResponse.Enable && len(m.Results) > 0 {
-					jsonPkg := importer.Import("json", "encoding/json")
-					g.w.W("func (ctx context.Context, response interface{}) (%s.RawMessage, error) {\n", jsonPkg)
-					g.w.W("return encodeResponseJSONRPC(ctx, map[string]interface{}{\"%s\": response})\n", mopt.WrapResponse.Name)
-					g.w.W("},\n")
-				} else {
-					g.w.W("encodeResponseJSONRPC,\n")
-				}
+				g.w.W("Encode: encodeResponseJSONRPC,\n")
 				g.w.W("}\n}\n")
 			}
-
 			g.w.W("return ecm\n")
-
 			g.w.W("}\n\n")
 		}
-
 	}
 
-	g.w.W("// HTTP Helpers\n")
+	g.w.W("// MakeHandlerJSONRPC make HTTP JSONRPC handler.\n")
 	g.w.W("func MakeHandlerJSONRPC(")
 
 	var external bool
 
-	for i := 0; i < g.options.Interfaces().Len(); i++ {
-		ifaceType := g.options.Interfaces().At(i)
-		typeStr := ifaceType.LcNameWithPrefix() + "Interface"
+	for i, iface := range g.Interfaces {
+		typeStr := NameInterface(iface.Named)
+		optionType := iface.Named.Name.UpperCase + "Option"
+		optionName := iface.Named.Name.LowerCase
+
 		if i > 0 {
 			g.w.W(",")
 		}
 
-		if ifaceType.External() {
+		if iface.Named.Pkg.Module.External {
 			external = true
-			g.w.W("%s %sOption", ifaceType.LcNameWithPrefix(), ifaceType.UcNameWithPrefix())
+			g.w.W("%s %sOption", optionName, optionType)
 		} else {
-			g.w.W("svc%s %s", ifaceType.UcName(), typeStr)
+			g.w.W("svc%s %s", iface.Named.Name.UpperCase, typeStr)
 		}
 	}
 
@@ -157,27 +151,28 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 	g.w.W("opts := &serverOpts{}\n")
 	g.w.W("for _, o := range options {\n o(opts)\n }\n")
 
-	for i := 0; i < g.options.Interfaces().Len(); i++ {
-		ifaceType := g.options.Interfaces().At(i)
+	for _, iface := range g.Interfaces {
+		ifaceType := iface.Named.Type.(*option.IfaceType)
 
-		epSetName := makeEpSetName(ifaceType)
+		epSetName := NameEndpointSetName(iface.Named)
 
-		if ifaceType.External() {
-			pkgExtTransport := importer.Import(ifaceType.ExternalSwipePkg().Name, ifaceType.ExternalSwipePkg().PkgPath)
+		if iface.Named.Pkg.Module.External {
+			transportExtPkg := importer.Import(iface.Named.Pkg.Name, iface.Named.Pkg.Path)
+
 			sdPkg := importer.Import("sd", "github.com/go-kit/kit/sd")
 			lbPkg := importer.Import("sd", "github.com/go-kit/kit/sd/lb")
 
-			if ifaceType.External() {
-				g.w.W("%s := %s.%sEndpointSet{}\n", epSetName, pkgExtTransport, ifaceType.UcName())
-			} else {
-				g.w.W("%s := %sEndpointSet{}\n", epSetName, ifaceType.UcName())
-			}
+			//if ifaceType.External() {
+			g.w.W("%s := %s.%sEndpointSet{}\n", epSetName, transportExtPkg, iface.Named.Name.UpperCase)
+			//} else {
+			//g.w.W("%s := %sEndpointSet{}\n", epSetName, ifaceType.UcName())
+			//}
 
-			for _, m := range ifaceType.Methods() {
-				optName := ifaceType.LcNameWithPrefix()
+			for _, m := range ifaceType.Methods {
+				optName := iface.Named.Name.LowerCase
 				epFactoryName := "endpointFactory"
 				kitEndpointPkg := importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
-				transportExtPkg := importer.Import(ifaceType.ExternalSwipePkg().Name, ifaceType.ExternalSwipePkg().PkgPath)
+
 				ioPkg := importer.Import("io", "io")
 
 				g.w.W("{\n")
@@ -199,14 +194,14 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(%[2]s.Instance, \"/\")", stringsPkg, optName)
 				g.w.W("}\n")
 
-				g.w.W("c, err := %s.NewClientJSONRPC%s(instance, %s.ClientOptions...)\n", transportExtPkg, ifaceType.UcName(), optName)
+				g.w.W("c, err := %s.NewClientJSONRPC%s(instance, %s.ClientOptions...)\n", transportExtPkg, iface.Named.Name.UpperCase, optName)
 
-				g.w.WriteCheckErr(func() {
+				g.w.WriteCheckErr("err", func() {
 					g.w.W("return nil, nil, err\n")
 				})
 				g.w.W("return ")
 
-				g.w.W("%s.Make%sEndpoint(c), nil, nil\n", transportExtPkg, m.IfaceUcName)
+				g.w.W("%s.Make%sEndpoint(c), nil, nil\n", transportExtPkg, m.Name.UpperCase)
 
 				g.w.W("\n}\n\n")
 
@@ -221,16 +216,16 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				)
 				g.w.W(
 					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-					ifaceType.LcNameWithPrefix()+m.Name, m.Name, epSetName,
+					iface.Named.Name.LowerCase+m.Name.UpperCase, m.Name, epSetName,
 				)
 				g.w.W("}\n")
 			}
 		} else {
-			g.w.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", makeEpSetName(ifaceType), ifaceType.UcName())
-			for _, m := range ifaceType.Methods() {
+			g.w.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", NameEndpointSetName(iface.Named), iface.Named.Name.UpperCase)
+			for _, m := range ifaceType.Methods {
 				g.w.W(
 					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-					m.IfaceLcName, m.Name, epSetName,
+					iface.Named.Name.LowerCase+m.Name.UpperCase, m.Name, epSetName,
 				)
 			}
 		}
@@ -244,37 +239,35 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 	g.w.W("handler := %s.NewServer(", jsonrpcPkg)
 
-	if g.options.Interfaces().Len() > 1 {
+	if len(g.Interfaces) > 1 {
 		g.w.W("MergeEndpointCodecMaps(")
 	}
 
-	for i := 0; i < g.options.Interfaces().Len(); i++ {
-		ifaceType := g.options.Interfaces().At(i)
-
-		epSetName := makeEpSetName(ifaceType)
+	for i, iface := range g.Interfaces {
+		epSetName := NameEndpointSetName(iface.Named)
 
 		if i > 0 {
 			g.w.W(",")
 		}
-		if ifaceType.External() {
-			pkgExtTransport := importer.Import(ifaceType.ExternalSwipePkg().Name, ifaceType.ExternalSwipePkg().PkgPath)
-			g.w.W("%s.Make%sEndpointCodecMap(%s", pkgExtTransport, ifaceType.UcName(), epSetName)
+		if iface.Named.Pkg.Module.External {
+			pkgExtTransport := importer.Import(iface.Named.Pkg.Name, iface.Named.Pkg.Path)
+			g.w.W("%s.Make%sEndpointCodecMap(%s", pkgExtTransport, iface.Named.Name.UpperCase, epSetName)
 		} else {
-			g.w.W("Make%sEndpointCodecMap(%s", ifaceType.UcName(), epSetName)
+			g.w.W("Make%sEndpointCodecMap(%s", iface.Named.Name.UpperCase, epSetName)
 		}
-		if ifaceType.Namespace() != "" {
-			g.w.W(",%s", strconv.Quote(ifaceType.Namespace()))
+		if iface.Namespace != "" {
+			g.w.W(",%s", strconv.Quote(iface.Namespace))
 		}
 		g.w.W(")")
 	}
 
-	if g.options.Interfaces().Len() > 1 {
+	if len(g.Interfaces) > 1 {
 		g.w.W(")")
 	}
 
 	g.w.W(", opts.genericServerOption...)\n")
 
-	jsonRPCPath := g.options.JSONRPCPath()
+	jsonRPCPath := g.JSONRPCPath
 	if g.UseFast {
 		r := stdstrings.NewReplacer("{", "<", "}", ">")
 		jsonRPCPath = r.Replace(jsonRPCPath)
@@ -297,5 +290,5 @@ func (g *JSONRPCServerGenerator) OutputDir() string {
 }
 
 func (g *JSONRPCServerGenerator) Filename() string {
-	return "jsonrpc.go"
+	return "jsonrpc_server.go"
 }

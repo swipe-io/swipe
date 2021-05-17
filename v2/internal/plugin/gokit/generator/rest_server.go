@@ -304,7 +304,7 @@ func (g *RESTServerGenerator) OutputDir() string {
 }
 
 func (g *RESTServerGenerator) Filename() string {
-	return "rest.go"
+	return "rest_server.go"
 }
 
 func (g *RESTServerGenerator) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string) {
