@@ -182,6 +182,12 @@ func (g *restGoClient) Process(_ context.Context) error {
 				}
 				g.W("\n")
 
+				if g.options.UseFast() && remainingParams > 0 {
+					g.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
+				} else if remainingParams > 0 {
+					g.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
+				}
+
 				pathVarNames := make([]string, 0, len(pathVars))
 				for _, p := range pathVars {
 					name := p.Name() + "Str"
