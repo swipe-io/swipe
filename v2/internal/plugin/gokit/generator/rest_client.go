@@ -38,8 +38,8 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-		name := iface.Named.Name.UpperCase
-		clientType := name + "Client"
+		name := UcNameWithAppPrefix(iface)
+		clientType := ClientType(iface)
 
 		if g.UseFast {
 			kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
@@ -92,7 +92,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				mopt = opt
 			}
 
-			epName := LcNameEndpoint(iface.Named, m)
+			epName := LcNameEndpoint(iface, m)
 
 			httpMethod := mopt.RESTMethod.Value
 			if httpMethod == "" {
@@ -151,7 +151,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
 				if len(m.Sig.Params) > 0 {
-					nameRequest := NameRequest(m, iface.Named)
+					nameRequest := NameRequest(m, iface)
 
 					g.w.W("req, ok := request.(%s)\n", nameRequest)
 					g.w.W("if !ok {\n")
@@ -187,13 +187,15 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				} else {
 					g.w.W(strconv.Quote(pathStr))
 				}
-
 				if g.UseFast {
 					g.w.W(")")
 				}
-
 				g.w.W("\n")
-
+				if g.UseFast && remainingParams > 0 {
+					g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
+				} else if remainingParams > 0 {
+					g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
+				}
 				if len(queryVars) > 0 {
 					if g.UseFast {
 						g.w.W("q := r.URI().QueryArgs()\n")
@@ -258,7 +260,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 				if len(m.Sig.Results) > 0 {
 					var responseType string
-					nameRequest := NameRequest(m, iface.Named)
+					nameRequest := NameRequest(m, iface)
 					if m.Sig.IsNamed {
 						responseType = nameRequest
 					} else {

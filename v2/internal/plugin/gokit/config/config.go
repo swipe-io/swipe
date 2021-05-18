@@ -10,9 +10,12 @@ const (
 )
 
 type Error struct {
-	Name string
-	Type ErrorType
-	Code int64
+	PkgName   string
+	PkgPath   string
+	IsPointer bool
+	Name      string
+	Type      ErrorType
+	Code      int64
 }
 
 type FuncTypeValue struct {
@@ -32,8 +35,9 @@ type BoolValue struct {
 }
 
 type Interface struct {
-	Named     *option.NamedType `mapstructure:"iface"`
-	Namespace string            `mapstructure:"ns"`
+	Named      *option.NamedType `mapstructure:"iface"`
+	Namespace  string            `mapstructure:"ns"`
+	ClientName StringValue
 }
 
 type OpenapiTag struct {

@@ -16,6 +16,7 @@ type Helpers struct {
 	JSONRPCEnable  bool
 	GoClientEnable bool
 	UseFast        bool
+	IfaceErrors    map[string]map[string][]config.Error
 }
 
 func (g *Helpers) Generate(ctx context.Context) []byte {
@@ -54,76 +55,104 @@ func (g *Helpers) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
-			name := LcNameWithAppPrefix(iface.Named) + m.Name.Origin
+			name := LcNameWithAppPrefix(iface) + m.Name.Origin
 			g.w.W("%sServerOption []%s\n", name, kitHTTPServerOption)
 			g.w.W("%sEndpointMiddleware []%s\n", name, endpointMiddlewareOption)
 		}
 	}
 	g.w.W("}\n")
 
-	errorDecodeParams := []string{"code", "int"}
-	if g.JSONRPCEnable {
-		g.w.W("func (e *httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
-		g.w.W("func (e *httpError) SetErrorData(data interface{}) {\ne.data = data\n}\n")
-		g.w.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
+	if g.GoClientEnable {
+		g.w.W("type httpError struct {\n")
+		g.w.W("code int\n")
+		if g.JSONRPCEnable {
+			g.w.W("data interface{}\n")
+			g.w.W("message string\n")
+		}
+		g.w.W("}\n")
 
-		errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
-	}
+		if g.JSONRPCEnable {
+			g.w.W("func (e *httpError) Error() string {\nreturn e.message\n}\n")
+		} else {
+			if g.UseFast {
+				httpPkg := importer.Import("fasthttp", "github.com/valyala/fasthttp")
+				g.w.W("func (e *httpError) Error() string {\nreturn %s.StatusMessage(e.code)\n}\n", httpPkg)
+			} else {
+				httpPkg := importer.Import("http", "net/http")
+				g.w.W("func (e *httpError) Error() string {\nreturn %s.StatusText(e.code)\n}\n", httpPkg)
+			}
+		}
 
-	for _, iface := range g.Interfaces {
-		ifaceType := iface.Named.Type.(*option.IfaceType)
+		g.w.W("func (e *httpError) StatusCode() int {\nreturn e.code\n}\n")
 
-		for _, m := range ifaceType.Methods {
-			fnPrefix := UcNameWithAppPrefix(iface.Named) + m.Name.Origin
-			paramPrefix := LcNameWithAppPrefix(iface.Named) + m.Name.Origin
+		errorDecodeParams := []string{"code", "int"}
+		if g.JSONRPCEnable {
+			g.w.W("func (e *httpError) ErrorData() interface{} {\nreturn e.data\n}\n")
+			g.w.W("func (e *httpError) SetErrorData(data interface{}) {\ne.data = data\n}\n")
+			g.w.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
 
-			g.w.W("func %sServerOptions(opt ...%s) %s {\n", fnPrefix, kitHTTPServerOption, serverOptionType)
-			g.w.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, paramPrefix)
-			g.w.W("}\n")
+			errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
+		}
 
-			g.w.W("func %sServerEndpointMiddlewares(opt ...%s) %s {\n", fnPrefix, endpointMiddlewareOption, serverOptionType)
-			g.w.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, paramPrefix)
-			g.w.W("}\n")
+		for _, iface := range g.Interfaces {
+			ifaceType := iface.Named.Type.(*option.IfaceType)
 
-			g.w.W("func %sErrorDecode(", iface.Named.Name.LowerCase+m.Name.Origin)
+			ifaceErrors := g.IfaceErrors[iface.Named.Name.Origin]
 
-			for i := 0; i < len(errorDecodeParams); i += 2 {
-				if i > 0 {
-					g.w.W(",")
+			for _, m := range ifaceType.Methods {
+				fnPrefix := UcNameWithAppPrefix(iface) + m.Name.Origin
+				paramPrefix := LcNameWithAppPrefix(iface) + m.Name.Origin
+
+				methodErrors := ifaceErrors[m.Name.Origin]
+
+				g.w.W("func %sServerOptions(opt ...%s) %s {\n", fnPrefix, kitHTTPServerOption, serverOptionType)
+				g.w.W("return func(c *%s) { c.%sServerOption = opt }\n", serverOptType, paramPrefix)
+				g.w.W("}\n")
+
+				g.w.W("func %sServerEndpointMiddlewares(opt ...%s) %s {\n", fnPrefix, endpointMiddlewareOption, serverOptionType)
+				g.w.W("return func(c *%s) { c.%sEndpointMiddleware = opt }\n", serverOptType, paramPrefix)
+				g.w.W("}\n")
+
+				g.w.W("func %sErrorDecode(", iface.Named.Name.LowerCase+m.Name.Origin)
+
+				for i := 0; i < len(errorDecodeParams); i += 2 {
+					if i > 0 {
+						g.w.W(",")
+					}
+					g.w.W("%s %s", errorDecodeParams[i], errorDecodeParams[i+1])
 				}
-				g.w.W("%s %s", errorDecodeParams[i], errorDecodeParams[i+1])
-			}
 
-			g.w.W(") (err error) {\n")
+				g.w.W(") (err error) {\n")
 
-			g.w.W("switch code {\n")
-			g.w.W("default:\nerr = &httpError{code: code}\n")
-			if g.JSONRPCEnable {
-				//for _, e := range method.Errors {
-				//	g.w.W("case %d:\n", e.Code)
-				//	pkgName := g.i.Import(e.Named.Obj().Pkg().Name(), e.Named.Obj().Pkg().Path())
-				//	if pkgName != "" {
-				//		pkgName += "."
-				//	}
-				//	newPrefix := ""
-				//	if e.IsPointer {
-				//		newPrefix = "&"
-				//	}
-				//	g.w.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Named.Obj().Name())
-				//}
-			}
-			g.w.W("}\n")
-			if g.JSONRPCEnable {
-				g.w.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
-				g.w.W("err.SetErrorData(data)\n")
+				g.w.W("switch code {\n")
+				g.w.W("default:\nerr = &httpError{code: code}\n")
+				if g.JSONRPCEnable {
+					for _, e := range methodErrors {
+						g.w.W("case %d:\n", e.Code)
+						pkgName := importer.Import(e.PkgName, e.PkgPath)
+						if pkgName != "" {
+							pkgName += "."
+						}
+						newPrefix := ""
+						if e.IsPointer {
+							newPrefix = "&"
+						}
+						g.w.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Name)
+					}
+				}
 				g.w.W("}\n")
+				if g.JSONRPCEnable {
+					g.w.W("if err, ok := err.(interface{ SetErrorData(data interface{}) }); ok {\n")
+					g.w.W("err.SetErrorData(data)\n")
+					g.w.W("}\n")
 
-				g.w.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
-				g.w.W("err.SetErrorMessage(message)\n")
+					g.w.W("if err, ok := err.(interface{ SetErrorMessage(message string) }); ok {\n")
+					g.w.W("err.SetErrorMessage(message)\n")
+					g.w.W("}\n")
+				}
+				g.w.W("return\n")
 				g.w.W("}\n")
 			}
-			g.w.W("return\n")
-			g.w.W("}\n")
 		}
 	}
 

@@ -30,9 +30,9 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 
 		loggerPkg := importer.Import("log", "github.com/go-kit/kit/log")
 
-		ifaceTypeName := NameInterface(iface.Named)
-		name := NameLoggingMiddleware(iface.Named)
-		constructName := fmt.Sprintf("NewLogging%sMiddleware", LcNameWithAppPrefix(iface.Named))
+		ifaceTypeName := NameInterface(iface)
+		name := NameLoggingMiddleware(iface)
+		constructName := fmt.Sprintf("NewLogging%sMiddleware", UcNameWithAppPrefix(iface))
 
 		g.w.WriteTypeStruct(
 			name,

@@ -5,6 +5,10 @@ import (
 	"strconv"
 	stdstrings "strings"
 
+	"github.com/gertd/go-pluralize"
+
+	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
+
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/openapi"
@@ -108,66 +112,88 @@ class JSONRPCScheduler {
  }
 `
 
-func NameRequest(m *option.FuncType, named *option.NamedType) string {
-	var prefix string
-	if named != nil {
-		prefix = named.Name.LowerCase
+func NameRequest(m *option.FuncType, iface *config.Interface) string {
+	return UcNameWithAppPrefix(iface) + m.Name.UpperCase + "Request"
+}
+
+func NameResponse(m *option.FuncType, iface *config.Interface) string {
+	return UcNameWithAppPrefix(iface) + m.Name.UpperCase + "Response"
+}
+
+func NameMakeEndpoint(m *option.FuncType, iface *config.Interface) string {
+	return fmt.Sprintf("Make%s%sEndpoint", UcNameWithAppPrefix(iface), m.Name.UpperCase)
+}
+
+func LcNameWithAppPrefix(iface *config.Interface) string {
+	if iface.Named.Pkg.Module.External {
+		return LcAppName(iface) + iface.Named.Name.UpperCase
 	}
-	return prefix + m.Name.UpperCase + "Request"
+	return iface.Named.Name.LowerCase
 }
 
-func NameResponse(m *option.FuncType, named *option.NamedType) string {
-	var prefix string
-	if named != nil {
-		prefix = named.Name.LowerCase
+func UcNameWithAppPrefix(iface *config.Interface) string {
+	if iface.Named.Pkg.Module.External {
+		return UcAppName(iface) + iface.Named.Name.UpperCase
 	}
-	return prefix + m.Name.UpperCase + "Response"
+	return iface.Named.Name.UpperCase
 }
 
-func NameMakeEndpoint(m *option.FuncType, named *option.NamedType) string {
-	return fmt.Sprintf("Make%s%sEndpoint", named.Name.UpperCase, m.Name.UpperCase)
+func UcAppName(iface *config.Interface) string {
+	return strcase.ToCamel(stdstrings.Split(iface.Named.Pkg.Path, "/")[:3][2])
 }
 
-func LcNameWithAppPrefix(named *option.NamedType) string {
-	if named.Pkg.Module.External {
-		return strcase.ToLowerCamel(stdstrings.Split(named.Pkg.Path, "/")[:3][2]) + named.Name.UpperCase
+func LcAppName(iface *config.Interface) string {
+	return strcase.ToLowerCamel(stdstrings.Split(iface.Named.Pkg.Path, "/")[:3][2])
+}
+
+func UcNameJS(iface *config.Interface) string {
+	if iface.ClientName.Value != "" {
+		return strcase.ToCamel(iface.ClientName.Value)
 	}
-	return named.Name.LowerCase
+	return iface.Named.Name.UpperCase
 }
 
-func UcNameWithAppPrefix(named *option.NamedType) string {
-	if named.Pkg.Module.External {
-		return strcase.ToCamel(stdstrings.Split(named.Pkg.Path, "/")[:3][2]) + named.Name.UpperCase
+func LcNameJS(iface *config.Interface) string {
+	if iface.ClientName.Value != "" {
+		return strcase.ToLowerCamel(iface.ClientName.Value)
 	}
-	return named.Name.UpperCase
+	return iface.Named.Name.LowerCase
 }
 
-func NameInterface(named *option.NamedType) string {
-	return LcNameWithAppPrefix(named) + "Interface"
+func NameInterface(iface *config.Interface) string {
+	return LcNameWithAppPrefix(iface) + "Interface"
 }
 
-func NameLoggingMiddleware(named *option.NamedType) string {
-	return LcNameWithAppPrefix(named) + "LoggingMiddleware"
+func NameLoggingMiddleware(iface *config.Interface) string {
+	return LcNameWithAppPrefix(iface) + "LoggingMiddleware"
 }
 
-func NameInstrumentingMiddleware(named *option.NamedType) string {
-	return LcNameWithAppPrefix(named) + "InstrumentingMiddleware"
+func NameInstrumentingMiddleware(iface *config.Interface) string {
+	return LcNameWithAppPrefix(iface) + "InstrumentingMiddleware"
 }
 
-func NameEndpointSetName(named *option.NamedType) string {
-	return LcNameWithAppPrefix(named) + "EpSet"
+func NameEndpointSetNameVar(iface *config.Interface) string {
+	return LcNameWithAppPrefix(iface) + "EpSet"
 }
 
-func LcNameEndpoint(named *option.NamedType, fn *option.FuncType) string {
-	return named.Name.LowerCase + fn.Name.Origin + "Endpoint"
+func NameEndpointSetName(iface *config.Interface) string {
+	return UcNameWithAppPrefix(iface) + "EndpointSet"
 }
 
-func UcNameIfaceMethod(named *option.NamedType, fn *option.FuncType) string {
-	return named.Name.UpperCase + fn.Name.UpperCase
+func LcNameEndpoint(iface *config.Interface, fn *option.FuncType) string {
+	return iface.Named.Name.LowerCase + fn.Name.Origin + "Endpoint"
 }
 
-func LcNameIfaceMethod(named *option.NamedType, fn *option.FuncType) string {
-	return named.Name.LowerCase + fn.Name.UpperCase
+func UcNameIfaceMethod(iface *config.Interface, fn *option.FuncType) string {
+	return iface.Named.Name.UpperCase + fn.Name.UpperCase
+}
+
+func LcNameIfaceMethod(iface *config.Interface, fn *option.FuncType) string {
+	return iface.Named.Name.LowerCase + fn.Name.UpperCase
+}
+
+func ClientType(iface *config.Interface) string {
+	return UcNameWithAppPrefix(iface) + "Client"
 }
 
 func IsContext(v *option.VarType) bool {
@@ -208,6 +234,10 @@ func Contexts(vars option.VarsType) (result []*option.VarType) {
 
 func LenWithoutErrors(vars option.VarsType) int {
 	return len(vars) - len(Errors(vars))
+}
+
+func LenWithoutContexts(vars option.VarsType) int {
+	return len(vars) - len(Contexts(vars))
 }
 
 func makeLogParams(include, exclude map[string]struct{}, data ...*option.VarType) (result []string) {
@@ -516,21 +546,23 @@ func jsDocTypeRecursive(i interface{}, nested int) string {
 	case *option.ArrayType:
 		return "Array<" + jsDocTypeRecursive(t.Value, nested) + ">"
 	case *option.NamedType:
-		switch t.Pkg.Path {
-		case "github.com/google/uuid", "github.com/pborman/uuid":
-			switch t.Name.Origin {
-			case "UUID":
-				return "string"
-			}
-		case "encoding/json":
-			switch t.Name.Origin {
-			case "RawMessage":
-				return "*"
-			}
-		case "time":
-			switch t.Name.Origin {
-			case "Time":
-				return "string"
+		if t.Pkg != nil {
+			switch t.Pkg.Path {
+			case "github.com/google/uuid", "github.com/pborman/uuid":
+				switch t.Name.Origin {
+				case "UUID":
+					return "string"
+				}
+			case "encoding/json":
+				switch t.Name.Origin {
+				case "RawMessage":
+					return "*"
+				}
+			case "time":
+				switch t.Name.Origin {
+				case "Time":
+					return "string"
+				}
 			}
 		}
 		return t.Name.Origin
@@ -547,4 +579,55 @@ func jsDocTypeRecursive(i interface{}, nested int) string {
 		return t.Name
 	}
 	return ""
+}
+
+func docMethodName(iface *config.Interface, method *option.FuncType) string {
+	if iface.ClientName.Value != "" {
+		return "JSONRPCClient" + strcase.ToCamel(iface.ClientName.Value) + "." + method.Name.LowerCase
+	}
+	return "JSONRPCClient" + iface.Named.Name.UpperCase + "." + method.Name.LowerCase
+}
+
+func jsErrorName(iface *config.Interface, e config.Error) (errorName string) {
+	return UcNameWithAppPrefix(iface) + singular(e.Name)
+}
+
+func singular(word string) string {
+	return pluralize.NewClient().Singular(word)
+}
+
+func isGolangNamedType(t *option.NamedType) bool {
+	switch t.Pkg.Path {
+	case "time":
+		switch t.Name.Origin {
+		case "Time", "Location":
+			return true
+		}
+	case "sql":
+		switch t.Name.Origin {
+		case "NullBool", "NullFloat64", "NullInt32", "NullInt64", "NullString", "NullTime":
+			return true
+		}
+	}
+	return false
+}
+
+func fillType(i interface{}, visited map[string]*option.NamedType) {
+	switch t := i.(type) {
+	case *option.NamedType:
+		if _, ok := t.Type.(*option.StructType); ok {
+			key := t.Pkg.Path + t.Name.Origin
+			_, ok := visited[key]
+			if !ok {
+				visited[key] = t
+				fillType(t.Type, visited)
+			}
+		}
+	case *option.SliceType:
+		fillType(t.Value, visited)
+	case *option.ArrayType:
+		fillType(t.Value, visited)
+	case *option.MapType:
+		fillType(t.Value, visited)
+	}
 }

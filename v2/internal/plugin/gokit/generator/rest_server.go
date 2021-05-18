@@ -54,7 +54,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	g.w.W("// MakeHandlerREST make REST HTTP transport\n")
 	g.w.W("func MakeHandlerREST(")
 	for i, iface := range g.Interfaces {
-		typeStr := NameInterface(iface.Named)
+		typeStr := NameInterface(iface)
 		if i > 0 {
 			g.w.W(",")
 		}
@@ -80,16 +80,16 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	}
 
 	for _, iface := range g.Interfaces {
-		g.w.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", NameEndpointSetName(iface.Named), iface.Named.Name.Origin)
+		g.w.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", NameEndpointSetNameVar(iface), iface.Named.Name.Origin)
 	}
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-		epSetName := NameEndpointSetName(iface.Named)
+		epSetName := NameEndpointSetNameVar(iface)
 		for _, m := range ifaceType.Methods {
 			g.w.W(
 				"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-				LcNameWithAppPrefix(iface.Named)+m.Name.Origin, m.Name, epSetName,
+				LcNameWithAppPrefix(iface)+m.Name.Origin, m.Name, epSetName,
 			)
 		}
 	}
@@ -101,7 +101,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-		epSetName := NameEndpointSetName(iface.Named)
+		epSetName := NameEndpointSetNameVar(iface)
 		for _, m := range ifaceType.Methods {
 			mopt := &g.DefaultMethodOptions
 			if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
@@ -171,7 +171,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			} else {
 				g.w.W("func(ctx %s.Context, r *%s.Request) (interface{}, error) {\n", contextPkg, httpPkg)
 
-				nameRequest := NameRequest(m, iface.Named)
+				nameRequest := NameRequest(m, iface)
 
 				if len(m.Sig.Params) > 0 {
 					g.w.W("var req %s\n", nameRequest)

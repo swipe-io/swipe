@@ -35,12 +35,8 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
-		if iface.Named.Pkg.Module.External {
-			continue
-		}
-
-		typeStr := iface.Named.Name.LowerCase + "Interface"
-		epSetName := iface.Named.Name.UpperCase + "EndpointSet"
+		typeStr := NameInterface(iface)
+		epSetName := NameEndpointSetName(iface)
 
 		g.w.W("type %s struct {\n", epSetName)
 		kitEndpointPkg := importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
@@ -52,14 +48,14 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 		g.w.W("func Make%[1]s(svc %[2]s) %[1]s {\n", epSetName, typeStr)
 		g.w.W("return %s{\n", epSetName)
 		for _, m := range ifaceType.Methods {
-			g.w.W("%sEndpoint: %s(svc),\n", m.Name, NameMakeEndpoint(m, iface.Named))
+			g.w.W("%sEndpoint: %s(svc),\n", m.Name, NameMakeEndpoint(m, iface))
 		}
 		g.w.W("}\n")
 		g.w.W("}\n")
 
 		for _, m := range ifaceType.Methods {
 			if len(m.Sig.Params) > 0 {
-				g.w.W("type %s struct {\n", NameRequest(m, iface.Named))
+				g.w.W("type %s struct {\n", NameRequest(m, iface))
 				for _, param := range m.Sig.Params {
 					if IsContext(param) {
 						continue
@@ -69,7 +65,7 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 				g.w.W("}\n")
 			}
 			if LenWithoutErrors(m.Sig.Results) > 1 {
-				g.w.W("type %s struct {\n", NameResponse(m, iface.Named))
+				g.w.W("type %s struct {\n", NameResponse(m, iface))
 				for _, param := range m.Sig.Results {
 					if IsError(param) {
 						continue
@@ -95,7 +91,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 		typeStr := iface.Named.Name.LowerCase + "Interface"
 
 		for _, m := range ifaceType.Methods {
-			g.w.W("func %s(s %s) %s.Endpoint {\n", NameMakeEndpoint(m, iface.Named), typeStr, kitEndpointPkg)
+			g.w.W("func %s(s %s) %s.Endpoint {\n", NameMakeEndpoint(m, iface), typeStr, kitEndpointPkg)
 			g.w.W("return func (ctx %s.Context, request interface{}) (interface{}, error) {\n", contextPkg)
 
 			var callParams []string
@@ -111,7 +107,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 				callParams = append(callParams, "req."+param.Name.UpperCase)
 			}
 			if len(m.Sig.Params) > 0 {
-				g.w.W("req := request.(%s)\n", NameRequest(m, iface.Named))
+				g.w.W("req := request.(%s)\n", NameRequest(m, iface))
 			}
 
 			if len(m.Sig.Results) > 0 {
@@ -142,7 +138,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 
 			resultLen := LenWithoutErrors(m.Sig.Results)
 			if resultLen > 1 {
-				g.w.W("%s", NameResponse(m, iface.Named))
+				g.w.W("%s", NameResponse(m, iface))
 				var resultKeyVal []string
 				for _, result := range m.Sig.Results {
 					if IsError(result) {

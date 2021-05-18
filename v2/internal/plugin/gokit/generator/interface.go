@@ -21,7 +21,7 @@ func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-		ifaceTypeName := NameInterface(iface.Named)
+		ifaceTypeName := NameInterface(iface)
 
 		g.w.W("type %s interface {\n", ifaceTypeName)
 		for _, m := range ifaceType.Methods {

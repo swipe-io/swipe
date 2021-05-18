@@ -46,10 +46,10 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 		for _, iface := range g.Interfaces {
 			ifaceType := iface.Named.Type.(*option.IfaceType)
 
-			ifaceName := NameInterface(iface.Named)
-			name := NameInstrumentingMiddleware(iface.Named)
+			ifaceName := NameInterface(iface)
+			name := NameInstrumentingMiddleware(iface)
 
-			constructName := fmt.Sprintf("NewInstrumenting%sMiddleware", LcNameWithAppPrefix(iface.Named))
+			constructName := fmt.Sprintf("NewInstrumenting%sMiddleware", UcNameWithAppPrefix(iface))
 
 			g.w.W("type %s struct {\n", name)
 			g.w.W("next %s\n", ifaceName)

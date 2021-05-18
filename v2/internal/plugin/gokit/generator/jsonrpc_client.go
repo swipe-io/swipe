@@ -35,21 +35,17 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
-		name := iface.Named.Name.UpperCase
-		//if iface.Namespace != "" {
-		//	name = strcase.ToCamel(iface.Namespace)
-		//}
-		clientType := name + "Client"
+		clientType := ClientType(iface)
 
 		if len(g.Interfaces) == 1 {
 			g.w.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
 			g.w.W(" ,options ...ClientOption")
 			g.w.W(") (*%s, error) {\n", clientType)
-			g.w.W("return NewClientJSONRPC%s(tgt, options...)", iface.Named.Name.UpperCase)
+			g.w.W("return NewClientJSONRPC%s(tgt, options...)", UcNameWithAppPrefix(iface))
 			g.w.W("}\n")
 		}
 
-		g.w.W("func NewClientJSONRPC%s(tgt string", iface.Named.Name.UpperCase)
+		g.w.W("func NewClientJSONRPC%s(tgt string", UcNameWithAppPrefix(iface))
 		g.w.W(" ,options ...ClientOption")
 		g.w.W(") (*%s, error) {\n", clientType)
 		g.w.W("opts := &clientOpts{}\n")
@@ -88,17 +84,11 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("}\n")
 
 		for _, m := range ifaceType.Methods {
-			//mopt := &g.DefaultMethodOptions
-			//if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
-			//	mopt = opt
-			//}
-
-			g.w.W("opts.%[1]sClientOption = append(\nopts.%[1]sClientOption,\n", LcNameIfaceMethod(iface.Named, m))
-
+			g.w.W("opts.%[1]sClientOption = append(\nopts.%[1]sClientOption,\n", LcNameIfaceMethod(iface, m))
 			g.w.W("%s.ClientRequestEncoder(", jsonrpcPkg)
 			g.w.W("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
 
-			requestName := NameRequest(m, iface.Named)
+			requestName := NameRequest(m, iface)
 
 			if len(m.Sig.Params) > 0 {
 				g.w.W("req, ok := obj.(%s)\n", requestName)
@@ -118,57 +108,39 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("%s.ClientResponseDecoder(", jsonrpcPkg)
 			g.w.W("func(_ %s.Context, response %s.Response) (interface{}, error) {\n", contextPkg, jsonrpcPkg)
 			g.w.W("if response.Error != nil {\n")
-			g.w.W("return nil, %sErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)\n", LcNameIfaceMethod(iface.Named, m))
+			g.w.W("return nil, %sErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)\n", LcNameIfaceMethod(iface, m))
 			g.w.W("}\n")
 
 			if len(m.Sig.Results) > 0 {
 				var responseType string
-
-				responseName := NameResponse(m, iface.Named)
-
+				responseName := NameResponse(m, iface)
 				if m.Sig.IsNamed {
 					responseType = responseName
 				} else {
 					responseType = importer.TypeString(m.Sig.Results[0].Type)
 				}
-
-				//if mopt.WrapResponse.Enable {
-				//	g.w.W("var resp struct {\n Data %s `json:\"%s\"`\n}\n", responseType, mopt.WrapResponse.Name)
-				//} else {
 				g.w.W("var resp %s\n", responseType)
-				//}
-
 				g.w.W("err := %s.Unmarshal(response.Result, &resp)\n", ffJSONPkg)
 				g.w.W("if err != nil {\n")
 				g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, responseName)
 				g.w.W("}\n")
-
-				//if mopt.WrapResponse.Enable {
-				//	g.w.W("return resp.Data, nil\n")
-				//} else {
 				g.w.W("return resp, nil\n")
-				//}
 			} else {
 				g.w.W("return nil, nil\n")
 			}
 			g.w.W("}),\n")
 			g.w.W(")\n")
 			methodName := m.Name.LowerCase
-			//if iface.Namespace != "" {
-			//	methodName = iface.Namespace + "." + methodName
-			//}
 
-			g.w.W("c.%sEndpoint = %s.NewClient(\n", LcNameIfaceMethod(iface.Named, m), jsonrpcPkg)
+			g.w.W("c.%sEndpoint = %s.NewClient(\n", LcNameIfaceMethod(iface, m), jsonrpcPkg)
 			g.w.W("u,\n")
 			g.w.W("%s,\n", strconv.Quote(methodName))
-
-			g.w.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", LcNameIfaceMethod(iface.Named, m))
-
+			g.w.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", LcNameIfaceMethod(iface, m))
 			g.w.W(").Endpoint()\n")
 
 			g.w.W(
 				"c.%[1]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
-				LcNameIfaceMethod(iface.Named, m),
+				LcNameIfaceMethod(iface, m),
 			)
 		}
 

@@ -73,7 +73,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("ecm := %[1]s.EndpointCodecMap{}\n", jsonrpcPkg)
 
 			for _, m := range ifaceType.Methods {
-				nameRequest := NameRequest(m, iface.Named)
+				nameRequest := NameRequest(m, iface)
 				mopt := &g.DefaultMethodOptions
 				if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
 					mopt = opt
@@ -118,7 +118,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 	var external bool
 
 	for i, iface := range g.Interfaces {
-		typeStr := NameInterface(iface.Named)
+		typeStr := NameInterface(iface)
 		optionType := iface.Named.Name.UpperCase + "Option"
 		optionName := iface.Named.Name.LowerCase
 
@@ -154,7 +154,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
-		epSetName := NameEndpointSetName(iface.Named)
+		epSetName := NameEndpointSetNameVar(iface)
 
 		if iface.Named.Pkg.Module.External {
 			transportExtPkg := importer.Import(iface.Named.Pkg.Name, iface.Named.Pkg.Path)
@@ -221,7 +221,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("}\n")
 			}
 		} else {
-			g.w.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", NameEndpointSetName(iface.Named), iface.Named.Name.UpperCase)
+			g.w.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", NameEndpointSetNameVar(iface), iface.Named.Name.UpperCase)
 			for _, m := range ifaceType.Methods {
 				g.w.W(
 					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
@@ -244,7 +244,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 	}
 
 	for i, iface := range g.Interfaces {
-		epSetName := NameEndpointSetName(iface.Named)
+		epSetName := NameEndpointSetNameVar(iface)
 
 		if i > 0 {
 			g.w.W(",")

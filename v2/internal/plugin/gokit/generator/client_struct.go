@@ -6,8 +6,6 @@ import (
 
 	"github.com/swipe-io/swipe/v2/internal/option"
 
-	"github.com/swipe-io/strcase"
-
 	"github.com/swipe-io/swipe/v2/internal/swipe"
 
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
@@ -47,9 +45,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 		g.w.W("type AppClient struct {\n")
 
 		for _, iface := range g.Interfaces {
-			name := iface.Named.Name.UpperCase
-			clientType := name + "Client"
-			g.w.W("%s *%s\n", name, clientType)
+			g.w.W("%s *%s\n", UcNameWithAppPrefix(iface), ClientType(iface))
 		}
 		g.w.W("}\n\n")
 
@@ -63,13 +59,13 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 		g.w.W(") (*AppClient, error) {\n")
 
 		for _, iface := range g.Interfaces {
-			name := iface.Named.Name.UpperCase
-			lcName := strcase.ToLowerCamel(name)
+			name := UcNameWithAppPrefix(iface)
+			lcName := LcNameWithAppPrefix(iface)
 
 			if g.JSONRPCEnable {
-				g.w.W("%s, err := NewClientJSONRPC%s(tgt, opts...)\n", lcName, iface.Named.Name.UpperCase)
+				g.w.W("%s, err := NewClientJSONRPC%s(tgt, opts...)\n", lcName, name)
 			} else {
-				g.w.W("%s, err := NewClientREST%s(tgt, opts...)\n", lcName, iface.Named.Name.UpperCase)
+				g.w.W("%s, err := NewClientREST%s(tgt, opts...)\n", lcName, name)
 			}
 			g.w.WriteCheckErr("err", func() {
 				g.w.W("return nil, err")
@@ -78,9 +74,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 
 		g.w.W("return &AppClient{\n")
 		for _, iface := range g.Interfaces {
-			name := iface.Named.Name.UpperCase
-			lcName := strcase.ToLowerCamel(name)
-			g.w.W("%[1]s: %[2]s,\n", name, lcName)
+			g.w.W("%[1]s: %[2]s,\n", LcNameWithAppPrefix(iface), LcNameWithAppPrefix(iface))
 		}
 		g.w.W("}, nil\n")
 		g.w.W("}\n\n")
@@ -91,8 +85,8 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
-			g.w.W("%sClientOption []%s.ClientOption\n", LcNameWithAppPrefix(iface.Named)+m.Name.Origin, kitHTTPPkg)
-			g.w.W("%sEndpointMiddleware []%s.Middleware\n", LcNameWithAppPrefix(iface.Named)+m.Name.Origin, endpointPkg)
+			g.w.W("%sClientOption []%s.ClientOption\n", LcNameWithAppPrefix(iface)+m.Name.Origin, kitHTTPPkg)
+			g.w.W("%sEndpointMiddleware []%s.Middleware\n", LcNameWithAppPrefix(iface)+m.Name.Origin, endpointPkg)
 		}
 	}
 	g.w.W("genericClientOption []%s.ClientOption\n", kitHTTPPkg)
@@ -111,14 +105,15 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
 		for _, m := range ifaceType.Methods {
-			name := LcNameWithAppPrefix(iface.Named) + m.Name.Origin
+			ucName := UcNameWithAppPrefix(iface) + m.Name.Origin
+			lcName := LcNameWithAppPrefix(iface) + m.Name.Origin
 
-			g.w.W("func %sClientOptions(opt ...%s) %s {\n", name, kitHTTPPkg+".ClientOption", clientOptionType)
-			g.w.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", name)
+			g.w.W("func %sClientOptions(opt ...%s) %s {\n", ucName, kitHTTPPkg+".ClientOption", clientOptionType)
+			g.w.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", lcName)
 			g.w.W("}\n")
 
-			g.w.W("func %sClientEndpointMiddlewares(opt ...%s) %s {\n", name, endpointPkg+".Middleware", clientOptionType)
-			g.w.W("return func(c *clientOpts) { c.%sEndpointMiddleware = opt }\n", name)
+			g.w.W("func %sClientEndpointMiddlewares(opt ...%s) %s {\n", ucName, endpointPkg+".Middleware", clientOptionType)
+			g.w.W("return func(c *clientOpts) { c.%sEndpointMiddleware = opt }\n", lcName)
 			g.w.W("}\n")
 		}
 	}
@@ -129,12 +124,10 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 		for _, iface := range g.Interfaces {
 			ifaceType := iface.Named.Type.(*option.IfaceType)
 
-			name := iface.Named.Name.UpperCase
-
-			clientType := fmt.Sprintf("%sClient", name)
+			clientType := ClientType(iface)
 			g.w.W("type %s struct {\n", clientType)
 			for _, m := range ifaceType.Methods {
-				g.w.W("%sEndpoint %s.Endpoint\n", LcNameWithAppPrefix(iface.Named)+m.Name.Origin, endpointPkg)
+				g.w.W("%sEndpoint %s.Endpoint\n", LcNameWithAppPrefix(iface)+m.Name.Origin, endpointPkg)
 			}
 			g.w.W("}\n\n")
 
@@ -165,10 +158,10 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 				if responseVarName != "_" {
 					g.w.W("var %s interface{}\n", responseVarName)
 				}
-				g.w.W("%s, %s %s= c.%sEndpoint(%s,", responseVarName, errVarName, assignResult, LcNameWithAppPrefix(iface.Named)+m.Name.Origin, ctxVarName)
+				g.w.W("%s, %s %s= c.%sEndpoint(%s,", responseVarName, errVarName, assignResult, LcNameWithAppPrefix(iface)+m.Name.Origin, ctxVarName)
 
 				if len(m.Sig.Params) > 0 {
-					g.w.W("%s{", NameRequest(m, iface.Named))
+					g.w.W("%s{", NameRequest(m, iface))
 					for _, param := range m.Sig.Params {
 						if IsContext(param) {
 							continue
@@ -195,7 +188,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 						if lenResults == 1 {
 							g.w.W("%s = %s.(%s)\n", result.Name.Origin, responseVarName, importer.TypeString(result.Type))
 						} else {
-							g.w.W("%s = %s.(%s).%s\n", result.Name.Origin, responseVarName, NameResponse(m, iface.Named), result.Name.UpperCase)
+							g.w.W("%s = %s.(%s).%s\n", result.Name.Origin, responseVarName, NameResponse(m, iface), result.Name.UpperCase)
 						}
 					}
 				}

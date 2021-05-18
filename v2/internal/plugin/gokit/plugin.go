@@ -113,12 +113,15 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	jsClientEnable := p.config.ClientsEnable.Langs.Contains("js")
 	jsonRPCEnable := p.config.JSONRPCEnable != nil
 	useFast := p.config.HTTPFast != nil
+	jsonrpcDocEnable := p.config.JSONRPCDocEnable != nil
+
 	result = append(result,
 		&generator.Helpers{
 			Interfaces:     p.config.Interfaces,
 			JSONRPCEnable:  jsonRPCEnable,
 			GoClientEnable: goClientEnable,
 			UseFast:        useFast,
+			IfaceErrors:    p.config.IfaceErrors,
 		},
 		&generator.Endpoint{
 			Interfaces: p.config.Interfaces,
@@ -191,6 +194,14 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			result = append(result, &generator.JSONRPCJSClientGenerator{
 				Interfaces:  p.config.Interfaces,
 				IfaceErrors: p.config.IfaceErrors,
+			})
+		}
+		if jsonrpcDocEnable {
+			result = append(result, &generator.JSONRPCDocGenerator{
+				AppName:         p.config.AppName,
+				JSPkgImportPath: p.config.JSPkgImportPath,
+				Interfaces:      p.config.Interfaces,
+				IfaceErrors:     p.config.IfaceErrors,
 			})
 		}
 	} else {

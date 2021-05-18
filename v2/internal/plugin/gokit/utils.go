@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/token"
 	stdtypes "go/types"
 	"strings"
 
@@ -110,9 +111,12 @@ func findErrorsRecursive(funcDecl map[string]typeInfo, pkgs []*packages.Package,
 								tp = config.JRPCErrorType
 							}
 							result = append(result, config.Error{
-								Name: named.Obj().Name(),
-								Type: tp,
-								Code: val,
+								PkgName:   named.Obj().Pkg().Name(),
+								PkgPath:   named.Obj().Pkg().Path(),
+								IsPointer: named.IsPointer,
+								Name:      named.Obj().Name(),
+								Type:      tp,
+								Code:      val,
 							})
 						}
 					}
@@ -139,23 +143,32 @@ func findErrors(funcDecl map[string]typeInfo, pkgs []*packages.Package, stmts []
 	return findErrorsRecursive(funcDecl, pkgs, stmts)
 }
 
-func extractNamed(pkgs []*packages.Package, expr ast.Expr) *stdtypes.Named {
+type named struct {
+	*stdtypes.Named
+	IsPointer bool
+}
+
+func extractNamedRecursive(pkgs []*packages.Package, expr ast.Expr, isPointer bool) *named {
 	expr = astutil.Unparen(expr)
 	switch t := expr.(type) {
 	case *ast.CompositeLit:
 		for _, pkg := range pkgs {
 			if v, ok := pkg.TypesInfo.Types[t.Type]; ok {
-				if named, ok := v.Type.(*stdtypes.Named); ok {
-					return named
+				if n, ok := v.Type.(*stdtypes.Named); ok {
+					return &named{Named: n, IsPointer: isPointer}
 				}
 			}
 		}
 	case *ast.StarExpr:
-		return extractNamed(pkgs, t.X)
+		return extractNamedRecursive(pkgs, t.X, isPointer)
 	case *ast.UnaryExpr:
-		return extractNamed(pkgs, t.X)
+		return extractNamedRecursive(pkgs, t.X, t.Op == token.AND)
 	}
 	return nil
+}
+
+func extractNamed(pkgs []*packages.Package, expr ast.Expr) *named {
+	return extractNamedRecursive(pkgs, expr, false)
 }
 
 func findIfaceErrors(funcDecl map[string]typeInfo, pkgs []*packages.Package, ifaces []*config.Interface) (result map[string]map[string][]config.Error) {

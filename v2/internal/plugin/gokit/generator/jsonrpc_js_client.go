@@ -24,7 +24,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
-		mw.W("class JSONRPCClient%s {\n", iface.Named.Name.UpperCase)
+		mw.W("class JSONRPCClient%s {\n", UcNameJS(iface))
 		mw.W("constructor(transport) {\n")
 		mw.W("this.scheduler = new JSONRPCScheduler(transport);\n")
 		mw.W("}\n\n")
@@ -127,14 +127,14 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("constructor(transport) {\n")
 
 		for _, iface := range g.Interfaces {
-			g.w.W("this.%s = new JSONRPCClient%s(transport);\n", iface.Named.Name.LowerCase, iface.Named.Name.UpperCase)
+			g.w.W("this.%s = new JSONRPCClient%s(transport);\n", LcNameJS(iface), UcNameJS(iface))
 		}
 		g.w.W("}\n")
 		g.w.W("}\n")
 
 		g.w.W("export default JSONRPCClient\n\n")
 	} else if len(g.Interfaces) == 1 {
-		g.w.W("export default JSONRPCClient%s\n\n", g.Interfaces[0].Named.Name.UpperCase)
+		g.w.W("export default JSONRPCClient%s\n\n", UcNameJS(g.Interfaces[0]))
 	}
 
 	httpErrorsDub := map[string]struct{}{}
