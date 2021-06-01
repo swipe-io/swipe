@@ -2,8 +2,9 @@ package configenv
 
 import (
 	"github.com/mitchellh/mapstructure"
-	"github.com/swipe-io/swipe/v2/internal/option"
-	"github.com/swipe-io/swipe/v2/internal/swipe"
+
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
 )
 
 const defaultFuncName = "LoadConfig"

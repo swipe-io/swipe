@@ -6,9 +6,9 @@ import (
 	"strconv"
 
 	"github.com/swipe-io/strcase"
-	"github.com/swipe-io/swipe/v2/internal/option"
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type Generator struct {
@@ -21,7 +21,7 @@ func (g *Generator) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
 	pkgName := importer.Import(g.Struct.Pkg.Name, g.Struct.Pkg.Path)
-	typeName := pkgName + g.Struct.Name.UpperCase
+	typeName := pkgName + g.Struct.Name.Upper()
 
 	g.W("func %s() (c *%s, errs []error) {\n", g.FuncName, typeName)
 	g.W("c = &%s{}\n", typeName)

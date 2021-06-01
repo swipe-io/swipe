@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/structtag"
 
 	"github.com/swipe-io/strcase"
-	"github.com/swipe-io/swipe/v2/internal/option"
+	"github.com/swipe-io/swipe/v2/option"
 )
 
 type Bool bool
@@ -36,8 +36,8 @@ func (o fldOpts) tagName() string {
 }
 
 func getFieldOpts(f *option.VarType, tags *structtag.Tags) (result fldOpts) {
-	result.name = strcase.ToScreamingSnake(f.Name.UpperCase)
-	result.fieldPath = f.Name.UpperCase
+	result.name = strcase.ToScreamingSnake(f.Name.Upper())
+	result.fieldPath = f.Name.Upper()
 
 	if tag, err := tags.Get("env"); err == nil {
 		for _, o := range tag.Options {
@@ -47,7 +47,7 @@ func getFieldOpts(f *option.VarType, tags *structtag.Tags) (result fldOpts) {
 			case "required":
 				result.required = true
 			case "use_flag":
-				result.name = strcase.ToKebab(f.Name.UpperCase)
+				result.name = strcase.ToKebab(f.Name.Upper())
 				result.isFlag = true
 			default:
 				if stdstrings.HasPrefix(o, "desc:") {
@@ -106,12 +106,12 @@ func isExclusionStructType(v *option.VarType) bool {
 	case *option.NamedType:
 		switch t.Pkg.Path {
 		case "github.com/google/uuid":
-			switch t.Name.Origin {
+			switch t.Name.Value {
 			case "UUID":
 				return true
 			}
 		case "net/url":
-			switch t.Name.Origin {
+			switch t.Name.Value {
 			case "URL":
 				return true
 			}

@@ -1,6 +1,8 @@
 package config
 
-import "github.com/swipe-io/swipe/v2/internal/option"
+import (
+	"github.com/swipe-io/swipe/v2/option"
+)
 
 type ErrorType string
 
@@ -30,14 +32,25 @@ type StringValue struct {
 	Value string
 }
 
+type IntValue struct {
+	Value int
+}
+
 type BoolValue struct {
 	Value bool
+}
+
+type ExternalInterface struct {
+	Iface  *Interface
+	Config *Config
+	Build  *option.Build
 }
 
 type Interface struct {
 	Named      *option.NamedType `mapstructure:"iface"`
 	Namespace  string            `mapstructure:"ns"`
 	ClientName StringValue
+	External   *ExternalInterface `mapstructure:"-"`
 }
 
 type OpenapiTag struct {
@@ -56,22 +69,24 @@ type LoggingContext struct {
 }
 
 type MethodOption struct {
-	Signature            *option.NamedType
-	Instrumenting        BoolValue
-	Logging              BoolValue
-	Exclude              BoolValue
-	LoggingParams        LoggingParams
-	LoggingContext       []LoggingContext
-	RESTMethod           StringValue
-	RESTWrapResponse     StringValue
-	RESTPath             StringValue
-	RESTHeaderVars       SliceStringValue
-	RESTQueryVars        SliceStringValue
-	RESTPathVars         map[string]string
-	ServerEncodeResponse FuncTypeValue
-	ServerDecodeRequest  FuncTypeValue
-	ClientEncodeRequest  FuncTypeValue
-	ClientDecodeResponse FuncTypeValue
+	Signature              *option.NamedType
+	Instrumenting          BoolValue
+	Logging                BoolValue
+	Exclude                BoolValue
+	LoggingParams          LoggingParams
+	LoggingContext         []LoggingContext
+	RESTMethod             StringValue
+	RESTWrapResponse       StringValue
+	RESTPath               StringValue
+	RESTMultipart          SliceStringValue
+	RESTHeaderVars         SliceStringValue
+	RESTQueryVars          SliceStringValue
+	RESTPathVars           map[string]string
+	RESTMultipartMaxMemory IntValue
+	ServerEncodeResponse   FuncTypeValue
+	ServerDecodeRequest    FuncTypeValue
+	ClientEncodeRequest    FuncTypeValue
+	ClientDecodeResponse   FuncTypeValue
 }
 
 type OpenapiInfo struct {
@@ -133,4 +148,5 @@ type Config struct {
 	IfaceErrors         map[string]map[string][]Error `mapstructure:"-"`
 	JSPkgImportPath     string                        `mapstructure:"-"`
 	AppName             string                        `mapstructure:"-"`
+	HasExternal         bool                          `mapstructure:"-"`
 }

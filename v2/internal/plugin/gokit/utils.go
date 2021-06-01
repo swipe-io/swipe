@@ -8,8 +8,9 @@ import (
 	stdtypes "go/types"
 	"strings"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
+	"github.com/swipe-io/swipe/v2/option"
+
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 )
@@ -94,7 +95,7 @@ func findErrorsRecursive(funcDecl map[string]typeInfo, pkgs []*packages.Package,
 					for i := 0; i < named.NumMethods(); i++ {
 						m := named.Method(i)
 						if m.Name() == "ErrorCode" || m.Name() == "StatusCode" {
-							info, ok := funcDecl[m.Pkg().Name()+"."+m.Name()]
+							info, ok := funcDecl[m.Id()]
 							if !ok {
 								continue
 							}
@@ -185,10 +186,10 @@ func findIfaceErrors(funcDecl map[string]typeInfo, pkgs []*packages.Package, ifa
 			if ptr, ok := sig.Recv().Type().(*stdtypes.Pointer); ok {
 				imp := stdtypes.Implements(ptr.Underlying(), iface.Named.Type.(*option.IfaceType).Origin)
 				if imp {
-					if _, ok := result[iface.Named.Name.Origin]; !ok {
-						result[iface.Named.Name.Origin] = map[string][]config.Error{}
+					if _, ok := result[iface.Named.Name.Value]; !ok {
+						result[iface.Named.Name.Value] = map[string][]config.Error{}
 					}
-					result[iface.Named.Name.Origin][info.obj.Name()] = findErrors(funcDecl, pkgs, info.stmtList)
+					result[iface.Named.Name.Value][info.obj.Name()] = findErrors(funcDecl, pkgs, info.stmtList)
 				}
 			}
 		}

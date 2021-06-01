@@ -3,9 +3,9 @@ package generator
 import (
 	"context"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type JSONRPCJSClientGenerator struct {
@@ -40,12 +40,11 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 					continue
 				}
 				if t, ok := p.Type.(*option.NamedType); ok {
-					key := t.Pkg.Path + "." + t.Name.Origin
+					key := t.ID()
 					if _, ok := defTypes[key]; !ok {
 						defTypes[key] = t
 					}
 				}
-
 				if p.IsVariadic {
 					mw.W("* @param {...%s} %s\n", jsDocType(p.Type), p.Name)
 				} else {
@@ -77,7 +76,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			mw.W("**/\n")
-			mw.W("%s(", m.Name.LowerCase)
+			mw.W("%s(", m.Name.Lower())
 
 			for i, p := range m.Sig.Params {
 				if IsContext(p) {
@@ -86,7 +85,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 				if p.IsVariadic {
 					mw.W("...")
 				}
-				mw.W(p.Name.Origin)
+				mw.W(p.Name.Value)
 
 				if i > 0 && i != len(m.Sig.Params)-1 {
 					mw.W(",")
@@ -99,7 +98,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			mw.W(") {\n")
-			mw.W("return this.scheduler.__scheduleRequest(\"%s\", {", prefix+m.Name.LowerCase)
+			mw.W("return this.scheduler.__scheduleRequest(\"%s\", {", prefix+m.Name.Lower())
 
 			for i, p := range m.Sig.Params {
 				if IsContext(p) {
@@ -112,7 +111,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			mw.W("}).catch(e => { throw ")
-			mw.W("%s%sConvertError(e)", iface.Named.Name.LowerCase, m.Name)
+			mw.W("%s%sConvertError(e)", LcNameWithAppPrefix(iface), m.Name)
 			mw.W("; })\n")
 
 			mw.W("}\n")
@@ -142,10 +141,10 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
-		ifaceErrors := g.IfaceErrors[iface.Named.Name.Origin]
+		ifaceErrors := g.IfaceErrors[iface.Named.Name.Value]
 
 		for _, method := range ifaceType.Methods {
-			methodErrors := ifaceErrors[method.Name.Origin]
+			methodErrors := ifaceErrors[method.Name.Value]
 			for _, e := range methodErrors {
 				if _, ok := httpErrorsDub[e.Name]; ok {
 					continue
@@ -160,12 +159,12 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 	}
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-		ifaceErrors := g.IfaceErrors[iface.Named.Name.Origin]
+		ifaceErrors := g.IfaceErrors[iface.Named.Name.Value]
 
 		for _, method := range ifaceType.Methods {
-			methodErrors := ifaceErrors[method.Name.Origin]
+			methodErrors := ifaceErrors[method.Name.Value]
 
-			g.w.W("function %s%sConvertError(e) {\n", iface.Named.Name.LowerCase, method.Name)
+			g.w.W("function %s%sConvertError(e) {\n", LcNameWithAppPrefix(iface), method.Name)
 			g.w.W("switch(e.code) {\n")
 			g.w.W("default:\n")
 			g.w.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
@@ -181,8 +180,9 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 		case "github.com/google/uuid", "github.com/pborman/uuid", "encoding/json", "time":
 			continue
 		}
+
 		g.w.W("/**\n")
-		g.w.W("* @typedef {Object} %s\n", t.Name.Origin)
+		g.w.W("* @typedef {Object} %s\n", t.Name.Value)
 		g.w.W(jsTypeDef(t.Type))
 		g.w.W("*/\n\n")
 	}

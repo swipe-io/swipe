@@ -8,11 +8,10 @@ import (
 	stdstrings "strings"
 
 	"github.com/swipe-io/strcase"
-
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type RESTServerGenerator struct {
@@ -58,7 +57,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		if i > 0 {
 			g.w.W(",")
 		}
-		g.w.W("svc%s %s", iface.Named.Name.Origin, typeStr)
+		g.w.W("svc%s %s", iface.Named.Name.Value, typeStr)
 	}
 	g.w.W(", options ...ServerOption")
 	g.w.W(") (")
@@ -80,7 +79,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	}
 
 	for _, iface := range g.Interfaces {
-		g.w.W("%[1]s := Make%[2]sEndpointSet(svc%[2]s)\n", NameEndpointSetNameVar(iface), iface.Named.Name.Origin)
+		g.w.W("%s := Make%s(svc%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), iface.Named.Name.Upper())
 	}
 
 	for _, iface := range g.Interfaces {
@@ -89,7 +88,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		for _, m := range ifaceType.Methods {
 			g.w.W(
 				"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-				LcNameWithAppPrefix(iface)+m.Name.Origin, m.Name, epSetName,
+				LcNameWithAppPrefix(iface)+m.Name.Value, m.Name, epSetName,
 			)
 		}
 	}
@@ -104,7 +103,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		epSetName := NameEndpointSetNameVar(iface)
 		for _, m := range ifaceType.Methods {
 			mopt := &g.DefaultMethodOptions
-			if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
+			if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
 				mopt = opt
 			}
 
@@ -114,19 +113,29 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			headerVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
-			for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
+			for i := 0; i < len(mopt.RESTHeaderVars.Value); i += 2 {
 				headerVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
+			}
+
+			multipartVars := make(map[string]string, len(mopt.RESTMultipart.Value))
+			for i := 0; i < len(mopt.RESTMultipart.Value); i += 2 {
+				multipartVars[mopt.RESTMultipart.Value[i]] = mopt.RESTMultipart.Value[i+1]
 			}
 
 			var urlPath string
 			if mopt.RESTPath.Value != "" {
-				urlPath = stdstrings.TrimLeft(mopt.RESTPath.Value, "/")
+				urlPath = mopt.RESTPath.Value
 			} else {
-				urlPath = strcase.ToKebab(m.Name.Origin)
+				urlPath = strcase.ToKebab(m.Name.Value)
 			}
 			if iface.Namespace != "" {
 				urlPath = path.Join(iface.Namespace, urlPath)
 			}
+			if !stdstrings.HasPrefix(urlPath, "/") {
+				urlPath = "/" + urlPath
+			}
+
+			remainingParams := len(m.Sig.Params) - (len(mopt.RESTPathVars) + len(queryVars) + len(headerVars) + len(multipartVars))
 
 			if g.UseFast {
 				g.w.W("r.To(")
@@ -177,23 +186,25 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 					g.w.W("var req %s\n", nameRequest)
 					switch stdstrings.ToUpper(mopt.RESTMethod.Value) {
 					case "POST", "PUT", "PATCH":
-						jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-						fmtPkg := importer.Import("fmt", "fmt")
-						pkgIO := importer.Import("io", "io")
-						if g.UseFast {
-							g.w.W("err := %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
-						} else {
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+						if remainingParams > 0 {
+							jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+							fmtPkg := importer.Import("fmt", "fmt")
+							pkgIO := importer.Import("io", "io")
+							if g.UseFast {
+								g.w.W("err := %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
+							} else {
+								ioutilPkg := importer.Import("ioutil", "io/ioutil")
 
-							g.w.W("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
-							g.w.WriteCheckErr("err", func() {
-								g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
-							})
-							g.w.W("err = %s.Unmarshal(b, &req)\n", jsonPkg)
+								g.w.W("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
+								})
+								g.w.W("err = %s.Unmarshal(b, &req)\n", jsonPkg)
+							}
+							g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
+							g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)
+							g.w.W("}\n")
 						}
-						g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
-						g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)
-						g.w.W("}\n")
 					}
 					if len(mopt.RESTPathVars) > 0 {
 						if g.UseFast {
@@ -215,16 +226,31 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 						}
 					}
 
+					if len(multipartVars) > 0 {
+						multipartMaxMemory := 67108864
+						if mopt.RESTMultipartMaxMemory.Value > 0 {
+							multipartMaxMemory = mopt.RESTMultipartMaxMemory.Value
+						}
+						if g.UseFast {
+							g.w.W("form, err := r.MultipartForm()\n")
+						} else {
+							g.w.W("err := r.ParseMultipartForm(%d)\n", multipartMaxMemory)
+						}
+						g.w.WriteCheckErr("err", func() {
+							g.w.W("return nil, err\n")
+						})
+					}
+
 					for _, p := range m.Sig.Params {
-						if _, ok := mopt.RESTPathVars[p.Name.Origin]; ok {
+						if _, ok := mopt.RESTPathVars[p.Name.Value]; ok {
 							var valueID string
 							if g.UseFast {
-								valueID = "vars.Param(" + strconv.Quote(p.Name.Origin) + ")"
+								valueID = "vars.Param(" + strconv.Quote(p.Name.Value) + ")"
 							} else {
-								valueID = "vars[" + strconv.Quote(p.Name.Origin) + "]"
+								valueID = "vars[" + strconv.Quote(p.Name.Value) + "]"
 							}
-							g.w.WriteConvertType(importer, "req."+strcase.ToCamel(p.Name.Origin), valueID, p, []string{"nil"}, "", false, "")
-						} else if queryName, ok := queryVars[p.Name.Origin]; ok {
+							g.w.WriteConvertType(importer, "req."+strcase.ToCamel(p.Name.Value), valueID, p, []string{"nil"}, "", false, "")
+						} else if queryName, ok := queryVars[p.Name.Value]; ok {
 							var valueID string
 							if g.UseFast {
 								valueID = "string(q.Peek(" + strconv.Quote(queryName) + "))"
@@ -232,21 +258,63 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								valueID = "q.Get(" + strconv.Quote(queryName) + ")"
 							}
 
-							tmpID := "tmp" + p.Name.Origin
+							tmpID := "tmp" + p.Name.Value
 							g.w.W("%s := %s\n", tmpID, valueID)
 
 							g.w.W("if %s != \"\" {\n", tmpID)
-							g.w.WriteConvertType(importer, "req."+p.Name.UpperCase, tmpID, p, []string{"nil"}, "", false, "")
+							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), tmpID, p, []string{"nil"}, "", false, "")
 							g.w.W("}\n")
 
-						} else if headerName, ok := headerVars[p.Name.Origin]; ok {
+						} else if headerName, ok := headerVars[p.Name.Value]; ok {
 							var valueID string
 							if g.UseFast {
 								valueID = "string(r.Header.Peek(" + strconv.Quote(headerName) + "))"
 							} else {
 								valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
 							}
-							g.w.WriteConvertType(importer, "req."+p.Name.UpperCase, valueID, p, []string{"nil"}, "", false, "")
+							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
+						} else if multipartName, ok := multipartVars[p.Name.Value]; ok {
+							if isBytes(p.Type) {
+								ioutilPkg := importer.Import("ioutil", "io/ioutil")
+								multipartPkg := importer.Import("multipart", "mime/multipart")
+
+								if g.UseFast {
+									g.w.W("parts := form.File[%s]\n", strconv.Quote(multipartName))
+									g.w.W("var (\nf %s.File\n)\n", multipartPkg)
+									g.w.W("if len(parts) > 0 {\n")
+									g.w.W("f, err = parts[0].Open()\n")
+									g.w.WriteCheckErr("err", func() {
+										g.w.W("return nil, err\n")
+									})
+									g.w.W("}\n")
+								} else {
+									g.w.W("f, _, err := r.FormFile(%s)\n", strconv.Quote(multipartName))
+									g.w.WriteCheckErr("err", func() {
+										g.w.W("return nil, err\n")
+									})
+								}
+								g.w.W("data, err := %s.ReadAll(f)\n", ioutilPkg)
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return nil, err\n")
+								})
+								g.w.W("err = f.Close()\n")
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return nil, err\n")
+								})
+								g.w.W("req.%s = data\n", p.Name.Upper())
+								continue
+							}
+							var valueID string
+							if g.UseFast {
+								valueID = "form" + p.Name.Upper()
+								g.w.W("var %s string\n", valueID)
+								g.w.W("if fv, ok := form.Value[%s]; ok && len(fv) > 0 {\n", strconv.Quote(multipartName))
+								g.w.W("%s = fv[0]\n", valueID)
+								g.w.W("}\n")
+							} else {
+								valueID = "r.FormValue(" + strconv.Quote(multipartName) + ")"
+							}
+							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
 						}
 					}
 					g.w.W("return req, nil\n")
@@ -280,7 +348,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			}
 			g.w.W(",\n")
 
-			g.w.W("append(opts.genericServerOption, opts.%sServerOption...)...,\n", iface.Named.Name.LowerCase+m.Name.Origin)
+			g.w.W("append(opts.genericServerOption, opts.%sServerOption...)...,\n", LcNameWithAppPrefix(iface)+m.Name.Value)
 			g.w.W(")")
 
 			if g.UseFast {

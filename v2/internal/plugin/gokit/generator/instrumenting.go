@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type Instrumenting struct {
@@ -58,11 +58,11 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 
 			for _, m := range ifaceType.Methods {
 				mopt := &g.DefaultMethodOptions
-				if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
+				if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
 					mopt = opt
 				}
 
-				g.w.W("func (s *%s) %s %s {\n", name, m.Name.Origin, importer.TypeString(m.Sig))
+				g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
 				if mopt.Instrumenting.Value {
 					g.w.WriteDefer(
 						[]string{"begin " + timePkg + ".Time"},
@@ -79,7 +79,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 						if i > 0 {
 							g.w.W(",")
 						}
-						g.w.W(result.Name.Origin)
+						g.w.W(result.Name.Value)
 					}
 					g.w.W(" = ")
 				}
@@ -93,7 +93,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 					if param.IsVariadic {
 						variadic = "..."
 					}
-					g.w.W(param.Name.Origin + variadic)
+					g.w.W(param.Name.Value + variadic)
 				}
 				g.w.W(")\n")
 

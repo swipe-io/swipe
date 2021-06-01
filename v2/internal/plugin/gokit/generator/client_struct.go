@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
-
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type ClientStruct struct {
@@ -74,7 +72,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 
 		g.w.W("return &AppClient{\n")
 		for _, iface := range g.Interfaces {
-			g.w.W("%[1]s: %[2]s,\n", LcNameWithAppPrefix(iface), LcNameWithAppPrefix(iface))
+			g.w.W("%[1]s: %[2]s,\n", UcNameWithAppPrefix(iface), LcNameWithAppPrefix(iface))
 		}
 		g.w.W("}, nil\n")
 		g.w.W("}\n\n")
@@ -85,8 +83,8 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
-			g.w.W("%sClientOption []%s.ClientOption\n", LcNameWithAppPrefix(iface)+m.Name.Origin, kitHTTPPkg)
-			g.w.W("%sEndpointMiddleware []%s.Middleware\n", LcNameWithAppPrefix(iface)+m.Name.Origin, endpointPkg)
+			g.w.W("%sClientOption []%s.ClientOption\n", LcNameWithAppPrefix(iface)+m.Name.Value, kitHTTPPkg)
+			g.w.W("%sEndpointMiddleware []%s.Middleware\n", LcNameWithAppPrefix(iface)+m.Name.Value, endpointPkg)
 		}
 	}
 	g.w.W("genericClientOption []%s.ClientOption\n", kitHTTPPkg)
@@ -105,8 +103,8 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
 		for _, m := range ifaceType.Methods {
-			ucName := UcNameWithAppPrefix(iface) + m.Name.Origin
-			lcName := LcNameWithAppPrefix(iface) + m.Name.Origin
+			ucName := UcNameWithAppPrefix(iface) + m.Name.Value
+			lcName := LcNameWithAppPrefix(iface) + m.Name.Value
 
 			g.w.W("func %sClientOptions(opt ...%s) %s {\n", ucName, kitHTTPPkg+".ClientOption", clientOptionType)
 			g.w.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", lcName)
@@ -127,7 +125,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 			clientType := ClientType(iface)
 			g.w.W("type %s struct {\n", clientType)
 			for _, m := range ifaceType.Methods {
-				g.w.W("%sEndpoint %s.Endpoint\n", LcNameWithAppPrefix(iface)+m.Name.Origin, endpointPkg)
+				g.w.W("%sEndpoint %s.Endpoint\n", LcNameWithAppPrefix(iface)+m.Name.Value, endpointPkg)
 			}
 			g.w.W("}\n\n")
 
@@ -143,10 +141,10 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 				errVar := findErrorVar(m.Sig.Results)
 
 				if ctxVar != nil {
-					ctxVarName = ctxVar.Name.Origin
+					ctxVarName = ctxVar.Name.Value
 				}
 				if errVar != nil {
-					errVarName = errVar.Name.Origin
+					errVarName = errVar.Name.Value
 					assignResult = ""
 				}
 
@@ -154,11 +152,11 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 					responseVarName = "_"
 				}
 
-				g.w.W("func (c *%s) %s %s {\n", clientType, m.Name.Origin, importer.TypeString(m.Sig))
+				g.w.W("func (c *%s) %s %s {\n", clientType, m.Name.Value, importer.TypeString(m.Sig))
 				if responseVarName != "_" {
 					g.w.W("var %s interface{}\n", responseVarName)
 				}
-				g.w.W("%s, %s %s= c.%sEndpoint(%s,", responseVarName, errVarName, assignResult, LcNameWithAppPrefix(iface)+m.Name.Origin, ctxVarName)
+				g.w.W("%s, %s %s= c.%sEndpoint(%s,", responseVarName, errVarName, assignResult, LcNameWithAppPrefix(iface)+m.Name.Value, ctxVarName)
 
 				if len(m.Sig.Params) > 0 {
 					g.w.W("%s{", NameRequest(m, iface))
@@ -166,7 +164,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 						if IsContext(param) {
 							continue
 						}
-						g.w.W("%s: %s,", param.Name.UpperCase, param.Name.Origin)
+						g.w.W("%s: %s,", param.Name.Upper(), param.Name.Value)
 					}
 					g.w.W("}")
 				} else {
@@ -186,9 +184,9 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 							continue
 						}
 						if lenResults == 1 {
-							g.w.W("%s = %s.(%s)\n", result.Name.Origin, responseVarName, importer.TypeString(result.Type))
+							g.w.W("%s = %s.(%s)\n", result.Name.Value, responseVarName, importer.TypeString(result.Type))
 						} else {
-							g.w.W("%s = %s.(%s).%s\n", result.Name.Origin, responseVarName, NameResponse(m, iface), result.Name.UpperCase)
+							g.w.W("%s = %s.(%s).%s\n", result.Name.Value, responseVarName, NameResponse(m, iface), result.Name.Upper())
 						}
 					}
 				}

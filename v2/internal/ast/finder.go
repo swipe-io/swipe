@@ -3,7 +3,8 @@ package ast
 import (
 	"fmt"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
+	"github.com/swipe-io/swipe/v2/option"
+
 	"golang.org/x/tools/go/packages"
 )
 

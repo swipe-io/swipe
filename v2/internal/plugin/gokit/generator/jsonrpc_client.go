@@ -4,10 +4,10 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type JSONRPCClientGenerator struct {
@@ -36,14 +36,6 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
 		clientType := ClientType(iface)
-
-		if len(g.Interfaces) == 1 {
-			g.w.W("// Deprecated\nfunc NewClientJSONRPC(tgt string")
-			g.w.W(" ,options ...ClientOption")
-			g.w.W(") (*%s, error) {\n", clientType)
-			g.w.W("return NewClientJSONRPC%s(tgt, options...)", UcNameWithAppPrefix(iface))
-			g.w.W("}\n")
-		}
 
 		g.w.W("func NewClientJSONRPC%s(tgt string", UcNameWithAppPrefix(iface))
 		g.w.W(" ,options ...ClientOption")
@@ -130,7 +122,7 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			}
 			g.w.W("}),\n")
 			g.w.W(")\n")
-			methodName := m.Name.LowerCase
+			methodName := m.Name.Lower()
 
 			g.w.W("c.%sEndpoint = %s.NewClient(\n", LcNameIfaceMethod(iface, m), jsonrpcPkg)
 			g.w.W("u,\n")

@@ -3,9 +3,9 @@ package generator
 import (
 	"context"
 
-	"github.com/swipe-io/swipe/v2/internal/option"
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type JSONRPCDocGenerator struct {
@@ -41,12 +41,12 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("<a href=\"#%[1]s\">%[1]s</a>\n\n", name)
 		}
 
-		methodErrors := g.IfaceErrors[iface.Named.Name.Origin]
+		methodErrors := g.IfaceErrors[iface.Named.Name.Value]
 
 		for _, m := range ifaceType.Methods {
 			name := docMethodName(iface, m)
 
-			errors := methodErrors[m.Name.Origin]
+			errors := methodErrors[m.Name.Value]
 
 			g.w.W("### <a name=\"%[1]s\"></a>%[1]s(", name)
 			for i, p := range m.Sig.Params {
@@ -55,9 +55,9 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 				}
 				fillType(p.Type, visitedTypes)
 				if p.IsVariadic {
-					g.w.W(", ...%s", p.Name.Origin)
+					g.w.W(", ...%s", p.Name.Value)
 				} else {
-					g.w.W("%s", p.Name.Origin)
+					g.w.W("%s", p.Name.Value)
 				}
 				if i > 0 && i != len(m.Sig.Params)-1 {
 					g.w.W(", ")
@@ -74,7 +74,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 					fillType(m.Sig.Results[0].Type, visitedTypes)
 					g.w.W("<code>%s</code>", jsDocType(m.Sig.Results[0].Type))
 				} else if resultRen > 1 {
-					responseName := m.Name.Origin + "Response"
+					responseName := m.Name.Value + "Response"
 					g.w.W("<code>%s</code>", responseName)
 					_, ok := responseTypes[responseName]
 					if !ok {
@@ -107,7 +107,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 			if LenWithoutContexts(m.Sig.Params) > 0 {
 				g.w.W("| Param | Type | Description |\n|------|------|------|\n")
 				for _, p := range m.Sig.Params {
-					g.w.W("|%s|<code>%s</code>|%s|\n", p.Name.Origin, jsDocType(p.Type), p.Comment)
+					g.w.W("|%s|<code>%s</code>|%s|\n", p.Name.Value, jsDocType(p.Type), p.Comment)
 				}
 				g.w.W("\n")
 			}
@@ -127,7 +127,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 			if IsError(p) {
 				continue
 			}
-			g.w.W("|%s|<code>%s</code>|%s|\n", p.Name.Origin, jsDocType(p.Type), p.Comment)
+			g.w.W("|%s|<code>%s</code>|%s|\n", p.Name.Value, jsDocType(p.Type), p.Comment)
 		}
 	}
 
@@ -144,7 +144,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 					continue
 				}
 			}
-			g.w.W("|%s|<code>%s</code>|%s|\n", f.Var.Name.Origin, jsDocType(f.Var.Type), f.Var.Comment)
+			g.w.W("|%s|<code>%s</code>|%s|\n", f.Var.Name.Value, jsDocType(f.Var.Type), f.Var.Comment)
 		}
 	}
 

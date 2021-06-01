@@ -4,11 +4,9 @@ import (
 	"context"
 
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-
-	"github.com/swipe-io/swipe/v2/internal/option"
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type InterfaceGenerator struct {
@@ -25,7 +23,7 @@ func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 
 		g.w.W("type %s interface {\n", ifaceTypeName)
 		for _, m := range ifaceType.Methods {
-			g.w.W(m.Name.Origin)
+			g.w.W(m.Name.Value)
 			g.w.W(importer.TypeString(m.Sig))
 			g.w.W("\n")
 		}

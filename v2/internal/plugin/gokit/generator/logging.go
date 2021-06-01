@@ -6,13 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/swipe-io/swipe/v2/internal/swipe"
-
-	"github.com/swipe-io/swipe/v2/internal/option"
-
 	"github.com/swipe-io/swipe/v2/internal/plugin/gokit/config"
-
-	"github.com/swipe-io/swipe/v2/internal/writer"
+	"github.com/swipe-io/swipe/v2/option"
+	"github.com/swipe-io/swipe/v2/swipe"
+	"github.com/swipe-io/swipe/v2/writer"
 )
 
 type Logging struct {
@@ -44,7 +41,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 
 		for _, m := range ifaceType.Methods {
 			mopt := &g.DefaultMethodOptions
-			if opt, ok := g.MethodOptions[iface.Named.Name.Origin+m.Name.Origin]; ok {
+			if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
 				mopt = opt
 			}
 
@@ -78,13 +75,13 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 
 			for _, result := range m.Sig.Results {
 				if IsError(result) {
-					logParams = append(logParams, strconv.Quote("err"), result.Name.Origin)
+					logParams = append(logParams, strconv.Quote("err"), result.Name.Value)
 					continue
 				}
-				results = append(results, result.Name.Origin, importer.TypeString(result))
+				results = append(results, result.Name.Value, importer.TypeString(result))
 			}
 
-			g.w.W("func (s *%s) %s %s {\n", name, m.Name.Origin, importer.TypeString(m.Sig))
+			g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
 
 			if mopt.Logging.Value && len(logParams) > 0 {
 				timePkg := importer.Import("time", "time")
@@ -92,8 +89,8 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 				g.w.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
 					for _, result := range m.Sig.Results {
 						if IsError(result) {
-							g.w.W("if logErr, ok := %s.(interface{LogError() error}); ok {\n", result.Name.Origin)
-							g.w.W("%s = logErr.LogError()\n", result.Name.Origin)
+							g.w.W("if logErr, ok := %s.(interface{LogError() error}); ok {\n", result.Name.Value)
+							g.w.W("%s = logErr.LogError()\n", result.Name.Value)
 							g.w.W("}\n")
 						}
 					}
@@ -109,7 +106,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 					if i > 0 {
 						g.w.W(",")
 					}
-					g.w.W(result.Name.Origin)
+					g.w.W(result.Name.Value)
 				}
 				g.w.W(" = ")
 			}
@@ -123,7 +120,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 				if param.IsVariadic {
 					variadic = "..."
 				}
-				g.w.W(param.Name.Origin + variadic)
+				g.w.W(param.Name.Value + variadic)
 			}
 			g.w.W(")\n")
 
