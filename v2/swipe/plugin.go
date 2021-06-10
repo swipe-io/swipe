@@ -10,6 +10,7 @@ type Plugin interface {
 	ID() string
 	Configure(cfg *Config, module *option.Module, build *option.Build, options map[string]interface{}) []error
 	Generators() ([]Generator, []error)
+	Options() []byte
 }
 
 var registeredPlugins = map[string]Plugin{}

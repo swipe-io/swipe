@@ -47,9 +47,9 @@ type ExternalInterface struct {
 }
 
 type Interface struct {
-	Named      *option.NamedType `mapstructure:"iface"`
-	Namespace  string            `mapstructure:"ns"`
-	ClientName StringValue
+	Named      *option.NamedType  `mapstructure:"iface"`
+	Namespace  string             `mapstructure:"ns"`
+	ClientName StringValue        `swipe:"option"`
 	External   *ExternalInterface `mapstructure:"-"`
 }
 
@@ -68,25 +68,28 @@ type LoggingContext struct {
 	Name string
 }
 
+type RESTMultipart struct {
+	MaxMemory int64
+}
+
 type MethodOption struct {
-	Signature              *option.NamedType
-	Instrumenting          BoolValue
-	Logging                BoolValue
-	Exclude                BoolValue
-	LoggingParams          LoggingParams
-	LoggingContext         []LoggingContext
-	RESTMethod             StringValue
-	RESTWrapResponse       StringValue
-	RESTPath               StringValue
-	RESTMultipart          SliceStringValue
-	RESTHeaderVars         SliceStringValue
-	RESTQueryVars          SliceStringValue
-	RESTPathVars           map[string]string
-	RESTMultipartMaxMemory IntValue
-	ServerEncodeResponse   FuncTypeValue
-	ServerDecodeRequest    FuncTypeValue
-	ClientEncodeRequest    FuncTypeValue
-	ClientDecodeResponse   FuncTypeValue
+	Signature            *option.NamedType
+	Instrumenting        BoolValue         `swipe:"option"`
+	Logging              BoolValue         `swipe:"option"`
+	Exclude              BoolValue         `swipe:"option"`
+	LoggingParams        LoggingParams     `swipe:"option"`
+	LoggingContext       []LoggingContext  `swipe:"option"`
+	RESTMethod           StringValue       `swipe:"option"`
+	RESTWrapResponse     StringValue       `swipe:"option"`
+	RESTPath             StringValue       `swipe:"option"`
+	RESTMultipart        *RESTMultipart    `swipe:"option"`
+	RESTHeaderVars       SliceStringValue  `swipe:"option"`
+	RESTQueryVars        SliceStringValue  `swipe:"option"`
+	RESTPathVars         map[string]string `swipe:"option"`
+	ServerEncodeResponse FuncTypeValue     `swipe:"option"`
+	ServerDecodeRequest  FuncTypeValue     `swipe:"option"`
+	ClientEncodeRequest  FuncTypeValue     `swipe:"option"`
+	ClientDecodeResponse FuncTypeValue     `swipe:"option"`
 }
 
 type OpenapiInfo struct {
@@ -120,6 +123,8 @@ func (a Langs) Contains(v string) bool {
 	return false
 }
 
+// Config
+// @swipe:"Gokit"
 type Config struct {
 	HTTPServer           *struct{}
 	HTTPFast             *struct{}

@@ -191,7 +191,7 @@ func (w *GoWriter) WriteFormatTime(importer swipe.Importer, t *option.NamedType,
 		w.W("%s := %s.String()\n", assignId, valueId)
 	case "Time":
 		timePkg := importer.Import("time", "time")
-		w.W("%[1]s := %[3]sFormat(%[2]s.RFC3339)\n", assignId, timePkg, valueId)
+		w.W("%[1]s := %[3]s.Format(%[2]s.RFC3339)\n", assignId, timePkg, valueId)
 	}
 }
 
@@ -219,9 +219,9 @@ func (w *GoWriter) WriteConvertUUID(importer swipe.Importer, t *option.NamedType
 
 	switch t.Pkg.Path {
 	case "github.com/google/uuid":
-		w.W("%s, err := %sParse(%s)\n", tmpID, uuidPkg, valueId)
+		w.W("%s, err := %s.Parse(%s)\n", tmpID, uuidPkg, valueId)
 	case "github.com/satori/uuid":
-		w.W("%s, err := %sFromString(%s)\n", tmpID, uuidPkg, valueId)
+		w.W("%s, err := %s.FromString(%s)\n", tmpID, uuidPkg, valueId)
 	}
 	return
 }
@@ -231,7 +231,7 @@ func (w *GoWriter) WriteConvertURL(importer swipe.Importer, t *option.NamedType,
 	case "URL":
 		tmpID = t.Name.Lower() + "URL"
 		urlPkg := importer.Import("url", "net/url")
-		w.W("%s, err := %sParse(%s)\n", tmpID, urlPkg, valueId)
+		w.W("%s, err := %s.Parse(%s)\n", tmpID, urlPkg, valueId)
 	}
 	return
 }
@@ -248,12 +248,11 @@ func (w *GoWriter) WriteConvertType(
 		w.WriteConvertBasicType(importer, f.Name.Value, assignId, valueId, t, errRet, errSlice, declareVar, msgErrTemplate)
 	case *option.MapType:
 		stringsPkg := importer.Import("strings", "strings")
-
 		if k, ok := t.Key.(*option.BasicType); ok && k.IsString() {
 			if v, ok := t.Value.(*option.BasicType); ok {
 				tmpID = "parts" + f.Name.Lower()
 				w.W("%s := %s.Split(%s, \",\")\n", tmpID, stringsPkg, valueId)
-				w.W("%s = make(%s, len(%s))\n", assignId, k.Name, tmpID)
+				w.W("%s = make(%s, len(%s))\n", assignId, importer.TypeString(t), tmpID)
 				if v.IsNumeric() {
 					w.W("for _, s := range %s {\n", tmpID)
 					w.W("kv := %s.Split(s, \"=\")\n", stringsPkg)
@@ -282,8 +281,30 @@ func (w *GoWriter) WriteConvertType(
 					w.W("var ")
 				}
 				w.W("%s = make([]%s, len(%s))\n", assignId, t.Name, tmpID)
-				w.W("for importer, s := range %s {\n", tmpID)
-				w.WriteConvertBasicType(importer, "tmp", assignId+"[importer]", "s", t, errRet, errSlice, false, msgErrTemplate)
+				w.W("for i, s := range %s {\n", tmpID)
+				w.WriteConvertBasicType(importer, "tmp", assignId+"[i]", "s", t, errRet, errSlice, false, msgErrTemplate)
+				w.W("}\n")
+			} else {
+				w.W("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
+			}
+		}
+	case *option.ArrayType:
+		stringsPkg := importer.Import("strings", "strings")
+		switch b := t.Value.(type) {
+		case *option.BasicType:
+			if b.IsNumeric() {
+				tmpID = "parts" + f.Name.Lower() + strcase.ToCamel(b.Name)
+				w.W("%s := %s.Split(%s, \",\")\n", tmpID, stringsPkg, valueId)
+				if declareVar {
+					w.W("var ")
+				}
+				w.W("if len(%s) > len(%s) {\n", tmpID, assignId)
+				w.W("%[1]s = append(%[1]s, %[2]s.Errorf(%[3]s))\n", errSlice, importer.Import("fmt", "fmt"), strconv.Quote(msgErrTemplate+": array length must be less or equal "+strconv.FormatInt(t.Len, 10)))
+				w.W("} else {\n")
+
+				w.W("for i, s := range %s {\n", tmpID)
+				w.WriteConvertBasicType(importer, "tmp", assignId+"[i]", "s", b, errRet, errSlice, false, msgErrTemplate)
+				w.W("}\n")
 				w.W("}\n")
 			} else {
 				w.W("%s = %s.Split(%s, \",\")\n", assignId, stringsPkg, valueId)
@@ -293,12 +314,21 @@ func (w *GoWriter) WriteConvertType(
 		switch t.Pkg.Path {
 		case "net/url":
 			tmpID = w.WriteConvertURL(importer, t, valueId)
+			if !t.IsPointer {
+				tmpID = "*" + tmpID
+			}
 		case "github.com/satori/uuid", "github.com/google/uuid":
 			if t.Name.Value == "UUID" {
 				tmpID = w.WriteConvertUUID(importer, t, valueId)
+				if t.IsPointer {
+					tmpID = "&" + tmpID
+				}
 			}
 		case "time":
 			tmpID = w.WriteConvertTime(importer, t, valueId)
+			if t.IsPointer {
+				tmpID = "&" + tmpID
+			}
 		}
 		w.W("if err != nil {\n")
 		if errSlice != "" {

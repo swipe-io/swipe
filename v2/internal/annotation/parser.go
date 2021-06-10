@@ -53,76 +53,81 @@ func (a *Annotations) Get(key string) (*Annotation, error) {
 	return nil, errAnnotationNotExist
 }
 
-func Parse(annotation string) (*Annotations, error) {
+func Parse(v string) (*Annotations, error) {
 	var annotations []*Annotation
-	hasAnnotation := annotation != ""
 
-	for annotation != "" {
-		i := 0
-		for i < len(annotation) && annotation[i] == ' ' {
-			i++
-		}
-		annotation = annotation[i:]
-		if annotation == "" {
-			break
-		}
+	annotationParts := strings.Split(v, "\n")
 
-		if annotation[0] != '@' {
-			break
-		}
-
-		annotation = annotation[1:]
-
-		i = 0
-		for i < len(annotation) && annotation[i] > ' ' && annotation[i] != ':' && annotation[i] != '"' && annotation[i] != 0x7f {
-			i++
-		}
-		if i == 0 {
-			return nil, errAnnotationKeySyntax
-		}
-		if i+1 >= len(annotation) || annotation[i] != ':' {
-			return nil, errAnnotationSyntax
-		}
-		if annotation[i+1] != '"' {
-			return nil, errAnnotationValueSyntax
-		}
-		key := annotation[:i]
-		annotation = annotation[i+1:]
-
-		i = 1
-		for i < len(annotation) && annotation[i] != '"' {
-			if annotation[i] == '\\' {
+	for _, annotation := range annotationParts {
+		annotation = strings.TrimSpace(annotation)
+		for annotation != "" {
+			i := 0
+			for i < len(annotation) && annotation[i] == ' ' {
 				i++
 			}
-			i++
-		}
-		if i >= len(annotation) {
-			return nil, errAnnotationValueSyntax
-		}
+			annotation = annotation[i:]
+			if annotation == "" {
+				break
+			}
 
-		lvalue := annotation[:i+1]
-		annotation = annotation[i+1:]
+			if annotation[0] != '@' {
+				break
+			}
 
-		value, err := strconv.Unquote(lvalue)
-		if err != nil {
-			return nil, errAnnotationValueSyntax
+			annotation = annotation[1:]
+
+			i = 0
+			for i < len(annotation) && annotation[i] > ' ' && annotation[i] != ':' && annotation[i] != '"' && annotation[i] != 0x7f {
+				i++
+			}
+			if i == 0 {
+				return nil, errAnnotationKeySyntax
+			}
+			if i+1 >= len(annotation) || annotation[i] != ':' {
+				return nil, errAnnotationSyntax
+			}
+			if annotation[i+1] != '"' {
+				return nil, errAnnotationValueSyntax
+			}
+			key := annotation[:i]
+			annotation = annotation[i+1:]
+
+			i = 1
+			for i < len(annotation) && annotation[i] != '"' {
+				if annotation[i] == '\\' {
+					i++
+				}
+				i++
+			}
+			if i >= len(annotation) {
+				return nil, errAnnotationValueSyntax
+			}
+
+			lvalue := annotation[:i+1]
+			annotation = annotation[i+1:]
+
+			value, err := strconv.Unquote(lvalue)
+			if err != nil {
+				return nil, errAnnotationValueSyntax
+			}
+
+			res := strings.Split(value, ",")
+			name := res[0]
+			options := res[1:]
+			if len(options) == 0 {
+				options = nil
+			}
+
+			annotations = append(annotations, &Annotation{
+				Key:     key,
+				Name:    name,
+				Options: options,
+			})
 		}
-
-		res := strings.Split(value, ",")
-		name := res[0]
-		options := res[1:]
-		if len(options) == 0 {
-			options = nil
-		}
-
-		annotations = append(annotations, &Annotation{
-			Key:     key,
-			Name:    name,
-			Options: options,
-		})
 	}
-	if hasAnnotation && len(annotations) == 0 {
-		return nil, nil
-	}
+
+	//if hasAnnotation && len(annotations) == 0 {
+	//	return nil, nil
+	//}
 	return &Annotations{annotations: annotations}, nil
 }

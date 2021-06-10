@@ -11,6 +11,8 @@ import (
 	"github.com/swipe-io/swipe/v2/option"
 )
 
+const Version = "v3.0.0-beta1"
+
 type ContextKey string
 
 const (
@@ -69,15 +71,17 @@ func Generate(cfg *Config) (result []GenerateResult, errs []error) {
 					}
 					filename := "swipe_gen_" + strcase.ToSnake(p.ID()) + "_" + g.Filename()
 
+					importerKey := build.Pkg.Path + filename
+
 					// importer cache for package.
-					importerService, ok := importerMap[filename]
+					importerService, ok := importerMap[importerKey]
 					if !ok {
 						importerService = importer.NewImporter(build.Pkg)
 						importerMap[filename] = importerService
 					}
 
 					generatorResult[i].OutputPath = filepath.Join(outputDir, filename)
-					f := frame.NewFrame("v1.0.0", filename, importerService, build.Pkg)
+					f := frame.NewFrame(Version, filename, importerService, build.Pkg)
 
 					ctx := context.WithValue(context.TODO(), ImporterKey, importerService)
 

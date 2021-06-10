@@ -30,6 +30,9 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 		mw.W("}\n\n")
 
 		for _, m := range ifaceType.Methods {
+			resultLen := LenWithoutErrors(m.Sig.Results)
+			paramLen := LenWithoutContexts(m.Sig.Params)
+
 			mw.W("/**\n")
 			if m.Comment != "" {
 				mw.W("* %s\n", m.Comment)
@@ -60,7 +63,13 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 					if IsError(p) {
 						continue
 					}
-					if i > 0 && i != len(m.Sig.Results)-1 {
+					if t, ok := p.Type.(*option.NamedType); ok {
+						key := t.ID()
+						if _, ok := defTypes[key]; !ok {
+							defTypes[key] = t
+						}
+					}
+					if i != resultLen-1 {
 						mw.W(", ")
 					}
 					if m.Sig.IsNamed {
@@ -87,7 +96,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 				}
 				mw.W(p.Name.Value)
 
-				if i > 0 && i != len(m.Sig.Params)-1 {
+				if i != paramLen {
 					mw.W(",")
 				}
 			}
@@ -105,7 +114,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 					continue
 				}
 				mw.W("%[1]s:%[1]s", p.Name)
-				if i > 0 && i != len(m.Sig.Params)-1 {
+				if i != paramLen {
 					mw.W(",")
 				}
 			}

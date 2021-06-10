@@ -551,6 +551,9 @@ func jsDocTypeRecursive(i interface{}, nested int) string {
 	case *option.ArrayType:
 		return "Array<" + jsDocTypeRecursive(t.Value, nested) + ">"
 	case *option.NamedType:
+		if b, ok := t.Type.(*option.BasicType); ok {
+			return jsDocTypeRecursive(b, nested)
+		}
 		if t.Pkg != nil {
 			switch t.Pkg.Path {
 			case "github.com/google/uuid", "github.com/pborman/uuid":
@@ -637,9 +640,9 @@ func fillType(i interface{}, visited map[string]*option.NamedType) {
 	}
 }
 
-func isBytes(i interface{}) bool {
-	if s, ok := i.(*option.SliceType); ok {
-		if b, ok := s.Value.(*option.BasicType); ok && b.IsByte() {
+func isFileOS(i interface{}) bool {
+	if n, ok := i.(*option.NamedType); ok {
+		if n.Pkg.Name == "os" && n.Name.Value == "File" {
 			return true
 		}
 	}

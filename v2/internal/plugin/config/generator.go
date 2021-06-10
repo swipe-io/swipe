@@ -1,4 +1,4 @@
-package configenv
+package config
 
 import (
 	"context"
@@ -20,11 +20,10 @@ type Generator struct {
 func (g *Generator) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	pkgName := importer.Import(g.Struct.Pkg.Name, g.Struct.Pkg.Path)
-	typeName := pkgName + g.Struct.Name.Upper()
+	typeName := importer.TypeString(g.Struct)
 
-	g.W("func %s() (c *%s, errs []error) {\n", g.FuncName, typeName)
-	g.W("c = &%s{}\n", typeName)
+	g.W("func %s() (cfg *%s, errs []error) {\n", g.FuncName, typeName)
+	g.W("cfg = &%s{}\n", typeName)
 
 	var (
 		foundFlags    bool
@@ -43,7 +42,7 @@ func (g *Generator) Generate(ctx context.Context) []byte {
 		switch f.Type.(type) {
 		case *option.NamedType:
 			g.writeEnv(importer, f, opts)
-		case *option.BasicType, *option.ArrayType, *option.MapType:
+		case *option.BasicType, *option.SliceType, *option.ArrayType, *option.MapType:
 			if opts.isFlag {
 				g.writeFlag(importer, f, opts)
 				if opts.required {
@@ -61,10 +60,10 @@ func (g *Generator) Generate(ctx context.Context) []byte {
 	if foundFlags {
 		flagPkg := importer.Import("flag", "flag")
 
-		g.W("%sParse()\n", flagPkg)
+		g.W("%s.Parse()\n", flagPkg)
 
 		g.W("seen := map[string]struct{}{}\n")
-		g.W("%[1]sVisit(func(f *%[1]s.Flag) { seen[f.Name] = struct{}{} })\n", flagPkg)
+		g.W("%[1]s.Visit(func(f *%[1]s.Flag) { seen[f.Name] = struct{}{} })\n", flagPkg)
 
 		for _, o := range requiredFlags {
 			g.W("if _, ok := seen[\"%s\"]; !ok {\n", o.opts.name)
@@ -93,7 +92,7 @@ func (g *Generator) Generate(ctx context.Context) []byte {
 			} else {
 				g.W("%s=", env.name)
 			}
-			g.W("`+%sSprintf(\"%%v\", %s)+`", fmtPkg, "cfg."+env.fieldPath)
+			g.W("`+%s.Sprintf(\"%%v\", %s)+`", fmtPkg, "cfg."+env.fieldPath)
 			if env.desc != "" {
 				g.W(" ; %s", env.desc)
 			}
@@ -118,7 +117,7 @@ func (g *Generator) Filename() string {
 func (g *Generator) writeEnv(importer swipe.Importer, f *option.VarType, opts fldOpts) {
 	tmpVar := strcase.ToLowerCamel(opts.fieldPath) + "Tmp"
 	pkgOS := importer.Import("os", "os")
-	g.W("%s, ok := %sLookupEnv(%s)\n", tmpVar, pkgOS, strconv.Quote(opts.name))
+	g.W("%s, ok := %s.LookupEnv(%s)\n", tmpVar, pkgOS, strconv.Quote(opts.name))
 	g.W("if ok {\n")
 
 	g.WriteConvertType(importer, "cfg."+opts.fieldPath, tmpVar, f, nil, "errs", false, "convert "+opts.name+" error")
@@ -138,19 +137,19 @@ func (g *Generator) writeFlag(i swipe.Importer, f *option.VarType, opts fldOpts)
 	if t, ok := f.Type.(*option.BasicType); ok {
 		flagPkg := i.Import("flag", "flag")
 		if t.IsString() {
-			g.W("%[1]sStringVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
+			g.W("%[1]s.StringVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		}
 		if t.IsInt64() {
-			g.W("%[1]sInt64Var(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
+			g.W("%[1]s.Int64Var(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		}
 		if t.IsInt() {
-			g.W("%[1]sIntVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
+			g.W("%[1]s.IntVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		}
 		if t.IsFloat64() {
-			g.W("%[1]sFloat64Var(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
+			g.W("%[1]s.Float64Var(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		}
 		if t.IsBool() {
-			g.W("%[1]sBoolVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
+			g.W("%[1]s.BoolVar(&cfg.%[2]s, \"%[3]s\", cfg.%[2]s, \"%[4]s\")\n", flagPkg, opts.fieldPath, opts.name, opts.desc)
 		}
 	}
 }
@@ -168,5 +167,5 @@ func (g *Generator) writeCheckZero(i swipe.Importer, f *option.VarType, opts fld
 func (g *Generator) writeAppendErr(i swipe.Importer, opts fldOpts) {
 	errorsPkg := i.Import("errors", "errors")
 	requiredMsg := strconv.Quote(fmt.Sprintf("%s %s required", opts.tagName(), opts.name))
-	g.W("errs = append(errs, %sNew(%s))\n ", errorsPkg, requiredMsg)
+	g.W("errs = append(errs, %s.New(%s))\n ", errorsPkg, requiredMsg)
 }

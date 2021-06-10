@@ -134,11 +134,9 @@ func (i *Importer) TypeString(v interface{}) string {
 			return pointerPrefix(t.IsPointer) + t.Name.Value
 		}
 		pkg := i.Import(t.Pkg.Name, t.Pkg.Path)
-
 		if pkg != "" {
 			pkg = pkg + "."
 		}
-
 		return pointerPrefix(t.IsPointer) + pkg + t.Name.Value
 	}
 	return ""

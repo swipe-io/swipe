@@ -278,7 +278,11 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 		g.w.W("r.Post(\"%s\", func(c *routing.Context) error {\nhandler.ServeFastHTTP(c.RequestCtx)\nreturn nil\n})\n", jsonRPCPath)
 	} else {
-		g.w.W("r.Methods(\"POST\").Path(\"%s\").Handler(handler)\n", jsonRPCPath)
+		g.w.W("r.Methods(\"POST\").")
+		if jsonRPCPath != "" {
+			g.w.W(".Path(\"%s\").", jsonRPCPath)
+		}
+		g.w.W("Handler(handler)\n")
 	}
 	if g.UseFast {
 		g.w.W("return r.HandleRequest, nil")

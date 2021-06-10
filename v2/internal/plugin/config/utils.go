@@ -1,4 +1,4 @@
-package configenv
+package config
 
 import (
 	stdstrings "strings"
@@ -37,7 +37,7 @@ func (o fldOpts) tagName() string {
 
 func getFieldOpts(f *option.VarType, tags *structtag.Tags) (result fldOpts) {
 	result.name = strcase.ToScreamingSnake(f.Name.Upper())
-	result.fieldPath = f.Name.Upper()
+	result.fieldPath = f.Name.Value
 
 	if tag, err := tags.Get("env"); err == nil {
 		for _, o := range tag.Options {
@@ -69,7 +69,6 @@ func getFieldOpts(f *option.VarType, tags *structtag.Tags) (result fldOpts) {
 type callbackFn func(f, parent *option.VarType, opts fldOpts)
 
 func walkStructRecursive(st *option.StructType, parent *option.VarType, fPOpts fldOpts, fn callbackFn) {
-
 	for _, field := range st.Fields {
 		fOpts := getFieldOpts(field.Var, field.Tags)
 		if fPOpts.name != "" && parent != nil {
@@ -101,6 +100,8 @@ func walkRecursive(t interface{}, parent *option.VarType, fPOpts fldOpts, fn cal
 
 func isExclusionStructType(v *option.VarType) bool {
 	switch t := v.Type.(type) {
+	case *option.SliceType, *option.ArrayType, *option.MapType:
+		return true
 	case *option.BasicType:
 		return true
 	case *option.NamedType:
@@ -108,6 +109,11 @@ func isExclusionStructType(v *option.VarType) bool {
 		case "github.com/google/uuid":
 			switch t.Name.Value {
 			case "UUID":
+				return true
+			}
+		case "time":
+			switch t.Name.Value {
+			case "Time", "Duration":
 				return true
 			}
 		case "net/url":

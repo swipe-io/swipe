@@ -31,6 +31,7 @@ func (p *Plugin) ID() string {
 }
 
 func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *option.Build, options map[string]interface{}) []error {
+	p.config = config.Config{}
 	if err := mapstructure.Decode(options, &p.config); err != nil {
 		return []error{err}
 	}
@@ -148,6 +149,14 @@ func (p *Plugin) validateConfig() (errs []error) {
 		}
 	}
 	return
+}
+
+func (p *Plugin) Options() []byte {
+	var cfg interface{} = &config.Config{}
+	if o, ok := cfg.(interface{ Options() []byte }); ok {
+		return o.Options()
+	}
+	return nil
 }
 
 func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {

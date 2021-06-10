@@ -1,6 +1,8 @@
 package swipe
 
 import (
+	"strings"
+
 	"github.com/swipe-io/swipe/v2/internal/ast"
 	"github.com/swipe-io/swipe/v2/option"
 
@@ -62,6 +64,19 @@ func (c *Config) WalkBuilds(fn func(module *option.Module, build *option.Build) 
 }
 
 func (c *Config) Load() (err error) {
-	c.Modules, err = option.Decode(c.Pkg, c.Packages, c.CommentFuncs)
+	optionPkgs := map[string]string{}
+	for _, plugin := range registeredPlugins {
+		optionPkgs["swipe"+strings.ToLower(plugin.ID())] = plugin.ID()
+	}
+	c.Modules, err = option.Decode(optionPkgs, c.Pkg, c.Packages, c.CommentFuncs)
+	return
+}
+
+func Options() (data map[string][]byte) {
+	data = map[string][]byte{}
+	for _, plugin := range registeredPlugins {
+		name := "swipe" + strings.ToLower(plugin.ID())
+		data[name] = append(data[name], plugin.Options()...)
+	}
 	return
 }

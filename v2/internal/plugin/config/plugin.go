@@ -1,4 +1,4 @@
-package configenv
+package config
 
 import (
 	"github.com/mitchellh/mapstructure"
@@ -14,12 +14,18 @@ func init() {
 }
 
 type Func struct {
-	Name string
+	Value string
 }
 
+type Environment struct {
+	StructType *option.NamedType
+	FuncName   *Func `swipe:"option"`
+}
+
+// Config
+// @swipe:"Config"
 type Config struct {
-	Struct *option.NamedType `mapstructure:"optionsStruct"`
-	Func   *Func             `mapstructure:"ConfigEnvFuncName"`
+	Environment Environment
 }
 
 type Plugin struct {
@@ -28,11 +34,11 @@ type Plugin struct {
 
 func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	funcName := defaultFuncName
-	if p.config.Func != nil {
-		funcName = p.config.Func.Name
+	if p.config.Environment.FuncName != nil {
+		funcName = p.config.Environment.FuncName.Value
 	}
 	generators = append(generators, &Generator{
-		Struct:   p.config.Struct,
+		Struct:   p.config.Environment.StructType,
 		FuncName: funcName,
 	})
 	return
@@ -45,6 +51,14 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 	return nil
 }
 
+func (p *Plugin) Options() []byte {
+	var cfg interface{} = &Config{}
+	if o, ok := cfg.(interface{ Options() []byte }); ok {
+		return o.Options()
+	}
+	return nil
+}
+
 func (p *Plugin) ID() string {
-	return "ConfigEnv"
+	return "Config"
 }

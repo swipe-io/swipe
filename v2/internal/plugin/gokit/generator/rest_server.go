@@ -117,10 +117,10 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				headerVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
 			}
 
-			multipartVars := make(map[string]string, len(mopt.RESTMultipart.Value))
-			for i := 0; i < len(mopt.RESTMultipart.Value); i += 2 {
-				multipartVars[mopt.RESTMultipart.Value[i]] = mopt.RESTMultipart.Value[i+1]
-			}
+			//multipartVars := make(map[string]string, len(mopt.RESTMultipart.Value))
+			//for i := 0; i < len(mopt.RESTMultipart.Value); i += 2 {
+			//	multipartVars[mopt.RESTMultipart.Value[i]] = mopt.RESTMultipart.Value[i+1]
+			//}
 
 			var urlPath string
 			if mopt.RESTPath.Value != "" {
@@ -135,7 +135,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				urlPath = "/" + urlPath
 			}
 
-			remainingParams := len(m.Sig.Params) - (len(mopt.RESTPathVars) + len(queryVars) + len(headerVars) + len(multipartVars))
+			remainingParams := len(m.Sig.Params) - (len(mopt.RESTPathVars) + len(queryVars) + len(headerVars))
 
 			if g.UseFast {
 				g.w.W("r.To(")
@@ -226,10 +226,10 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 						}
 					}
 
-					if len(multipartVars) > 0 {
-						multipartMaxMemory := 67108864
-						if mopt.RESTMultipartMaxMemory.Value > 0 {
-							multipartMaxMemory = mopt.RESTMultipartMaxMemory.Value
+					if mopt.RESTMultipart != nil {
+						var multipartMaxMemory int64 = 67108864
+						if mopt.RESTMultipart.MaxMemory > 0 {
+							multipartMaxMemory = mopt.RESTMultipart.MaxMemory
 						}
 						if g.UseFast {
 							g.w.W("form, err := r.MultipartForm()\n")
@@ -273,46 +273,41 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
 							}
 							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
-						} else if multipartName, ok := multipartVars[p.Name.Value]; ok {
-							if isBytes(p.Type) {
-								ioutilPkg := importer.Import("ioutil", "io/ioutil")
-								multipartPkg := importer.Import("multipart", "mime/multipart")
+						} else if mopt.RESTMultipart != nil {
+							if isFileOS(p.Type) {
+								osPkg := importer.Import("os", "os")
 
 								if g.UseFast {
-									g.w.W("parts := form.File[%s]\n", strconv.Quote(multipartName))
-									g.w.W("var (\nf %s.File\n)\n", multipartPkg)
+									g.w.W("parts := form.File[%s]\n", strconv.Quote(p.Name.Value))
+									g.w.W("var (\nf *%s.File\n)\n", osPkg)
 									g.w.W("if len(parts) > 0 {\n")
-									g.w.W("f, err = parts[0].Open()\n")
+									g.w.W("f, err = %s.Open(parts[0].Filename)\n", osPkg)
 									g.w.WriteCheckErr("err", func() {
 										g.w.W("return nil, err\n")
 									})
 									g.w.W("}\n")
 								} else {
-									g.w.W("f, _, err := r.FormFile(%s)\n", strconv.Quote(multipartName))
+									g.w.W("_, h, err := r.FormFile(%s)\n", strconv.Quote(p.Name.Value))
+									g.w.WriteCheckErr("err", func() {
+										g.w.W("return nil, err\n")
+									})
+									g.w.W("f, err := %s.Open(h.Filename)\n", osPkg)
 									g.w.WriteCheckErr("err", func() {
 										g.w.W("return nil, err\n")
 									})
 								}
-								g.w.W("data, err := %s.ReadAll(f)\n", ioutilPkg)
-								g.w.WriteCheckErr("err", func() {
-									g.w.W("return nil, err\n")
-								})
-								g.w.W("err = f.Close()\n")
-								g.w.WriteCheckErr("err", func() {
-									g.w.W("return nil, err\n")
-								})
-								g.w.W("req.%s = data\n", p.Name.Upper())
+								g.w.W("req.%s = f\n", p.Name.Upper())
 								continue
 							}
 							var valueID string
 							if g.UseFast {
 								valueID = "form" + p.Name.Upper()
 								g.w.W("var %s string\n", valueID)
-								g.w.W("if fv, ok := form.Value[%s]; ok && len(fv) > 0 {\n", strconv.Quote(multipartName))
+								g.w.W("if fv, ok := form.Value[%s]; ok && len(fv) > 0 {\n", strconv.Quote(p.Name.Value))
 								g.w.W("%s = fv[0]\n", valueID)
 								g.w.W("}\n")
 							} else {
-								valueID = "r.FormValue(" + strconv.Quote(multipartName) + ")"
+								valueID = "r.FormValue(" + strconv.Quote(p.Name.Value) + ")"
 							}
 							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
 						}

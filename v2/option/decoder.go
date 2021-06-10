@@ -35,6 +35,7 @@ type Result struct {
 }
 
 type Decoder struct {
+	optionPkgs     map[string]string
 	pkg            *packages.Package
 	pkgs           []*packages.Package
 	commentFuncMap map[string][]string
@@ -224,21 +225,12 @@ func (d *Decoder) normalizeSignature(pkg *packages.Package, t *stdtypes.Signatur
 	if t == nil {
 		return nil
 	}
-	k := d.hasher.Hash(t)
-	if v, ok := visited[k]; ok {
-		return v.(*SignType)
-	}
-
 	st := &SignType{
 		IsVariadic: t.Variadic(),
 	}
-
-	visited[k] = st
-
 	if t.Recv() != nil {
 		st.Recv = d.normalizeType(pkg, t.Recv().Type(), false, visited)
 	}
-
 	for i := 0; i < t.Params().Len(); i++ {
 		v := t.Params().At(i)
 		nv := d.normalizeVar(pkg, v, comments[v.Name()], visited)
@@ -279,6 +271,15 @@ func (d *Decoder) normalizeArray(pkg *packages.Package, val stdtypes.Type, len i
 		Value:     d.normalizeType(pkg, val, false, visited),
 		Len:       len,
 		IsPointer: isPointer,
+	}
+}
+
+func (d *Decoder) normalizeSelector(pkg *packages.Package, obj stdtypes.Object) interface{} {
+	return &NamedType{
+		Obj:  obj,
+		Name: normalizeName(obj.Name()),
+		Type: d.normalizeType(pkg, obj.Type().Underlying(), false, map[uint32]interface{}{}),
+		Pkg:  d.normalizePkg(obj.Pkg()),
 	}
 }
 
@@ -452,10 +453,11 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 				continue
 			}
 			obj := pkg.TypesInfo.Uses[callIdent]
-			if obj == nil {
+			if obj == nil || obj.Pkg() == nil {
 				continue
 			}
-			if obj.Name() == "Build" {
+
+			if buildName, ok := d.optionPkgs[obj.Pkg().Name()]; ok && obj.Name() == buildName {
 				if _, ok := result[pkg.Module.Path]; !ok {
 					result[pkg.Module.Path] = &Module{
 						Path:     pkg.Module.Path,
@@ -476,7 +478,9 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 						Path: pkg.PkgPath,
 					},
 					BasePath: basePath,
-					Option:   option,
+					Option: map[string]interface{}{
+						buildName: option,
+					},
 				}
 				result[pkg.Module.Path].Builds = append(result[pkg.Module.Path].Builds, build)
 			}
@@ -485,17 +489,9 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 	return
 }
 
-func (d *Decoder) normalizeSelector(pkg *packages.Package, obj stdtypes.Object) interface{} {
-	return &NamedType{
-		Obj:  obj,
-		Name: normalizeName(obj.Name()),
-		Type: d.normalizeType(pkg, obj.Type().Underlying(), false, map[uint32]interface{}{}),
-		Pkg:  d.normalizePkg(obj.Pkg()),
-	}
-}
-
-func Decode(pkg *packages.Package, pkgs []*packages.Package, commentFuncs map[string][]string) (result map[string]*Module, err error) {
+func Decode(optionPkgs map[string]string, pkg *packages.Package, pkgs []*packages.Package, commentFuncs map[string][]string) (result map[string]*Module, err error) {
 	return (&Decoder{
+		optionPkgs:     optionPkgs,
 		pkg:            pkg,
 		pkgs:           pkgs,
 		commentFuncMap: commentFuncs,

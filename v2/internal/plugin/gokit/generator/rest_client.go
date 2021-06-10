@@ -107,10 +107,10 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				multipartVars []*option.VarType
 			)
 
-			methodMultipartVars := make(map[string]string, len(mopt.RESTMultipart.Value))
-			for i := 0; i < len(mopt.RESTMultipart.Value); i += 2 {
-				methodMultipartVars[mopt.RESTMultipart.Value[i]] = mopt.RESTMultipart.Value[i+1]
-			}
+			//methodMultipartVars := make(map[string]string, len(mopt.RESTMultipart.Value))
+			//for i := 0; i < len(mopt.RESTMultipart.Value); i += 2 {
+			//	methodMultipartVars[mopt.RESTMultipart.Value[i]] = mopt.RESTMultipart.Value[i+1]
+			//}
 
 			methodQueryVars := make(map[string]string, len(mopt.RESTQueryVars.Value))
 			methodQueryValues := make(map[string]string)
@@ -139,9 +139,12 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					queryVars = append(queryVars, p)
 				} else if _, ok := methodHeaderVars[p.Name.Value]; ok {
 					headerVars = append(headerVars, p)
-				} else if _, ok := methodMultipartVars[p.Name.Value]; ok {
+				} else if mopt.RESTMultipart != nil {
 					multipartVars = append(multipartVars, p)
 				}
+				//else if _, ok := methodMultipartVars[p.Name.Value]; ok {
+				//	multipartVars = append(multipartVars, p)
+				//}
 			}
 
 			remainingParams := len(m.Sig.Params) - (len(pathVars) + len(queryVars) + len(headerVars) + len(multipartVars))
@@ -184,7 +187,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
 				}
 				if g.UseFast {
-					g.w.W("r.SetRequestURI(")
+					g.w.W("r.URI().SetPath(")
 				} else {
 					g.w.W("r.URL.Path += ")
 				}
@@ -197,10 +200,6 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					g.w.W(")")
 				}
 				g.w.W("\n")
-
-				if remainingParams > 0 {
-					g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
-				}
 
 				if len(queryVars) > 0 || len(methodQueryValues) > 0 {
 					if g.UseFast {
@@ -230,17 +229,21 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 						g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
 
 						for _, p := range multipartVars {
-							if isBytes(p.Type) {
-								g.w.W("part, err := writer.CreateFormFile(%s, \"\")\n", strconv.Quote(methodMultipartVars[p.Name.Value]))
+							if isFileOS(p.Type) {
+								g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
 								g.w.WriteCheckErr("err", func() {
 									g.w.W("return err\n")
 								})
-								g.w.W("part.Write(req.%s)\n", p.Name.Upper())
+								g.w.W("data, err := %s.ReadAll(req.%s)\n", ioutilPkg, p.Name.Upper())
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return err\n")
+								})
+								g.w.W("part.Write(data)\n")
 								continue
 							}
 							name := p.Name.Value + "Str"
 							g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
-							g.w.W("_ = writer.WriteField(%s, %s)\n", strconv.Quote(methodMultipartVars[p.Name.Value]), name)
+							g.w.W("_ = writer.WriteField(%s, %s)\n", strconv.Quote(p.Name.Value), name)
 						}
 						g.w.W("if err := writer.Close(); err != nil {\n return err\n}\n")
 
@@ -248,6 +251,11 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 							g.w.W("r.SetBody(body.Bytes())\n")
 						} else {
 							g.w.W("r.Body = %s.NopCloser(body)\n", ioutilPkg)
+						}
+						g.w.W("r.Header.Set(\"Content-Type\", writer.FormDataContentType())\n")
+					} else {
+						if remainingParams > 0 {
+							g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
 						}
 					}
 
@@ -301,7 +309,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("return nil, %sErrorDecode(%s)\n", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
 				g.w.W("}\n")
 
-				if len(m.Sig.Results) > 0 {
+				if LenWithoutErrors(m.Sig.Results) > 0 {
 					var responseType string
 					if m.Sig.IsNamed {
 						responseType = NameResponse(m, iface)
@@ -328,10 +336,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 					g.w.W("if len(b) == 0 {\nreturn nil, nil\n}\n")
 
-					g.w.W("err = %s.Unmarshal(b, ", jsonPkg)
-
-					g.w.W("&resp)\n")
-
+					g.w.W("err = %s.Unmarshal(b, &resp)\n", jsonPkg)
 					g.w.W("if err != nil {\n")
 					g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, responseType)
 					g.w.W("}\n")
