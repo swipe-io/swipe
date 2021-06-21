@@ -91,8 +91,10 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				httpMethod = "GET"
 			}
 
-			pathStr := mopt.RESTPath.Value
-			if pathStr == "" {
+			var pathStr string
+			if mopt.RESTPath != nil {
+				pathStr = mopt.RESTPath.Value
+			} else {
 				pathStr = path.Join("/", strcase.ToKebab(m.Name.Value))
 			}
 
@@ -129,6 +131,9 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			for _, p := range m.Sig.Params {
+				if IsContext(p) {
+					continue
+				}
 				if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
 					if regexp != "" {
 						regexp = ":" + regexp
@@ -142,9 +147,6 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				} else if mopt.RESTMultipart != nil {
 					multipartVars = append(multipartVars, p)
 				}
-				//else if _, ok := methodMultipartVars[p.Name.Value]; ok {
-				//	multipartVars = append(multipartVars, p)
-				//}
 			}
 
 			remainingParams := len(m.Sig.Params) - (len(pathVars) + len(queryVars) + len(headerVars) + len(multipartVars))
@@ -207,11 +209,24 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					} else {
 						g.w.W("q := r.URL.Query()\n")
 					}
-
 					for _, p := range queryVars {
+						var isPointer bool
+						valueID := "req." + strcase.ToCamel(p.Name.Value)
 						name := p.Name.Value + "Str"
-						g.w.WriteFormatType(importer, name, "req."+strcase.ToCamel(p.Name.Value), p)
+						if t, ok := p.Type.(*option.BasicType); ok {
+							if t.IsPointer {
+								isPointer = true
+							}
+						}
+						if isPointer {
+							g.w.W("if %s != nil {\n", valueID)
+						}
+						g.w.WriteFormatType(importer, name, valueID, p)
 						g.w.W("q.Add(%s, %s)\n", strconv.Quote(methodQueryVars[p.Name.Value]), name)
+
+						if isPointer {
+							g.w.W("}\n")
+						}
 					}
 
 					if len(methodQueryValues) > 0 {
@@ -229,7 +244,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 						g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
 
 						for _, p := range multipartVars {
-							if isFileOS(p.Type) {
+							if isFileType(p.Type, importer) {
 								g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
 								g.w.WriteCheckErr("err", func() {
 									g.w.W("return err\n")
@@ -273,7 +288,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				}
 				switch stdstrings.ToUpper(httpMethod) {
 				case "POST", "PUT", "PATCH":
-					if remainingParams > 0 {
+					if len(multipartVars) == 0 && remainingParams > 0 {
 						jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 
 						g.w.W("data, err := %s.Marshal(req)\n", jsonPkg)

@@ -189,11 +189,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 		case "github.com/google/uuid", "github.com/pborman/uuid", "encoding/json", "time":
 			continue
 		}
-
-		g.w.W("/**\n")
-		g.w.W("* @typedef {Object} %s\n", t.Name.Value)
-		g.w.W(jsTypeDef(t.Type))
-		g.w.W("*/\n\n")
+		g.w.W(jsTypeDef(t))
 	}
 	return g.w.Bytes()
 }

@@ -117,13 +117,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				headerVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
 			}
 
-			//multipartVars := make(map[string]string, len(mopt.RESTMultipart.Value))
-			//for i := 0; i < len(mopt.RESTMultipart.Value); i += 2 {
-			//	multipartVars[mopt.RESTMultipart.Value[i]] = mopt.RESTMultipart.Value[i+1]
-			//}
-
 			var urlPath string
-			if mopt.RESTPath.Value != "" {
+			if mopt.RESTPath != nil {
 				urlPath = mopt.RESTPath.Value
 			} else {
 				urlPath = strcase.ToKebab(m.Name.Value)
@@ -148,7 +143,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W(", ")
 
 				// replace brace indices for fasthttp router
-				urlPath = stdstrings.ReplaceAll(mopt.RESTPath.Value, "{", "<")
+				urlPath = stdstrings.ReplaceAll(urlPath, "{", "<")
 				urlPath = stdstrings.ReplaceAll(urlPath, "}", ">")
 
 				g.w.W(strconv.Quote(urlPath))
@@ -274,7 +269,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							}
 							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
 						} else if mopt.RESTMultipart != nil {
-							if isFileOS(p.Type) {
+							if isFileType(p.Type, nil) {
 								osPkg := importer.Import("os", "os")
 
 								if g.UseFast {
@@ -380,11 +375,6 @@ func (g *RESTServerGenerator) writeEncodeResponseFunc(contextPkg, httpPkg, jsonP
 	g.w.W(", response interface{}) (err error) {\n")
 	g.w.W("contentType := \"application/json; charset=utf-8\"\n")
 	g.w.W("statusCode := 200\n")
-	if g.UseFast {
-		g.w.W("h := w.Header\n")
-	} else {
-		g.w.W("h := w.Header()\n")
-	}
 	g.w.W("var data []byte\n")
 	g.w.W("if response != nil {\n")
 	g.w.W("data, err = %s.Marshal(response)\n", jsonPkg)
@@ -395,17 +385,17 @@ func (g *RESTServerGenerator) writeEncodeResponseFunc(contextPkg, httpPkg, jsonP
 	g.w.W("contentType = \"text/plain; charset=utf-8\"\n")
 	g.w.W("statusCode = 201\n")
 	g.w.W("}\n")
-	g.w.W("h.Set(\"Content-Type\", contentType)\n")
+
 	if g.UseFast {
+		g.w.W("w.Header.Set(\"Content-Type\", contentType)\n")
 		g.w.W("w.SetStatusCode(statusCode)\n")
-	} else {
-		g.w.W("w.WriteHeader(statusCode)\n")
-	}
-	if g.UseFast {
 		g.w.W("w.SetBody(data)\n")
 	} else {
+		g.w.W("w.Header().Set(\"Content-Type\", contentType)\n")
+		g.w.W("w.WriteHeader(statusCode)\n")
 		g.w.W("w.Write(data)\n")
 	}
+
 	g.w.W("return nil\n")
 	g.w.W("}\n\n")
 }

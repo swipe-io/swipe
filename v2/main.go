@@ -407,7 +407,6 @@ func getOpt(optionName string, f *goast.Field, e goast.Expr, isRepeat bool) (res
 				name:     ident.Name,
 			})
 		}
-
 	case *goast.Ident:
 		of := optionFunc{
 			typeName: optionName,
@@ -435,14 +434,11 @@ func getOpt(optionName string, f *goast.Field, e goast.Expr, isRepeat bool) (res
 						of.params = append(of.params, strcase.ToLowerCamel(name)+" "+getFieldType(f))
 					}
 				}
-
 				if hasOpts {
 					of.optsType = ts.Name.Name
 				}
-
 			}
 		}
-
 		result = append(result, of)
 	}
 	return

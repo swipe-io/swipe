@@ -118,6 +118,9 @@ func (w *GoWriter) writeFormatBasicType(importer swipe.Importer, assignId, value
 	funcName := w.getFormatFuncName(t)
 	if funcName != "" {
 		strconvPkg := importer.Import("strconv", "strconv")
+		if t.IsPointer {
+			valueId = "*" + valueId
+		}
 		w.W("%s := %s.%s\n", assignId, strconvPkg, fmt.Sprintf(funcName, valueId))
 	} else {
 		w.W("%s := %s\n", assignId, valueId)
@@ -150,7 +153,7 @@ func (w *GoWriter) WriteConvertBasicType(importer swipe.Importer, name, assignId
 			if len(errRet) > 0 {
 				w.W("%s, ", stdstrings.Join(errRet, ","))
 			}
-			w.W("err")
+			w.W("%s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), tmpId)
 		}
 		w.W("}\n")
 	}
@@ -158,13 +161,13 @@ func (w *GoWriter) WriteConvertBasicType(importer swipe.Importer, name, assignId
 		w.W("var ")
 	}
 	retId := fmt.Sprintf("%s(%s)", t.Name, tmpId)
-	if t.IsString() {
-		if t.IsPointer {
-			ptrName := "ptr" + strcase.ToCamel(name)
-			w.W("%s := %s\n", ptrName, tmpId)
-			retId = "&" + ptrName
-		}
+	//if t.IsString() {
+	if t.IsPointer {
+		ptrName := "ptr" + strcase.ToCamel(name)
+		w.W("%s := %s\n", ptrName, tmpId)
+		retId = "&" + ptrName
 	}
+	//}
 	w.W("%s = %s", assignId, retId)
 	w.W("\n")
 }

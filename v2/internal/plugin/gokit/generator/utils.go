@@ -5,6 +5,8 @@ import (
 	"strconv"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v2/swipe"
+
 	"github.com/gertd/go-pluralize"
 
 	"github.com/swipe-io/strcase"
@@ -477,24 +479,33 @@ func jsTypeDef(i interface{}) string {
 func jsTypeDefRecursive(i interface{}, nested int, visited map[string]struct{}) string {
 	switch t := i.(type) {
 	case *option.NamedType:
+
+		result := "/**\n"
+		result += "* @typedef "
+
 		switch t.Pkg.Path {
+		default:
+			result += "{Object} " + t.Name.Value + "\n"
+			result += jsTypeDefRecursive(t.Type, nested, visited)
+
 		case "github.com/google/uuid", "github.com/pborman/uuid":
 			switch t.Name.Value {
 			case "UUID":
-				return "string"
+				result += "string\n"
 			}
 		case "encoding/json":
 			switch t.Name.Value {
 			case "RawMessage":
-				return "*"
+				result += "*\n"
 			}
 		case "time":
 			switch t.Name.Value {
 			case "Time":
-				return "string"
+				result += "string\n"
 			}
 		}
-		return t.Name.Value
+		result += "**/\n"
+		return result
 	case *option.StructType:
 		out := ""
 		for _, f := range t.Fields {
@@ -640,10 +651,20 @@ func fillType(i interface{}, visited map[string]*option.NamedType) {
 	}
 }
 
-func isFileOS(i interface{}) bool {
+func isFileType(i interface{}, importer swipe.Importer) bool {
 	if n, ok := i.(*option.NamedType); ok {
-		if n.Pkg.Name == "os" && n.Name.Value == "File" {
-			return true
+		if iface, ok := n.Type.(*option.IfaceType); ok {
+			var done int
+			for _, method := range iface.Methods {
+				sigStr := importer.TypeSigString(method)
+				switch sigStr {
+				case "Close() (error)", "Name() (string)", "Read([]byte) (int, error)":
+					done++
+				}
+			}
+			if done == 3 {
+				return true
+			}
 		}
 	}
 	return false

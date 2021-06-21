@@ -43,7 +43,7 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 					if IsContext(param) {
 						continue
 					}
-					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), importer.TypeString(param.Type), param.Name.Lower())
+					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), importer.TypeString(param.Type), param.Name)
 				}
 				g.w.W("}\n")
 			}
@@ -53,7 +53,7 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 					if IsError(param) {
 						continue
 					}
-					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), importer.TypeString(param.Type), param.Name.Lower())
+					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), importer.TypeString(param.Type), param.Name)
 				}
 				g.w.W("}\n")
 			}
@@ -101,7 +101,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 				}
 				callParams = append(callParams, "req."+param.Name.Upper())
 			}
-			if len(m.Sig.Params) > 0 {
+			if LenWithoutContexts(m.Sig.Params) > 0 {
 				g.w.W("req := request.(%s)\n", NameRequest(m, iface))
 			}
 

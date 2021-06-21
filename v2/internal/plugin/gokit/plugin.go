@@ -62,7 +62,7 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 		sig := methodOption.Signature.Type.(*option.SignType)
 		recvNamed := sig.Recv.(*option.NamedType)
 
-		if p.config.JSONRPCEnable == nil && methodOption.RESTPath.Value != "" {
+		if p.config.JSONRPCEnable == nil && methodOption.RESTPath != nil {
 			pathVars, err := pathVars(methodOption.RESTPath.Value)
 			if err != nil {
 				errs = append(errs, err)

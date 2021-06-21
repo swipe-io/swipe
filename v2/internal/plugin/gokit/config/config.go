@@ -81,7 +81,7 @@ type MethodOption struct {
 	LoggingContext       []LoggingContext  `swipe:"option"`
 	RESTMethod           StringValue       `swipe:"option"`
 	RESTWrapResponse     StringValue       `swipe:"option"`
-	RESTPath             StringValue       `swipe:"option"`
+	RESTPath             *StringValue      `swipe:"option"`
 	RESTMultipart        *RESTMultipart    `swipe:"option"`
 	RESTHeaderVars       SliceStringValue  `swipe:"option"`
 	RESTQueryVars        SliceStringValue  `swipe:"option"`
@@ -93,19 +93,25 @@ type MethodOption struct {
 }
 
 type OpenapiInfo struct {
-	Title, Description, Version string
+	Title       string
+	Description string
+	Version     string
 }
 
 type OpenapiContact struct {
-	Name, Email, Url string
+	Name  string
+	Email string
+	Url   string
 }
 
 type OpenapiLicence struct {
-	Name, Url string
+	Name string
+	Url  string
 }
 
 type OpenapiServer struct {
-	Description, Url string
+	Description string
+	Url         string
 }
 
 type Langs []string

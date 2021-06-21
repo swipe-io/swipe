@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"path"
 	"strconv"
 	stdstrings "strings"
 
@@ -33,6 +34,8 @@ type Openapi struct {
 }
 
 func (g *Openapi) Generate(ctx context.Context) []byte {
+	g.defTypes = make(map[string]*option.NamedType, 1024)
+
 	o := openapi.OpenAPI{
 		OpenAPI: "3.0.0",
 		Info: openapi.Info{
@@ -75,31 +78,27 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 				mopt = opt
 			}
 			var (
-				prefix         string
 				pathStr        string
 				op             *openapi.Operation
 				httpMethodName = mopt.RESTMethod.Value
 			)
-			if iface.Namespace != "" {
-				prefix = iface.Namespace
-			}
-
 			tags := g.MethodTags[iface.Named.Name.Value+m.Name.Value]
 
 			if g.JSONRPCEnable {
-				op = g.makeJSONRPCPath(m, prefix, mopt)
+				op = g.makeJSONRPCPath(m, iface.Namespace, mopt)
 				pathStr = "/" + m.Name.Lower()
-				if prefix != "" {
-					pathStr = "/" + prefix + "." + m.Name.Lower()
+				if iface.Namespace != "" {
+					pathStr = "/" + iface.Namespace + "." + m.Name.Lower()
 				}
 				httpMethodName = "POST"
 			} else {
 				op = g.makeRestPath(m, mopt)
-				pathStr = strcase.ToKebab(m.Name.Value)
-				if mopt.RESTPath.Value != "" {
-					pathStr = mopt.RESTPath.Value
-				}
 
+				if mopt.RESTPath != nil {
+					pathStr = mopt.RESTPath.Value
+				} else {
+					pathStr = strcase.ToKebab(m.Name.Value)
+				}
 				for _, p := range m.Sig.Params {
 					if IsContext(p) {
 						continue
@@ -109,9 +108,8 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 					}
 				}
 				if iface.Namespace != "" {
-					pathStr = iface.Namespace + "/" + pathStr
+					pathStr = path.Join(iface.Namespace, pathStr)
 				}
-				pathStr = "/" + stdstrings.TrimLeft(pathStr, "/")
 			}
 
 			errType := config.RESTErrorType
@@ -227,15 +225,40 @@ func (g *Openapi) makeRef(named *option.NamedType) string {
 	return "#/components/schemas/" + named.Name.Upper()
 }
 
+func (g *Openapi) fillTypeDefRecursive(t interface{}) {
+	switch t := t.(type) {
+	case *option.SliceType:
+		g.fillTypeDefRecursive(t.Value)
+	case *option.ArrayType:
+		g.fillTypeDefRecursive(t.Value)
+	case *option.MapType:
+		g.fillTypeDefRecursive(t.Value)
+	case *option.NamedType:
+		switch t.Pkg.Path {
+		case "time", "error", "github.com/pborman/uuid", "github.com/google/uuid":
+			return
+		}
+		if _, ok := g.defTypes[t.Pkg.Path+t.Name.Value]; !ok {
+			g.defTypes[t.Pkg.Path+t.Name.Value] = t
+		}
+		if st, ok := t.Type.(*option.StructType); ok {
+			for _, field := range st.Fields {
+				g.fillTypeDefRecursive(field.Var.Type)
+			}
+		}
+	}
+}
+
+func (g *Openapi) fillTypeDef(t interface{}) {
+	g.fillTypeDefRecursive(t)
+}
+
 func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 	switch t := t.(type) {
 	case *option.NamedType:
 		switch t.Pkg.Path {
 		default:
 			schema.Ref = g.makeRef(t)
-			if _, ok := g.defTypes[t.Pkg.Path+t.Name.Value]; !ok {
-				g.defTypes[t.Pkg.Path+t.Name.Value] = t
-			}
 			return
 		case "encoding/json":
 			schema.Type = "object"
@@ -340,9 +363,6 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 }
 
 func (g *Openapi) schemaByType(t interface{}) (schema *openapi.Schema) {
-	if g.defTypes == nil {
-		g.defTypes = make(map[string]*option.NamedType, 1024)
-	}
 	schema = &openapi.Schema{
 		Properties: openapi.Properties{},
 	}
@@ -367,6 +387,8 @@ func (g *Openapi) makeJSONRPCPath(
 			if IsContext(p) {
 				continue
 			}
+			g.fillTypeDef(p.Type)
+
 			schema := g.schemaByType(p.Type)
 			schema.Description = p.Comment
 			requestSchema.Properties[p.Name.Lower()] = schema
@@ -384,6 +406,7 @@ func (g *Openapi) makeJSONRPCPath(
 			if IsError(r) {
 				continue
 			}
+			g.fillTypeDef(r.Type)
 			schema := g.schemaByType(r.Type)
 			responseSchema.Properties[r.Name.Lower()] = schema
 		}
@@ -529,7 +552,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt *config.MethodOption) *o
 	}
 
 	headerVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
-	for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
+	for i := 0; i < len(mopt.RESTHeaderVars.Value); i += 2 {
 		headerVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
 	}
 
@@ -546,6 +569,8 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt *config.MethodOption) *o
 		if _, ok := headerVars[p.Name.Value]; ok {
 			continue
 		}
+
+		g.fillTypeDef(p.Type)
 		schema := g.schemaByType(p.Type)
 		schema.Description = p.Comment
 		requestSchema.Properties[p.Name.Lower()] = schema
@@ -557,6 +582,8 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt *config.MethodOption) *o
 			if IsError(r) {
 				continue
 			}
+
+			g.fillTypeDef(r.Type)
 			responseSchema.Properties[r.Name.Lower()] = g.schemaByType(r.Type)
 		}
 	} else if lenResults == 1 {
@@ -603,10 +630,11 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt *config.MethodOption) *o
 		}
 		if in != "" {
 			o.Parameters = append(o.Parameters, openapi.Parameter{
-				In:       in,
-				Name:     p.Name.Value,
-				Required: true,
-				Schema:   g.schemaByType(p.Type),
+				In:          in,
+				Name:        p.Name.Value,
+				Description: p.Comment,
+				Required:    true,
+				Schema:      g.schemaByType(p.Type),
 			})
 		}
 	}

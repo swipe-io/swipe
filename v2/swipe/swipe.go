@@ -22,6 +22,7 @@ const (
 type Importer interface {
 	Import(name string, path string) string
 	TypeString(v interface{}) string
+	TypeSigString(v interface{}) string
 }
 
 type AstFinder interface {

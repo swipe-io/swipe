@@ -70,20 +70,31 @@ func (i *Importer) SortedImports() (result []string) {
 		}
 	}
 	return
+
 }
 
 func (i *Importer) TypeString(v interface{}) string {
+	return i.typeString(v, false)
+}
+
+func (i *Importer) TypeSigString(v interface{}) string {
+	return i.typeString(v, true)
+}
+
+func (i *Importer) typeString(v interface{}, onlySign bool) string {
 	switch t := v.(type) {
+	case *option.IfaceType:
+		return "interface{}"
 	case *option.MapType:
-		return pointerPrefix(t.IsPointer) + fmt.Sprintf("map[%s]%s", i.TypeString(t.Key), i.TypeString(t.Value))
+		return pointerPrefix(t.IsPointer) + fmt.Sprintf("map[%s]%s", i.typeString(t.Key, onlySign), i.typeString(t.Value, onlySign))
 	case *option.ArrayType:
-		return pointerPrefix(t.IsPointer) + fmt.Sprintf("[%d]%s", t.Len, i.TypeString(t.Value))
+		return pointerPrefix(t.IsPointer) + fmt.Sprintf("[%d]%s", t.Len, i.typeString(t.Value, onlySign))
 	case *option.SliceType:
-		return pointerPrefix(t.IsPointer) + "[]" + i.TypeString(t.Value)
+		return pointerPrefix(t.IsPointer) + "[]" + i.typeString(t.Value, onlySign)
 	case *option.BasicType:
 		return pointerPrefix(t.IsPointer) + t.Name
 	case *option.VarType:
-		return t.Name.Value + " " + i.TypeString(t.Type)
+		return t.Name.Value + " " + i.typeString(t.Type, onlySign)
 	case option.VarsType:
 		var buf bytes.Buffer
 		buf.WriteByte('(')
@@ -92,7 +103,7 @@ func (i *Importer) TypeString(v interface{}) string {
 			if j > 0 {
 				buf.WriteString(", ")
 			}
-			if param.Name.Value != "" {
+			if !onlySign && param.Name.Value != "" {
 				buf.WriteString(param.Name.Value)
 				buf.WriteByte(' ')
 			}
@@ -102,38 +113,37 @@ func (i *Importer) TypeString(v interface{}) string {
 					typ = s.Value
 				}
 			}
-			buf.WriteString(i.TypeString(typ))
+			buf.WriteString(i.typeString(typ, onlySign))
 		}
 		buf.WriteByte(')')
 		return buf.String()
 	case *option.SignType:
 		var buf bytes.Buffer
-		buf.WriteString(i.TypeString(t.Params))
+		buf.WriteString(i.typeString(t.Params, onlySign))
 		n := len(t.Results)
 		if n == 0 {
 			return buf.String()
 		}
 		buf.WriteByte(' ')
 		if n == 1 && t.Results[0].Name.Value == "" {
-			buf.WriteString(i.TypeString(t.Results[0].Type))
+			buf.WriteString(i.typeString(t.Results[0].Type, onlySign))
 			return buf.String()
 		}
-		buf.WriteString(i.TypeString(t.Results))
+		buf.WriteString(i.typeString(t.Results, onlySign))
 		return buf.String()
 	case *option.FuncType:
-		if t.Pkg == nil {
-			return t.Name.Value
-		}
-		pkg := i.Import(t.Pkg.Name, t.Pkg.Path)
-		if pkg != "" {
-			pkg = pkg + "."
-		}
-		return pkg + t.Name.Value
+		var buf bytes.Buffer
+		buf.WriteString(t.Name.Value)
+		buf.WriteString(i.typeString(t.Sig, onlySign))
+		return buf.String()
 	case *option.NamedType:
 		if t.Pkg == nil {
 			return pointerPrefix(t.IsPointer) + t.Name.Value
 		}
-		pkg := i.Import(t.Pkg.Name, t.Pkg.Path)
+		pkg := t.Pkg.Name
+		if !onlySign {
+			pkg = i.Import(t.Pkg.Name, t.Pkg.Path)
+		}
 		if pkg != "" {
 			pkg = pkg + "."
 		}
