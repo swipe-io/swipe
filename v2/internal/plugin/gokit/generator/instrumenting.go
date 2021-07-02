@@ -12,10 +12,9 @@ import (
 )
 
 type Instrumenting struct {
-	w                    writer.GoWriter
-	Interfaces           []*config.Interface
-	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions config.MethodOption
+	w             writer.GoWriter
+	Interfaces    []*config.Interface
+	MethodOptions map[string]config.MethodOption
 }
 
 func (g *Instrumenting) Generate(ctx context.Context) []byte {
@@ -57,10 +56,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 			g.w.W("}\n\n")
 
 			for _, m := range ifaceType.Methods {
-				mopt := &g.DefaultMethodOptions
-				if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
-					mopt = opt
-				}
+				mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
 				g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
 				if mopt.Instrumenting.Value {

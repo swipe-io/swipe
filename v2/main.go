@@ -315,12 +315,12 @@ func (cmd *genOptionsCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 									key := opt.name + ":" + typeName
 									if _, ok := optTypeExists[typeName]; !ok {
 										optTypeExists[typeName] = struct{}{}
-										buf.WriteString(fmt.Sprintf("// %s\n", typeName))
+										buf.WriteString(fmt.Sprintf("// %s ...\n", typeName))
 										buf.WriteString(fmt.Sprintf("type %s string\n", typeName))
 									}
 									if _, ok := optExists[key]; !ok {
 										optExists[key] = struct{}{}
-										buf.WriteString(fmt.Sprintf("// %s\n", opt.name))
+										buf.WriteString(fmt.Sprintf("// %s ...\n", opt.name))
 										if opt.isRepeat {
 											buf.WriteString("// @type:\"repeat\"\n")
 										}

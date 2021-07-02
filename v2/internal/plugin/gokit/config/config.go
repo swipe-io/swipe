@@ -85,6 +85,7 @@ type MethodOption struct {
 	RESTMultipart        *RESTMultipart    `swipe:"option"`
 	RESTHeaderVars       SliceStringValue  `swipe:"option"`
 	RESTQueryVars        SliceStringValue  `swipe:"option"`
+	RESTQueryValues      SliceStringValue  `swipe:"option"`
 	RESTPathVars         map[string]string `swipe:"option"`
 	ServerEncodeResponse FuncTypeValue     `swipe:"option"`
 	ServerDecodeRequest  FuncTypeValue     `swipe:"option"`
@@ -147,14 +148,14 @@ type Config struct {
 	OpenapiContact       OpenapiContact
 	OpenapiLicence       OpenapiLicence
 	OpenapiServers       []OpenapiServer `mapstructure:"OpenapiServer"`
-	MethodOptions        []*MethodOption
+	MethodOptions        []MethodOption
 	MethodDefaultOptions MethodOption
 	DefaultErrorEncoder  FuncTypeValue
 
 	// non options params
 	LoggingEnable       bool                          `mapstructure:"-"`
 	InstrumentingEnable bool                          `mapstructure:"-"`
-	MethodOptionsMap    map[string]*MethodOption      `mapstructure:"-"`
+	MethodOptionsMap    map[string]MethodOption       `mapstructure:"-"`
 	OpenapiMethodTags   map[string][]string           `mapstructure:"-"`
 	IfaceErrors         map[string]map[string][]Error `mapstructure:"-"`
 	JSPkgImportPath     string                        `mapstructure:"-"`

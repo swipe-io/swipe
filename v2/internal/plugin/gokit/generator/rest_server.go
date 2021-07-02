@@ -15,13 +15,12 @@ import (
 )
 
 type RESTServerGenerator struct {
-	w                    writer.GoWriter
-	UseFast              bool
-	JSONRPCEnable        bool
-	DefaultErrorEncoder  *option.FuncType
-	Interfaces           []*config.Interface
-	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions config.MethodOption
+	w                   writer.GoWriter
+	UseFast             bool
+	JSONRPCEnable       bool
+	DefaultErrorEncoder *option.FuncType
+	Interfaces          []*config.Interface
+	MethodOptions       map[string]config.MethodOption
 }
 
 func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
@@ -102,14 +101,21 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		epSetName := NameEndpointSetNameVar(iface)
 		for _, m := range ifaceType.Methods {
-			mopt := &g.DefaultMethodOptions
-			if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
-				mopt = opt
-			}
+			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
-			queryVars := make(map[string]string, len(mopt.RESTQueryVars.Value))
+			queryVars := make(map[string]queryVar, len(mopt.RESTQueryVars.Value))
 			for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
-				queryVars[mopt.RESTQueryVars.Value[i]] = mopt.RESTQueryVars.Value[i+1]
+				queryName := mopt.RESTQueryVars.Value[i]
+				fieldName := mopt.RESTQueryVars.Value[i+1]
+				var required bool
+				if stdstrings.HasPrefix(queryName, "!") {
+					queryName = queryName[1:]
+					required = true
+				}
+				queryVars[fieldName] = queryVar{
+					name:     queryName,
+					required: required,
+				}
 			}
 
 			headerVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
@@ -173,7 +179,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			if mopt.ServerDecodeRequest.Value != nil {
 				g.w.W(importer.TypeString(mopt.ServerDecodeRequest.Value))
 			} else {
-				g.w.W("func(ctx %s.Context, r *%s.Request) (interface{}, error) {\n", contextPkg, httpPkg)
+				g.w.W("func(ctx %s.Context, r *%s.Request) (_ interface{}, err error) {\n", contextPkg, httpPkg)
 
 				nameRequest := NameRequest(m, iface)
 
@@ -186,7 +192,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							fmtPkg := importer.Import("fmt", "fmt")
 							pkgIO := importer.Import("io", "io")
 							if g.UseFast {
-								g.w.W("err := %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
+								g.w.W("err = %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
 							} else {
 								ioutilPkg := importer.Import("ioutil", "io/ioutil")
 
@@ -229,7 +235,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 						if g.UseFast {
 							g.w.W("form, err := r.MultipartForm()\n")
 						} else {
-							g.w.W("err := r.ParseMultipartForm(%d)\n", multipartMaxMemory)
+							g.w.W("err = r.ParseMultipartForm(%d)\n", multipartMaxMemory)
 						}
 						g.w.WriteCheckErr("err", func() {
 							g.w.W("return nil, err\n")
@@ -245,12 +251,20 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								valueID = "vars[" + strconv.Quote(p.Name.Value) + "]"
 							}
 							g.w.WriteConvertType(importer, "req."+strcase.ToCamel(p.Name.Value), valueID, p, []string{"nil"}, "", false, "")
-						} else if queryName, ok := queryVars[p.Name.Value]; ok {
+						} else if queryVar, ok := queryVars[p.Name.Value]; ok {
 							var valueID string
 							if g.UseFast {
-								valueID = "string(q.Peek(" + strconv.Quote(queryName) + "))"
+								valueID = "string(q.Peek(" + strconv.Quote(queryVar.name) + "))"
 							} else {
-								valueID = "q.Get(" + strconv.Quote(queryName) + ")"
+								valueID = "q.Get(" + strconv.Quote(queryVar.name) + ")"
+							}
+							if queryVar.required {
+								fmtPkg := importer.Import("fmt", "fmt")
+								if g.UseFast {
+									g.w.W("if !q.Has(\"%[1]s\") {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.name, fmtPkg)
+								} else {
+									g.w.W("if _, ok := q[\"%[1]s\"]; !ok {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.name, fmtPkg)
+								}
 							}
 
 							tmpID := "tmp" + p.Name.Value
@@ -269,7 +283,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							}
 							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
 						} else if mopt.RESTMultipart != nil {
-							if isFileType(p.Type, nil) {
+							if isFileType(p.Type, importer) {
 								osPkg := importer.Import("os", "os")
 
 								if g.UseFast {

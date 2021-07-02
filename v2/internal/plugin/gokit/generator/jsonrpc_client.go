@@ -11,11 +11,9 @@ import (
 )
 
 type JSONRPCClientGenerator struct {
-	w                    writer.GoWriter
-	Interfaces           []*config.Interface
-	UseFast              bool
-	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions config.MethodOption
+	w          writer.GoWriter
+	Interfaces []*config.Interface
+	UseFast    bool
 }
 
 func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {

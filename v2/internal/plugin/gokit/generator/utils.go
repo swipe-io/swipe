@@ -172,11 +172,11 @@ func NameInterface(iface *config.Interface) string {
 }
 
 func NameLoggingMiddleware(iface *config.Interface) string {
-	return LcNameWithAppPrefix(iface) + "LoggingMiddleware"
+	return UcNameWithAppPrefix(iface) + "LoggingMiddleware"
 }
 
 func NameInstrumentingMiddleware(iface *config.Interface) string {
-	return LcNameWithAppPrefix(iface) + "InstrumentingMiddleware"
+	return UcNameWithAppPrefix(iface) + "InstrumentingMiddleware"
 }
 
 func NameEndpointSetNameVar(iface *config.Interface) string {

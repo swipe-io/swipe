@@ -13,10 +13,9 @@ import (
 )
 
 type Logging struct {
-	w                    writer.GoWriter
-	Interfaces           []*config.Interface
-	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions config.MethodOption
+	w             writer.GoWriter
+	Interfaces    []*config.Interface
+	MethodOptions map[string]config.MethodOption
 }
 
 func (g *Logging) Generate(ctx context.Context) []byte {
@@ -40,10 +39,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 		)
 
 		for _, m := range ifaceType.Methods {
-			mopt := &g.DefaultMethodOptions
-			if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
-				mopt = opt
-			}
+			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
 			includes := map[string]struct{}{}
 			excludes := map[string]struct{}{}
@@ -95,7 +91,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 						}
 					}
 
-					g.w.W("logger := %s.WithPrefix(s.logger, \"method\",\"%s\",\"took\",%s.Since(now))\n", loggerPkg, m.Name, timePkg)
+					g.w.W("logger := %s.WithPrefix(s.logger, \"method\",\"%s\",\"took\",%s.Since(now))\n", loggerPkg, iface.Named.Name.Lower()+"."+m.Name.Value, timePkg)
 
 					g.w.W("logger.Log(%s)\n", strings.Join(logParams, ","))
 				})

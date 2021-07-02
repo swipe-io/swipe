@@ -18,19 +18,18 @@ import (
 )
 
 type Openapi struct {
-	w                    writer.BaseWriter
-	JSONRPCEnable        bool
-	Contact              config.OpenapiContact
-	Info                 config.OpenapiInfo
-	MethodTags           map[string][]string
-	Servers              []config.OpenapiServer
-	Licence              config.OpenapiLicence
-	Output               string
-	Interfaces           []*config.Interface
-	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions config.MethodOption
-	IfaceErrors          map[string]map[string][]config.Error
-	defTypes             map[string]*option.NamedType
+	w             writer.BaseWriter
+	JSONRPCEnable bool
+	Contact       config.OpenapiContact
+	Info          config.OpenapiInfo
+	MethodTags    map[string][]string
+	Servers       []config.OpenapiServer
+	Licence       config.OpenapiLicence
+	Output        string
+	Interfaces    []*config.Interface
+	MethodOptions map[string]config.MethodOption
+	IfaceErrors   map[string]map[string][]config.Error
+	defTypes      map[string]*option.NamedType
 }
 
 func (g *Openapi) Generate(ctx context.Context) []byte {
@@ -73,10 +72,8 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
-			mopt := &g.DefaultMethodOptions
-			if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
-				mopt = opt
-			}
+			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
+
 			var (
 				pathStr        string
 				op             *openapi.Operation
@@ -290,18 +287,24 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 			if name == "-" {
 				continue
 			}
-			filedSchema := &openapi.Schema{}
+			filedSchema := &openapi.Schema{
+				Properties: openapi.Properties{},
+			}
 			schema.Properties[name] = filedSchema
 			g.schemaByTypeRecursive(filedSchema, field.Var.Type)
 		}
 	case *option.MapType:
-		mapSchema := &openapi.Schema{}
+		mapSchema := &openapi.Schema{
+			Properties: openapi.Properties{},
+		}
 		schema.Properties = openapi.Properties{"key": mapSchema}
 		g.schemaByTypeRecursive(mapSchema, t.Value)
 		return
 	case *option.ArrayType:
 		schema.Type = "array"
-		schema.Items = &openapi.Schema{}
+		schema.Items = &openapi.Schema{
+			Properties: openapi.Properties{},
+		}
 		g.schemaByTypeRecursive(schema.Items, t.Value)
 		return
 	case *option.SliceType:
@@ -311,7 +314,9 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 			schema.Example = "U3dhZ2dlciByb2Nrcw=="
 		} else {
 			schema.Type = "array"
-			schema.Items = &openapi.Schema{}
+			schema.Items = &openapi.Schema{
+				Properties: openapi.Properties{},
+			}
 			g.schemaByTypeRecursive(schema.Items, t.Value)
 		}
 		return
@@ -371,7 +376,7 @@ func (g *Openapi) schemaByType(t interface{}) (schema *openapi.Schema) {
 }
 
 func (g *Openapi) makeJSONRPCPath(
-	m *option.FuncType, prefix string, mopt *config.MethodOption,
+	m *option.FuncType, prefix string, mopt config.MethodOption,
 ) *openapi.Operation {
 	responseSchema := &openapi.Schema{
 		Type:       "object",
@@ -535,7 +540,7 @@ func (g *Openapi) makeJSONRPCPath(
 	}
 }
 
-func (g *Openapi) makeRestPath(m *option.FuncType, mopt *config.MethodOption) *openapi.Operation {
+func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOption) *openapi.Operation {
 	responseSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
@@ -546,9 +551,26 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt *config.MethodOption) *o
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	queryVars := make(map[string]string, len(mopt.RESTQueryVars.Value))
+	queryVars := make(map[string]queryVar, len(mopt.RESTQueryVars.Value))
 	for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
-		queryVars[mopt.RESTQueryVars.Value[i]] = mopt.RESTQueryVars.Value[i+1]
+		queryName := mopt.RESTQueryVars.Value[i]
+		fieldName := mopt.RESTQueryVars.Value[i+1]
+		var required bool
+		if stdstrings.HasPrefix(queryName, "!") {
+			queryName = queryName[1:]
+			required = true
+		}
+		queryVars[fieldName] = queryVar{
+			name:     queryName,
+			required: required,
+		}
+	}
+
+	queryValues := make(map[string]string, len(mopt.RESTQueryValues.Value))
+	for i := 0; i < len(mopt.RESTQueryValues.Value); i += 2 {
+		queryName := mopt.RESTQueryValues.Value[i]
+		value := mopt.RESTQueryValues.Value[i+1]
+		queryValues[queryName] = value
 	}
 
 	headerVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
@@ -620,20 +642,28 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt *config.MethodOption) *o
 		Responses: responses,
 	}
 	for _, p := range m.Sig.Params {
-		var in string
-		if _, ok := mopt.RESTPathVars[p.Name.Value]; ok {
-			in = "path"
-		} else if _, ok := headerVars[p.Name.Value]; ok {
-			in = "header"
-		} else if _, ok := queryVars[p.Name.Value]; ok {
-			in = "query"
-		}
-		if in != "" {
+		if name, ok := mopt.RESTPathVars[p.Name.Value]; ok {
 			o.Parameters = append(o.Parameters, openapi.Parameter{
-				In:          in,
-				Name:        p.Name.Value,
+				In:          "path",
+				Name:        name,
 				Description: p.Comment,
-				Required:    true,
+				//Required:    true,
+				Schema: g.schemaByType(p.Type),
+			})
+		} else if name, ok := headerVars[p.Name.Value]; ok {
+			o.Parameters = append(o.Parameters, openapi.Parameter{
+				In:          "header",
+				Name:        name,
+				Description: p.Comment,
+				//Required:    true,
+				Schema: g.schemaByType(p.Type),
+			})
+		} else if queryVar, ok := queryVars[p.Name.Value]; ok {
+			o.Parameters = append(o.Parameters, openapi.Parameter{
+				In:          "query",
+				Name:        queryVar.name,
+				Description: p.Comment,
+				Required:    queryVar.required,
 				Schema:      g.schemaByType(p.Type),
 			})
 		}

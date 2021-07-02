@@ -13,12 +13,16 @@ import (
 	"github.com/swipe-io/swipe/v2/writer"
 )
 
+type queryVar struct {
+	name     string
+	required bool
+}
+
 type RESTClientGenerator struct {
-	w                    writer.GoWriter
-	Interfaces           []*config.Interface
-	UseFast              bool
-	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions config.MethodOption
+	w             writer.GoWriter
+	Interfaces    []*config.Interface
+	UseFast       bool
+	MethodOptions map[string]config.MethodOption
 }
 
 func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
@@ -79,10 +83,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("}\n")
 
 		for _, m := range ifaceType.Methods {
-			mopt := &g.DefaultMethodOptions
-			if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
-				mopt = opt
-			}
+			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
 			epName := LcNameEndpoint(iface, m)
 
@@ -109,20 +110,26 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				multipartVars []*option.VarType
 			)
 
-			//methodMultipartVars := make(map[string]string, len(mopt.RESTMultipart.Value))
-			//for i := 0; i < len(mopt.RESTMultipart.Value); i += 2 {
-			//	methodMultipartVars[mopt.RESTMultipart.Value[i]] = mopt.RESTMultipart.Value[i+1]
-			//}
-
-			methodQueryVars := make(map[string]string, len(mopt.RESTQueryVars.Value))
-			methodQueryValues := make(map[string]string)
+			methodQueryVars := make(map[string]queryVar, len(mopt.RESTQueryVars.Value))
 			for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
-				fieldName := mopt.RESTQueryVars.Value[i]
-				if stdstrings.HasPrefix(fieldName, ":") {
-					methodQueryValues[mopt.RESTQueryVars.Value[i+1]] = fieldName[1:]
-				} else {
-					methodQueryVars[mopt.RESTQueryVars.Value[i]] = mopt.RESTQueryVars.Value[i+1]
+				queryName := mopt.RESTQueryVars.Value[i]
+				fieldName := mopt.RESTQueryVars.Value[i+1]
+				var required bool
+				if stdstrings.HasPrefix(queryName, "!") {
+					queryName = queryName[1:]
+					required = true
 				}
+				methodQueryVars[fieldName] = queryVar{
+					name:     queryName,
+					required: required,
+				}
+			}
+
+			methodQueryValues := make(map[string]string, len(mopt.RESTQueryValues.Value))
+			for i := 0; i < len(mopt.RESTQueryValues.Value); i += 2 {
+				queryName := mopt.RESTQueryValues.Value[i]
+				value := mopt.RESTQueryValues.Value[i+1]
+				methodQueryValues[queryName] = value
 			}
 
 			methodHeaderVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
@@ -161,7 +168,8 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			} else {
 				g.w.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
-				if len(m.Sig.Params) > 0 {
+				paramsLen := LenWithoutContexts(m.Sig.Params)
+				if paramsLen > 0 {
 					nameRequest := NameRequest(m, iface)
 
 					g.w.W("req, ok := request.(%s)\n", nameRequest)
@@ -222,7 +230,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 							g.w.W("if %s != nil {\n", valueID)
 						}
 						g.w.WriteFormatType(importer, name, valueID, p)
-						g.w.W("q.Add(%s, %s)\n", strconv.Quote(methodQueryVars[p.Name.Value]), name)
+						g.w.W("q.Add(%s, %s)\n", strconv.Quote(methodQueryVars[p.Name.Value].name), name)
 
 						if isPointer {
 							g.w.W("}\n")
@@ -324,7 +332,9 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("return nil, %sErrorDecode(%s)\n", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
 				g.w.W("}\n")
 
-				if LenWithoutErrors(m.Sig.Results) > 0 {
+				resultLen := LenWithoutErrors(m.Sig.Results)
+
+				if resultLen > 0 {
 					var responseType string
 					if m.Sig.IsNamed {
 						responseType = NameResponse(m, iface)

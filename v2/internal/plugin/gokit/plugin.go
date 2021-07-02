@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"reflect"
 
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
@@ -20,6 +21,40 @@ import (
 
 func init() {
 	swipe.RegisterPlugin(&Plugin{})
+}
+
+type override struct {
+}
+
+func (o override) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	//if typ == reflect.TypeOf(time.Time{}) {
+	return func(dst, src reflect.Value) error {
+		if dst.CanSet() {
+
+			if dst.IsZero() {
+
+			}
+
+			//if t.overwrite {
+			//	isZero := src.MethodByName("IsZero")
+			//
+			//	result := isZero.Call([]reflect.Value{})
+			//	if !result[0].Bool() {
+			//		dst.Set(src)
+			//	}
+			//} else {
+			//	isZero := dst.MethodByName("IsZero")
+			//
+			//	result := isZero.Call([]reflect.Value{})
+			//	if result[0].Bool() {
+			//		dst.Set(src)
+			//	}
+			//}
+		}
+		return nil
+	}
+	//}
+	//return nil
 }
 
 type Plugin struct {
@@ -45,32 +80,45 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 	funcDeclTypes := makeFuncDeclTypes(cfg.Packages)
 
 	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, cfg.Packages, p.config.Interfaces)
-	p.config.MethodOptionsMap = map[string]*config.MethodOption{}
+	p.config.MethodOptionsMap = map[string]config.MethodOption{}
 
 	for _, methodOption := range p.config.MethodOptions {
-		if err := mergo.Merge(methodOption, p.config.MethodDefaultOptions); err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		if !p.config.LoggingEnable && methodOption.Logging.Value {
-			p.config.LoggingEnable = true
-		}
-		if !p.config.InstrumentingEnable && methodOption.Instrumenting.Value {
-			p.config.InstrumentingEnable = true
-		}
-
 		sig := methodOption.Signature.Type.(*option.SignType)
 		recvNamed := sig.Recv.(*option.NamedType)
-
-		if p.config.JSONRPCEnable == nil && methodOption.RESTPath != nil {
-			pathVars, err := pathVars(methodOption.RESTPath.Value)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			methodOption.RESTPathVars = pathVars
-		}
 		p.config.MethodOptionsMap[recvNamed.Name.Value+methodOption.Signature.Name.Value] = methodOption
+	}
+
+	for _, iface := range p.config.Interfaces {
+		ifaceType := iface.Named.Type.(*option.IfaceType)
+		for _, m := range ifaceType.Methods {
+			recvNamed := m.Sig.Recv.(*option.NamedType)
+
+			dstMethodOption := p.config.MethodDefaultOptions
+			srcMethodOption, ok := p.config.MethodOptionsMap[recvNamed.Name.Value+m.Name.Value]
+			if ok {
+				if err := mergo.Merge(&dstMethodOption, &srcMethodOption, mergo.WithOverride); err != nil {
+					errs = append(errs, err)
+					continue
+				}
+			}
+
+			if !p.config.LoggingEnable && dstMethodOption.Logging.Value {
+				p.config.LoggingEnable = true
+			}
+			if !p.config.InstrumentingEnable && dstMethodOption.Instrumenting.Value {
+				p.config.InstrumentingEnable = true
+			}
+
+			if p.config.JSONRPCEnable == nil && dstMethodOption.RESTPath != nil {
+				pathVars, err := pathVars(dstMethodOption.RESTPath.Value)
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+				dstMethodOption.RESTPathVars = pathVars
+			}
+			p.config.MethodOptionsMap[recvNamed.Name.Value+m.Name.Value] = dstMethodOption
+		}
 	}
 
 	p.config.OpenapiMethodTags = map[string][]string{}
@@ -188,41 +236,37 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	if httpServerEnable {
 		if p.config.LoggingEnable {
 			result = append(result, &generator.Logging{
-				Interfaces:           p.config.Interfaces,
-				MethodOptions:        p.config.MethodOptionsMap,
-				DefaultMethodOptions: p.config.MethodDefaultOptions,
+				Interfaces:    p.config.Interfaces,
+				MethodOptions: p.config.MethodOptionsMap,
 			})
 		}
 		if p.config.InstrumentingEnable {
 			result = append(result, &generator.Instrumenting{
-				Interfaces:           p.config.Interfaces,
-				MethodOptions:        p.config.MethodOptionsMap,
-				DefaultMethodOptions: p.config.MethodDefaultOptions,
+				Interfaces:    p.config.Interfaces,
+				MethodOptions: p.config.MethodOptionsMap,
 			})
 		}
 		if p.config.OpenapiEnable != nil {
 			result = append(result, &generator.Openapi{
-				JSONRPCEnable:        jsonRPCEnable,
-				Contact:              p.config.OpenapiContact,
-				Info:                 p.config.OpenapiInfo,
-				MethodTags:           p.config.OpenapiMethodTags,
-				Licence:              p.config.OpenapiLicence,
-				Servers:              p.config.OpenapiServers,
-				Output:               p.config.OpenapiOutput.Value,
-				Interfaces:           p.config.Interfaces,
-				MethodOptions:        p.config.MethodOptionsMap,
-				DefaultMethodOptions: p.config.MethodDefaultOptions,
-				IfaceErrors:          p.config.IfaceErrors,
+				JSONRPCEnable: jsonRPCEnable,
+				Contact:       p.config.OpenapiContact,
+				Info:          p.config.OpenapiInfo,
+				MethodTags:    p.config.OpenapiMethodTags,
+				Licence:       p.config.OpenapiLicence,
+				Servers:       p.config.OpenapiServers,
+				Output:        p.config.OpenapiOutput.Value,
+				Interfaces:    p.config.Interfaces,
+				MethodOptions: p.config.MethodOptionsMap,
+				IfaceErrors:   p.config.IfaceErrors,
 			})
 		}
 		if jsonRPCEnable {
 			result = append(result, &generator.JSONRPCServerGenerator{
-				UseFast:              useFast,
-				Interfaces:           p.config.Interfaces,
-				MethodOptions:        p.config.MethodOptionsMap,
-				DefaultMethodOptions: p.config.MethodDefaultOptions,
-				DefaultErrorEncoder:  p.config.DefaultErrorEncoder.Value,
-				JSONRPCPath:          p.config.JSONRPCPath.Value,
+				UseFast:             useFast,
+				Interfaces:          p.config.Interfaces,
+				MethodOptions:       p.config.MethodOptionsMap,
+				DefaultErrorEncoder: p.config.DefaultErrorEncoder.Value,
+				JSONRPCPath:         p.config.JSONRPCPath.Value,
 			})
 			if jsClientEnable {
 				result = append(result, &generator.JSONRPCJSClientGenerator{
@@ -245,12 +289,11 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			}
 		} else {
 			result = append(result, &generator.RESTServerGenerator{
-				UseFast:              useFast,
-				JSONRPCEnable:        jsonRPCEnable,
-				MethodOptions:        p.config.MethodOptionsMap,
-				DefaultMethodOptions: p.config.MethodDefaultOptions,
-				DefaultErrorEncoder:  p.config.DefaultErrorEncoder.Value,
-				Interfaces:           p.config.Interfaces,
+				UseFast:             useFast,
+				JSONRPCEnable:       jsonRPCEnable,
+				MethodOptions:       p.config.MethodOptionsMap,
+				DefaultErrorEncoder: p.config.DefaultErrorEncoder.Value,
+				Interfaces:          p.config.Interfaces,
 			})
 		}
 	}
@@ -263,17 +306,14 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 		})
 		if jsonRPCEnable {
 			result = append(result, &generator.JSONRPCClientGenerator{
-				Interfaces:           p.config.Interfaces,
-				UseFast:              useFast,
-				MethodOptions:        p.config.MethodOptionsMap,
-				DefaultMethodOptions: p.config.MethodDefaultOptions,
+				Interfaces: p.config.Interfaces,
+				UseFast:    useFast,
 			})
 		} else {
 			result = append(result, &generator.RESTClientGenerator{
-				Interfaces:           p.config.Interfaces,
-				UseFast:              useFast,
-				MethodOptions:        p.config.MethodOptionsMap,
-				DefaultMethodOptions: p.config.MethodDefaultOptions,
+				Interfaces:    p.config.Interfaces,
+				UseFast:       useFast,
+				MethodOptions: p.config.MethodOptionsMap,
 			})
 		}
 	}

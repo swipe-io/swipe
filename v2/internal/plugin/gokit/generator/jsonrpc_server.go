@@ -12,13 +12,12 @@ import (
 )
 
 type JSONRPCServerGenerator struct {
-	w                    writer.GoWriter
-	UseFast              bool
-	Interfaces           []*config.Interface
-	MethodOptions        map[string]*config.MethodOption
-	DefaultMethodOptions config.MethodOption
-	DefaultErrorEncoder  *option.FuncType
-	JSONRPCPath          string
+	w                   writer.GoWriter
+	UseFast             bool
+	Interfaces          []*config.Interface
+	MethodOptions       map[string]config.MethodOption
+	DefaultErrorEncoder *option.FuncType
+	JSONRPCPath         string
 }
 
 func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
@@ -75,10 +74,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 		for _, m := range ifaceType.Methods {
 			nameRequest := NameRequest(m, iface)
-			mopt := &g.DefaultMethodOptions
-			if opt, ok := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]; ok {
-				mopt = opt
-			}
+			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
 			g.w.W("if ep.%sEndpoint != nil {\n", m.Name)
 
