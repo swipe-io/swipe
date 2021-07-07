@@ -3,3 +3,5 @@
 
 v2/fixtures/*/app/*_gen.go
 releases
+
+*.go-e
