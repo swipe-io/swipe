@@ -35,6 +35,28 @@ func (g *endpoint) Process(ctx context.Context) error {
 	for i := 0; i < g.options.Interfaces().Len(); i++ {
 		iface := g.options.Interfaces().At(i)
 
+		for _, m := range iface.Methods() {
+			if len(m.Params) > 0 {
+				g.W("type %s struct {\n", m.NameRequest)
+				for _, p := range m.Params {
+					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(p.Name()), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(p.Name()))
+				}
+				if m.ParamVariadic != nil {
+					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(m.ParamVariadic.Name()), stdtypes.TypeString(m.ParamVariadic.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(m.ParamVariadic.Name()))
+				}
+				g.W("}\n")
+			}
+
+			if m.ResultsNamed {
+				g.W("type %s struct {\n", m.NameResponse)
+				for _, p := range m.Results {
+					name := p.Name()
+					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(name), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(name))
+				}
+				g.W("}\n")
+			}
+		}
+
 		if iface.External() {
 			continue
 		}
@@ -57,28 +79,6 @@ func (g *endpoint) Process(ctx context.Context) error {
 		}
 		g.W("}\n")
 		g.W("}\n")
-
-		for _, m := range iface.Methods() {
-			if len(m.Params) > 0 {
-				g.W("type %s struct {\n", m.NameRequest)
-				for _, p := range m.Params {
-					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(p.Name()), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(p.Name()))
-				}
-				if m.ParamVariadic != nil {
-					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(m.ParamVariadic.Name()), stdtypes.TypeString(m.ParamVariadic.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(m.ParamVariadic.Name()))
-				}
-				g.W("}\n")
-			}
-
-			if m.ResultsNamed {
-				g.W("type %s struct {\n", m.NameResponse)
-				for _, p := range m.Results {
-					name := p.Name()
-					g.W("%s %s `json:\"%s\"`\n", strcase.ToCamel(name), stdtypes.TypeString(p.Type(), g.i.QualifyPkg), strcase.ToLowerCamel(name))
-				}
-				g.W("}\n")
-			}
-		}
 	}
 	return nil
 }

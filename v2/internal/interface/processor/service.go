@@ -20,11 +20,8 @@ func (p *Service) Name() string {
 }
 
 func (p *Service) Generators(pkg *packages.Package, wd string) []ug.Generator {
-	generators := []ug.Generator{generator.NewInterface(p.ServiceGateway.Interfaces())}
+	generators := []ug.Generator{generator.NewInterface(p.ServiceGateway.Interfaces()), generator.NewEndpoint(p.ServiceGateway)}
 
-	if p.ServiceGateway.FoundService() {
-		generators = append(generators, generator.NewEndpoint(p.ServiceGateway))
-	}
 	if p.ServiceGateway.FoundServiceGateway() {
 		generators = append(
 			generators,
