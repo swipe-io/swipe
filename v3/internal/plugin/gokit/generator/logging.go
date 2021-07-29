@@ -25,6 +25,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
 		loggerPkg := importer.Import("log", "github.com/go-kit/kit/log")
+		levelPkg := importer.Import("level", "github.com/go-kit/kit/log/level")
 
 		ifaceTypeName := NameInterface(iface)
 		name := NameLoggingMiddleware(iface)
@@ -80,20 +81,25 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 			g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
 
 			if mopt.Logging.Value && len(logParams) > 0 {
+				methodName := iface.Named.Name.Lower() + "." + m.Name.Value
 				timePkg := importer.Import("time", "time")
 
 				g.w.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
+					var resultErr *option.VarType
 					for _, result := range m.Sig.Results {
 						if IsError(result) {
-							g.w.W("if logErr, ok := %s.(interface{LogError() error}); ok {\n", result.Name.Value)
-							g.w.W("%s = logErr.LogError()\n", result.Name.Value)
+							resultErr = result
+							g.w.W("if logErr, ok := %s.(interface{LogError() error}); ok {\n", result.Name)
+							g.w.W("%s = logErr.LogError()\n", result.Name)
 							g.w.W("}\n")
 						}
 					}
 
-					g.w.W("logger := %s.WithPrefix(s.logger, \"method\",\"%s\",\"took\",%s.Since(now))\n", loggerPkg, iface.Named.Name.Lower()+"."+m.Name.Value, timePkg)
-
-					g.w.W("logger.Log(%s)\n", strings.Join(logParams, ","))
+					g.w.W("logger := %s.WithPrefix(s.logger, \"method\",\"%s\",\"took\",%s.Since(now))\n", loggerPkg, methodName, timePkg)
+					if resultErr != nil {
+						g.w.W("if %[2]s != nil {\nlogger = %[1]s.Error(logger)\n} else {\nlogger = %[1]s.Debug(logger)\n}\n", levelPkg, resultErr.Name)
+					}
+					g.w.W("_ = logger.Log(%s)\n", strings.Join(logParams, ","))
 				})
 			}
 

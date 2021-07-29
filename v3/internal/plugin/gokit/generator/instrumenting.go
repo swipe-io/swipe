@@ -60,16 +60,24 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 
 				g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
 				if mopt.Instrumenting.Value {
+					methodName := iface.Named.Name.Lower() + "." + m.Name.Value
 					g.w.WriteDefer(
 						[]string{"begin " + timePkg + ".Time"},
 						[]string{timePkg + ".Now()"},
 						func() {
-							g.w.W("s.opts.requestCount.With(\"method\", \"%s\").Add(1)\n", m.Name)
-							g.w.W("s.opts.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", m.Name, timePkg)
+							e := Error(m.Sig.Results)
+							if e != nil {
+								g.w.W("if %[1]s != nil {\ns.opts.requestCount.With(\"method\", \"%[2]s\", \"err\", %[1]s.Error()).Add(1)\n} else {\n", e.Name, methodName)
+								g.w.W("")
+							}
+							g.w.W("s.opts.requestCount.With(\"method\", \"%s\", \"err\", \"\").Add(1)\n", methodName)
+							if e != nil {
+								g.w.W("}\n")
+							}
+							g.w.W("s.opts.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", methodName, timePkg)
 						},
 					)
 				}
-
 				if len(m.Sig.Results) > 0 {
 					for i, result := range m.Sig.Results {
 						if i > 0 {
@@ -109,7 +117,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 			g.w.W("Subsystem: i.opts.subsystem,\n")
 			g.w.W("Name: %s,\n", strconv.Quote("request_count"))
 			g.w.W("Help: %s,\n", strconv.Quote("Number of requests received."))
-			g.w.W("}, []string{\"method\"})\n")
+			g.w.W("}, []string{\"method\", \"err\"})\n")
 			g.w.W("\n}\n")
 
 			g.w.W("if i.opts.requestLatency == nil {\n")

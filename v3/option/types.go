@@ -89,6 +89,7 @@ type IfaceType struct {
 }
 
 type ModuleType struct {
+	ID       string
 	Version  string
 	Path     string
 	Dir      string
@@ -99,6 +100,7 @@ type PackageType struct {
 	Name   string
 	Path   string
 	Module *ModuleType
+	Types  *stdtypes.Package
 }
 
 type NamedType struct {

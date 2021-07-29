@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"container/list"
 	"fmt"
 	"strconv"
 	stdstrings "strings"
@@ -129,15 +130,16 @@ func LcNameWithAppPrefix(iface *config.Interface, notInternal ...bool) string {
 	return strcase.ToLowerCamel(UcNameWithAppPrefix(iface, notInternal...))
 }
 
-func UcNameWithAppPrefix(iface *config.Interface, notInternal ...bool) string {
-	var isNotInternal bool
-	if len(notInternal) > 0 {
-		isNotInternal = notInternal[0]
+func UcNameWithAppPrefix(iface *config.Interface, useServicePrefix ...bool) string {
+	var isUseServicePrefix bool
+	if len(useServicePrefix) > 0 {
+		isUseServicePrefix = useServicePrefix[0]
 	}
-	if isNotInternal && iface.Named.Pkg.Module.External {
+	if isUseServicePrefix && iface.Named.Pkg.Module.External {
 		if iface.External.Iface.ClientName.Value != "" {
-			return strcase.ToCamel(iface.External.Iface.ClientName.Value)
+			return strcase.ToCamel(iface.Named.Pkg.Module.ID) + strcase.ToCamel(iface.External.Iface.ClientName.Value)
 		}
+		return strcase.ToCamel(iface.Named.Pkg.Module.ID) + iface.Named.Name.Upper()
 	}
 	if iface.ClientName.Value != "" {
 		return strcase.ToCamel(iface.ClientName.Value)
@@ -221,13 +223,13 @@ func IsError(v *option.VarType) bool {
 	return false
 }
 
-func Errors(vars option.VarsType) (result []*option.VarType) {
+func Error(vars option.VarsType) *option.VarType {
 	for _, v := range vars {
 		if IsError(v) {
-			result = append(result, v)
+			return v
 		}
 	}
-	return
+	return nil
 }
 
 func Contexts(vars option.VarsType) (result []*option.VarType) {
@@ -240,7 +242,10 @@ func Contexts(vars option.VarsType) (result []*option.VarType) {
 }
 
 func LenWithoutErrors(vars option.VarsType) int {
-	return len(vars) - len(Errors(vars))
+	if Error(vars) != nil {
+		return len(vars) - 1
+	}
+	return len(vars)
 }
 
 func LenWithoutContexts(vars option.VarsType) int {
@@ -668,4 +673,59 @@ func isFileType(i interface{}, importer swipe.Importer) bool {
 		}
 	}
 	return false
+}
+
+func wrapDataServer(parts []string) string {
+	var fn func(e *list.Element) string
+	fn = func(e *list.Element) (out string) {
+		if next := e.Next(); next != nil {
+			out += "map[string]interface{}{"
+			out += strconv.Quote(e.Value.(string)) + ": "
+			out += fn(next)
+			out += "}"
+		} else {
+			out += "map[string]interface{}{" + strconv.Quote(e.Value.(string)) + ": response }"
+		}
+		return out
+	}
+	l := list.New()
+	if len(parts) > 0 {
+		e := l.PushFront(parts[0])
+		for i := 1; i < len(parts); i++ {
+			e = l.InsertAfter(parts[i], e)
+		}
+	}
+	return fn(l.Front())
+}
+
+func wrapDataClient(parts []string, responseType string) (result, structPath string) {
+	var fn func(e *list.Element) string
+	fn = func(e *list.Element) (out string) {
+		if next := e.Next(); next != nil {
+			out += "struct { "
+			out += strcase.ToCamel(e.Value.(string)) + " "
+			out += fn(next)
+			out += "}"
+		} else {
+			out += fmt.Sprintf("struct {\nData %s `json:\"%s\"`\n}", responseType, e.Value)
+		}
+		if prev := e.Prev(); prev != nil {
+			out += " `json:\"" + prev.Value.(string) + "\"`"
+		}
+		return out
+	}
+	paths := make([]string, 0, len(parts))
+
+	l := list.New()
+	if len(parts) > 0 {
+		paths = append(paths, strcase.ToCamel(parts[0]))
+		e := l.PushFront(parts[0])
+		for i := 1; i < len(parts); i++ {
+			if i != len(parts)-1 {
+				paths = append(paths, strcase.ToCamel(parts[i]))
+			}
+			e = l.InsertAfter(parts[i], e)
+		}
+	}
+	return fn(l.Front()), stdstrings.Join(paths, ".")
 }

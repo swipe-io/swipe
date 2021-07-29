@@ -2,6 +2,8 @@ package generator
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
@@ -30,9 +32,6 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 		mw.W("}\n\n")
 
 		for _, m := range ifaceType.Methods {
-			resultLen := LenWithoutErrors(m.Sig.Results)
-			paramLen := LenWithoutContexts(m.Sig.Params)
-
 			mw.W("/**\n")
 			if m.Comment != "" {
 				mw.W("* %s\n", m.Comment)
@@ -56,10 +55,9 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			}
 			if len(m.Sig.Results) > 0 {
 				mw.W("* @return {PromiseLike<")
-				if m.Sig.IsNamed {
-					mw.W("{")
-				}
-				for i, p := range m.Sig.Results {
+
+				results := make([]string, 0, len(m.Sig.Results))
+				for _, p := range m.Sig.Results {
 					if IsError(p) {
 						continue
 					}
@@ -69,16 +67,13 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 							defTypes[key] = t
 						}
 					}
-					if i != resultLen-1 {
-						mw.W(", ")
-					}
 					if m.Sig.IsNamed {
-						mw.W("%s: ", p.Name)
+						results = append(results, fmt.Sprintf("%s: ", p.Name))
 					}
 					mw.W(jsDocType(p.Type))
 				}
 				if m.Sig.IsNamed {
-					mw.W("}")
+					mw.W("{%s}", strings.Join(results, ","))
 				}
 				mw.W(">}\n")
 
@@ -87,19 +82,18 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			mw.W("**/\n")
 			mw.W("%s(", m.Name.Lower())
 
-			for i, p := range m.Sig.Params {
+			params := make([]string, 0, len(m.Sig.Params))
+			for _, p := range m.Sig.Params {
 				if IsContext(p) {
 					continue
 				}
+				name := p.Name.Value
 				if p.IsVariadic {
-					mw.W("...")
+					name = "..." + name
 				}
-				mw.W(p.Name.Value)
-
-				if i != paramLen {
-					mw.W(",")
-				}
+				params = append(params, name)
 			}
+			mw.W(strings.Join(params, ","))
 
 			var prefix string
 			if iface.Namespace != "" {
@@ -109,15 +103,14 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			mw.W(") {\n")
 			mw.W("return this.scheduler.__scheduleRequest(\"%s\", {", prefix+m.Name.Lower())
 
-			for i, p := range m.Sig.Params {
+			requestParams := make([]string, 0, len(m.Sig.Params))
+			for _, p := range m.Sig.Params {
 				if IsContext(p) {
 					continue
 				}
-				mw.W("%[1]s:%[1]s", p.Name)
-				if i != paramLen {
-					mw.W(",")
-				}
+				requestParams = append(requestParams, fmt.Sprintf("%[1]s:%[1]s", p.Name))
 			}
+			mw.W(strings.Join(requestParams, ","))
 
 			mw.W("}).catch(e => { throw ")
 			mw.W("%s%sConvertError(e)", LcNameWithAppPrefix(iface), m.Name)
