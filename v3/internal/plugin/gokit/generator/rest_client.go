@@ -341,8 +341,14 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					} else {
 						responseType = importer.TypeString(m.Sig.Results[0].Type)
 					}
+
+					var (
+						wrapData, structPath string
+					)
+
 					if mopt.RESTWrapResponse.Value != "" {
-						g.w.W("var resp struct {\nData %s `json:\"%s\"`\n}\n", responseType, mopt.RESTWrapResponse.Value)
+						wrapData, structPath = wrapDataClient(stdstrings.Split(mopt.RESTWrapResponse.Value, "."), responseType)
+						g.w.W("var resp %s\n", wrapData)
 					} else {
 						g.w.W("var resp %s\n", responseType)
 					}
@@ -367,7 +373,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					g.w.W("}\n")
 
 					if mopt.RESTWrapResponse.Value != "" {
-						g.w.W("return resp.Data, nil\n")
+						g.w.W("return resp.%s.Data, nil\n", structPath)
 					} else {
 						g.w.W("return resp, nil\n")
 					}

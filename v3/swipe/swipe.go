@@ -69,6 +69,13 @@ func Generate(cfg *Config) (result []GenerateResult, errs []error) {
 					outputDir := g.OutputDir()
 					if outputDir == "" {
 						outputDir = build.BasePath
+					} else {
+						path, err := filepath.Abs(filepath.Join(cfg.WorkDir, outputDir))
+						if err != nil {
+							generatorResult[i].Errs = append(generatorResult[i].Errs, err)
+							continue
+						}
+						outputDir = path
 					}
 					filename := "swipe_gen_" + strcase.ToSnake(p.ID()) + "_" + g.Filename()
 

@@ -76,7 +76,6 @@ type MethodOption struct {
 	Signature            *option.NamedType
 	Instrumenting        BoolValue         `swipe:"option"`
 	Logging              BoolValue         `swipe:"option"`
-	Exclude              BoolValue         `swipe:"option"`
 	LoggingParams        LoggingParams     `swipe:"option"`
 	LoggingContext       []LoggingContext  `swipe:"option"`
 	RESTMethod           StringValue       `swipe:"option"`

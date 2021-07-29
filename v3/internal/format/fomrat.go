@@ -8,12 +8,12 @@ import (
 
 func Source(src []byte) ([]byte, error) {
 	var useGoImports bool
-	_, err := exec.LookPath("goimports")
+	_, err := exec.LookPath("gofmt")
 	if err == nil {
 		useGoImports = true
 	}
 	if useGoImports {
-		cmd := exec.Command("goimports")
+		cmd := exec.Command("gofmt")
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
 			return nil, err

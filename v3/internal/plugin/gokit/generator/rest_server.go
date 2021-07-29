@@ -343,7 +343,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
 						}
 						g.w.W("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
-						g.w.W("return encodeResponseHTTP(ctx, w, map[string]interface{}{\"%s\": response})\n", mopt.RESTWrapResponse.Value)
+						g.w.W("return encodeResponseHTTP(ctx, w, %s)\n", wrapDataServer(stdstrings.Split(mopt.RESTWrapResponse.Value, ".")))
 						g.w.W("}")
 					} else {
 						g.w.W("encodeResponseHTTP")

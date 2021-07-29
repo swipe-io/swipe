@@ -122,7 +122,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 		if iface.Named.Pkg.Module.External {
 			external = true
-			g.w.W("%s %sOption", LcNameWithAppPrefix(iface), UcNameWithAppPrefix(iface))
+			g.w.W("%s %sOption", LcNameWithAppPrefix(iface, true), UcNameWithAppPrefix(iface, true))
 		} else {
 			g.w.W("svc%s %s", iface.Named.Name.Upper(), typeStr)
 		}
@@ -146,6 +146,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 	g.w.W("for _, o := range options {\n o(opts)\n }\n")
 
 	for _, iface := range g.Interfaces {
+		optName := LcNameWithAppPrefix(iface, iface.Named.Pkg.Module.External)
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
 		epSetName := NameEndpointSetNameVar(iface)
@@ -160,7 +161,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("%s := %s{}\n", epSetName, epEndpointSetName)
 
 			for _, m := range ifaceType.Methods {
-				optName := LcNameWithAppPrefix(iface)
+
 				epFactoryName := "endpointFactory"
 				kitEndpointPkg := importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
 				stdLogPkg := importer.Import("log", "log")
@@ -276,7 +277,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 	} else {
 		g.w.W("r.Methods(\"POST\").")
 		if jsonRPCPath != "" {
-			g.w.W(".Path(\"%s\").", jsonRPCPath)
+			g.w.W("Path(\"%s\").", jsonRPCPath)
 		}
 		g.w.W("Handler(handler)\n")
 	}

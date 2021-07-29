@@ -604,11 +604,11 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOption) *op
 			if IsError(r) {
 				continue
 			}
-
 			g.fillTypeDef(r.Type)
 			responseSchema.Properties[r.Name.Lower()] = g.schemaByType(r.Type)
 		}
 	} else if lenResults == 1 {
+		g.fillTypeDef(m.Sig.Results[0].Type)
 		responseSchema = g.schemaByType(m.Sig.Results[0].Type)
 	}
 	if mopt.RESTWrapResponse.Value != "" {

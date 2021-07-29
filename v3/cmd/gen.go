@@ -128,7 +128,6 @@ var genCmd = &cobra.Command{
 		}
 		if err := gitattributes.Generate(cfg.WorkDir, diffExcludes); err != nil {
 			cmd.PrintErrln(err)
-
 			os.Exit(1)
 		}
 		cmd.Println("Command execution completed successfully")

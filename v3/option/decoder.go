@@ -7,6 +7,7 @@ import (
 	"go/constant"
 	"go/token"
 	stdtypes "go/types"
+	"path/filepath"
 
 	"github.com/fatih/structtag"
 	"github.com/swipe-io/swipe/v3/internal/annotation"
@@ -287,6 +288,7 @@ func (d *Decoder) normalize(pkg *packages.Package, obj stdtypes.Object) interfac
 func (d *Decoder) normalizeModule(module *packages.Module) *ModuleType {
 	if module != nil {
 		return &ModuleType{
+			ID:       filepath.Base(module.Dir),
 			Version:  module.Version,
 			Path:     module.Path,
 			Dir:      module.Dir,
@@ -469,10 +471,12 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 				if err != nil {
 					return nil, err
 				}
+
 				build := &Build{
 					Pkg: &PackageType{
-						Name: pkg.Name,
-						Path: pkg.PkgPath,
+						Name:  pkg.Name,
+						Path:  pkg.PkgPath,
+						Types: pkg.Types,
 					},
 					BasePath: basePath,
 					Option: map[string]interface{}{

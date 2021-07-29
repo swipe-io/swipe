@@ -3,6 +3,7 @@ package importer
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"sort"
 	stdstrings "strings"
 
@@ -47,7 +48,8 @@ func (i *Importer) nameInFileScope(name string) bool {
 			return true
 		}
 	}
-	return false
+	_, obj := i.pkg.Types.Scope().LookupParent(name, token.NoPos)
+	return obj != nil
 }
 
 func (i *Importer) HasImports() bool {
@@ -134,7 +136,9 @@ func (i *Importer) typeString(v interface{}, onlySign bool) string {
 	case *option.FuncType:
 		var buf bytes.Buffer
 		buf.WriteString(t.Name.Value)
-		buf.WriteString(i.typeString(t.Sig, onlySign))
+		if t.Sig != nil {
+			buf.WriteString(i.typeString(t.Sig, onlySign))
+		}
 		return buf.String()
 	case *option.NamedType:
 		if t.Pkg == nil {
