@@ -136,8 +136,8 @@ func UcNameWithAppPrefix(iface *config.Interface, useServicePrefix ...bool) stri
 		isUseServicePrefix = useServicePrefix[0]
 	}
 	if isUseServicePrefix && iface.Named.Pkg.Module.External {
-		if iface.External.Iface.ClientName.Value != "" {
-			return strcase.ToCamel(iface.Named.Pkg.Module.ID) + strcase.ToCamel(iface.External.Iface.ClientName.Value)
+		if iface.ClientName.Value != "" {
+			return strcase.ToCamel(iface.Named.Pkg.Module.ID) + strcase.ToCamel(iface.ClientName.Value)
 		}
 		return strcase.ToCamel(iface.Named.Pkg.Module.ID) + iface.Named.Name.Upper()
 	}
@@ -170,7 +170,7 @@ func LcNameJS(iface *config.Interface) string {
 }
 
 func NameInterface(iface *config.Interface) string {
-	return LcNameWithAppPrefix(iface) + "Interface"
+	return UcNameWithAppPrefix(iface) + "Interface"
 }
 
 func NameLoggingMiddleware(iface *config.Interface) string {

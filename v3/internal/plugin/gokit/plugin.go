@@ -171,17 +171,17 @@ func (p *Plugin) fillInterfacesByInternal(cfg *swipe.Config) (errs []error) {
 							return true
 						}
 					}
-					for _, iface := range p.config.Interfaces {
-						for _, extIface := range c.Interfaces {
-							if iface.Named.ID() == extIface.Named.ID() {
-								iface.External = &config.ExternalInterface{
-									Iface:  extIface,
-									Config: c,
-									Build:  build,
-								}
-							}
-						}
-					}
+					//for _, iface := range p.config.Interfaces {
+					//	for _, extIface := range c.Interfaces {
+					//		if iface.Named.ID() == extIface.Named.ID() {
+					//			iface.External = &config.ExternalInterface{
+					//				Iface:  extIface,
+					//				Config: c,
+					//				Build:  build,
+					//			}
+					//		}
+					//	}
+					//}
 				}
 				return true
 			})

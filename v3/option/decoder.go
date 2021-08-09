@@ -288,7 +288,7 @@ func (d *Decoder) normalize(pkg *packages.Package, obj stdtypes.Object) interfac
 func (d *Decoder) normalizeModule(module *packages.Module) *ModuleType {
 	if module != nil {
 		return &ModuleType{
-			ID:       filepath.Base(module.Dir),
+			ID:       filepath.Base(module.Path),
 			Version:  module.Version,
 			Path:     module.Path,
 			Dir:      module.Dir,
