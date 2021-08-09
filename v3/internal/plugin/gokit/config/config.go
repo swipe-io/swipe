@@ -47,10 +47,10 @@ type ExternalInterface struct {
 }
 
 type Interface struct {
-	Named      *option.NamedType  `mapstructure:"iface"`
-	Namespace  string             `mapstructure:"ns"`
-	ClientName StringValue        `swipe:"option"`
-	External   *ExternalInterface `mapstructure:"-"`
+	Named      *option.NamedType `mapstructure:"iface"`
+	Namespace  string            `mapstructure:"ns"`
+	ClientName StringValue       `swipe:"option"`
+	//External   *ExternalInterface `mapstructure:"-"`
 }
 
 type OpenapiTag struct {

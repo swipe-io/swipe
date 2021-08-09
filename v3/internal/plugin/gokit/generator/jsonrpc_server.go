@@ -166,11 +166,6 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				kitEndpointPkg := importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
 				stdLogPkg := importer.Import("log", "log")
 
-				//var clientType = "JSONRPC"
-				//if iface.External.Config.JSONRPCEnable == nil {
-				//	clientType = "REST"
-				//}
-
 				ioPkg := importer.Import("io", "io")
 
 				g.w.W("{\n")
@@ -187,23 +182,20 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("%s.%s.RetryTimeout = DefaultRetryTimeout\n", optName, m.Name)
 				g.w.W("}\n")
 
+				//g.w.W("cc, ok := c.(%s)\n", NameInterface(iface))
+				g.w.W("if %s.Factory == nil {\n", optName)
+				g.w.W("%s.Panic(\"%s.Factory is not set\")\n", stdLogPkg, optName)
+				g.w.W("}\n")
+
 				g.w.W("%s := func (instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, kitEndpointPkg, ioPkg)
-				//g.w.W("if %s.Instance != \"\"{\n", optName)
-				//g.w.W("instance = %[1]s.TrimRight(instance, \"/\") + \"/\" + %[1]s.TrimLeft(%[2]s.Instance, \"/\")", stringsPkg, optName)
-				//g.w.W("}\n")
 				g.w.W("c, err := %s.Factory(instance)\n", optName)
-				//g.w.W("c, err := %s.NewClient%s%s(instance, %s.ClientOptions...)\n", transportExtPkg, clientType, UcNameWithAppPrefix(iface, true), optName)
+
 				g.w.WriteCheckErr("err", func() {
 					g.w.W("return nil, nil, err\n")
 				})
 
-				g.w.W("cc, ok := c.(%s)\n", NameInterface(iface))
-				g.w.W("if !ok {\n")
-				g.w.W("%s.Panicf(\"client %%v is not implemented interface\", c)\n", stdLogPkg)
-				g.w.W("}\n")
-
 				g.w.W("return ")
-				g.w.W("Make%sEndpoint(cc), nil, nil\n", UcNameWithAppPrefix(iface)+m.Name.Upper())
+				g.w.W("Make%sEndpoint(c), nil, nil\n", UcNameWithAppPrefix(iface)+m.Name.Upper())
 				g.w.W("\n}\n\n")
 
 				g.w.W("endpointer := %s.NewEndpointer(%s.Instancer, %s, logger)\n", sdPkg, optName, epFactoryName)

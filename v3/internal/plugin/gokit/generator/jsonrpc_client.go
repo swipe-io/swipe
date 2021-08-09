@@ -79,8 +79,10 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
 
 			requestName := NameRequest(m, iface)
+			paramsLen := LenWithoutContexts(m.Sig.Params)
+			resultsLen := LenWithoutErrors(m.Sig.Results)
 
-			if len(m.Sig.Params) > 0 {
+			if paramsLen > 0 {
 				g.w.W("req, ok := obj.(%s)\n", requestName)
 				g.w.W("if !ok {\n")
 				g.w.W("return nil, %s.Errorf(\"couldn't assert request as %s, got %%T\", obj)\n", fmtPkg, requestName)
@@ -101,7 +103,7 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("return nil, %sErrorDecode(response.Error.Code, response.Error.Message, response.Error.Data)\n", LcNameIfaceMethod(iface, m))
 			g.w.W("}\n")
 
-			if len(m.Sig.Results) > 0 {
+			if resultsLen > 0 {
 				var responseType string
 				responseName := NameResponse(m, iface)
 				if m.Sig.IsNamed {

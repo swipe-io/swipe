@@ -69,7 +69,7 @@ func (g *GatewayGenerator) Generate(ctx context.Context) []byte {
 
 		g.w.W("type %sOption struct {\n", UcNameWithAppPrefix(iface, true))
 		g.w.W("Instancer %s.Instancer \n", sdPkg)
-		g.w.W("Factory func(string) (interface{}, error) \n")
+		g.w.W("Factory func(string) (%s, error) \n", NameInterface(iface))
 
 		for _, method := range ifaceType.Methods {
 			g.w.W("%s EndpointOption\n", method.Name)
