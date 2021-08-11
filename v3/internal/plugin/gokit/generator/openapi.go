@@ -18,7 +18,7 @@ import (
 )
 
 type Openapi struct {
-	w             writer.BaseWriter
+	w             writer.TextWriter
 	JSONRPCEnable bool
 	Contact       config.OpenapiContact
 	Info          config.OpenapiInfo
@@ -179,43 +179,12 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 	return data
 }
 
-func makeOpenapiSchemaRESTError() *openapi.Schema {
-	return &openapi.Schema{
-		Type: "object",
-		Properties: openapi.Properties{
-			"error": &openapi.Schema{
-				Type: "string",
-			},
-		},
-	}
+func (g *Openapi) OutputDir() string {
+	return g.Output
 }
 
-func makeOpenapiSchemaJRPCError(code int64) *openapi.Schema {
-	return &openapi.Schema{
-		Type: "object",
-		Properties: openapi.Properties{
-			"jsonrpc": &openapi.Schema{
-				Type:    "string",
-				Example: "2.0",
-			},
-			"id": &openapi.Schema{
-				Type:    "string",
-				Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
-			},
-			"error": &openapi.Schema{
-				Type: "object",
-				Properties: openapi.Properties{
-					"code": &openapi.Schema{
-						Type:    "integer",
-						Example: code,
-					},
-					"message": &openapi.Schema{
-						Type: "string",
-					},
-				},
-			},
-		},
-	}
+func (g *Openapi) Filename() string {
+	return "openapi.json"
 }
 
 func (g *Openapi) makeRef(named *option.NamedType) string {
@@ -375,9 +344,7 @@ func (g *Openapi) schemaByType(t interface{}) (schema *openapi.Schema) {
 	return
 }
 
-func (g *Openapi) makeJSONRPCPath(
-	m *option.FuncType, prefix string, mopt config.MethodOption,
-) *openapi.Operation {
+func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config.MethodOption) *openapi.Operation {
 	responseSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
@@ -416,6 +383,7 @@ func (g *Openapi) makeJSONRPCPath(
 			responseSchema.Properties[r.Name.Lower()] = schema
 		}
 	} else if lenResults == 1 {
+		g.fillTypeDef(m.Sig.Results[0].Type)
 		responseSchema = g.schemaByType(m.Sig.Results[0].Type)
 	} else {
 		responseSchema.Example = json.RawMessage("null")
@@ -551,47 +519,39 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOption) *op
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	queryVars := make(map[string]queryVar, len(mopt.RESTQueryVars.Value))
-	for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
-		queryName := mopt.RESTQueryVars.Value[i]
-		fieldName := mopt.RESTQueryVars.Value[i+1]
-		var required bool
-		if stdstrings.HasPrefix(queryName, "!") {
-			queryName = queryName[1:]
-			required = true
-		}
-		queryVars[fieldName] = queryVar{
-			name:     queryName,
-			required: required,
-		}
-	}
-
-	queryValues := make(map[string]string, len(mopt.RESTQueryValues.Value))
-	for i := 0; i < len(mopt.RESTQueryValues.Value); i += 2 {
-		queryName := mopt.RESTQueryValues.Value[i]
-		value := mopt.RESTQueryValues.Value[i+1]
-		queryValues[queryName] = value
-	}
-
-	headerVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
-	for i := 0; i < len(mopt.RESTHeaderVars.Value); i += 2 {
-		headerVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
-	}
+	queryVars := make([]varType, 0, len(mopt.RESTQueryVars.Value))
+	queryValues := make([]varType, 0, len(mopt.RESTQueryValues.Value))
+	headerVars := make([]varType, 0, len(mopt.RESTHeaderVars.Value))
+	pathVars := make([]varType, 0, len(mopt.RESTPathVars))
+	paramVars := make([]*option.VarType, 0, len(m.Sig.Params))
 
 	for _, p := range m.Sig.Params {
 		if IsContext(p) {
 			continue
 		}
-		if _, ok := mopt.RESTPathVars[p.Name.Value]; ok {
+		if v, ok := findParam(p, mopt.RESTQueryVars.Value); ok {
+			queryVars = append(queryVars, v)
 			continue
 		}
-		if _, ok := queryVars[p.Name.Value]; ok {
+		if v, ok := findParam(p, mopt.RESTQueryValues.Value); ok {
+			queryValues = append(queryValues, v)
 			continue
 		}
-		if _, ok := headerVars[p.Name.Value]; ok {
+		if v, ok := findParam(p, mopt.RESTHeaderVars.Value); ok {
+			headerVars = append(headerVars, v)
 			continue
 		}
+		if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
+			pathVars = append(pathVars, varType{
+				p:     p,
+				value: regexp,
+			})
+			continue
+		}
+		paramVars = append(paramVars, p)
+	}
 
+	for _, p := range paramVars {
 		g.fillTypeDef(p.Type)
 		schema := g.schemaByType(p.Type)
 		schema.Description = p.Comment
@@ -641,33 +601,37 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOption) *op
 		Summary:   m.Name.Value,
 		Responses: responses,
 	}
-	for _, p := range m.Sig.Params {
-		if name, ok := mopt.RESTPathVars[p.Name.Value]; ok {
-			o.Parameters = append(o.Parameters, openapi.Parameter{
-				In:          "path",
-				Name:        name,
-				Description: p.Comment,
-				//Required:    true,
-				Schema: g.schemaByType(p.Type),
-			})
-		} else if name, ok := headerVars[p.Name.Value]; ok {
-			o.Parameters = append(o.Parameters, openapi.Parameter{
-				In:          "header",
-				Name:        name,
-				Description: p.Comment,
-				//Required:    true,
-				Schema: g.schemaByType(p.Type),
-			})
-		} else if queryVar, ok := queryVars[p.Name.Value]; ok {
-			o.Parameters = append(o.Parameters, openapi.Parameter{
-				In:          "query",
-				Name:        queryVar.name,
-				Description: p.Comment,
-				Required:    queryVar.required,
-				Schema:      g.schemaByType(p.Type),
-			})
-		}
+
+	for _, pathVar := range pathVars {
+		o.Parameters = append(o.Parameters, openapi.Parameter{
+			In:          "path",
+			Name:        pathVar.value,
+			Description: pathVar.p.Comment,
+			Required:    pathVar.required,
+			Schema:      g.schemaByType(pathVar.p.Type),
+		})
 	}
+
+	for _, headerVar := range headerVars {
+		o.Parameters = append(o.Parameters, openapi.Parameter{
+			In:          "header",
+			Name:        headerVar.value,
+			Description: headerVar.p.Comment,
+			Required:    headerVar.required,
+			Schema:      g.schemaByType(headerVar.p.Type),
+		})
+	}
+
+	for _, queryVar := range queryVars {
+		o.Parameters = append(o.Parameters, openapi.Parameter{
+			In:          "query",
+			Name:        queryVar.value,
+			Description: queryVar.p.Comment,
+			Required:    queryVar.required,
+			Schema:      g.schemaByType(queryVar.p.Type),
+		})
+	}
+
 	switch mopt.RESTMethod.Value {
 	case "POST", "PUT", "PATCH":
 		o.RequestBody = &openapi.RequestBody{
@@ -680,12 +644,4 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOption) *op
 		}
 	}
 	return o
-}
-
-func (g *Openapi) OutputDir() string {
-	return g.Output
-}
-
-func (g *Openapi) Filename() string {
-	return "openapi.json"
 }

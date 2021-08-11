@@ -75,6 +75,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 					logParams = append(logParams, strconv.Quote("err"), result.Name.Value)
 					continue
 				}
+				logParams = append(logParams, strconv.Quote(result.Name.Value), result.Name.Value)
 				results = append(results, result.Name.Value, importer.TypeString(result))
 			}
 

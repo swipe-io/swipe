@@ -11,7 +11,7 @@ import (
 )
 
 type GoWriter struct {
-	BaseWriter
+	TextWriter
 }
 
 func (w *GoWriter) WriteCheckErr(errName string, body func()) {

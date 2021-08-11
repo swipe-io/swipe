@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/mitchellh/mapstructure"
-
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
 )
@@ -13,13 +12,15 @@ func init() {
 	swipe.RegisterPlugin(&Plugin{})
 }
 
-type Func struct {
+type StringValue struct {
 	Value string
 }
 
 type Environment struct {
 	StructType *option.NamedType
-	FuncName   *Func `swipe:"option"`
+	FuncName   *StringValue `swipe:"option"`
+	EnableDoc  *struct{}    `swipe:"option"`
+	OutputDoc  StringValue  `swipe:"option"`
 }
 
 // Config
@@ -36,6 +37,12 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	funcName := defaultFuncName
 	if p.config.Environment.FuncName != nil {
 		funcName = p.config.Environment.FuncName.Value
+	}
+	if p.config.Environment.EnableDoc != nil {
+		generators = append(generators, &MarkdownDocGenerator{
+			Struct: p.config.Environment.StructType,
+			Output: p.config.Environment.OutputDoc.Value,
+		})
 	}
 	generators = append(generators, &Generator{
 		Struct:   p.config.Environment.StructType,

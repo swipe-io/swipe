@@ -19,7 +19,7 @@ type JSONRPCJSClientGenerator struct {
 func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 	g.w.W(jsonRPCClientBase)
 
-	mw := writer.BaseWriter{}
+	mw := writer.TextWriter{}
 
 	defTypes := map[string]*option.NamedType{}
 

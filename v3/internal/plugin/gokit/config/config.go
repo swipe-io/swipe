@@ -36,6 +36,10 @@ type IntValue struct {
 	Value int
 }
 
+type Int64Value struct {
+	Value int64
+}
+
 type BoolValue struct {
 	Value bool
 }
@@ -73,23 +77,24 @@ type RESTMultipart struct {
 }
 
 type MethodOption struct {
-	Signature            *option.NamedType
-	Instrumenting        BoolValue         `swipe:"option"`
-	Logging              BoolValue         `swipe:"option"`
-	LoggingParams        LoggingParams     `swipe:"option"`
-	LoggingContext       []LoggingContext  `swipe:"option"`
-	RESTMethod           StringValue       `swipe:"option"`
-	RESTWrapResponse     StringValue       `swipe:"option"`
-	RESTPath             *StringValue      `swipe:"option"`
-	RESTMultipart        *RESTMultipart    `swipe:"option"`
-	RESTHeaderVars       SliceStringValue  `swipe:"option"`
-	RESTQueryVars        SliceStringValue  `swipe:"option"`
-	RESTQueryValues      SliceStringValue  `swipe:"option"`
-	RESTPathVars         map[string]string `swipe:"option"`
-	ServerEncodeResponse FuncTypeValue     `swipe:"option"`
-	ServerDecodeRequest  FuncTypeValue     `swipe:"option"`
-	ClientEncodeRequest  FuncTypeValue     `swipe:"option"`
-	ClientDecodeResponse FuncTypeValue     `swipe:"option"`
+	Signature              *option.NamedType
+	Instrumenting          BoolValue         `swipe:"option"`
+	Logging                BoolValue         `swipe:"option"`
+	LoggingParams          LoggingParams     `swipe:"option"`
+	LoggingContext         []LoggingContext  `swipe:"option"`
+	RESTMethod             StringValue       `swipe:"option"`
+	RESTWrapResponse       StringValue       `swipe:"option"`
+	RESTPath               *StringValue      `swipe:"option"`
+	RESTMultipartMaxMemory Int64Value        `swipe:"option"`
+	RESTHeaderVars         SliceStringValue  `swipe:"option"`
+	RESTQueryVars          SliceStringValue  `swipe:"option"`
+	RESTQueryValues        SliceStringValue  `swipe:"option"`
+	RESTPathVars           map[string]string `swipe:"option"`
+	RESTBodyType           StringValue       `swipe:"option"`
+	ServerEncodeResponse   FuncTypeValue     `swipe:"option"`
+	ServerDecodeRequest    FuncTypeValue     `swipe:"option"`
+	ClientEncodeRequest    FuncTypeValue     `swipe:"option"`
+	ClientDecodeResponse   FuncTypeValue     `swipe:"option"`
 }
 
 type OpenapiInfo struct {
