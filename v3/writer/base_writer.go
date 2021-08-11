@@ -5,14 +5,14 @@ import (
 	"fmt"
 )
 
-type BaseWriter struct {
+type TextWriter struct {
 	bytes.Buffer
 }
 
-func (w *BaseWriter) Line() {
+func (w *TextWriter) Line() {
 	w.W("\n")
 }
 
-func (w *BaseWriter) W(format string, args ...interface{}) {
+func (w *TextWriter) W(format string, args ...interface{}) {
 	_, _ = fmt.Fprintf(&w.Buffer, format, args...)
 }

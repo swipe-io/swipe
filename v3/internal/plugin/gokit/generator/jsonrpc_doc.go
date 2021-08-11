@@ -9,7 +9,7 @@ import (
 )
 
 type JSONRPCDocGenerator struct {
-	w               writer.BaseWriter
+	w               writer.TextWriter
 	AppName         string
 	JSPkgImportPath string
 	Interfaces      []*config.Interface

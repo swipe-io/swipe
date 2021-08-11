@@ -13,8 +13,9 @@ import (
 	"github.com/swipe-io/swipe/v3/writer"
 )
 
-type queryVar struct {
-	name     string
+type varType struct {
+	p        *option.VarType
+	value    string
 	required bool
 }
 
@@ -87,6 +88,11 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 			epName := LcNameEndpoint(iface, m)
 
+			bodyType := mopt.RESTBodyType.Value
+			if bodyType == "" {
+				bodyType = "json"
+			}
+
 			httpMethod := mopt.RESTMethod.Value
 			if httpMethod == "" {
 				httpMethod = "GET"
@@ -104,13 +110,13 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			var (
-				pathVars      []*option.VarType
-				queryVars     []*option.VarType
-				headerVars    []*option.VarType
-				multipartVars []*option.VarType
+				pathVars   []*option.VarType
+				queryVars  []*option.VarType
+				headerVars []*option.VarType
+				paramVars  []*option.VarType
 			)
 
-			methodQueryVars := make(map[string]queryVar, len(mopt.RESTQueryVars.Value))
+			methodQueryVars := make(map[string]varType, len(mopt.RESTQueryVars.Value))
 			for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
 				queryName := mopt.RESTQueryVars.Value[i]
 				fieldName := mopt.RESTQueryVars.Value[i+1]
@@ -119,8 +125,8 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					queryName = queryName[1:]
 					required = true
 				}
-				methodQueryVars[fieldName] = queryVar{
-					name:     queryName,
+				methodQueryVars[fieldName] = varType{
+					value:    queryName,
 					required: required,
 				}
 			}
@@ -151,12 +157,12 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					queryVars = append(queryVars, p)
 				} else if _, ok := methodHeaderVars[p.Name.Value]; ok {
 					headerVars = append(headerVars, p)
-				} else if mopt.RESTMultipart != nil {
-					multipartVars = append(multipartVars, p)
+				} else {
+					paramVars = append(paramVars, p)
 				}
 			}
 
-			remainingParams := len(m.Sig.Params) - (len(pathVars) + len(queryVars) + len(headerVars) + len(multipartVars))
+			paramsLen := LenWithoutContexts(m.Sig.Params)
 
 			g.w.W("c.%s = %s.NewClient(\n", epName, kitHTTPPkg)
 			g.w.W(strconv.Quote(httpMethod))
@@ -168,7 +174,6 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			} else {
 				g.w.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
-				paramsLen := LenWithoutContexts(m.Sig.Params)
 				if paramsLen > 0 {
 					nameRequest := NameRequest(m, iface)
 
@@ -230,7 +235,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 							g.w.W("if %s != nil {\n", valueID)
 						}
 						g.w.WriteFormatType(importer, name, valueID, p)
-						g.w.W("q.Add(%s, %s)\n", strconv.Quote(methodQueryVars[p.Name.Value].name), name)
+						g.w.W("q.Add(%s, %s)\n", strconv.Quote(methodQueryVars[p.Name.Value].value), name)
 
 						if isPointer {
 							g.w.W("}\n")
@@ -243,49 +248,76 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 						}
 					}
 
-					if len(multipartVars) > 0 {
-						bytesPkg := importer.Import("bytes", "bytes")
-						multipartPkg := importer.Import("multipart", "mime/multipart")
-						ioutilPkg := importer.Import("ioutil", "io/ioutil")
-
-						g.w.W("body := new(%s.Buffer)\n", bytesPkg)
-						g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
-
-						for _, p := range multipartVars {
-							if isFileType(p.Type, importer) {
-								g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
-								g.w.WriteCheckErr("err", func() {
-									g.w.W("return err\n")
-								})
-								g.w.W("data, err := %s.ReadAll(req.%s)\n", ioutilPkg, p.Name.Upper())
-								g.w.WriteCheckErr("err", func() {
-									g.w.W("return err\n")
-								})
-								g.w.W("part.Write(data)\n")
-								continue
-							}
-							name := p.Name.Value + "Str"
-							g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
-							g.w.W("_ = writer.WriteField(%s, %s)\n", strconv.Quote(p.Name.Value), name)
-						}
-						g.w.W("if err := writer.Close(); err != nil {\n return err\n}\n")
-
-						if g.UseFast {
-							g.w.W("r.SetBody(body.Bytes())\n")
-						} else {
-							g.w.W("r.Body = %s.NopCloser(body)\n", ioutilPkg)
-						}
-						g.w.W("r.Header.Set(\"Content-Type\", writer.FormDataContentType())\n")
-					} else {
-						if remainingParams > 0 {
-							g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
-						}
-					}
-
 					if g.UseFast {
 						g.w.W("r.URI().SetQueryString(q.String())\n")
 					} else {
 						g.w.W("r.URL.RawQuery = q.Encode()\n")
+					}
+				}
+
+				if paramsLen > 0 {
+					switch stdstrings.ToUpper(httpMethod) {
+					case "POST", "PUT", "PATCH":
+						switch bodyType {
+						case "json":
+							jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+							g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
+							g.w.W("data, err := %s.Marshal(req)\n", jsonPkg)
+							g.w.W("if err != nil  {\n")
+							g.w.W("return %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\n", fmtPkg)
+							g.w.W("}\n")
+							if g.UseFast {
+								g.w.W("r.SetBody(data)\n")
+							} else {
+								ioutilPkg := importer.Import("ioutil", "io/ioutil")
+								bytesPkg := importer.Import("bytes", "bytes")
+								g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
+							}
+						case "x-www-form-urlencoded":
+							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+							bytesPkg := importer.Import("bytes", "bytes")
+							g.w.W("r.Header.Add(\"Content-Type\", \"application/x-www-form-urlencoded; charset=utf-8\")\n")
+							g.w.W("params := %s.Values{}\n", urlPkg)
+							for _, p := range paramVars {
+								name := p.Name.Value + "Str"
+								g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
+								g.w.W("params.Set(\"data\", %s)\n", name)
+							}
+							g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", ioutilPkg, bytesPkg)
+						case "form-data":
+							bytesPkg := importer.Import("bytes", "bytes")
+							multipartPkg := importer.Import("multipart", "mime/multipart")
+							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+
+							g.w.W("body := new(%s.Buffer)\n", bytesPkg)
+							g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
+
+							for _, p := range paramVars {
+								if isFileType(p.Type, importer) {
+									g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
+									g.w.WriteCheckErr("err", func() {
+										g.w.W("return err\n")
+									})
+									g.w.W("data, err := %s.ReadAll(req.%s)\n", ioutilPkg, p.Name.Upper())
+									g.w.WriteCheckErr("err", func() {
+										g.w.W("return err\n")
+									})
+									g.w.W("part.Write(data)\n")
+									continue
+								}
+								name := p.Name.Value + "Str"
+								g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
+								g.w.W("_ = writer.WriteField(%s, %s)\n", strconv.Quote(p.Name.Value), name)
+							}
+							g.w.W("if err := writer.Close(); err != nil {\n return err\n}\n")
+
+							if g.UseFast {
+								g.w.W("r.SetBody(body.Bytes())\n")
+							} else {
+								g.w.W("r.Body = %s.NopCloser(body)\n", ioutilPkg)
+							}
+							g.w.W("r.Header.Set(\"Content-Type\", writer.FormDataContentType())\n")
+						}
 					}
 				}
 
@@ -294,26 +326,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					g.w.WriteFormatType(importer, name, "req."+strcase.ToCamel(p.Name.Value), p)
 					g.w.W("r.Header.Add(%s, %s)\n", strconv.Quote(methodHeaderVars[p.Name.Value]), name)
 				}
-				switch stdstrings.ToUpper(httpMethod) {
-				case "POST", "PUT", "PATCH":
-					if len(multipartVars) == 0 && remainingParams > 0 {
-						jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 
-						g.w.W("data, err := %s.Marshal(req)\n", jsonPkg)
-						g.w.W("if err != nil  {\n")
-						g.w.W("return %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\n", fmtPkg)
-						g.w.W("}\n")
-
-						if g.UseFast {
-							g.w.W("r.SetBody(data)\n")
-						} else {
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
-							bytesPkg := importer.Import("bytes", "bytes")
-
-							g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
-						}
-					}
-				}
 				g.w.W("return nil\n")
 				g.w.W("}")
 			}

@@ -103,24 +103,36 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		for _, m := range ifaceType.Methods {
 			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
-			queryVars := make(map[string]queryVar, len(mopt.RESTQueryVars.Value))
-			for i := 0; i < len(mopt.RESTQueryVars.Value); i += 2 {
-				queryName := mopt.RESTQueryVars.Value[i]
-				fieldName := mopt.RESTQueryVars.Value[i+1]
-				var required bool
-				if stdstrings.HasPrefix(queryName, "!") {
-					queryName = queryName[1:]
-					required = true
-				}
-				queryVars[fieldName] = queryVar{
-					name:     queryName,
-					required: required,
-				}
+			bodyType := mopt.RESTBodyType.Value
+			if bodyType == "" {
+				bodyType = "json"
 			}
 
-			headerVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
-			for i := 0; i < len(mopt.RESTHeaderVars.Value); i += 2 {
-				headerVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
+			queryVars := make([]varType, 0, len(mopt.RESTQueryVars.Value))
+			headerVars := make([]varType, 0, len(mopt.RESTHeaderVars.Value))
+			pathVars := make([]varType, 0, len(mopt.RESTPathVars))
+			paramVars := make([]*option.VarType, 0, len(m.Sig.Params))
+
+			for _, p := range m.Sig.Params {
+				if IsContext(p) {
+					continue
+				}
+				if v, ok := findParam(p, mopt.RESTQueryVars.Value); ok {
+					queryVars = append(queryVars, v)
+					continue
+				}
+				if v, ok := findParam(p, mopt.RESTHeaderVars.Value); ok {
+					headerVars = append(headerVars, v)
+					continue
+				}
+				if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
+					pathVars = append(pathVars, varType{
+						p:     p,
+						value: regexp,
+					})
+					continue
+				}
+				paramVars = append(paramVars, p)
 			}
 
 			var urlPath string
@@ -135,8 +147,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			if !stdstrings.HasPrefix(urlPath, "/") {
 				urlPath = "/" + urlPath
 			}
-
-			remainingParams := len(m.Sig.Params) - (len(mopt.RESTPathVars) + len(queryVars) + len(headerVars))
 
 			if g.UseFast {
 				g.w.W("r.To(")
@@ -185,28 +195,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 				if len(m.Sig.Params) > 0 {
 					g.w.W("var req %s\n", nameRequest)
-					switch stdstrings.ToUpper(mopt.RESTMethod.Value) {
-					case "POST", "PUT", "PATCH":
-						if remainingParams > 0 {
-							jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-							fmtPkg := importer.Import("fmt", "fmt")
-							pkgIO := importer.Import("io", "io")
-							if g.UseFast {
-								g.w.W("err = %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
-							} else {
-								ioutilPkg := importer.Import("ioutil", "io/ioutil")
-
-								g.w.W("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
-								g.w.WriteCheckErr("err", func() {
-									g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
-								})
-								g.w.W("err = %s.Unmarshal(b, &req)\n", jsonPkg)
-							}
-							g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
-							g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)
-							g.w.W("}\n")
-						}
-					}
 					if len(mopt.RESTPathVars) > 0 {
 						if g.UseFast {
 							fmtPkg := importer.Import("fmt", "fmt")
@@ -227,100 +215,134 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 						}
 					}
 
-					if mopt.RESTMultipart != nil {
-						var multipartMaxMemory int64 = 67108864
-						if mopt.RESTMultipart.MaxMemory > 0 {
-							multipartMaxMemory = mopt.RESTMultipart.MaxMemory
-						}
+					for _, pathVar := range pathVars {
+						var valueID string
 						if g.UseFast {
-							g.w.W("form, err := r.MultipartForm()\n")
+							valueID = "vars.Param(" + strconv.Quote(pathVar.p.Name.Value) + ")"
 						} else {
-							g.w.W("err = r.ParseMultipartForm(%d)\n", multipartMaxMemory)
+							valueID = "vars[" + strconv.Quote(pathVar.p.Name.Value) + "]"
 						}
-						g.w.WriteCheckErr("err", func() {
-							g.w.W("return nil, err\n")
-						})
+						g.w.WriteConvertType(importer, "req."+strcase.ToCamel(pathVar.p.Name.Value), valueID, pathVar.p, []string{"nil"}, "", false, "")
 					}
 
-					for _, p := range m.Sig.Params {
-						if _, ok := mopt.RESTPathVars[p.Name.Value]; ok {
-							var valueID string
+					for _, queryVar := range queryVars {
+						var valueID string
+						if g.UseFast {
+							valueID = "string(q.Peek(" + strconv.Quote(queryVar.value) + "))"
+						} else {
+							valueID = "q.Get(" + strconv.Quote(queryVar.value) + ")"
+						}
+						if queryVar.required {
+							fmtPkg := importer.Import("fmt", "fmt")
 							if g.UseFast {
-								valueID = "vars.Param(" + strconv.Quote(p.Name.Value) + ")"
+								g.w.W("if !q.Has(\"%[1]s\") {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.value, fmtPkg)
 							} else {
-								valueID = "vars[" + strconv.Quote(p.Name.Value) + "]"
+								g.w.W("if _, ok := q[\"%[1]s\"]; !ok {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.value, fmtPkg)
 							}
-							g.w.WriteConvertType(importer, "req."+strcase.ToCamel(p.Name.Value), valueID, p, []string{"nil"}, "", false, "")
-						} else if queryVar, ok := queryVars[p.Name.Value]; ok {
-							var valueID string
-							if g.UseFast {
-								valueID = "string(q.Peek(" + strconv.Quote(queryVar.name) + "))"
-							} else {
-								valueID = "q.Get(" + strconv.Quote(queryVar.name) + ")"
-							}
-							if queryVar.required {
+						}
+						tmpID := "tmp" + queryVar.p.Name.Value
+						g.w.W("%s := %s\n", tmpID, valueID)
+						g.w.W("if %s != \"\" {\n", tmpID)
+						g.w.WriteConvertType(importer, "req."+queryVar.p.Name.Upper(), tmpID, queryVar.p, []string{"nil"}, "", false, "")
+						g.w.W("}\n")
+					}
+
+					for _, headerVar := range headerVars {
+						var valueID string
+						if g.UseFast {
+							valueID = "string(r.Header.Peek(" + strconv.Quote(headerVar.value) + "))"
+						} else {
+							valueID = "r.Header.Get(" + strconv.Quote(headerVar.value) + ")"
+						}
+						g.w.WriteConvertType(importer, "req."+headerVar.p.Name.Upper(), valueID, headerVar.p, []string{"nil"}, "", false, "")
+					}
+
+					if len(paramVars) > 0 {
+						switch stdstrings.ToUpper(mopt.RESTMethod.Value) {
+						case "POST", "PUT", "PATCH":
+							switch bodyType {
+							case "json":
+								jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 								fmtPkg := importer.Import("fmt", "fmt")
+								pkgIO := importer.Import("io", "io")
 								if g.UseFast {
-									g.w.W("if !q.Has(\"%[1]s\") {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.name, fmtPkg)
+									g.w.W("err = %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
 								} else {
-									g.w.W("if _, ok := q[\"%[1]s\"]; !ok {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.name, fmtPkg)
+									ioutilPkg := importer.Import("ioutil", "io/ioutil")
+
+									g.w.W("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
+									g.w.WriteCheckErr("err", func() {
+										g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
+									})
+									g.w.W("err = %s.Unmarshal(b, &req)\n", jsonPkg)
 								}
-							}
-
-							tmpID := "tmp" + p.Name.Value
-							g.w.W("%s := %s\n", tmpID, valueID)
-
-							g.w.W("if %s != \"\" {\n", tmpID)
-							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), tmpID, p, []string{"nil"}, "", false, "")
-							g.w.W("}\n")
-
-						} else if headerName, ok := headerVars[p.Name.Value]; ok {
-							var valueID string
-							if g.UseFast {
-								valueID = "string(r.Header.Peek(" + strconv.Quote(headerName) + "))"
-							} else {
-								valueID = "r.Header.Get(" + strconv.Quote(headerName) + ")"
-							}
-							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
-						} else if mopt.RESTMultipart != nil {
-							if isFileType(p.Type, importer) {
-								osPkg := importer.Import("os", "os")
-
-								if g.UseFast {
-									g.w.W("parts := form.File[%s]\n", strconv.Quote(p.Name.Value))
-									g.w.W("var (\nf *%s.File\n)\n", osPkg)
-									g.w.W("if len(parts) > 0 {\n")
-									g.w.W("f, err = %s.Open(parts[0].Filename)\n", osPkg)
-									g.w.WriteCheckErr("err", func() {
-										g.w.W("return nil, err\n")
-									})
-									g.w.W("}\n")
-								} else {
-									g.w.W("_, h, err := r.FormFile(%s)\n", strconv.Quote(p.Name.Value))
-									g.w.WriteCheckErr("err", func() {
-										g.w.W("return nil, err\n")
-									})
-									g.w.W("f, err := %s.Open(h.Filename)\n", osPkg)
-									g.w.WriteCheckErr("err", func() {
-										g.w.W("return nil, err\n")
-									})
-								}
-								g.w.W("req.%s = f\n", p.Name.Upper())
-								continue
-							}
-							var valueID string
-							if g.UseFast {
-								valueID = "form" + p.Name.Upper()
-								g.w.W("var %s string\n", valueID)
-								g.w.W("if fv, ok := form.Value[%s]; ok && len(fv) > 0 {\n", strconv.Quote(p.Name.Value))
-								g.w.W("%s = fv[0]\n", valueID)
+								g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
+								g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)
 								g.w.W("}\n")
-							} else {
-								valueID = "r.FormValue(" + strconv.Quote(p.Name.Value) + ")"
+							case "x-www-form-urlencoded":
+								if g.UseFast {
+								} else {
+									g.w.W("r.ParseForm()\n")
+									for _, p := range paramVars {
+										valueID := "r.Form.Get(" + strconv.Quote(p.Name.Value) + ")"
+										g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
+									}
+								}
+							case "form-data":
+								multipartMaxMemory := mopt.RESTMultipartMaxMemory.Value
+								if multipartMaxMemory == 0 {
+									multipartMaxMemory = 67108864
+								}
+								if g.UseFast {
+									g.w.W("form, err := r.MultipartForm()\n")
+								} else {
+									g.w.W("err = r.ParseMultipartForm(%d)\n", multipartMaxMemory)
+								}
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return nil, err\n")
+								})
+								for _, p := range paramVars {
+									if isFileType(p.Type, importer) {
+										osPkg := importer.Import("os", "os")
+
+										if g.UseFast {
+											g.w.W("parts := form.File[%s]\n", strconv.Quote(p.Name.Value))
+											g.w.W("var (\nf *%s.File\n)\n", osPkg)
+											g.w.W("if len(parts) > 0 {\n")
+											g.w.W("f, err = %s.Open(parts[0].Filename)\n", osPkg)
+											g.w.WriteCheckErr("err", func() {
+												g.w.W("return nil, err\n")
+											})
+											g.w.W("}\n")
+										} else {
+											g.w.W("_, h, err := r.FormFile(%s)\n", strconv.Quote(p.Name.Value))
+											g.w.WriteCheckErr("err", func() {
+												g.w.W("return nil, err\n")
+											})
+											g.w.W("f, err := %s.Open(h.Filename)\n", osPkg)
+											g.w.WriteCheckErr("err", func() {
+												g.w.W("return nil, err\n")
+											})
+										}
+										g.w.W("req.%s = f\n", p.Name.Upper())
+										continue
+									}
+									var valueID string
+									if g.UseFast {
+										valueID = "form" + p.Name.Upper()
+										g.w.W("var %s string\n", valueID)
+										g.w.W("if fv, ok := form.Value[%s]; ok && len(fv) > 0 {\n", strconv.Quote(p.Name.Value))
+										g.w.W("%s = fv[0]\n", valueID)
+										g.w.W("}\n")
+									} else {
+										valueID = "r.FormValue(" + strconv.Quote(p.Name.Value) + ")"
+									}
+									g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
+								}
 							}
-							g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
 						}
 					}
+
 					g.w.W("return req, nil\n")
 				} else {
 					g.w.W("return nil, nil\n")

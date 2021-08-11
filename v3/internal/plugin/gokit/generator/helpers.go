@@ -21,29 +21,31 @@ type Helpers struct {
 }
 
 func (g *Helpers) Generate(ctx context.Context) []byte {
-	var (
-		kitHTTPPkg string
-	)
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	if g.JSONRPCEnable {
-		if g.UseFast {
-			kitHTTPPkg = importer.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
-		} else {
-			kitHTTPPkg = importer.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
-		}
-	} else {
-		if g.UseFast {
-			kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
-		} else {
-			kitHTTPPkg = importer.Import("http", "github.com/go-kit/kit/transport/http")
-		}
-	}
 	endpointPkg := importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
 
 	g.writeFuncMiddlewareChain(endpointPkg)
 
 	if g.HTTPServerEnable {
+		var (
+			kitHTTPPkg string
+		)
+
+		if g.JSONRPCEnable {
+			if g.UseFast {
+				kitHTTPPkg = importer.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
+			} else {
+				kitHTTPPkg = importer.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
+			}
+		} else {
+			if g.UseFast {
+				kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
+			} else {
+				kitHTTPPkg = importer.Import("http", "github.com/go-kit/kit/transport/http")
+			}
+		}
+
 		serverOptType := "serverOpts"
 		serverOptionType := "ServerOption"
 		kitHTTPServerOption := fmt.Sprintf("%s.ServerOption", kitHTTPPkg)

@@ -485,32 +485,53 @@ func jsTypeDefRecursive(i interface{}, nested int, visited map[string]struct{}) 
 	switch t := i.(type) {
 	case *option.NamedType:
 
-		result := "/**\n"
-		result += "* @typedef "
+		if st, ok := t.Type.(*option.SliceType); ok {
 
-		switch t.Pkg.Path {
-		default:
-			result += "{Object} " + t.Name.Value + "\n"
-			result += jsTypeDefRecursive(t.Type, nested, visited)
+			return jsTypeDefRecursive(st.Value, nested, visited)
 
-		case "github.com/google/uuid", "github.com/pborman/uuid":
-			switch t.Name.Value {
-			case "UUID":
-				result += "string\n"
+			//result += "/**\n"
+			//result += "* @typedef "
+			//
+			//result += "**/\n"
+			//return result
+			//
+			//	out := jsTypeDefRecursive(st.Value, nested, visited)
+			//	out += "\n\n/**\n"
+			//	out += "* @typedef "
+			//	out += "{Array<>} " + t.Name.Value + "\n"
+			//	out += "**/\n"
+			//	return out
+			//result += jsDocType(st) + " " + t.Name.Value + "\n"
+		} else {
+			result := "/**\n"
+			result += "* @typedef "
+			switch t.Pkg.Path {
+			default:
+				result += "{Object} " + t.Name.Value + "\n"
+				result += jsTypeDefRecursive(t.Type, nested, visited)
+
+			case "github.com/google/uuid", "github.com/pborman/uuid":
+				switch t.Name.Value {
+				case "UUID":
+					result += "string\n"
+				}
+			case "encoding/json":
+				switch t.Name.Value {
+				case "RawMessage":
+					result += "*\n"
+				}
+			case "time":
+				switch t.Name.Value {
+				case "Time":
+					result += "string\n"
+				}
 			}
-		case "encoding/json":
-			switch t.Name.Value {
-			case "RawMessage":
-				result += "*\n"
-			}
-		case "time":
-			switch t.Name.Value {
-			case "Time":
-				result += "string\n"
-			}
+			result += "**/\n"
+			return result
 		}
-		result += "**/\n"
-		return result
+
+	//case *option.SliceType:
+	//	return jsDocType(t)
 	case *option.StructType:
 		out := ""
 		for _, f := range t.Fields {
@@ -569,6 +590,9 @@ func jsDocTypeRecursive(i interface{}, nested int) string {
 	case *option.NamedType:
 		if b, ok := t.Type.(*option.BasicType); ok {
 			return jsDocTypeRecursive(b, nested)
+		}
+		if s, ok := t.Type.(*option.SliceType); ok {
+			return jsDocTypeRecursive(s, nested)
 		}
 		if t.Pkg != nil {
 			switch t.Pkg.Path {
@@ -728,4 +752,63 @@ func wrapDataClient(parts []string, responseType string) (result, structPath str
 		}
 	}
 	return fn(l.Front()), stdstrings.Join(paths, ".")
+}
+
+func findParam(p *option.VarType, vars []string) (varType, bool) {
+	for i := 0; i < len(vars); i += 2 {
+		paramName := vars[i+1]
+		if paramName == p.Name.Value {
+			varName := vars[i]
+			var required bool
+			if stdstrings.HasPrefix(varName, "!") {
+				varName = varName[1:]
+				required = true
+			}
+			return varType{
+				p:        p,
+				value:    varName,
+				required: required,
+			}, true
+		}
+	}
+	return varType{}, false
+}
+
+func makeOpenapiSchemaRESTError() *openapi.Schema {
+	return &openapi.Schema{
+		Type: "object",
+		Properties: openapi.Properties{
+			"error": &openapi.Schema{
+				Type: "string",
+			},
+		},
+	}
+}
+
+func makeOpenapiSchemaJRPCError(code int64) *openapi.Schema {
+	return &openapi.Schema{
+		Type: "object",
+		Properties: openapi.Properties{
+			"jsonrpc": &openapi.Schema{
+				Type:    "string",
+				Example: "2.0",
+			},
+			"id": &openapi.Schema{
+				Type:    "string",
+				Example: "1f1ecd1b-d729-40cd-b6f4-4011f69811fe",
+			},
+			"error": &openapi.Schema{
+				Type: "object",
+				Properties: openapi.Properties{
+					"code": &openapi.Schema{
+						Type:    "integer",
+						Example: code,
+					},
+					"message": &openapi.Schema{
+						Type: "string",
+					},
+				},
+			},
+		},
+	}
 }

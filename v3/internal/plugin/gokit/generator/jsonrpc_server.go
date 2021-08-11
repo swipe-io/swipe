@@ -153,7 +153,6 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 		if iface.Named.Pkg.Module.External {
 			epEndpointSetName := NameEndpointSetName(iface)
-			//transportExtPkg := importer.Import(iface.External.Build.Pkg.Name, iface.External.Build.Pkg.Path)
 
 			sdPkg := importer.Import("sd", "github.com/go-kit/kit/sd")
 			lbPkg := importer.Import("sd", "github.com/go-kit/kit/sd/lb")
@@ -182,7 +181,6 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("%s.%s.RetryTimeout = DefaultRetryTimeout\n", optName, m.Name)
 				g.w.W("}\n")
 
-				//g.w.W("cc, ok := c.(%s)\n", NameInterface(iface))
 				g.w.W("if %s.Factory == nil {\n", optName)
 				g.w.W("%s.Panic(\"%s.Factory is not set\")\n", stdLogPkg, optName)
 				g.w.W("}\n")
@@ -242,12 +240,9 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 		if i > 0 {
 			g.w.W(",")
 		}
-		//if iface.Named.Pkg.Module.External {
-		//	pkgExtTransport := importer.Import(iface.ExternalConfig.Build.Pkg.Name, iface.ExternalConfig.Build.Pkg.Path)
-		//	g.w.W("%s.Make%sEndpointCodecMap(%s", pkgExtTransport, iface.Named.Name.Upper(), epSetName)
-		//} else {
+
 		g.w.W("Make%sEndpointCodecMap(%s", UcNameWithAppPrefix(iface), epSetName)
-		//}
+
 		if iface.Namespace != "" {
 			g.w.W(",%s", strconv.Quote(iface.Namespace))
 		}

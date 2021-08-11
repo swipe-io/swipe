@@ -25,7 +25,7 @@ type fldOpts struct {
 	required  Bool
 	useZero   Bool
 	isFlag    bool
-	typeStr   string
+	t         interface{}
 }
 
 func (o fldOpts) tagName() string {
@@ -38,6 +38,7 @@ func (o fldOpts) tagName() string {
 func getFieldOpts(f *option.VarType, tags *structtag.Tags) (result fldOpts) {
 	result.name = strcase.ToScreamingSnake(f.Name.Upper())
 	result.fieldPath = f.Name.Value
+	result.t = f.Type
 
 	if tag, err := tags.Get("env"); err == nil {
 		for _, o := range tag.Options {
