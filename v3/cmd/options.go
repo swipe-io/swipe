@@ -116,7 +116,10 @@ var optionsCmd = &cobra.Command{
 												if !strings.HasSuffix(optsType, "Option") {
 													optsType += "Option"
 												}
-												paramsStr += ",opts ..." + optsType
+												if len(opt.params) >= 1 {
+													paramsStr += ","
+												}
+												paramsStr += "opts ..." + optsType
 											}
 
 											buf.WriteString(fmt.Sprintf("func %s(%s) %s { return \"implementation not generated, run swipe\" }\n", opt.name, paramsStr, typeName))
@@ -202,32 +205,43 @@ func getOpt(optionName string, f *goast.Field, e goast.Expr, isRepeat bool) (res
 			name:     name,
 			isRepeat: isRepeat,
 		}
-		if ts, ok := t.Obj.Decl.(*goast.TypeSpec); ok {
-			if s, ok := ts.Type.(*goast.StructType); ok {
-				var hasOpts bool
-				if s.Fields != nil {
-					for _, f := range s.Fields.List {
-						name, ok := getOptName(f)
-						if !ok {
-							continue
-						}
-						if isFiledOpt(f) {
-							hasOpts = true
-							expr := astutil.Unparen(f.Type)
-							if e, ok := expr.(*goast.StarExpr); ok {
-								expr = e.X
+
+		var buildFuncOpts func(obj *goast.Object)
+		buildFuncOpts = func(obj *goast.Object) {
+			if ts, ok := obj.Decl.(*goast.TypeSpec); ok {
+				if s, ok := ts.Type.(*goast.StructType); ok {
+					var hasOpts bool
+					if s.Fields != nil {
+						for _, f := range s.Fields.List {
+							if len(f.Names) == 0 {
+								if ident, ok := f.Type.(*goast.Ident); ok {
+									buildFuncOpts(ident.Obj)
+									continue
+								}
 							}
-							result = append(result, getOpt(ts.Name.Name, f, expr, false)...)
-							continue
+							name, ok := getOptName(f)
+							if !ok {
+								continue
+							}
+							if isFiledOpt(f) {
+								hasOpts = true
+								expr := astutil.Unparen(f.Type)
+								if e, ok := expr.(*goast.StarExpr); ok {
+									expr = e.X
+								}
+								result = append(result, getOpt(ts.Name.Name, f, expr, false)...)
+								continue
+							}
+							of.params = append(of.params, strcase.ToLowerCamel(name)+" "+getFieldType(f))
 						}
-						of.params = append(of.params, strcase.ToLowerCamel(name)+" "+getFieldType(f))
 					}
-				}
-				if hasOpts {
-					of.optsType = ts.Name.Name
+					if hasOpts {
+						of.optsType = ts.Name.Name
+					}
 				}
 			}
 		}
+		buildFuncOpts(t.Obj)
 		result = append(result, of)
 	}
 	return

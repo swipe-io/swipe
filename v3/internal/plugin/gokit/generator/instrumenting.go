@@ -14,7 +14,7 @@ import (
 type Instrumenting struct {
 	w             writer.GoWriter
 	Interfaces    []*config.Interface
-	MethodOptions map[string]config.MethodOption
+	MethodOptions map[string]config.MethodDefaultOption
 }
 
 func (g *Instrumenting) Generate(ctx context.Context) []byte {

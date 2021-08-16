@@ -54,7 +54,6 @@ type Interface struct {
 	Named      *option.NamedType `mapstructure:"iface"`
 	Namespace  string            `mapstructure:"ns"`
 	ClientName StringValue       `swipe:"option"`
-	//External   *ExternalInterface `mapstructure:"-"`
 }
 
 type OpenapiTag struct {
@@ -76,8 +75,13 @@ type RESTMultipart struct {
 	MaxMemory int64
 }
 
-type MethodOption struct {
-	Signature              *option.NamedType
+type Aggregate struct {
+	Method  *option.NamedType
+	Params  SliceStringValue `swipe:"option"`
+	Results SliceStringValue `swipe:"option"`
+}
+
+type MethodDefaultOption struct {
 	Instrumenting          BoolValue         `swipe:"option"`
 	Logging                BoolValue         `swipe:"option"`
 	LoggingParams          LoggingParams     `swipe:"option"`
@@ -91,10 +95,16 @@ type MethodOption struct {
 	RESTQueryValues        SliceStringValue  `swipe:"option"`
 	RESTPathVars           map[string]string `swipe:"option"`
 	RESTBodyType           StringValue       `swipe:"option"`
+	Aggregate              []Aggregate       `swipe:"option"`
 	ServerEncodeResponse   FuncTypeValue     `swipe:"option"`
 	ServerDecodeRequest    FuncTypeValue     `swipe:"option"`
 	ClientEncodeRequest    FuncTypeValue     `swipe:"option"`
 	ClientDecodeResponse   FuncTypeValue     `swipe:"option"`
+}
+
+type MethodOption struct {
+	Signature *option.NamedType
+	MethodDefaultOption
 }
 
 type OpenapiInfo struct {
@@ -153,16 +163,16 @@ type Config struct {
 	OpenapiLicence       OpenapiLicence
 	OpenapiServers       []OpenapiServer `mapstructure:"OpenapiServer"`
 	MethodOptions        []MethodOption
-	MethodDefaultOptions MethodOption
+	MethodDefaultOptions MethodDefaultOption
 	DefaultErrorEncoder  FuncTypeValue
 
 	// non options params
-	LoggingEnable       bool                          `mapstructure:"-"`
-	InstrumentingEnable bool                          `mapstructure:"-"`
-	MethodOptionsMap    map[string]MethodOption       `mapstructure:"-"`
-	OpenapiMethodTags   map[string][]string           `mapstructure:"-"`
-	IfaceErrors         map[string]map[string][]Error `mapstructure:"-"`
-	JSPkgImportPath     string                        `mapstructure:"-"`
-	AppName             string                        `mapstructure:"-"`
-	HasExternal         bool                          `mapstructure:"-"`
+	LoggingEnable       bool                           `mapstructure:"-"`
+	InstrumentingEnable bool                           `mapstructure:"-"`
+	MethodOptionsMap    map[string]MethodDefaultOption `mapstructure:"-"`
+	OpenapiMethodTags   map[string][]string            `mapstructure:"-"`
+	IfaceErrors         map[string]map[string][]Error  `mapstructure:"-"`
+	JSPkgImportPath     string                         `mapstructure:"-"`
+	AppName             string                         `mapstructure:"-"`
+	HasExternal         bool                           `mapstructure:"-"`
 }

@@ -20,7 +20,7 @@ type RESTServerGenerator struct {
 	JSONRPCEnable       bool
 	DefaultErrorEncoder *option.FuncType
 	Interfaces          []*config.Interface
-	MethodOptions       map[string]config.MethodOption
+	MethodOptions       map[string]config.MethodDefaultOption
 }
 
 func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
@@ -51,13 +51,26 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 	g.w.W("// MakeHandlerREST make REST HTTP transport\n")
 	g.w.W("func MakeHandlerREST(")
+
+	var external bool
+
 	for i, iface := range g.Interfaces {
 		typeStr := NameInterface(iface)
 		if i > 0 {
 			g.w.W(",")
 		}
-		g.w.W("svc%s %s", iface.Named.Name.Value, typeStr)
+		if iface.Named.Pkg.Module.External {
+			external = true
+			g.w.W("%s %sOption", LcNameWithAppPrefix(iface, true), UcNameWithAppPrefix(iface, true))
+		} else {
+			g.w.W("svc%s %s", iface.Named.Name.Upper(), typeStr)
+		}
 	}
+
+	if external {
+		g.w.W(", logger %s.Logger", importer.Import("log", "github.com/go-kit/kit/log"))
+	}
+
 	g.w.W(", options ...ServerOption")
 	g.w.W(") (")
 	if g.UseFast {
@@ -78,19 +91,96 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	}
 
 	for _, iface := range g.Interfaces {
-		g.w.W("%s := Make%s(svc%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), iface.Named.Name.Upper())
-	}
-
-	for _, iface := range g.Interfaces {
+		optName := LcNameWithAppPrefix(iface, iface.Named.Pkg.Module.External)
 		ifaceType := iface.Named.Type.(*option.IfaceType)
+
 		epSetName := NameEndpointSetNameVar(iface)
-		for _, m := range ifaceType.Methods {
-			g.w.W(
-				"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-				LcNameWithAppPrefix(iface)+m.Name.Value, m.Name, epSetName,
-			)
+
+		if iface.Named.Pkg.Module.External {
+			epEndpointSetName := NameEndpointSetName(iface)
+
+			sdPkg := importer.Import("sd", "github.com/go-kit/kit/sd")
+			lbPkg := importer.Import("sd", "github.com/go-kit/kit/sd/lb")
+
+			g.w.W("%s := %s{}\n", epSetName, epEndpointSetName)
+
+			for _, m := range ifaceType.Methods {
+
+				epFactoryName := "endpointFactory"
+				kitEndpointPkg := importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
+				stdLogPkg := importer.Import("log", "log")
+
+				ioPkg := importer.Import("io", "io")
+
+				g.w.W("{\n")
+
+				g.w.W("if %s.%s.Balancer == nil {\n", optName, m.Name)
+				g.w.W("%s.%s.Balancer = %s.NewRoundRobin\n", optName, m.Name, lbPkg)
+				g.w.W("}\n")
+
+				g.w.W("if %s.%s.RetryMax == 0 {\n", optName, m.Name)
+				g.w.W("%s.%s.RetryMax = DefaultRetryMax\n", optName, m.Name)
+				g.w.W("}\n")
+
+				g.w.W("if %s.%s.RetryTimeout == 0 {\n", optName, m.Name)
+				g.w.W("%s.%s.RetryTimeout = DefaultRetryTimeout\n", optName, m.Name)
+				g.w.W("}\n")
+
+				g.w.W("if %s.Factory == nil {\n", optName)
+				g.w.W("%s.Panic(\"%s.Factory is not set\")\n", stdLogPkg, optName)
+				g.w.W("}\n")
+
+				g.w.W("%s := func (instance string) (%s.Endpoint, %s.Closer, error) {\n", epFactoryName, kitEndpointPkg, ioPkg)
+				g.w.W("c, err := %s.Factory(instance)\n", optName)
+
+				g.w.WriteCheckErr("err", func() {
+					g.w.W("return nil, nil, err\n")
+				})
+
+				g.w.W("return ")
+				g.w.W("Make%sEndpoint(c), nil, nil\n", UcNameWithAppPrefix(iface)+m.Name.Upper())
+				g.w.W("\n}\n\n")
+
+				g.w.W("endpointer := %s.NewEndpointer(%s.Instancer, %s, logger)\n", sdPkg, optName, epFactoryName)
+				g.w.W(
+					"%[4]s.%[3]sEndpoint = %[1]s.RetryWithCallback(%[2]s.%[3]s.RetryTimeout, %[2]s.%[3]s.Balancer(endpointer), retryMax(%[2]s.%[3]s.RetryMax))\n",
+					lbPkg, optName, m.Name, epSetName,
+				)
+				g.w.W(
+					"%[2]s.%[1]sEndpoint = RetryErrorExtractor()(%[2]s.%[1]sEndpoint)\n",
+					m.Name, epSetName,
+				)
+				g.w.W(
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					LcNameWithAppPrefix(iface)+m.Name.Upper(), m.Name, epSetName,
+				)
+				g.w.W("}\n")
+			}
+		} else {
+			g.w.W("%s := Make%s(svc%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), iface.Named.Name.Upper())
+			for _, m := range ifaceType.Methods {
+				g.w.W(
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					LcNameWithAppPrefix(iface)+m.Name.Upper(), m.Name, epSetName,
+				)
+			}
 		}
 	}
+
+	//for _, iface := range g.Interfaces {
+	//	g.w.W("%s := Make%s(svc%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), iface.Named.Name.Upper())
+	//}
+
+	//for _, iface := range g.Interfaces {
+	//	ifaceType := iface.Named.Type.(*option.IfaceType)
+	//	epSetName := NameEndpointSetNameVar(iface)
+	//	for _, m := range ifaceType.Methods {
+	//		g.w.W(
+	//			"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+	//			LcNameWithAppPrefix(iface)+m.Name.Value, m.Name, epSetName,
+	//		)
+	//	}
+	//}
 	if g.UseFast {
 		g.w.W("r := %s.New()\n", routerPkg)
 	} else {
