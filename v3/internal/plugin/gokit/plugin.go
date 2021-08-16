@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
-	"reflect"
 
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
@@ -23,39 +22,36 @@ func init() {
 	swipe.RegisterPlugin(&Plugin{})
 }
 
-type override struct {
-}
-
-func (o override) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
-	//if typ == reflect.TypeOf(time.Time{}) {
-	return func(dst, src reflect.Value) error {
-		if dst.CanSet() {
-
-			if dst.IsZero() {
-
-			}
-
-			//if t.overwrite {
-			//	isZero := src.MethodByName("IsZero")
-			//
-			//	result := isZero.Call([]reflect.Value{})
-			//	if !result[0].Bool() {
-			//		dst.Set(src)
-			//	}
-			//} else {
-			//	isZero := dst.MethodByName("IsZero")
-			//
-			//	result := isZero.Call([]reflect.Value{})
-			//	if result[0].Bool() {
-			//		dst.Set(src)
-			//	}
-			//}
-		}
-		return nil
-	}
-	//}
-	//return nil
-}
+//type override struct {
+//}
+//
+//func (o override) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+//	//if typ == reflect.TypeOf(time.Time{}) {
+//	return func(dst, src reflect.Value) error {
+//		if dst.CanSet() {
+//			if dst.IsZero() {
+//			}
+//			//if t.overwrite {
+//			//	isZero := src.MethodByName("IsZero")
+//			//
+//			//	result := isZero.Call([]reflect.Value{})
+//			//	if !result[0].Bool() {
+//			//		dst.Set(src)
+//			//	}
+//			//} else {
+//			//	isZero := dst.MethodByName("IsZero")
+//			//
+//			//	result := isZero.Call([]reflect.Value{})
+//			//	if result[0].Bool() {
+//			//		dst.Set(src)
+//			//	}
+//			//}
+//		}
+//		return nil
+//	}
+//	//}
+//	//return nil
+//}
 
 type Plugin struct {
 	config config.Config
@@ -80,12 +76,12 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 	funcDeclTypes := makeFuncDeclTypes(cfg.Packages)
 
 	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, cfg.Packages, p.config.Interfaces)
-	p.config.MethodOptionsMap = map[string]config.MethodOption{}
+	p.config.MethodOptionsMap = map[string]config.MethodDefaultOption{}
 
 	for _, methodOption := range p.config.MethodOptions {
 		sig := methodOption.Signature.Type.(*option.SignType)
 		recvNamed := sig.Recv.(*option.NamedType)
-		p.config.MethodOptionsMap[recvNamed.Name.Value+methodOption.Signature.Name.Value] = methodOption
+		p.config.MethodOptionsMap[recvNamed.Name.Value+methodOption.Signature.Name.Value] = methodOption.MethodDefaultOption
 	}
 
 	for _, iface := range p.config.Interfaces {
@@ -144,47 +140,23 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 			errs = append(errs, err)
 		}
 	}
-	errs = append(errs, p.fillInterfacesByInternal(cfg)...)
+	checkErrs, hasExternal := p.checkExternalPackage(cfg)
+	if len(checkErrs) > 0 {
+		errs = append(errs, checkErrs...)
+	}
+	p.config.HasExternal = hasExternal
 	return errs
 }
 
-func (p *Plugin) fillInterfacesByInternal(cfg *swipe.Config) (errs []error) {
+func (p *Plugin) checkExternalPackage(cfg *swipe.Config) (errs []error, hasExternal bool) {
+
 	for _, iface := range p.config.Interfaces {
 		if iface.Named.Pkg.Module == nil {
 			errs = append(errs, errors.New("not add package for "+iface.Named.Pkg.Path+"."+iface.Named.Name.Value))
 			continue
 		}
-
-		configCache := map[string]*config.Config{}
-
 		if iface.Named.Pkg.Module.External {
-			p.config.HasExternal = true
-			cfg.WalkBuilds(func(module *option.Module, build *option.Build) bool {
-				if !module.External {
-					return true
-				}
-				if options, ok := build.Option["Gokit"]; ok {
-					c := configCache[build.Pkg.Path]
-					if c == nil {
-						if err := mapstructure.Decode(options, &c); err != nil {
-							errs = append(errs, err)
-							return true
-						}
-					}
-					//for _, iface := range p.config.Interfaces {
-					//	for _, extIface := range c.Interfaces {
-					//		if iface.Named.ID() == extIface.Named.ID() {
-					//			iface.External = &config.ExternalInterface{
-					//				Iface:  extIface,
-					//				Config: c,
-					//				Build:  build,
-					//			}
-					//		}
-					//	}
-					//}
-				}
-				return true
-			})
+			hasExternal = true
 		}
 	}
 	return
@@ -260,6 +232,11 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 				IfaceErrors:   p.config.IfaceErrors,
 			})
 		}
+		if p.config.HasExternal {
+			result = append(result, &generator.GatewayGenerator{
+				Interfaces: p.config.Interfaces,
+			})
+		}
 		if jsonRPCEnable {
 			result = append(result, &generator.JSONRPCServerGenerator{
 				UseFast:             useFast,
@@ -282,11 +259,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 					IfaceErrors:     p.config.IfaceErrors,
 				})
 			}
-			if p.config.HasExternal {
-				result = append(result, &generator.GatewayGenerator{
-					Interfaces: p.config.Interfaces,
-				})
-			}
+
 		} else {
 			result = append(result, &generator.RESTServerGenerator{
 				UseFast:             useFast,

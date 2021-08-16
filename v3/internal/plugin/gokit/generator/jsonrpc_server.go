@@ -15,7 +15,7 @@ type JSONRPCServerGenerator struct {
 	w                   writer.GoWriter
 	UseFast             bool
 	Interfaces          []*config.Interface
-	MethodOptions       map[string]config.MethodOption
+	MethodOptions       map[string]config.MethodDefaultOption
 	DefaultErrorEncoder *option.FuncType
 	JSONRPCPath         string
 }
@@ -115,11 +115,9 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 	for i, iface := range g.Interfaces {
 		typeStr := NameInterface(iface)
-
 		if i > 0 {
 			g.w.W(",")
 		}
-
 		if iface.Named.Pkg.Module.External {
 			external = true
 			g.w.W("%s %sOption", LcNameWithAppPrefix(iface, true), UcNameWithAppPrefix(iface, true))

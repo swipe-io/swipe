@@ -27,7 +27,7 @@ type Openapi struct {
 	Licence       config.OpenapiLicence
 	Output        string
 	Interfaces    []*config.Interface
-	MethodOptions map[string]config.MethodOption
+	MethodOptions map[string]config.MethodDefaultOption
 	IfaceErrors   map[string]map[string][]config.Error
 	defTypes      map[string]*option.NamedType
 }
@@ -344,7 +344,7 @@ func (g *Openapi) schemaByType(t interface{}) (schema *openapi.Schema) {
 	return
 }
 
-func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config.MethodOption) *openapi.Operation {
+func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config.MethodDefaultOption) *openapi.Operation {
 	responseSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
@@ -508,7 +508,7 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 	}
 }
 
-func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOption) *openapi.Operation {
+func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodDefaultOption) *openapi.Operation {
 	responseSchema := &openapi.Schema{
 		Type:       "object",
 		Properties: map[string]*openapi.Schema{},
