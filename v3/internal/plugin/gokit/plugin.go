@@ -155,7 +155,7 @@ func (p *Plugin) checkExternalPackage(cfg *swipe.Config) (errs []error, hasExter
 			errs = append(errs, errors.New("not add package for "+iface.Named.Pkg.Path+"."+iface.Named.Name.Value))
 			continue
 		}
-		if iface.Named.Pkg.Module.External {
+		if iface.Gateway != nil {
 			hasExternal = true
 		}
 	}

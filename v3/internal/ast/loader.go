@@ -16,7 +16,7 @@ type Loader struct {
 	wd            string
 	env           []string
 	patterns      []string
-	pkg           *packages.Package
+	module        *packages.Module
 	commentFuncs  map[string][]string
 	commentFields map[string]map[string]string
 	pkgs          []*packages.Package
@@ -31,8 +31,8 @@ func (l *Loader) CommentFuncs() map[string][]string {
 	return l.commentFuncs
 }
 
-func (l *Loader) Pkg() *packages.Package {
-	return l.pkg
+func (l *Loader) Module() *packages.Module {
+	return l.module
 }
 
 func (l *Loader) Pkgs() []*packages.Package {
@@ -97,12 +97,12 @@ func (l *Loader) run() (errs []error) {
 		if pkg.Module == nil {
 			continue
 		}
-		if l.pkg == nil && stdstrings.Contains(l.wd, pkg.Module.Dir) {
-			l.pkg = pkg
+		if l.module == nil && l.wd == pkg.Module.Dir {
+			l.module = pkg.Module
 			break
 		}
 	}
-	if l.pkg == nil {
+	if l.module == nil {
 		errs = append(errs, errors.New("go mod not found, run go mod init"))
 		return
 	}

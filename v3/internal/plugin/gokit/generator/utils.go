@@ -135,7 +135,7 @@ func UcNameWithAppPrefix(iface *config.Interface, useServicePrefix ...bool) stri
 	if len(useServicePrefix) > 0 {
 		isUseServicePrefix = useServicePrefix[0]
 	}
-	if isUseServicePrefix && iface.Named.Pkg.Module.External {
+	if isUseServicePrefix && iface.Gateway != nil {
 		if iface.ClientName.Value != "" {
 			return strcase.ToCamel(iface.Named.Pkg.Module.ID) + strcase.ToCamel(iface.ClientName.Value)
 		}

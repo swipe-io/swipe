@@ -54,6 +54,7 @@ type Interface struct {
 	Named      *option.NamedType `mapstructure:"iface"`
 	Namespace  string            `mapstructure:"ns"`
 	ClientName StringValue       `swipe:"option"`
+	Gateway    *struct{}         `swipe:"option"`
 }
 
 type OpenapiTag struct {
