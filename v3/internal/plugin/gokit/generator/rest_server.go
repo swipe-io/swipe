@@ -59,7 +59,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		if i > 0 {
 			g.w.W(",")
 		}
-		if iface.Named.Pkg.Module.External {
+		if iface.Gateway != nil {
 			external = true
 			g.w.W("%s %sOption", LcNameWithAppPrefix(iface, true), UcNameWithAppPrefix(iface, true))
 		} else {
@@ -91,12 +91,12 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	}
 
 	for _, iface := range g.Interfaces {
-		optName := LcNameWithAppPrefix(iface, iface.Named.Pkg.Module.External)
+		optName := LcNameWithAppPrefix(iface, iface.Gateway != nil)
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 
 		epSetName := NameEndpointSetNameVar(iface)
 
-		if iface.Named.Pkg.Module.External {
+		if iface.Gateway != nil {
 			epEndpointSetName := NameEndpointSetName(iface)
 
 			sdPkg := importer.Import("sd", "github.com/go-kit/kit/sd")

@@ -34,7 +34,7 @@ type Result struct {
 
 type Decoder struct {
 	optionPkgs     map[string]string
-	pkg            *packages.Package
+	module         *packages.Module
 	pkgs           []*packages.Package
 	commentFuncMap map[string][]string
 	typesCache     map[uint32]interface{}
@@ -292,7 +292,7 @@ func (d *Decoder) normalizeModule(module *packages.Module) *ModuleType {
 			Version:  module.Version,
 			Path:     module.Path,
 			Dir:      module.Dir,
-			External: module.Path != d.pkg.Module.Path,
+			External: module.Path != d.module.Path,
 		}
 	}
 	return nil
@@ -460,7 +460,7 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 				if _, ok := result[pkg.Module.Path]; !ok {
 					result[pkg.Module.Path] = &Module{
 						Path:     pkg.Module.Path,
-						External: d.pkg.Module.Path != pkg.Module.Path,
+						External: d.module.Path != pkg.Module.Path,
 					}
 				}
 				option, err := d.callDecodeArgs(pkg, obj, callExpr.Args)
@@ -490,10 +490,10 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 	return
 }
 
-func Decode(optionPkgs map[string]string, pkg *packages.Package, pkgs []*packages.Package, commentFuncs map[string][]string) (result map[string]*Module, err error) {
+func Decode(optionPkgs map[string]string, module *packages.Module, pkgs []*packages.Package, commentFuncs map[string][]string) (result map[string]*Module, err error) {
 	return (&Decoder{
 		optionPkgs:     optionPkgs,
-		pkg:            pkg,
+		module:         module,
 		pkgs:           pkgs,
 		commentFuncMap: commentFuncs,
 		hasher:         typeutil.MakeHasher(),

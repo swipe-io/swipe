@@ -33,7 +33,7 @@ type Config struct {
 	Patterns []string
 	Modules  map[string]*option.Module
 
-	Pkg          *packages.Package
+	Module       *packages.Module
 	Packages     []*packages.Package
 	CommentFuncs map[string][]string
 }
@@ -43,7 +43,7 @@ func GetConfig(loader *ast.Loader) (*Config, error) {
 		WorkDir:      loader.WorkDir(),
 		Envs:         loader.Env(),
 		Patterns:     loader.Patterns(),
-		Pkg:          loader.Pkg(),
+		Module:       loader.Module(),
 		Packages:     loader.Pkgs(),
 		CommentFuncs: loader.CommentFuncs(),
 	}
@@ -68,7 +68,7 @@ func (c *Config) Load() (err error) {
 	for _, plugin := range registeredPlugins {
 		optionPkgs["swipe"+strings.ToLower(plugin.ID())] = plugin.ID()
 	}
-	c.Modules, err = option.Decode(optionPkgs, c.Pkg, c.Packages, c.CommentFuncs)
+	c.Modules, err = option.Decode(optionPkgs, c.Module, c.Packages, c.CommentFuncs)
 	return
 }
 

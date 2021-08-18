@@ -62,7 +62,7 @@ func (g *GatewayGenerator) Generate(ctx context.Context) []byte {
 	g.w.W("}\n\n")
 
 	for _, iface := range g.Interfaces {
-		if !iface.Named.Pkg.Module.External {
+		if iface.Gateway == nil {
 			continue
 		}
 		ifaceType := iface.Named.Type.(*option.IfaceType)
