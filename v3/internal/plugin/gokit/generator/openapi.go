@@ -77,7 +77,7 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 			var (
 				pathStr        string
 				op             *openapi.Operation
-				httpMethodName = mopt.RESTMethod.Value
+				httpMethodName = mopt.RESTMethod.Take()
 			)
 			tags := g.MethodTags[iface.Named.Name.Value+m.Name.Value]
 
@@ -91,8 +91,8 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 			} else {
 				op = g.makeRestPath(m, mopt)
 
-				if mopt.RESTPath != nil {
-					pathStr = mopt.RESTPath.Value
+				if mopt.RESTPath.IsValid() {
+					pathStr = mopt.RESTPath.Take()
 				} else {
 					pathStr = strcase.ToKebab(m.Name.Value)
 				}
@@ -389,9 +389,9 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 		responseSchema.Example = json.RawMessage("null")
 	}
 
-	if mopt.RESTWrapResponse.Value != "" {
+	if mopt.RESTWrapResponse.Take() != "" {
 		properties := openapi.Properties{}
-		properties[mopt.RESTWrapResponse.Value] = responseSchema
+		properties[mopt.RESTWrapResponse.Take()] = responseSchema
 		responseSchema = &openapi.Schema{
 			Properties: properties,
 		}
@@ -571,9 +571,9 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodDefaultOpti
 		g.fillTypeDef(m.Sig.Results[0].Type)
 		responseSchema = g.schemaByType(m.Sig.Results[0].Type)
 	}
-	if mopt.RESTWrapResponse.Value != "" {
+	if mopt.RESTWrapResponse.Take() != "" {
 		properties := openapi.Properties{}
-		properties[mopt.RESTWrapResponse.Value] = responseSchema
+		properties[mopt.RESTWrapResponse.Take()] = responseSchema
 		responseSchema = &openapi.Schema{
 			Properties: properties,
 		}
@@ -632,7 +632,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodDefaultOpti
 		})
 	}
 
-	switch mopt.RESTMethod.Value {
+	switch mopt.RESTMethod.Take() {
 	case "POST", "PUT", "PATCH":
 		o.RequestBody = &openapi.RequestBody{
 			Required: true,

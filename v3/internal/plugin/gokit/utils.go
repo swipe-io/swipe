@@ -221,3 +221,58 @@ func makeFuncDeclTypes(pkgs []*packages.Package) (result map[string]typeInfo) {
 	}
 	return
 }
+
+func fillMethodDefaultOptions(method, methodDefault config.MethodDefaultOption) config.MethodDefaultOption {
+	if !method.RESTMethod.IsValid() {
+		method.RESTMethod = methodDefault.RESTMethod
+	}
+	if !method.RESTMultipartMaxMemory.IsValid() {
+		method.RESTMultipartMaxMemory = methodDefault.RESTMultipartMaxMemory
+	}
+	if !method.RESTBodyType.IsValid() {
+		method.RESTBodyType = methodDefault.RESTBodyType
+	}
+	if method.RESTHeaderVars.Value == nil {
+		method.RESTHeaderVars.Value = methodDefault.RESTHeaderVars.Value
+	}
+	if !method.RESTPath.IsValid() {
+		method.RESTPath = methodDefault.RESTPath
+	}
+	if method.RESTQueryValues.Value == nil {
+		method.RESTQueryValues.Value = methodDefault.RESTQueryValues.Value
+	}
+	if method.RESTQueryVars.Value == nil {
+		method.RESTQueryVars.Value = methodDefault.RESTQueryVars.Value
+	}
+	if !method.RESTWrapResponse.IsValid() {
+		method.RESTWrapResponse.Value = methodDefault.RESTWrapResponse.Value
+	}
+	if method.ClientEncodeRequest.Value == nil {
+		method.ClientEncodeRequest.Value = methodDefault.ClientEncodeRequest.Value
+	}
+	if method.ClientDecodeResponse.Value == nil {
+		method.ClientDecodeResponse.Value = methodDefault.ClientDecodeResponse.Value
+	}
+	if method.ServerDecodeRequest.Value == nil {
+		method.ServerDecodeRequest.Value = methodDefault.ServerDecodeRequest.Value
+	}
+	if method.ServerEncodeResponse.Value == nil {
+		method.ServerEncodeResponse.Value = methodDefault.ServerEncodeResponse.Value
+	}
+	if !method.Instrumenting.IsValid() {
+		method.Instrumenting = methodDefault.Instrumenting
+	}
+	if !method.Logging.IsValid() {
+		method.Logging = methodDefault.Logging
+	}
+	if method.LoggingContext == nil {
+		method.LoggingContext = methodDefault.LoggingContext
+	}
+	if method.LoggingParams.Excludes == nil {
+		method.LoggingParams.Excludes = methodDefault.LoggingParams.Excludes
+	}
+	if method.LoggingParams.Includes == nil {
+		method.LoggingParams.Includes = methodDefault.LoggingParams.Includes
+	}
+	return method
+}

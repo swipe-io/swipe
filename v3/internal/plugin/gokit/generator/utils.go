@@ -136,13 +136,13 @@ func UcNameWithAppPrefix(iface *config.Interface, useServicePrefix ...bool) stri
 		isUseServicePrefix = useServicePrefix[0]
 	}
 	if isUseServicePrefix && iface.Gateway != nil {
-		if iface.ClientName.Value != "" {
-			return strcase.ToCamel(iface.Named.Pkg.Module.ID) + strcase.ToCamel(iface.ClientName.Value)
+		if iface.ClientName.Take() != "" {
+			return strcase.ToCamel(iface.Named.Pkg.Module.ID) + strcase.ToCamel(iface.ClientName.Take())
 		}
 		return strcase.ToCamel(iface.Named.Pkg.Module.ID) + iface.Named.Name.Upper()
 	}
-	if iface.ClientName.Value != "" {
-		return strcase.ToCamel(iface.ClientName.Value)
+	if iface.ClientName.Take() != "" {
+		return strcase.ToCamel(iface.ClientName.Take())
 	}
 	return iface.Named.Name.Upper()
 }
@@ -156,15 +156,15 @@ func LcAppName(iface *config.Interface) string {
 }
 
 func UcNameJS(iface *config.Interface) string {
-	if iface.ClientName.Value != "" {
-		return strcase.ToCamel(iface.ClientName.Value)
+	if iface.ClientName.Take() != "" {
+		return strcase.ToCamel(iface.ClientName.Take())
 	}
 	return iface.Named.Name.Upper()
 }
 
 func LcNameJS(iface *config.Interface) string {
-	if iface.ClientName.Value != "" {
-		return strcase.ToLowerCamel(iface.ClientName.Value)
+	if iface.ClientName.Take() != "" {
+		return strcase.ToLowerCamel(iface.ClientName.Take())
 	}
 	return iface.Named.Name.Lower()
 }
@@ -630,8 +630,8 @@ func jsDocTypeRecursive(i interface{}, nested int) string {
 }
 
 func docMethodName(iface *config.Interface, method *option.FuncType) string {
-	if iface.ClientName.Value != "" {
-		return "JSONRPCClient" + strcase.ToCamel(iface.ClientName.Value) + "." + method.Name.Lower()
+	if iface.ClientName.Take() != "" {
+		return "JSONRPCClient" + strcase.ToCamel(iface.ClientName.Take()) + "." + method.Name.Lower()
 	}
 	return "JSONRPCClient" + iface.Named.Name.Upper() + "." + method.Name.Lower()
 }

@@ -81,7 +81,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 
 			g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
 
-			if mopt.Logging.Value && len(logParams) > 0 {
+			if mopt.Logging.Take() && len(logParams) > 0 {
 				methodName := iface.Named.Name.Lower() + "." + m.Name.Value
 				timePkg := importer.Import("time", "time")
 
