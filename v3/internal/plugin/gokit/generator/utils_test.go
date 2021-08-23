@@ -21,11 +21,16 @@ func Test_wrapData(t *testing.T) {
 			`map[string]interface{}{"a": response }`,
 			args{[]string{"a"}},
 		},
+		{
+			"success test 2",
+			`map[string]interface{}{"data": response }`,
+			args{[]string{"data"}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := wrapDataServer(tt.args.parts); got != tt.want {
-				t.Errorf("wrapDataClient() = %v, want %v", got, tt.want)
+				t.Errorf("wrapDataServer() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -37,29 +42,39 @@ func Test_wrapDataClient(t *testing.T) {
 		responseType string
 	}
 	tests := []struct {
-		name     string
-		want     string
-		wantPath string
-		args     args
+		name           string
+		args           args
+		wantResult     string
+		wantStructPath string
 	}{
 		{
-			"success test 1",
-			"struct { A struct { B struct {\nData User `json:\"c\"`\n} `json:\"b\"`} `json:\"a\"`}",
-			"A.B",
-			args{
-				[]string{"a", "b", "c"},
-				"User",
-			},
+			"success 1",
+			args{[]string{"data"}, "string"},
+			"struct { Data string `json:\"data\"`\n}",
+			"Data",
+		},
+		{
+			"success 2",
+			args{[]string{"data", "user"}, "string"},
+			"struct { Data struct {\nUser string `json:\"user\"`\n} `json:\"data\"`}",
+			"Data.User",
+		},
+		{
+			"success 2",
+			args{[]string{"data", "user", "foo"}, "string"},
+			"struct { Data struct {\nUser struct {\nFoo string `json:\"foo\"`\n} `json:\"user\"`} `json:\"data\"`}",
+			"Data.User.Foo",
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, path := wrapDataClient(tt.args.parts, tt.args.responseType)
-			if got != tt.want {
-				t.Errorf("wrapDataClient() = %v, want %v", got, tt.want)
+			gotResult, gotStructPath := wrapDataClient(tt.args.parts, tt.args.responseType)
+			if gotResult != tt.wantResult {
+				t.Errorf("wrapDataClient() gotResult = %v, want %v", gotResult, tt.wantResult)
 			}
-			if path != tt.wantPath {
-				t.Errorf("wrapDataClient() = %v, want %v", path, tt.wantPath)
+			if gotStructPath != tt.wantStructPath {
+				t.Errorf("wrapDataClient() gotStructPath = %v, want %v", gotStructPath, tt.wantStructPath)
 			}
 		})
 	}
