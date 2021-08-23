@@ -88,19 +88,19 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 			epName := LcNameEndpoint(iface, m)
 
-			bodyType := mopt.RESTBodyType.Value
+			bodyType := mopt.RESTBodyType.Take()
 			if bodyType == "" {
 				bodyType = "json"
 			}
 
-			httpMethod := mopt.RESTMethod.Value
+			httpMethod := mopt.RESTMethod.Take()
 			if httpMethod == "" {
 				httpMethod = "GET"
 			}
 
 			var pathStr string
-			if mopt.RESTPath != nil {
-				pathStr = mopt.RESTPath.Value
+			if mopt.RESTPath.IsValid() {
+				pathStr = mopt.RESTPath.Take()
 			} else {
 				pathStr = path.Join("/", strcase.ToKebab(m.Name.Value))
 			}
@@ -359,8 +359,8 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 						wrapData, structPath string
 					)
 
-					if mopt.RESTWrapResponse.Value != "" {
-						wrapData, structPath = wrapDataClient(stdstrings.Split(mopt.RESTWrapResponse.Value, "."), responseType)
+					if mopt.RESTWrapResponse.Take() != "" {
+						wrapData, structPath = wrapDataClient(stdstrings.Split(mopt.RESTWrapResponse.Take(), "."), responseType)
 						g.w.W("var resp %s\n", wrapData)
 					} else {
 						g.w.W("var resp %s\n", responseType)
@@ -385,7 +385,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, responseType)
 					g.w.W("}\n")
 
-					if mopt.RESTWrapResponse.Value != "" {
+					if mopt.RESTWrapResponse.Take() != "" {
 						g.w.W("return resp.%s, nil\n", structPath)
 					} else {
 						g.w.W("return resp, nil\n")

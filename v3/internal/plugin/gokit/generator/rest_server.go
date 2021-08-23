@@ -193,7 +193,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		for _, m := range ifaceType.Methods {
 			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
-			bodyType := mopt.RESTBodyType.Value
+			bodyType := mopt.RESTBodyType.Take()
 			if bodyType == "" {
 				bodyType = "json"
 			}
@@ -226,8 +226,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			var urlPath string
-			if mopt.RESTPath != nil {
-				urlPath = mopt.RESTPath.Value
+			if mopt.RESTPath.IsValid() {
+				urlPath = mopt.RESTPath.Take()
 			} else {
 				urlPath = strcase.ToKebab(m.Name.Value)
 			}
@@ -240,8 +240,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 			if g.UseFast {
 				g.w.W("r.To(")
-				if mopt.RESTMethod.Value != "" {
-					g.w.W(strconv.Quote(mopt.RESTMethod.Value))
+				if mopt.RESTMethod.Take() != "" {
+					g.w.W(strconv.Quote(mopt.RESTMethod.Take()))
 				} else {
 					g.w.W(strconv.Quote("GET"))
 				}
@@ -257,8 +257,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W(", ")
 			} else {
 				g.w.W("r.Methods(")
-				if mopt.RESTMethod.Value != "" {
-					g.w.W(strconv.Quote(mopt.RESTMethod.Value))
+				if mopt.RESTMethod.Take() != "" {
+					g.w.W(strconv.Quote(mopt.RESTMethod.Take()))
 				} else {
 					g.w.W(strconv.Quote("GET"))
 				}
@@ -348,7 +348,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 					}
 
 					if len(paramVars) > 0 {
-						switch stdstrings.ToUpper(mopt.RESTMethod.Value) {
+						switch stdstrings.ToUpper(mopt.RESTMethod.Take()) {
 						case "POST", "PUT", "PATCH":
 							switch bodyType {
 							case "json":
@@ -379,7 +379,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 									}
 								}
 							case "multipart":
-								multipartMaxMemory := mopt.RESTMultipartMaxMemory.Value
+								multipartMaxMemory := mopt.RESTMultipartMaxMemory.Take()
 								if multipartMaxMemory == 0 {
 									multipartMaxMemory = 67108864
 								}
@@ -447,7 +447,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				if g.JSONRPCEnable {
 					g.w.W("encodeResponseJSONRPC")
 				} else {
-					if mopt.RESTWrapResponse.Value != "" {
+					if mopt.RESTWrapResponse.Take() != "" {
 						var responseWriterType string
 						if g.UseFast {
 							responseWriterType = fmt.Sprintf("*%s.Response", httpPkg)
@@ -455,7 +455,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
 						}
 						g.w.W("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
-						g.w.W("return encodeResponseHTTP(ctx, w, %s)\n", wrapDataServer(stdstrings.Split(mopt.RESTWrapResponse.Value, ".")))
+						g.w.W("return encodeResponseHTTP(ctx, w, %s)\n", wrapDataServer(stdstrings.Split(mopt.RESTWrapResponse.Take(), ".")))
 						g.w.W("}")
 					} else {
 						g.w.W("encodeResponseHTTP")

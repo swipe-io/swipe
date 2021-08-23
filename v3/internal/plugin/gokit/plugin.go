@@ -8,7 +8,6 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/swipe-io/strcase"
@@ -21,37 +20,6 @@ import (
 func init() {
 	swipe.RegisterPlugin(&Plugin{})
 }
-
-//type override struct {
-//}
-//
-//func (o override) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
-//	//if typ == reflect.TypeOf(time.Time{}) {
-//	return func(dst, src reflect.Value) error {
-//		if dst.CanSet() {
-//			if dst.IsZero() {
-//			}
-//			//if t.overwrite {
-//			//	isZero := src.MethodByName("IsZero")
-//			//
-//			//	result := isZero.Call([]reflect.Value{})
-//			//	if !result[0].Bool() {
-//			//		dst.Set(src)
-//			//	}
-//			//} else {
-//			//	isZero := dst.MethodByName("IsZero")
-//			//
-//			//	result := isZero.Call([]reflect.Value{})
-//			//	if result[0].Bool() {
-//			//		dst.Set(src)
-//			//	}
-//			//}
-//		}
-//		return nil
-//	}
-//	//}
-//	//return nil
-//}
 
 type Plugin struct {
 	config config.Config
@@ -89,24 +57,18 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 		for _, m := range ifaceType.Methods {
 			recvNamed := m.Sig.Recv.(*option.NamedType)
 
-			dstMethodOption := p.config.MethodDefaultOptions
-			srcMethodOption, ok := p.config.MethodOptionsMap[recvNamed.Name.Value+m.Name.Value]
-			if ok {
-				if err := mergo.Merge(&dstMethodOption, &srcMethodOption, mergo.WithOverride); err != nil {
-					errs = append(errs, err)
-					continue
-				}
-			}
+			dstMethodOption, _ := p.config.MethodOptionsMap[recvNamed.Name.Value+m.Name.Value]
+			dstMethodOption = fillMethodDefaultOptions(dstMethodOption, p.config.MethodDefaultOptions)
 
-			if !p.config.LoggingEnable && dstMethodOption.Logging.Value {
+			if !p.config.LoggingEnable && dstMethodOption.Logging.Take() {
 				p.config.LoggingEnable = true
 			}
-			if !p.config.InstrumentingEnable && dstMethodOption.Instrumenting.Value {
+			if !p.config.InstrumentingEnable && dstMethodOption.Instrumenting.Take() {
 				p.config.InstrumentingEnable = true
 			}
 
-			if p.config.JSONRPCEnable == nil && dstMethodOption.RESTPath != nil {
-				pathVars, err := pathVars(dstMethodOption.RESTPath.Value)
+			if p.config.JSONRPCEnable == nil && dstMethodOption.RESTPath.Value != nil {
+				pathVars, err := pathVars(*dstMethodOption.RESTPath.Value)
 				if err != nil {
 					errs = append(errs, err)
 					continue
@@ -226,7 +188,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 				MethodTags:    p.config.OpenapiMethodTags,
 				Licence:       p.config.OpenapiLicence,
 				Servers:       p.config.OpenapiServers,
-				Output:        p.config.OpenapiOutput.Value,
+				Output:        p.config.OpenapiOutput.Take(),
 				Interfaces:    p.config.Interfaces,
 				MethodOptions: p.config.MethodOptionsMap,
 				IfaceErrors:   p.config.IfaceErrors,
@@ -243,7 +205,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 				Interfaces:          p.config.Interfaces,
 				MethodOptions:       p.config.MethodOptionsMap,
 				DefaultErrorEncoder: p.config.DefaultErrorEncoder.Value,
-				JSONRPCPath:         p.config.JSONRPCPath.Value,
+				JSONRPCPath:         p.config.JSONRPCPath.Take(),
 			})
 			if jsClientEnable {
 				result = append(result, &generator.JSONRPCJSClientGenerator{

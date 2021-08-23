@@ -59,7 +59,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 				mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
 				g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
-				if mopt.Instrumenting.Value {
+				if mopt.Instrumenting.Take() {
 					methodName := iface.Named.Name.Lower() + "." + m.Name.Value
 					g.w.WriteDefer(
 						[]string{"begin " + timePkg + ".Time"},
