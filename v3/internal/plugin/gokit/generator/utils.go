@@ -700,18 +700,6 @@ func isFileType(i interface{}, importer swipe.Importer) bool {
 }
 
 func wrapDataServer(parts []string) string {
-	var fn func(e *list.Element) string
-	fn = func(e *list.Element) (out string) {
-		if next := e.Next(); next != nil {
-			out += "map[string]interface{}{"
-			out += strconv.Quote(e.Value.(string)) + ": "
-			out += fn(next)
-			out += "}"
-		} else {
-			out += "map[string]interface{}{" + strconv.Quote(e.Value.(string)) + ": response }"
-		}
-		return out
-	}
 	l := list.New()
 	if len(parts) > 0 {
 		e := l.PushFront(parts[0])
@@ -719,39 +707,53 @@ func wrapDataServer(parts []string) string {
 			e = l.InsertAfter(parts[i], e)
 		}
 	}
-	return fn(l.Front())
+	return wrapDataServerRecursive(l.Front())
+}
+
+func wrapDataServerRecursive(e *list.Element) (out string) {
+	value := e.Value.(string)
+	out += "map[string]interface{}{"
+
+	if next := e.Next(); next != nil {
+		out += strconv.Quote(value) + ": "
+		out += wrapDataServerRecursive(next)
+	} else {
+		out += strconv.Quote(e.Value.(string)) + ": response "
+	}
+	out += "}"
+	return
+}
+
+func wrapDataClientRecursive(e *list.Element, responseType string) (out string) {
+	value := e.Value.(string)
+	out += strcase.ToCamel(value)
+	if next := e.Next(); next != nil {
+		out += " struct {\n"
+		out += wrapDataClientRecursive(next, responseType)
+		out += "} `json:\"" + value + "\"`"
+	} else {
+		out += fmt.Sprintf(" %s `json:\"%s\"`\n", responseType, e.Value)
+	}
+	return
 }
 
 func wrapDataClient(parts []string, responseType string) (result, structPath string) {
-	var fn func(e *list.Element) string
-	fn = func(e *list.Element) (out string) {
-		if next := e.Next(); next != nil {
-			out += "struct { "
-			out += strcase.ToCamel(e.Value.(string)) + " "
-			out += fn(next)
-			out += "}"
-		} else {
-			out += fmt.Sprintf("struct {\nData %s `json:\"%s\"`\n}", responseType, e.Value)
-		}
-		if prev := e.Prev(); prev != nil {
-			out += " `json:\"" + prev.Value.(string) + "\"`"
-		}
-		return out
-	}
 	paths := make([]string, 0, len(parts))
-
 	l := list.New()
 	if len(parts) > 0 {
 		paths = append(paths, strcase.ToCamel(parts[0]))
 		e := l.PushFront(parts[0])
 		for i := 1; i < len(parts); i++ {
-			if i != len(parts)-1 {
-				paths = append(paths, strcase.ToCamel(parts[i]))
-			}
+			paths = append(paths, strcase.ToCamel(parts[i]))
 			e = l.InsertAfter(parts[i], e)
 		}
 	}
-	return fn(l.Front()), stdstrings.Join(paths, ".")
+	structPath = stdstrings.Join(paths, ".")
+	result += "struct { "
+	result += wrapDataClientRecursive(l.Front(), responseType)
+	result += "}"
+	return
+
 }
 
 func findParam(p *option.VarType, vars []string) (varType, bool) {

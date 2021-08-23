@@ -104,8 +104,8 @@ type MethodDefaultOption struct {
 }
 
 type MethodOption struct {
-	Signature *option.NamedType
-	MethodDefaultOption
+	Signature           *option.NamedType
+	MethodDefaultOption `mapstructure:",squash"`
 }
 
 type OpenapiInfo struct {

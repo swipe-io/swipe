@@ -273,7 +273,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 								bytesPkg := importer.Import("bytes", "bytes")
 								g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
 							}
-						case "x-www-form-urlencoded":
+						case "urlencoded":
 							ioutilPkg := importer.Import("ioutil", "io/ioutil")
 							bytesPkg := importer.Import("bytes", "bytes")
 							g.w.W("r.Header.Add(\"Content-Type\", \"application/x-www-form-urlencoded; charset=utf-8\")\n")
@@ -284,7 +284,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 								g.w.W("params.Set(\"data\", %s)\n", name)
 							}
 							g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", ioutilPkg, bytesPkg)
-						case "form-data":
+						case "multipart":
 							bytesPkg := importer.Import("bytes", "bytes")
 							multipartPkg := importer.Import("multipart", "mime/multipart")
 							ioutilPkg := importer.Import("ioutil", "io/ioutil")
@@ -386,7 +386,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					g.w.W("}\n")
 
 					if mopt.RESTWrapResponse.Value != "" {
-						g.w.W("return resp.%s.Data, nil\n", structPath)
+						g.w.W("return resp.%s, nil\n", structPath)
 					} else {
 						g.w.W("return resp, nil\n")
 					}

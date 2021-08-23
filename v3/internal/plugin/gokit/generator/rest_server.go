@@ -369,7 +369,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
 								g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)
 								g.w.W("}\n")
-							case "x-www-form-urlencoded":
+							case "urlencoded":
 								if g.UseFast {
 								} else {
 									g.w.W("r.ParseForm()\n")
@@ -378,7 +378,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 										g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
 									}
 								}
-							case "form-data":
+							case "multipart":
 								multipartMaxMemory := mopt.RESTMultipartMaxMemory.Value
 								if multipartMaxMemory == 0 {
 									multipartMaxMemory = 67108864
