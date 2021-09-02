@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/swipe-io/swipe/v3/internal/format"
+	"github.com/swipe-io/swipe/v3/format"
+
 	"github.com/swipe-io/swipe/v3/internal/importer"
 )
 

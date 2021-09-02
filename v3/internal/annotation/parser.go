@@ -11,10 +11,7 @@ var (
 	errAnnotationSyntax      = errors.New("bad syntax for struct annotation pair")
 	errAnnotationKeySyntax   = errors.New("bad syntax for struct annotation key")
 	errAnnotationValueSyntax = errors.New("bad syntax for struct annotation value")
-
-	errKeyNotSet             = errors.New("annotation key does not exist")
 	errAnnotationNotExist    = errors.New("annotation does not exist")
-	errAnnotationKeyMismatch = errors.New("mismatch between key and annotation.key")
 )
 
 type Annotation struct {
@@ -55,9 +52,7 @@ func (a *Annotations) Get(key string) (*Annotation, error) {
 
 func Parse(v string) (*Annotations, error) {
 	var annotations []*Annotation
-
 	annotationParts := strings.Split(v, "\n")
-
 	for _, annotation := range annotationParts {
 		annotation = strings.TrimSpace(annotation)
 		for annotation != "" {
@@ -69,13 +64,10 @@ func Parse(v string) (*Annotations, error) {
 			if annotation == "" {
 				break
 			}
-
 			if annotation[0] != '@' {
 				break
 			}
-
 			annotation = annotation[1:]
-
 			i = 0
 			for i < len(annotation) && annotation[i] > ' ' && annotation[i] != ':' && annotation[i] != '"' && annotation[i] != 0x7f {
 				i++
@@ -117,7 +109,6 @@ func Parse(v string) (*Annotations, error) {
 			if len(options) == 0 {
 				options = nil
 			}
-
 			annotations = append(annotations, &Annotation{
 				Key:     key,
 				Name:    name,
@@ -125,9 +116,5 @@ func Parse(v string) (*Annotations, error) {
 			})
 		}
 	}
-
-	//if hasAnnotation && len(annotations) == 0 {
-	//	return nil, nil
-	//}
 	return &Annotations{annotations: annotations}, nil
 }

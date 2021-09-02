@@ -169,7 +169,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("function %s%sConvertError(e) {\n", LcNameWithAppPrefix(iface), method.Name)
 			g.w.W("switch(e.code) {\n")
 			g.w.W("default:\n")
-			g.w.W("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
+			g.w.W("return new JSONRPCError(\"%s: \"+e.message, \"UnknownError\", e.code, e.data);\n", LcNameIfaceMethod(iface, method))
 			for _, e := range methodErrors {
 				g.w.W("case %d:\n", e.Code)
 				g.w.W("return new %s(e.message, e.data);\n", e.Name)

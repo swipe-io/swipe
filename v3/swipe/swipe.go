@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/swipe-io/swipe/v3/frame"
+
 	"github.com/swipe-io/strcase"
-	"github.com/swipe-io/swipe/v3/internal/frame"
 	"github.com/swipe-io/swipe/v3/internal/importer"
 	"github.com/swipe-io/swipe/v3/option"
 )
