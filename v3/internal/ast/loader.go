@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v3/internal/types"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -106,7 +105,7 @@ func (l *Loader) run() (errs []error) {
 		errs = append(errs, errors.New("go mod not found, run go mod init"))
 		return
 	}
-	types.Inspect(l.pkgs, func(p *packages.Package, n ast.Node) bool {
+	inspect(l.pkgs, func(p *packages.Package, n ast.Node) bool {
 		if ts, ok := n.(*ast.TypeSpec); ok {
 			obj := p.TypesInfo.ObjectOf(ts.Name)
 			if st, ok := ts.Type.(*ast.StructType); ok {
