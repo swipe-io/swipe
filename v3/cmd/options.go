@@ -84,10 +84,15 @@ var optionsCmd = &cobra.Command{
 								if a, err := annotations.Get("swipe"); err == nil {
 									baseTypeName := a.Value() + "Option"
 
-									buf.WriteString(fmt.Sprintf("// %s\n", a.Value()))
-									buf.WriteString(fmt.Sprintf("func %s(opts ...%s) {}\n", a.Value(), baseTypeName))
-
 									opts := getOpts(baseTypeName, s)
+
+									buf.WriteString(fmt.Sprintf("// %s\n", a.Value()))
+									buf.WriteString(fmt.Sprintf("func %s(", a.Value()))
+									if len(opts) > 0 {
+										buf.WriteString(fmt.Sprintf("opts ...%s", baseTypeName))
+									}
+									buf.WriteString(") {}\n")
+
 									optExists := map[string]struct{}{}
 									optTypeExists := map[string]struct{}{}
 									for _, opt := range opts {
