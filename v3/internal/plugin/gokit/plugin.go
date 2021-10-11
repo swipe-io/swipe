@@ -43,24 +43,15 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 
 	funcDeclTypes := makeFuncDeclTypes(cfg.Packages)
 	funcDeclIfaceTypes := makeFuncIfaceDeclTypes(cfg.Packages, funcDeclTypes)
-
 	funcErrors := findErrors(cfg.Module.Path, funcDeclTypes, cfg.Packages)
 
 	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, funcDeclIfaceTypes, funcErrors, cfg.Packages, p.config.Interfaces)
 	p.config.MethodOptionsMap = map[string]config.MethodDefaultOption{}
 
-	for _, methodOption := range p.config.MethodOptions {
-		sig := methodOption.Signature.Type.(*option.SignType)
-		recvNamed := sig.Recv.(*option.NamedType)
-		p.config.MethodOptionsMap[recvNamed.Name.Value+methodOption.Signature.Name.Value] = methodOption.MethodDefaultOption
-	}
-
 	for _, iface := range p.config.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
-			recvNamed := m.Sig.Recv.(*option.NamedType)
-
-			dstMethodOption, _ := p.config.MethodOptionsMap[recvNamed.Name.Value+m.Name.Value]
+			dstMethodOption, _ := p.config.MethodOptionsMap[iface.Named.Name.Value+m.Name.Value]
 			dstMethodOption = fillMethodDefaultOptions(dstMethodOption, p.config.MethodDefaultOptions)
 
 			if !p.config.LoggingEnable && dstMethodOption.Logging.Take() {
@@ -78,7 +69,7 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 				}
 				dstMethodOption.RESTPathVars = pathVars
 			}
-			p.config.MethodOptionsMap[recvNamed.Name.Value+m.Name.Value] = dstMethodOption
+			p.config.MethodOptionsMap[iface.Named.Name.Value+m.Name.Value] = dstMethodOption
 		}
 	}
 
@@ -105,7 +96,7 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 			errs = append(errs, err)
 		}
 	}
-	checkErrs, hasExternal := p.checkExternalPackage(cfg)
+	checkErrs, hasExternal := p.checkExternalPackage()
 	if len(checkErrs) > 0 {
 		errs = append(errs, checkErrs...)
 	}
@@ -127,7 +118,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	jsonRPCEnable := p.config.JSONRPCEnable != nil
 	httpServerEnable := p.config.HTTPServer != nil
 	useFast := p.config.HTTPFast != nil
-	jsonrpcDocEnable := p.config.JSONRPCDocEnable != nil
+	jsonRPCDocEnable := p.config.JSONRPCDocEnable != nil
 
 	result = append(result,
 		&generator.Helpers{
@@ -193,7 +184,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 					IfaceErrors: p.config.IfaceErrors,
 				})
 			}
-			if jsonrpcDocEnable {
+			if jsonRPCDocEnable {
 				result = append(result, &generator.JSONRPCDocGenerator{
 					AppName:         p.config.AppName,
 					JSPkgImportPath: p.config.JSPkgImportPath,
@@ -235,7 +226,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	return
 }
 
-func (p *Plugin) checkExternalPackage(cfg *swipe.Config) (errs []error, hasExternal bool) {
+func (p *Plugin) checkExternalPackage() (errs []error, hasExternal bool) {
 
 	for _, iface := range p.config.Interfaces {
 		if iface.Named.Pkg.Module == nil {

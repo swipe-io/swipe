@@ -9,6 +9,8 @@ import (
 	stdtypes "go/types"
 	"path/filepath"
 
+	packages2 "github.com/swipe-io/swipe/v3/internal/packages"
+
 	"github.com/fatih/structtag"
 	"github.com/swipe-io/swipe/v3/internal/annotation"
 	"golang.org/x/tools/go/ast/astutil"
@@ -35,7 +37,7 @@ type Result struct {
 type Decoder struct {
 	optionPkgs     map[string]string
 	module         *packages.Module
-	pkgs           []*packages.Package
+	pkgs           *packages2.Packages
 	commentFuncMap map[string][]string
 	typesCache     map[uint32]interface{}
 	hasher         typeutil.Hasher
@@ -147,7 +149,6 @@ func (d *Decoder) normalizeNamed(pkg *packages.Package, named *stdtypes.Named, i
 			Methods:   v.Methods,
 		}
 	}
-
 	nt := &NamedType{
 		Obj:       named.Obj(),
 		Pkg:       d.normalizePkg(named.Obj().Pkg()),
@@ -168,7 +169,7 @@ func (d *Decoder) normalizeNamed(pkg *packages.Package, named *stdtypes.Named, i
 func (d *Decoder) normalizePkg(pkg *stdtypes.Package) *PackageType {
 	if pkg != nil {
 		var module *ModuleType
-		fndPkg := findPkgByID(d.pkgs, pkg.Path())
+		fndPkg := d.pkgs.FindPkgByPath(pkg.Path())
 		if fndPkg != nil {
 			module = d.normalizeModule(fndPkg.Module)
 		}
@@ -436,61 +437,58 @@ func (d *Decoder) callDecode(pkg *packages.Package, e *goast.CallExpr) (map[stri
 
 func (d *Decoder) decode() (result map[string]*Module, err error) {
 	result = map[string]*Module{}
-	for _, pkg := range d.pkgs {
-		for expr := range pkg.TypesInfo.Types {
-			expr = astutil.Unparen(expr)
-			callExpr, ok := expr.(*goast.CallExpr)
-			if !ok {
-				continue
-			}
-			fun := callExpr.Fun
-			if selExpr, ok := fun.(*goast.SelectorExpr); ok {
-				fun = selExpr.Sel
-			}
-			callIdent, ok := fun.(*goast.Ident)
-			if !ok {
-				continue
-			}
-			obj := pkg.TypesInfo.Uses[callIdent]
-			if obj == nil || obj.Pkg() == nil {
-				continue
-			}
-
-			if buildName, ok := d.optionPkgs[obj.Pkg().Name()]; ok && obj.Name() == buildName {
-				if _, ok := result[pkg.Module.Path]; !ok {
-					result[pkg.Module.Path] = &Module{
-						Path:     pkg.Module.Path,
-						External: d.module.Path != pkg.Module.Path,
-					}
-				}
-				option, err := d.callDecodeArgs(pkg, obj, callExpr.Args)
-				if err != nil {
-					return nil, err
-				}
-				basePath, err := detectBasePath(pkg)
-				if err != nil {
-					return nil, err
-				}
-
-				build := &Inject{
-					Pkg: &PackageType{
-						Name:  pkg.Name,
-						Path:  pkg.PkgPath,
-						Types: pkg.Types,
-					},
-					BasePath: basePath,
-					Option: map[string]interface{}{
-						buildName: option,
-					},
-				}
-				result[pkg.Module.Path].Injects = append(result[pkg.Module.Path].Injects, build)
-			}
+	err = d.pkgs.TraverseTypes(func(pkg *packages.Package, expr goast.Expr, value stdtypes.TypeAndValue) (err error) {
+		expr = astutil.Unparen(expr)
+		callExpr, ok := expr.(*goast.CallExpr)
+		if !ok {
+			return
 		}
-	}
+		fun := callExpr.Fun
+		if selExpr, ok := fun.(*goast.SelectorExpr); ok {
+			fun = selExpr.Sel
+		}
+		callIdent, ok := fun.(*goast.Ident)
+		if !ok {
+			return
+		}
+		obj := d.pkgs.ObjectOf(callIdent)
+		if obj == nil || obj.Pkg() == nil {
+			return
+		}
+		if buildName, ok := d.optionPkgs[obj.Pkg().Name()]; ok && obj.Name() == buildName {
+			if _, ok := result[pkg.Module.Path]; !ok {
+				result[pkg.Module.Path] = &Module{
+					Path:     pkg.Module.Path,
+					External: d.module.Path != pkg.Module.Path,
+				}
+			}
+			option, err := d.callDecodeArgs(pkg, obj, callExpr.Args)
+			if err != nil {
+				return err
+			}
+			basePath, err := detectBasePath(pkg)
+			if err != nil {
+				return err
+			}
+			build := &Inject{
+				Pkg: &PackageType{
+					Name:  pkg.Name,
+					Path:  pkg.PkgPath,
+					Types: pkg.Types,
+				},
+				BasePath: basePath,
+				Option: map[string]interface{}{
+					buildName: option,
+				},
+			}
+			result[pkg.Module.Path].Injects = append(result[pkg.Module.Path].Injects, build)
+		}
+		return
+	})
 	return
 }
 
-func Decode(optionPkgs map[string]string, module *packages.Module, pkgs []*packages.Package, commentFuncs map[string][]string) (result map[string]*Module, err error) {
+func Decode(optionPkgs map[string]string, module *packages.Module, pkgs *packages2.Packages, commentFuncs map[string][]string) (result map[string]*Module, err error) {
 	return (&Decoder{
 		optionPkgs:     optionPkgs,
 		module:         module,

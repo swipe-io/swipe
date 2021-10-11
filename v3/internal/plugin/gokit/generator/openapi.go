@@ -3,6 +3,7 @@ package generator
 import (
 	"context"
 	"encoding/json"
+	"go/types"
 	"net/http"
 	"path"
 	"strconv"
@@ -35,6 +36,16 @@ type Openapi struct {
 func (g *Openapi) Generate(ctx context.Context) []byte {
 	g.defTypes = make(map[string]*option.NamedType, 1024)
 
+	version := ""
+	switch t := g.Info.Version.(type) {
+	case string:
+		version = t
+	case *option.NamedType:
+		if c, ok := t.Obj.(*types.Const); ok {
+			version, _ = strconv.Unquote(c.Val().String())
+		}
+	}
+
 	o := openapi.OpenAPI{
 		OpenAPI: "3.0.0",
 		Info: openapi.Info{
@@ -50,7 +61,7 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 				Name: g.Licence.Name,
 				URL:  g.Licence.Url,
 			},
-			Version: g.Info.Version,
+			Version: version,
 		},
 		Paths: map[string]*openapi.Path{},
 		Components: openapi.Components{

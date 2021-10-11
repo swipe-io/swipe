@@ -151,7 +151,7 @@ func (g *Helpers) Generate(ctx context.Context) []byte {
 							pkgName += "."
 						}
 
-						g.w.W("err = &%s%s%s{}\n", pkgName, e.Name)
+						g.w.W("err = &%s%s{}\n", pkgName, e.Name)
 					}
 				}
 				g.w.W("}\n")

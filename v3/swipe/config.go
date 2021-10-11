@@ -3,6 +3,8 @@ package swipe
 import (
 	"strings"
 
+	packages2 "github.com/swipe-io/swipe/v3/internal/packages"
+
 	"github.com/swipe-io/swipe/v3/internal/ast"
 	"github.com/swipe-io/swipe/v3/option"
 
@@ -28,13 +30,12 @@ type PluginConfig struct {
 }
 
 type Config struct {
-	WorkDir  string
-	Envs     []string
-	Patterns []string
-	Modules  map[string]*option.Module
-
+	WorkDir      string
+	Envs         []string
+	Patterns     []string
+	Modules      map[string]*option.Module
 	Module       *packages.Module
-	Packages     []*packages.Package
+	Packages     *packages2.Packages
 	CommentFuncs map[string][]string
 }
 
@@ -44,7 +45,7 @@ func GetConfig(loader *ast.Loader) (*Config, error) {
 		Envs:         loader.Env(),
 		Patterns:     loader.Patterns(),
 		Module:       loader.Module(),
-		Packages:     loader.Pkgs(),
+		Packages:     packages2.NewPackages(loader.Pkgs()),
 		CommentFuncs: loader.CommentFuncs(),
 	}
 	if err := cfg.Load(); err != nil {

@@ -90,7 +90,7 @@ type MethodOption struct {
 type OpenapiInfo struct {
 	Title       string
 	Description string
-	Version     string
+	Version     interface{}
 }
 
 type OpenapiContact struct {

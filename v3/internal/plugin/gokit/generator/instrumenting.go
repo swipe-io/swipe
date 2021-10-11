@@ -57,7 +57,6 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 
 			for _, m := range ifaceType.Methods {
 				mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
-
 				g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 				if mopt.Instrumenting.Take() {
 					methodName := iface.Named.Name.Lower() + "." + m.Name.Value

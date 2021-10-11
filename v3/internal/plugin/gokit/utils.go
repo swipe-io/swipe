@@ -4,16 +4,15 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/token"
 	"go/types"
 	stdtypes "go/types"
 	"strings"
 
 	"github.com/swipe-io/swipe/v3/option"
 
+	"github.com/swipe-io/swipe/v3/internal/packages"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
-	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/packages"
+	stdpackages "golang.org/x/tools/go/packages"
 )
 
 func httpBraceIndices(s string) ([]int, error) {
@@ -64,18 +63,16 @@ func pathVars(path string) (map[string]string, error) {
 type typeInfo struct {
 	obj      stdtypes.Object
 	stmtList []ast.Stmt
-	pkg      *packages.Package
+	pkg      *stdpackages.Package
 	recv     *types.Var
 }
 
-func extractValues(pkg *packages.Package, stmtList []ast.Stmt) (values []interface{}) {
+func extractValues(pkg *stdpackages.Package, stmtList []ast.Stmt) (values []interface{}) {
 	for _, stmt := range stmtList {
 		if ret, ok := stmt.(*ast.ReturnStmt); ok {
 			for _, result := range ret.Results {
-				if l, ok := result.(*ast.BasicLit); ok {
-					if v, ok := pkg.TypesInfo.Types[l]; ok {
-						values = append(values, constant.Val(v.Value))
-					}
+				if v, ok := pkg.TypesInfo.Types[result]; ok {
+					values = append(values, constant.Val(v.Value))
 				}
 			}
 		}
@@ -83,106 +80,54 @@ func extractValues(pkg *packages.Package, stmtList []ast.Stmt) (values []interfa
 	return
 }
 
-func findErrors(modulePath string, declTypes map[string]*typeInfo, pkgs []*packages.Package) (result map[string]config.Error) {
+func findErrors(modulePath string, declTypes map[string]*typeInfo, pkgs *packages.Packages) (result map[string]config.Error) {
 	result = make(map[string]config.Error, 1024)
-	for _, pkg := range pkgs {
-		if strings.Contains(pkg.PkgPath, modulePath) {
-			for _, object := range pkg.TypesInfo.Uses {
-				if t, ok := object.Type().(*types.Named); ok {
-					for i := 0; i < t.NumMethods(); i++ {
-						m := t.Method(i)
-						if m.Name() == "ErrorCode" || m.Name() == "StatusCode" {
-							sig := m.Type().(*types.Signature)
-							id := m.Name()
-							if recv := sig.Recv(); recv != nil {
-								recvType := recv.Type()
-								if ptr, ok := recvType.(*types.Pointer); ok {
-									recvType = ptr.Elem()
-								}
-								recvNamed := recvType.(*types.Named)
-								id = "/" + recvNamed.Obj().Name() + "." + id
-							} else {
-								id = "." + id
-							}
-							if info, ok := declTypes[pkg.PkgPath+id]; ok {
-								values := extractValues(pkg, info.stmtList)
-								if len(values) != 1 {
-									continue
-								}
-								val, ok := values[0].(int64)
-								if !ok {
-									continue
-								}
-								tp := config.RESTErrorType
-								if m.Name() == "ErrorCode" {
-									tp = config.JRPCErrorType
-								}
-								result[t.Obj().Pkg().Path()+"/"+t.Obj().Name()] = config.Error{
-									PkgName: t.Obj().Pkg().Name(),
-									PkgPath: t.Obj().Pkg().Path(),
-									Name:    t.Obj().Name(),
-									Type:    tp,
-									Code:    val,
-								}
-							}
+	_ = pkgs.TraverseObjects(func(pkg *stdpackages.Package, id *ast.Ident, obj stdtypes.Object) (err error) {
+		if !strings.Contains(pkg.PkgPath, modulePath) {
+			return
+		}
+		if t, ok := obj.Type().(*types.Named); ok {
+			for i := 0; i < t.NumMethods(); i++ {
+				m := t.Method(i)
+				if m.Name() == "ErrorCode" || m.Name() == "StatusCode" {
+					sig := m.Type().(*types.Signature)
+					id := m.Name()
+					if recv := sig.Recv(); recv != nil {
+						recvType := recv.Type()
+						if ptr, ok := recvType.(*types.Pointer); ok {
+							recvType = ptr.Elem()
+						}
+						recvNamed := recvType.(*types.Named)
+						id = "/" + recvNamed.Obj().Name() + "." + id
+					} else {
+						id = "." + id
+					}
+					if info, ok := declTypes[pkg.PkgPath+id]; ok {
+						values := extractValues(pkg, info.stmtList)
+						if len(values) != 1 {
+							continue
+						}
+						val, ok := values[0].(int64)
+						if !ok {
+							continue
+						}
+						tp := config.RESTErrorType
+						if m.Name() == "ErrorCode" {
+							tp = config.JRPCErrorType
+						}
+						result[t.Obj().Pkg().Path()+"/"+t.Obj().Name()] = config.Error{
+							PkgName: t.Obj().Pkg().Name(),
+							PkgPath: t.Obj().Pkg().Path(),
+							Name:    t.Obj().Name(),
+							Type:    tp,
+							Code:    val,
 						}
 					}
 				}
 			}
 		}
-	}
-
-	//for _, pkg := range pkgs {
-
-	//for _, syntax := range pkg.Syntax {
-	//	for _, decl := range syntax.Decls {
-	//		if f, ok := decl.(*ast.FuncDecl); ok {
-	//			for _, stmt := range f.Body.List {
-	//				ret, ok := stmt.(*ast.ReturnStmt)
-	//				if !ok {
-	//					continue
-	//				}
-	//				for _, r := range ret.Results {
-	//					named := extractNamed(pkgs, r)
-	//					if named != nil {
-	//						for i := 0; i < named.NumMethods(); i++ {
-	//							m := named.Method(i)
-	//							if m.Name() == "ErrorCode" || m.Name() == "StatusCode" {
-	//								info, ok := funcDecl[m.Id()]
-	//								if !ok {
-	//									continue
-	//								}
-	//								values := extractValues(info.pkg, info.stmtList)
-	//								if len(values) != 1 {
-	//									continue
-	//								}
-	//								val, ok := values[0].(int64)
-	//								if !ok {
-	//									continue
-	//								}
-	//								tp := config.RESTErrorType
-	//								if m.Name() == "ErrorCode" {
-	//									tp = config.JRPCErrorType
-	//								}
-	//								result = append(result, config.Error{
-	//									PkgName:   named.Obj().Pkg().Name(),
-	//									PkgPath:   named.Obj().Pkg().Path(),
-	//									IsPointer: named.IsPointer,
-	//									Name:      named.Obj().Name(),
-	//									FuncName:  f.Name.Name,
-	//									Type:      tp,
-	//									Code:      val,
-	//								})
-	//							}
-	//						}
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
-	//}
-
+		return
+	})
 	return
 }
 
@@ -194,31 +139,7 @@ func extractSelector(e ast.Expr) *ast.SelectorExpr {
 	return nil
 }
 
-type named struct {
-	*stdtypes.Named
-	IsPointer bool
-}
-
-func extractNamedRecursive(pkgs []*packages.Package, expr ast.Expr, isPointer bool) *named {
-	expr = astutil.Unparen(expr)
-	switch t := expr.(type) {
-	case *ast.CompositeLit:
-		for _, pkg := range pkgs {
-			if v, ok := pkg.TypesInfo.Types[t.Type]; ok {
-				if n, ok := v.Type.(*stdtypes.Named); ok {
-					return &named{Named: n, IsPointer: isPointer}
-				}
-			}
-		}
-	case *ast.StarExpr:
-		return extractNamedRecursive(pkgs, t.X, isPointer)
-	case *ast.UnaryExpr:
-		return extractNamedRecursive(pkgs, t.X, t.Op == token.AND)
-	}
-	return nil
-}
-
-func findIfaceErrorsRecursive(pkgs []*packages.Package, funcDecl map[string]*typeInfo, ifaceTypes map[string][]*typeInfo, errors map[string]config.Error, visited map[string]struct{}, stmts []ast.Stmt) (results []config.Error) {
+func findIfaceErrorsRecursive(pkgs *packages.Packages, funcDecl map[string]*typeInfo, ifaceTypes map[string][]*typeInfo, errors map[string]config.Error, visited map[string]struct{}, stmts []ast.Stmt) (results []config.Error) {
 	for _, stmt := range stmts {
 		switch t := stmt.(type) {
 		case *ast.ReturnStmt:
@@ -228,14 +149,11 @@ func findIfaceErrorsRecursive(pkgs []*packages.Package, funcDecl map[string]*typ
 					if unary, ok := result.(*ast.UnaryExpr); ok {
 						if cpl, ok := unary.X.(*ast.CompositeLit); ok {
 							if sel, ok := cpl.Type.(*ast.SelectorExpr); ok {
-								for _, pkg := range pkgs {
-									obj := pkg.TypesInfo.ObjectOf(sel.Sel)
-									if obj != nil {
-										if e, ok := errors[obj.Pkg().Path()+"/"+obj.Name()]; ok {
-											results = append(results, e)
-										}
-										break
+								if obj := pkgs.ObjectOf(sel.Sel); obj != nil {
+									if e, ok := errors[obj.Pkg().Path()+"/"+obj.Name()]; ok {
+										results = append(results, e)
 									}
+									break
 								}
 							}
 						}
@@ -245,22 +163,19 @@ func findIfaceErrorsRecursive(pkgs []*packages.Package, funcDecl map[string]*typ
 				selFun := extractSelector(call.Fun)
 				if selFun != nil {
 					sel := extractSelector(selFun.X)
-					for _, pkg := range pkgs {
-						obj := pkg.TypesInfo.ObjectOf(sel.Sel)
-						if obj != nil {
-							if named, ok := obj.Type().(*types.Named); ok {
-								if _, ok := named.Obj().Type().Underlying().(*types.Interface); ok {
-									id := named.Obj().Pkg().Path() + "/" + named.Obj().Name() + "." + selFun.Sel.Name
-									if _, ok := visited[id]; ok {
-										break
+					if obj := pkgs.ObjectOf(sel.Sel); obj != nil {
+						if named, ok := obj.Type().(*types.Named); ok {
+							if _, ok := named.Obj().Type().Underlying().(*types.Interface); ok {
+								id := named.Obj().Pkg().Path() + "/" + named.Obj().Name() + "." + selFun.Sel.Name
+								if _, ok := visited[id]; ok {
+									break
+								}
+								visited[id] = struct{}{}
+								if infos, ok := ifaceTypes[id]; ok {
+									for _, info := range infos {
+										results = append(results, findIfaceErrorsRecursive(pkgs, funcDecl, ifaceTypes, errors, visited, info.stmtList)...)
 									}
-									visited[id] = struct{}{}
-									if infos, ok := ifaceTypes[id]; ok {
-										for _, info := range infos {
-											results = append(results, findIfaceErrorsRecursive(pkgs, funcDecl, ifaceTypes, errors, visited, info.stmtList)...)
-										}
-										break
-									}
+									break
 								}
 							}
 						}
@@ -286,7 +201,7 @@ func findIfaceErrorsRecursive(pkgs []*packages.Package, funcDecl map[string]*typ
 	return
 }
 
-func findIfaceErrors(funcDecl map[string]*typeInfo, ifaceTypes map[string][]*typeInfo, errors map[string]config.Error, pkgs []*packages.Package, ifaces []*config.Interface) (result map[string]map[string][]config.Error) {
+func findIfaceErrors(funcDecl map[string]*typeInfo, ifaceTypes map[string][]*typeInfo, errors map[string]config.Error, pkgs *packages.Packages, ifaces []*config.Interface) (result map[string]map[string][]config.Error) {
 	result = map[string]map[string][]config.Error{}
 	visited := map[string]struct{}{}
 	for _, iface := range ifaces {
@@ -307,87 +222,91 @@ func findIfaceErrors(funcDecl map[string]*typeInfo, ifaceTypes map[string][]*typ
 	return
 }
 
-func makeFuncIfaceDeclTypes(pkgs []*packages.Package, funcDecl map[string]*typeInfo) (result map[string][]*typeInfo) {
+func makeFuncIfaceDeclTypes(pkgs *packages.Packages, funcDecl map[string]*typeInfo) (result map[string][]*typeInfo) {
 	result = make(map[string][]*typeInfo, 1024)
-	for _, pkg := range pkgs {
+	_ = pkgs.TraverseDecls(func(pkg *stdpackages.Package, file *ast.File, decl ast.Decl) (err error) {
 		if strings.Contains(pkg.PkgPath, "/pkg/swipe/") {
-			continue
+			return
 		}
-		for _, syntax := range pkg.Syntax {
-			for _, decl := range syntax.Decls {
-				switch t := decl.(type) {
-				case *ast.GenDecl:
-					for _, spec := range t.Specs {
-						if tp, ok := spec.(*ast.TypeSpec); ok {
-							obj := pkg.TypesInfo.ObjectOf(tp.Name)
-							named, ok := obj.Type().(*types.Named)
-							if !ok {
-								continue
-							}
-							iface, ok := named.Obj().Type().Underlying().(*types.Interface)
-							if !ok {
-								continue
-							}
-							for _, info := range funcDecl {
-								if info.recv == nil {
-									continue
+		switch t := decl.(type) {
+		case *ast.GenDecl:
+			for _, spec := range t.Specs {
+				if tp, ok := spec.(*ast.TypeSpec); ok {
+					obj := pkg.TypesInfo.ObjectOf(tp.Name)
+					named, ok := obj.Type().(*types.Named)
+					if !ok {
+						continue
+					}
+					iface, ok := named.Obj().Type().Underlying().(*types.Interface)
+					if !ok {
+						continue
+					}
+					for _, info := range funcDecl {
+						if info.recv == nil {
+							continue
+						}
+						ptr, ok := info.recv.Type().(*stdtypes.Pointer)
+						if !ok {
+							continue
+						}
+						for i := 0; i < iface.NumEmbeddeds(); i++ {
+							if embeddedNamed, ok := iface.EmbeddedType(i).(*types.Named); ok {
+								if embeddedIface, ok := embeddedNamed.Obj().Type().Underlying().(*types.Interface); ok {
+									imp := stdtypes.Implements(ptr.Underlying(), embeddedIface)
+									if imp {
+										id := pkg.PkgPath + "/" + named.Obj().Name() + "." + info.obj.Name()
+										result[id] = append(result[id], info)
+									}
 								}
-								ptr, ok := info.recv.Type().(*stdtypes.Pointer)
-								if !ok {
-									continue
-								}
-								imp := stdtypes.Implements(ptr.Underlying(), iface)
-								if imp {
-									id := pkg.PkgPath + "/" + named.Obj().Name() + "." + info.obj.Name()
-
-									result[id] = append(result[id], info)
-								}
 							}
+						}
+						imp := stdtypes.Implements(ptr.Underlying(), iface)
+						if imp {
+							id := pkg.PkgPath + "/" + named.Obj().Name() + "." + info.obj.Name()
+							result[id] = append(result[id], info)
 						}
 					}
 				}
 			}
 		}
-	}
+		return
+	})
 	return
 }
 
-func makeFuncDeclTypes(pkgs []*packages.Package) (result map[string]*typeInfo) {
+func makeFuncDeclTypes(pkgs *packages.Packages) (result map[string]*typeInfo) {
 	result = make(map[string]*typeInfo, 1024)
-	for _, pkg := range pkgs {
+	_ = pkgs.TraverseDecls(func(pkg *stdpackages.Package, file *ast.File, decl ast.Decl) (err error) {
 		if strings.Contains(pkg.PkgPath, "/pkg/swipe/") {
-			continue
+			return
 		}
-		for _, syntax := range pkg.Syntax {
-			for _, decl := range syntax.Decls {
-				switch t := decl.(type) {
-				case *ast.FuncDecl:
-					obj := pkg.TypesInfo.ObjectOf(t.Name)
-					if obj != nil {
-						sig := pkg.TypesInfo.TypeOf(t.Name).(*types.Signature)
-						id := t.Name.Name
-						recv := sig.Recv()
-						if recv != nil {
-							recvType := recv.Type()
-							if ptr, ok := recvType.(*types.Pointer); ok {
-								recvType = ptr.Elem()
-							}
-							recvNamed := recvType.(*types.Named)
-							id = "/" + recvNamed.Obj().Name() + "." + id
-						} else {
-							id = "." + id
-						}
-						result[pkg.PkgPath+id] = &typeInfo{
-							obj:      obj,
-							pkg:      pkg,
-							recv:     recv,
-							stmtList: t.Body.List,
-						}
+		switch t := decl.(type) {
+		case *ast.FuncDecl:
+			obj := pkg.TypesInfo.ObjectOf(t.Name)
+			if obj != nil {
+				sig := pkg.TypesInfo.TypeOf(t.Name).(*types.Signature)
+				id := t.Name.Name
+				recv := sig.Recv()
+				if recv != nil {
+					recvType := recv.Type()
+					if ptr, ok := recvType.(*types.Pointer); ok {
+						recvType = ptr.Elem()
 					}
+					recvNamed := recvType.(*types.Named)
+					id = "/" + recvNamed.Obj().Name() + "." + id
+				} else {
+					id = "." + id
+				}
+				result[pkg.PkgPath+id] = &typeInfo{
+					obj:      obj,
+					pkg:      pkg,
+					recv:     recv,
+					stmtList: t.Body.List,
 				}
 			}
 		}
-	}
+		return
+	})
 	return
 }
 

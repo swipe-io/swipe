@@ -84,15 +84,6 @@ func qualifiedIdentObject(info *types.Info, expr ast.Expr) types.Object {
 	}
 }
 
-func findPkgByID(pkgs []*packages.Package, path string) *packages.Package {
-	for _, pkg := range pkgs {
-		if pkg.PkgPath == path {
-			return pkg
-		}
-	}
-	return nil
-}
-
 func detectBasePath(pkg *packages.Package) (string, error) {
 	paths := pkg.GoFiles
 	if len(paths) == 0 {
