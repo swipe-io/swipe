@@ -12,15 +12,11 @@ func init() {
 	swipe.RegisterPlugin(&Plugin{})
 }
 
-type StringValue struct {
-	Value string
-}
-
 type Environment struct {
 	StructType *option.NamedType
-	FuncName   *StringValue `swipe:"option"`
-	EnableDoc  *struct{}    `swipe:"option"`
-	OutputDoc  StringValue  `swipe:"option"`
+	FuncName   *option.StringValue `swipe:"option"`
+	EnableDoc  *struct{}           `swipe:"option"`
+	OutputDoc  option.StringValue  `swipe:"option"`
 }
 
 // Config
@@ -36,12 +32,12 @@ type Plugin struct {
 func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	funcName := defaultFuncName
 	if p.config.Environment.FuncName != nil {
-		funcName = p.config.Environment.FuncName.Value
+		funcName = p.config.Environment.FuncName.Take()
 	}
 	if p.config.Environment.EnableDoc != nil {
 		generators = append(generators, &MarkdownDocGenerator{
 			Struct: p.config.Environment.StructType,
-			Output: p.config.Environment.OutputDoc.Value,
+			Output: p.config.Environment.OutputDoc.Take(),
 		})
 	}
 	generators = append(generators, &Generator{
@@ -51,7 +47,7 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	return
 }
 
-func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *option.Build, options map[string]interface{}) []error {
+func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map[string]interface{}) []error {
 	if err := mapstructure.Decode(options, &p.config); err != nil {
 		return []error{err}
 	}

@@ -84,7 +84,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	g.w.W("for _, o := range options {\n o(opts)\n }\n")
 	if g.DefaultErrorEncoder != nil {
 		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(", kitHTTPPkg)
-		g.w.W(importer.TypeString(g.DefaultErrorEncoder))
+		g.w.W(swipe.TypeString(g.DefaultErrorEncoder, false, importer))
 		g.w.W("))\n")
 	} else {
 		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)
@@ -277,7 +277,12 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				m.Name,
 			)
 			if mopt.ServerDecodeRequest.Value != nil {
-				g.w.W(importer.TypeString(mopt.ServerDecodeRequest.Value))
+				pkg := importer.Import(mopt.ServerDecodeRequest.Value.Pkg.Name, mopt.ServerDecodeRequest.Value.Pkg.Path)
+				fnName := mopt.ServerDecodeRequest.Value.Name.String()
+				if pkg != "" {
+					fnName = pkg + "." + fnName
+				}
+				g.w.W(fnName)
 			} else {
 				g.w.W("func(ctx %s.Context, r *%s.Request) (_ interface{}, err error) {\n", contextPkg, httpPkg)
 
@@ -392,7 +397,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 									g.w.W("return nil, err\n")
 								})
 								for _, p := range paramVars {
-									if isFileType(p.Type, importer) {
+									if isFileUploadType(p.Type, importer) {
 										osPkg := importer.Import("os", "os")
 
 										if g.UseFast {
@@ -442,24 +447,25 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			g.w.W(",\n")
 
 			if mopt.ServerEncodeResponse.Value != nil {
-				g.w.W(importer.TypeString(mopt.ServerEncodeResponse.Value))
+				pkg := importer.Import(mopt.ServerEncodeResponse.Value.Pkg.Name, mopt.ServerEncodeResponse.Value.Pkg.Path)
+				fnName := mopt.ServerEncodeResponse.Value.Name.String()
+				if pkg != "" {
+					fnName = pkg + "." + fnName
+				}
+				g.w.W(fnName)
 			} else {
-				if g.JSONRPCEnable {
-					g.w.W("encodeResponseJSONRPC")
-				} else {
-					if mopt.RESTWrapResponse.Take() != "" {
-						var responseWriterType string
-						if g.UseFast {
-							responseWriterType = fmt.Sprintf("*%s.Response", httpPkg)
-						} else {
-							responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
-						}
-						g.w.W("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
-						g.w.W("return encodeResponseHTTP(ctx, w, %s)\n", wrapDataServer(stdstrings.Split(mopt.RESTWrapResponse.Take(), ".")))
-						g.w.W("}")
+				if mopt.RESTWrapResponse.Take() != "" {
+					var responseWriterType string
+					if g.UseFast {
+						responseWriterType = fmt.Sprintf("*%s.Response", httpPkg)
 					} else {
-						g.w.W("encodeResponseHTTP")
+						responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
 					}
+					g.w.W("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
+					g.w.W("return encodeResponseHTTP(ctx, w, %s)\n", wrapDataServer(stdstrings.Split(mopt.RESTWrapResponse.Take(), ".")))
+					g.w.W("}")
+				} else {
+					g.w.W("encodeResponseHTTP")
 				}
 			}
 			g.w.W(",\n")
@@ -502,10 +508,16 @@ func (g *RESTServerGenerator) writeEncodeResponseFunc(contextPkg, httpPkg, jsonP
 	g.w.W("contentType := \"application/json; charset=utf-8\"\n")
 	g.w.W("statusCode := 200\n")
 	g.w.W("var data []byte\n")
+
 	g.w.W("if response != nil {\n")
+	g.w.W("if download, ok := response.(downloader); ok {\n")
+	g.w.W("contentType = download.ContentType()\n")
+	g.w.W("data = download.Data()\n")
+	g.w.W("} else {\n")
 	g.w.W("data, err = %s.Marshal(response)\n", jsonPkg)
 	g.w.W("if err != nil {\n")
 	g.w.W("return err\n")
+	g.w.W("}\n")
 	g.w.W("}\n")
 	g.w.W("} else {\n")
 	g.w.W("contentType = \"text/plain; charset=utf-8\"\n")

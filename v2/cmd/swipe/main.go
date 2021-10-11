@@ -166,7 +166,7 @@ func (cmd *genCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfa
 		w.W("package %s\n\n", pkgName)
 
 		w.W("// A Option is an option for a Swipe.\ntype Option string\n\n")
-		w.W("// Build the basic option for defining the generation.\nfunc Build(Option) {}\n\n")
+		w.W("// Inject the basic option for defining the generation.\nfunc Inject(Option) {}\n\n")
 
 		for _, name := range processorFactory.Names() {
 			f, ok := processorFactory.GetOptGen(name)

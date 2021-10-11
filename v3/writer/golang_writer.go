@@ -255,7 +255,7 @@ func (w *GoWriter) WriteConvertType(
 			if v, ok := t.Value.(*option.BasicType); ok {
 				tmpID = "parts" + f.Name.Lower()
 				w.W("%s := %s.Split(%s, \",\")\n", tmpID, stringsPkg, valueId)
-				w.W("%s = make(%s, len(%s))\n", assignId, importer.TypeString(t), tmpID)
+				w.W("%s = make(%s, len(%s))\n", assignId, swipe.TypeString(t, false, importer), tmpID)
 				if v.IsNumeric() {
 					w.W("for _, s := range %s {\n", tmpID)
 					w.W("kv := %s.Split(s, \"=\")\n", stringsPkg)

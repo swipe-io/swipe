@@ -56,7 +56,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 
 			if len(mopt.LoggingContext) > 0 {
 				for _, lc := range mopt.LoggingContext {
-					logParams = append(logParams, strconv.Quote(lc.Name), "ctx.Value("+importer.TypeString(lc.Key)+")")
+					logParams = append(logParams, strconv.Quote(lc.Name), "ctx.Value("+swipe.TypeString(lc.Key, false, importer)+")")
 				}
 			}
 
@@ -67,7 +67,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 				if param.IsVariadic {
 					prefix = "..."
 				}
-				params = append(params, prefix+importer.TypeString(param))
+				params = append(params, prefix+swipe.TypeString(param, false, importer))
 			}
 
 			for _, result := range m.Sig.Results {
@@ -75,11 +75,12 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 					logParams = append(logParams, strconv.Quote("err"), result.Name.Value)
 					continue
 				}
-				logParams = append(logParams, strconv.Quote(result.Name.Value), result.Name.Value)
-				results = append(results, result.Name.Value, importer.TypeString(result))
+
+				logParams = append(logParams, makeLogParam(result.Name.Value, result.Type)...)
+				results = append(results, result.Name.Value, swipe.TypeString(result, false, importer))
 			}
 
-			g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, importer.TypeString(m.Sig))
+			g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 
 			if mopt.Logging.Take() && len(logParams) > 0 {
 				methodName := iface.Named.Name.Lower() + "." + m.Name.Value

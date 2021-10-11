@@ -8,7 +8,7 @@ import (
 
 type Plugin interface {
 	ID() string
-	Configure(cfg *Config, module *option.Module, build *option.Build, options map[string]interface{}) []error
+	Configure(cfg *Config, module *option.Module, options map[string]interface{}) []error
 	Generators() ([]Generator, []error)
 	Options() []byte
 }

@@ -23,7 +23,7 @@ func (e *warnError) Error() string {
 
 type PluginConfig struct {
 	Plugin Plugin
-	Build  *option.Build
+	Build  *option.Inject
 	Module *option.Module
 }
 
@@ -53,9 +53,9 @@ func GetConfig(loader *ast.Loader) (*Config, error) {
 	return &cfg, nil
 }
 
-func (c *Config) WalkBuilds(fn func(module *option.Module, build *option.Build) bool) {
+func (c *Config) WalkBuilds(fn func(module *option.Module, build *option.Inject) bool) {
 	for _, module := range c.Modules {
-		for _, build := range module.Builds {
+		for _, build := range module.Injects {
 			if !fn(module, build) {
 				break
 			}
@@ -66,7 +66,7 @@ func (c *Config) WalkBuilds(fn func(module *option.Module, build *option.Build) 
 func (c *Config) Load() (err error) {
 	optionPkgs := map[string]string{}
 	for _, plugin := range registeredPlugins {
-		optionPkgs["swipe"+strings.ToLower(plugin.ID())] = plugin.ID()
+		optionPkgs[strings.ToLower(plugin.ID())] = plugin.ID()
 	}
 	c.Modules, err = option.Decode(optionPkgs, c.Module, c.Packages, c.CommentFuncs)
 	return
@@ -75,7 +75,7 @@ func (c *Config) Load() (err error) {
 func Options() (data map[string][]byte) {
 	data = map[string][]byte{}
 	for _, plugin := range registeredPlugins {
-		name := "swipe" + strings.ToLower(plugin.ID())
+		name := strings.ToLower(plugin.ID())
 		data[name] = append(data[name], plugin.Options()...)
 	}
 	return

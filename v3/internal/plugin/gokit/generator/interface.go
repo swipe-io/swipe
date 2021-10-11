@@ -17,6 +17,8 @@ type InterfaceGenerator struct {
 func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
+	g.w.W("type downloader interface {\nName() string\nContentType() string\nData() []byte\n}\n\n")
+
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		ifaceTypeName := NameInterface(iface)
@@ -24,7 +26,7 @@ func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("type %s interface {\n", ifaceTypeName)
 		for _, m := range ifaceType.Methods {
 			g.w.W(m.Name.Value)
-			g.w.W(importer.TypeString(m.Sig))
+			g.w.W(swipe.TypeString(m.Sig, false, importer))
 			g.w.W("\n")
 		}
 		g.w.W("}\n")

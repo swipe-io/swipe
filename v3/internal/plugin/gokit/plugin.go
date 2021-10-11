@@ -29,7 +29,7 @@ func (p *Plugin) ID() string {
 	return "Gokit"
 }
 
-func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *option.Build, options map[string]interface{}) []error {
+func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map[string]interface{}) []error {
 	p.config = config.Config{}
 	if err := mapstructure.Decode(options, &p.config); err != nil {
 		return []error{err}
@@ -42,8 +42,11 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 	p.config.AppName = strcase.ToCamel(appName)
 
 	funcDeclTypes := makeFuncDeclTypes(cfg.Packages)
+	funcDeclIfaceTypes := makeFuncIfaceDeclTypes(cfg.Packages, funcDeclTypes)
 
-	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, cfg.Packages, p.config.Interfaces)
+	funcErrors := findErrors(cfg.Module.Path, funcDeclTypes, cfg.Packages)
+
+	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, funcDeclIfaceTypes, funcErrors, cfg.Packages, p.config.Interfaces)
 	p.config.MethodOptionsMap = map[string]config.MethodDefaultOption{}
 
 	for _, methodOption := range p.config.MethodOptions {
@@ -108,29 +111,6 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, build *opti
 	}
 	p.config.HasExternal = hasExternal
 	return errs
-}
-
-func (p *Plugin) checkExternalPackage(cfg *swipe.Config) (errs []error, hasExternal bool) {
-
-	for _, iface := range p.config.Interfaces {
-		if iface.Named.Pkg.Module == nil {
-			errs = append(errs, errors.New("not add package for "+iface.Named.Pkg.Path+"."+iface.Named.Name.Value))
-			continue
-		}
-		if iface.Gateway != nil {
-			hasExternal = true
-		}
-	}
-	return
-}
-
-func (p *Plugin) validateConfig() (errs []error) {
-	for _, iface := range p.config.Interfaces {
-		if _, ok := iface.Named.Type.(*option.IfaceType); !ok {
-			errs = append(errs, fmt.Errorf("type is not an interface"))
-		}
-	}
-	return
 }
 
 func (p *Plugin) Options() []byte {
@@ -250,6 +230,29 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 				UseFast:       useFast,
 				MethodOptions: p.config.MethodOptionsMap,
 			})
+		}
+	}
+	return
+}
+
+func (p *Plugin) checkExternalPackage(cfg *swipe.Config) (errs []error, hasExternal bool) {
+
+	for _, iface := range p.config.Interfaces {
+		if iface.Named.Pkg.Module == nil {
+			errs = append(errs, errors.New("not add package for "+iface.Named.Pkg.Path+"."+iface.Named.Name.Value))
+			continue
+		}
+		if iface.Gateway != nil {
+			hasExternal = true
+		}
+	}
+	return
+}
+
+func (p *Plugin) validateConfig() (errs []error) {
+	for _, iface := range p.config.Interfaces {
+		if _, ok := iface.Named.Type.(*option.IfaceType); !ok {
+			errs = append(errs, fmt.Errorf("type is not an interface"))
 		}
 	}
 	return

@@ -232,6 +232,15 @@ func Error(vars option.VarsType) *option.VarType {
 	return nil
 }
 
+func DownloadFile(vars option.VarsType) *option.VarType {
+	for _, v := range vars {
+		if isFileDownloadType(v.Type) {
+			return v
+		}
+	}
+	return nil
+}
+
 func Contexts(vars option.VarsType) (result []*option.VarType) {
 	for _, v := range vars {
 		if IsContext(v) {
@@ -284,6 +293,9 @@ func makeLogParam(name string, t interface{}) []string {
 	default:
 		return []string{quoteName, name}
 	case *option.NamedType:
+		if isFileDownloadType(t) {
+			return []string{quoteName, "len(" + name + ".Data())"}
+		}
 		if hasMethodString(t) {
 			return []string{quoteName, name + ".String()"}
 		}
@@ -680,12 +692,12 @@ func fillType(i interface{}, visited map[string]*option.NamedType) {
 	}
 }
 
-func isFileType(i interface{}, importer swipe.Importer) bool {
+func isFileUploadType(i interface{}, importer swipe.Importer) bool {
 	if n, ok := i.(*option.NamedType); ok {
 		if iface, ok := n.Type.(*option.IfaceType); ok {
 			var done int
 			for _, method := range iface.Methods {
-				sigStr := importer.TypeSigString(method)
+				sigStr := swipe.TypeStringWithoutImport(method, true)
 				switch sigStr {
 				case "Close() (error)", "Name() (string)", "Read([]byte) (int, error)":
 					done++
@@ -694,6 +706,23 @@ func isFileType(i interface{}, importer swipe.Importer) bool {
 			if done == 3 {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func isFileDownloadType(i interface{}) bool {
+	if n, ok := i.(*option.NamedType); ok {
+		var done int
+		for _, method := range n.Methods {
+			sigStr := swipe.TypeStringWithoutImport(method, true)
+			switch sigStr {
+			case "ContentType() (string)", "Name() (string)", "Data() ([]byte)":
+				done++
+			}
+		}
+		if done == 3 {
+			return true
 		}
 	}
 	return false

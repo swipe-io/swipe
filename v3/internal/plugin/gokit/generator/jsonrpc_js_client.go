@@ -68,15 +68,26 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 						}
 					}
 					if m.Sig.IsNamed {
-						results = append(results, fmt.Sprintf("%s: ", p.Name))
+						results = append(results, fmt.Sprintf("%s: %s", p.Name, jsDocType(p.Type)))
+					} else {
+						mw.W(jsDocType(p.Type))
 					}
-					mw.W(jsDocType(p.Type))
 				}
 				if m.Sig.IsNamed {
 					mw.W("{%s}", strings.Join(results, ","))
 				}
 				mw.W(">}\n")
+			}
 
+			ifaceErrors := g.IfaceErrors[iface.Named.Name.Value]
+			methodErrors := ifaceErrors[m.Name.Value]
+
+			httpErrorsDub := map[int64]struct{}{}
+			for _, e := range methodErrors {
+				if _, ok := httpErrorsDub[e.Code]; !ok {
+					httpErrorsDub[e.Code] = struct{}{}
+					mw.W("* @throws {%s}\n", e.Name)
+				}
 			}
 
 			mw.W("**/\n")
@@ -139,12 +150,9 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 	}
 
 	httpErrorsDub := map[string]struct{}{}
-
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-
 		ifaceErrors := g.IfaceErrors[iface.Named.Name.Value]
-
 		for _, method := range ifaceType.Methods {
 			methodErrors := ifaceErrors[method.Name.Value]
 			for _, e := range methodErrors {

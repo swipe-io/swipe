@@ -152,7 +152,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 					responseVarName = "_"
 				}
 
-				g.w.W("func (c *%s) %s %s {\n", clientType, m.Name.Value, importer.TypeString(m.Sig))
+				g.w.W("func (c *%s) %s %s {\n", clientType, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 				if responseVarName != "_" {
 					g.w.W("var %s interface{}\n", responseVarName)
 				}
@@ -184,7 +184,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 							continue
 						}
 						if lenResults == 1 {
-							g.w.W("%s = %s.(%s)\n", result.Name.Value, responseVarName, importer.TypeString(result.Type))
+							g.w.W("%s = %s.(%s)\n", result.Name.Value, responseVarName, swipe.TypeString(result.Type, false, importer))
 						} else {
 							g.w.W("%s = %s.(%s).%s\n", result.Name.Value, responseVarName, NameResponse(m, iface), result.Name.Upper())
 						}
