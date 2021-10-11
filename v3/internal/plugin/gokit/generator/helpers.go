@@ -144,7 +144,13 @@ func (g *Helpers) Generate(ctx context.Context) []byte {
 				g.w.W("switch code {\n")
 				g.w.W("default:\nerr = &httpError{code: code}\n")
 				if g.JSONRPCEnable {
+					errorsDub := map[int64]struct{}{}
 					for _, e := range methodErrors {
+						if _, ok := errorsDub[e.Code]; ok {
+							continue
+						}
+						errorsDub[e.Code] = struct{}{}
+
 						g.w.W("case %d:\n", e.Code)
 						pkgName := importer.Import(e.PkgName, e.PkgPath)
 						if pkgName != "" {
