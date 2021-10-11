@@ -496,24 +496,8 @@ func jsTypeDef(i interface{}) string {
 func jsTypeDefRecursive(i interface{}, nested int, visited map[string]struct{}) string {
 	switch t := i.(type) {
 	case *option.NamedType:
-
 		if st, ok := t.Type.(*option.SliceType); ok {
-
 			return jsTypeDefRecursive(st.Value, nested, visited)
-
-			//result += "/**\n"
-			//result += "* @typedef "
-			//
-			//result += "**/\n"
-			//return result
-			//
-			//	out := jsTypeDefRecursive(st.Value, nested, visited)
-			//	out += "\n\n/**\n"
-			//	out += "* @typedef "
-			//	out += "{Array<>} " + t.Name.Value + "\n"
-			//	out += "**/\n"
-			//	return out
-			//result += jsDocType(st) + " " + t.Name.Value + "\n"
 		} else {
 			result := "/**\n"
 			result += "* @typedef "
@@ -541,9 +525,6 @@ func jsTypeDefRecursive(i interface{}, nested int, visited map[string]struct{}) 
 			result += "**/\n"
 			return result
 		}
-
-	//case *option.SliceType:
-	//	return jsDocType(t)
 	case *option.StructType:
 		out := ""
 		for _, f := range t.Fields {
@@ -649,7 +630,7 @@ func docMethodName(iface *config.Interface, method *option.FuncType) string {
 }
 
 func jsErrorName(iface *config.Interface, e config.Error) (errorName string) {
-	return UcNameWithAppPrefix(iface) + singular(e.Name)
+	return UcNameWithAppPrefix(iface) + singular(e.Name) + "Exception"
 }
 
 func singular(word string) string {
@@ -842,4 +823,24 @@ func makeOpenapiSchemaJRPCError(code int64) *openapi.Schema {
 			},
 		},
 	}
+}
+
+func extractNamed(i interface{}) (result []*option.NamedType) {
+	switch t := i.(type) {
+	case *option.NamedType:
+		switch nt := t.Type.(type) {
+		case *option.StructType:
+			for _, field := range nt.Fields {
+				result = append(result, extractNamed(field.Var.Type)...)
+			}
+		}
+		result = append(result, t)
+	case *option.MapType:
+		result = append(result, extractNamed(t.Value)...)
+	case *option.ArrayType:
+		result = append(result, extractNamed(t.Value)...)
+	case *option.SliceType:
+		result = append(result, extractNamed(t.Value)...)
+	}
+	return
 }
