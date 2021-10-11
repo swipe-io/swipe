@@ -146,7 +146,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("| Field | Type | Description |\n|------|------|------|\n")
 		for _, f := range st.Fields {
 			if tag, err := f.Tags.Get("json"); err == nil {
-				if tag.Value() == "-" {
+				if tag.Name == "-" {
 					continue
 				}
 			}

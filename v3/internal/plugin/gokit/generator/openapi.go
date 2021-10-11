@@ -262,7 +262,7 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 		for _, field := range t.Fields {
 			name := field.Var.Name.Value
 			if tag, err := field.Tags.Get("json"); err == nil {
-				name = tag.Value()
+				name = tag.Name
 			}
 			if name == "-" {
 				continue

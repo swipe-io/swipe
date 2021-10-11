@@ -95,7 +95,7 @@ func (v *openapiDefVisitor) VisitStruct(t *stdtypes.Struct, nested int) {
 		name := f.Name()
 		if tags, err := structtag.Parse(t.Tag(i)); err == nil {
 			if tag, err := tags.Get("json"); err == nil {
-				name = tag.Value()
+				name = tag.Name
 			}
 		}
 		if name == "-" {
