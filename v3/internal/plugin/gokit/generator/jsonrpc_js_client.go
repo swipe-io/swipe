@@ -82,10 +82,10 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			ifaceErrors := g.IfaceErrors[iface.Named.Name.Value]
 			methodErrors := ifaceErrors[m.Name.Value]
 
-			httpErrorsDub := map[int64]struct{}{}
+			errorsDub := map[int64]struct{}{}
 			for _, e := range methodErrors {
-				if _, ok := httpErrorsDub[e.Code]; !ok {
-					httpErrorsDub[e.Code] = struct{}{}
+				if _, ok := errorsDub[e.Code]; !ok {
+					errorsDub[e.Code] = struct{}{}
 					mw.W("* @throws {%s}\n", e.Name)
 				}
 			}
@@ -149,17 +149,17 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("export default JSONRPCClient%s\n\n", UcNameJS(g.Interfaces[0]))
 	}
 
-	httpErrorsDub := map[string]struct{}{}
+	errorsDub := map[int64]struct{}{}
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		ifaceErrors := g.IfaceErrors[iface.Named.Name.Value]
 		for _, method := range ifaceType.Methods {
 			methodErrors := ifaceErrors[method.Name.Value]
 			for _, e := range methodErrors {
-				if _, ok := httpErrorsDub[e.Name]; ok {
+				if _, ok := errorsDub[e.Code]; ok {
 					continue
 				}
-				httpErrorsDub[e.Name] = struct{}{}
+				errorsDub[e.Code] = struct{}{}
 				g.w.W(
 					"export class %[1]s extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]s\", %[2]d, data);\n}\n}\n",
 					e.Name, e.Code,
@@ -178,7 +178,14 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("switch(e.code) {\n")
 			g.w.W("default:\n")
 			g.w.W("return new JSONRPCError(\"%s: \"+e.message, \"UnknownError\", e.code, e.data);\n", LcNameIfaceMethod(iface, method))
+
+			errorsDub := map[int64]struct{}{}
 			for _, e := range methodErrors {
+				if _, ok := errorsDub[e.Code]; ok {
+					continue
+				}
+				errorsDub[e.Code] = struct{}{}
+
 				g.w.W("case %d:\n", e.Code)
 				g.w.W("return new %s(e.message, e.data);\n", e.Name)
 			}
