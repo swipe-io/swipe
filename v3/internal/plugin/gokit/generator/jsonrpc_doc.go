@@ -31,7 +31,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("## API\n## Methods\n\n")
 	}
 
-	visitedTypes := map[string]*option.NamedType{}
+	defTypes := map[string]*option.NamedType{}
 	responseTypes := map[string]option.VarsType{}
 
 	for _, iface := range g.Interfaces {
@@ -54,7 +54,13 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 				if IsContext(p) {
 					continue
 				}
-				fillType(p.Type, visitedTypes)
+				nameds := extractNamed(p.Type)
+				for _, named := range nameds {
+					if _, ok := defTypes[named.ID()]; ok {
+						continue
+					}
+					defTypes[named.ID()] = named
+				}
 				if p.IsVariadic {
 					g.w.W(", ...%s", p.Name.Value)
 				} else {
@@ -72,7 +78,13 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("<code>void</code>")
 			} else if resultRen > 0 {
 				if resultRen == 1 {
-					fillType(m.Sig.Results[0].Type, visitedTypes)
+					nameds := extractNamed(m.Sig.Results[0].Type)
+					for _, named := range nameds {
+						if _, ok := defTypes[named.ID()]; ok {
+							continue
+						}
+						defTypes[named.ID()] = named
+					}
 					g.w.W("<code>%s</code>", jsDocType(m.Sig.Results[0].Type))
 				} else if resultRen > 1 {
 					responseName := m.Name.Value + "Response"
@@ -85,7 +97,13 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 						if IsError(p) {
 							continue
 						}
-						fillType(p.Type, visitedTypes)
+						nameds := extractNamed(p.Type)
+						for _, named := range nameds {
+							if _, ok := defTypes[named.ID()]; ok {
+								continue
+							}
+							defTypes[named.ID()] = named
+						}
 					}
 				}
 			}
@@ -123,7 +141,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 
 	g.w.W("\n")
 
-	if len(visitedTypes) > 0 || len(responseTypes) > 0 {
+	if len(defTypes) > 0 || len(responseTypes) > 0 {
 		g.w.W("## Members\n\n")
 	}
 
@@ -140,8 +158,11 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 
 	g.w.W("\n")
 
-	for _, named := range visitedTypes {
-		st := named.Type.(*option.StructType)
+	for _, named := range defTypes {
+		st, ok := named.Type.(*option.StructType)
+		if !ok {
+			continue
+		}
 		g.w.W("### %s\n\n", named.Name)
 		g.w.W("| Field | Type | Description |\n|------|------|------|\n")
 		for _, f := range st.Fields {
