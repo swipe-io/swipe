@@ -20,7 +20,7 @@ type Generator struct {
 func (g *Generator) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	typeName := importer.TypeString(g.Struct)
+	typeName := swipe.TypeString(g.Struct, false, importer)
 
 	g.w.W("func %s() (cfg *%s, errs []error) {\n", g.FuncName, typeName)
 	g.w.W("cfg = &%s{}\n", typeName)

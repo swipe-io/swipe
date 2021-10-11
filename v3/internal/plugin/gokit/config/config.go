@@ -11,94 +11,29 @@ const (
 	JRPCErrorType ErrorType = "jrpc"
 )
 
-type Error struct {
-	PkgName   string
-	PkgPath   string
-	IsPointer bool
-	Name      string
-	Type      ErrorType
-	Code      int64
-}
-
 type FuncTypeValue struct {
 	Value *option.FuncType
 }
 
-type SliceStringValue struct {
-	Value []string
-}
-
-type StringValue struct {
-	Value *string
-}
-
-func (v StringValue) IsValid() bool {
-	return v.Value != nil
-}
-
-func (v StringValue) Take() string {
-	if v.Value == nil {
-		return ""
-	}
-	return *v.Value
-}
-
-type IntValue struct {
-	Value *int
-}
-
-func (v IntValue) IsValid() bool {
-	return v.Value != nil
-}
-
-func (v IntValue) Take() int {
-	if v.Value == nil {
-		return 0
-	}
-	return *v.Value
-}
-
-type Int64Value struct {
-	Value *int64
-}
-
-func (v Int64Value) IsValid() bool {
-	return v.Value != nil
-}
-
-func (v Int64Value) Take() int64 {
-	if v.Value == nil {
-		return 0
-	}
-	return *v.Value
-}
-
-type BoolValue struct {
-	Value *bool
-}
-
-func (v BoolValue) IsValid() bool {
-	return v.Value != nil
-}
-
-func (v BoolValue) Take() bool {
-	if v.Value == nil {
-		return false
-	}
-	return *v.Value
+type Error struct {
+	PkgName string
+	PkgPath string
+	Name    string
+	Type    ErrorType
+	Code    int64
 }
 
 type ExternalInterface struct {
 	Iface  *Interface
 	Config *Config
-	Build  *option.Build
+	Build  *option.Inject
 }
 
 type Interface struct {
 	Named      *option.NamedType `mapstructure:"iface"`
 	Namespace  string            `mapstructure:"ns"`
-	ClientName StringValue       `swipe:"option"`
-	Gateway    *struct{}         `swipe:"option"`
+	ClientName option.StringValue
+	Gateway    *struct{} `swipe:"option"`
 }
 
 type OpenapiTag struct {
@@ -122,24 +57,24 @@ type RESTMultipart struct {
 
 type Aggregate struct {
 	Method  *option.NamedType
-	Params  SliceStringValue `swipe:"option"`
-	Results SliceStringValue `swipe:"option"`
+	Params  option.SliceStringValue `swipe:"option"`
+	Results option.SliceStringValue `swipe:"option"`
 }
 
 type MethodDefaultOption struct {
-	Instrumenting          BoolValue         `swipe:"option"`
-	Logging                BoolValue         `swipe:"option"`
-	LoggingParams          LoggingParams     `swipe:"option"`
-	LoggingContext         []LoggingContext  `swipe:"option"`
-	RESTMethod             StringValue       `swipe:"option"`
-	RESTWrapResponse       StringValue       `swipe:"option"`
-	RESTPath               StringValue       `swipe:"option"`
-	RESTMultipartMaxMemory Int64Value        `swipe:"option"`
-	RESTHeaderVars         SliceStringValue  `swipe:"option"`
-	RESTQueryVars          SliceStringValue  `swipe:"option"`
-	RESTQueryValues        SliceStringValue  `swipe:"option"`
-	RESTPathVars           map[string]string `swipe:"option"`
-	RESTBodyType           StringValue       `swipe:"option"`
+	Instrumenting          option.BoolValue        `swipe:"option"`
+	Logging                option.BoolValue        `swipe:"option"`
+	LoggingParams          LoggingParams           `swipe:"option"`
+	LoggingContext         []LoggingContext        `swipe:"option"`
+	RESTMethod             option.StringValue      `swipe:"option"`
+	RESTWrapResponse       option.StringValue      `swipe:"option"`
+	RESTPath               option.StringValue      `swipe:"option"`
+	RESTMultipartMaxMemory option.Int64Value       `swipe:"option"`
+	RESTHeaderVars         option.SliceStringValue `swipe:"option"`
+	RESTQueryVars          option.SliceStringValue `swipe:"option"`
+	RESTQueryValues        option.SliceStringValue `swipe:"option"`
+	RESTPathVars           map[string]string       `swipe:"option"`
+	RESTBodyType           option.StringValue      `swipe:"option"`
 	//Aggregate              []Aggregate       `swipe:"option"`
 	ServerEncodeResponse FuncTypeValue `swipe:"option"`
 	ServerDecodeRequest  FuncTypeValue `swipe:"option"`
@@ -196,13 +131,13 @@ type Config struct {
 	HTTPFast             *struct{}
 	ClientsEnable        ClientsEnable
 	JSONRPCEnable        *struct{}
-	JSONRPCPath          StringValue
+	JSONRPCPath          option.StringValue
 	JSONRPCDocEnable     *struct{}
-	JSONRPCDocOutput     StringValue
+	JSONRPCDocOutput     option.StringValue
 	Interfaces           []*Interface `mapstructure:"Interface"`
 	OpenapiEnable        *struct{}
 	OpenapiTags          []OpenapiTag
-	OpenapiOutput        StringValue
+	OpenapiOutput        option.StringValue
 	OpenapiInfo          OpenapiInfo
 	OpenapiContact       OpenapiContact
 	OpenapiLicence       OpenapiLicence

@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
-type Build struct {
+type Inject struct {
 	Pkg      *PackageType
 	BasePath string
 	Option   map[string]interface{}
@@ -25,7 +25,7 @@ type Build struct {
 type Module struct {
 	Path     string
 	External bool
-	Builds   []*Build
+	Injects  []*Inject
 }
 
 type Result struct {
@@ -472,7 +472,7 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 					return nil, err
 				}
 
-				build := &Build{
+				build := &Inject{
 					Pkg: &PackageType{
 						Name:  pkg.Name,
 						Path:  pkg.PkgPath,
@@ -483,7 +483,7 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 						buildName: option,
 					},
 				}
-				result[pkg.Module.Path].Builds = append(result[pkg.Module.Path].Builds, build)
+				result[pkg.Module.Path].Injects = append(result[pkg.Module.Path].Injects, build)
 			}
 		}
 	}

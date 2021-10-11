@@ -378,13 +378,18 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 			if IsError(r) {
 				continue
 			}
+			if isFileDownloadType(r.Type) {
+				continue
+			}
 			g.fillTypeDef(r.Type)
 			schema := g.schemaByType(r.Type)
 			responseSchema.Properties[r.Name.Lower()] = schema
 		}
 	} else if lenResults == 1 {
-		g.fillTypeDef(m.Sig.Results[0].Type)
-		responseSchema = g.schemaByType(m.Sig.Results[0].Type)
+		if !isFileDownloadType(m.Sig.Results[0].Type) {
+			g.fillTypeDef(m.Sig.Results[0].Type)
+			responseSchema = g.schemaByType(m.Sig.Results[0].Type)
+		}
 	} else {
 		responseSchema.Example = json.RawMessage("null")
 	}
@@ -564,12 +569,22 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodDefaultOpti
 			if IsError(r) {
 				continue
 			}
+			if isFileDownloadType(r.Type) {
+				responseSchema.Type = "string"
+				responseSchema.Format = "binary"
+				continue
+			}
 			g.fillTypeDef(r.Type)
 			responseSchema.Properties[r.Name.Lower()] = g.schemaByType(r.Type)
 		}
 	} else if lenResults == 1 {
-		g.fillTypeDef(m.Sig.Results[0].Type)
-		responseSchema = g.schemaByType(m.Sig.Results[0].Type)
+		if !isFileDownloadType(m.Sig.Results[0].Type) {
+			g.fillTypeDef(m.Sig.Results[0].Type)
+			responseSchema = g.schemaByType(m.Sig.Results[0].Type)
+		} else {
+			responseSchema.Type = "string"
+			responseSchema.Format = "binary"
+		}
 	}
 	if mopt.RESTWrapResponse.Take() != "" {
 		properties := openapi.Properties{}
@@ -587,14 +602,27 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodDefaultOpti
 			},
 		}
 	} else {
-		responses["200"] = &openapi.Response{
-			Description: "OK",
-			Content: openapi.Content{
-				"application/json": {
-					Schema: responseSchema,
+
+		if responseSchema.Type == "string" && responseSchema.Format == "binary" {
+			responses["200"] = &openapi.Response{
+				Description: "OK",
+				Content: openapi.Content{
+					"application/file": {
+						Schema: responseSchema,
+					},
 				},
-			},
+			}
+		} else {
+			responses["200"] = &openapi.Response{
+				Description: "OK",
+				Content: openapi.Content{
+					"application/json": {
+						Schema: responseSchema,
+					},
+				},
+			}
 		}
+
 	}
 
 	o := &openapi.Operation{

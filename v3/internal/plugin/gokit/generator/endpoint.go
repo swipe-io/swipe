@@ -35,7 +35,6 @@ func (g *Endpoint) Filename() string {
 func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-
 		for _, m := range ifaceType.Methods {
 			if len(m.Sig.Params) > 0 {
 				g.w.W("type %s struct {\n", NameRequest(m, iface))
@@ -43,19 +42,21 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 					if IsContext(param) {
 						continue
 					}
-					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), importer.TypeString(param.Type), param.Name)
+					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), swipe.TypeString(param.Type, false, importer), param.Name)
 				}
 				g.w.W("}\n")
 			}
-			if m.Sig.IsNamed && LenWithoutErrors(m.Sig.Results) > 0 {
-				g.w.W("type %s struct {\n", NameResponse(m, iface))
-				for _, param := range m.Sig.Results {
-					if IsError(param) {
-						continue
+			if DownloadFile(m.Sig.Results) == nil {
+				if m.Sig.IsNamed && LenWithoutErrors(m.Sig.Results) > 0 {
+					g.w.W("type %s struct {\n", NameResponse(m, iface))
+					for _, param := range m.Sig.Results {
+						if IsError(param) {
+							continue
+						}
+						g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), swipe.TypeString(param.Type, false, importer), param.Name)
 					}
-					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), importer.TypeString(param.Type), param.Name)
+					g.w.W("}\n")
 				}
-				g.w.W("}\n")
 			}
 		}
 	}

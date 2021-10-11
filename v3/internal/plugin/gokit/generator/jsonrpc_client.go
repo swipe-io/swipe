@@ -109,7 +109,7 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 				if m.Sig.IsNamed {
 					responseType = responseName
 				} else {
-					responseType = importer.TypeString(m.Sig.Results[0].Type)
+					responseType = swipe.TypeString(m.Sig.Results[0].Type, false, importer)
 				}
 				g.w.W("var resp %s\n", responseType)
 				g.w.W("err := %s.Unmarshal(response.Result, &resp)\n", ffJSONPkg)

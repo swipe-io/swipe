@@ -22,8 +22,6 @@ const (
 
 type Importer interface {
 	Import(name string, path string) string
-	TypeString(v interface{}) string
-	TypeSigString(v interface{}) string
 }
 
 type AstFinder interface {
@@ -39,21 +37,19 @@ type GenerateResult struct {
 
 func Generate(cfg *Config) (result []GenerateResult, errs []error) {
 	result = make([]GenerateResult, 0, 100)
-
 	importerMap := map[string]*importer.Importer{}
-
 	for _, module := range cfg.Modules {
 		if module.External {
 			continue
 		}
-		for _, build := range module.Builds {
+		for _, build := range module.Injects {
 			for id, options := range build.Option {
 				p, ok := registeredPlugins[id]
 				if !ok {
 					errs = append(errs, &warnError{Err: fmt.Errorf("plugin %q not found", id)})
 					continue
 				}
-				cfgErrs := p.Configure(cfg, module, build, options.(map[string]interface{}))
+				cfgErrs := p.Configure(cfg, module, options.(map[string]interface{}))
 				if len(cfgErrs) > 0 {
 					errs = append(errs, cfgErrs...)
 					continue

@@ -170,7 +170,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("u,\n")
 
 			if mopt.ClientEncodeRequest.Value != nil {
-				g.w.W(importer.TypeString(mopt.ClientEncodeRequest.Value))
+				g.w.W(swipe.TypeString(mopt.ClientEncodeRequest.Value, false, importer))
 			} else {
 				g.w.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
@@ -293,7 +293,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 							g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
 
 							for _, p := range paramVars {
-								if isFileType(p.Type, importer) {
+								if isFileUploadType(p.Type, importer) {
 									g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
 									g.w.WriteCheckErr("err", func() {
 										g.w.W("return err\n")
@@ -334,7 +334,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W(",\n")
 
 			if mopt.ClientDecodeResponse.Value != nil {
-				g.w.W(importer.TypeString(mopt.ClientDecodeResponse.Value))
+				g.w.W(swipe.TypeString(mopt.ClientDecodeResponse.Value, false, importer))
 			} else {
 				g.w.W("func(_ %s.Context, r *%s.Response) (interface{}, error) {\n", contextPkg, httpPkg)
 				statusCode := "r.StatusCode"
@@ -352,7 +352,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					if m.Sig.IsNamed {
 						responseType = NameResponse(m, iface)
 					} else {
-						responseType = importer.TypeString(m.Sig.Results[0].Type)
+						responseType = swipe.TypeString(m.Sig.Results[0].Type, false, importer)
 					}
 
 					var (

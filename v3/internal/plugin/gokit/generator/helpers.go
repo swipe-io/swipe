@@ -150,11 +150,8 @@ func (g *Helpers) Generate(ctx context.Context) []byte {
 						if pkgName != "" {
 							pkgName += "."
 						}
-						newPrefix := ""
-						if e.IsPointer {
-							newPrefix = "&"
-						}
-						g.w.W("err = %s%s%s{}\n", newPrefix, pkgName, e.Name)
+
+						g.w.W("err = &%s%s%s{}\n", pkgName, e.Name)
 					}
 				}
 				g.w.W("}\n")
