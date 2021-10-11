@@ -41,10 +41,10 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 				if IsContext(p) {
 					continue
 				}
-				if t, ok := p.Type.(*option.NamedType); ok {
-					key := t.ID()
-					if _, ok := defTypes[key]; !ok {
-						defTypes[key] = t
+				nameds := extractNamed(p.Type)
+				for _, named := range nameds {
+					if _, ok := defTypes[named.ID()]; !ok {
+						defTypes[named.ID()] = named
 					}
 				}
 				if p.IsVariadic {
@@ -61,10 +61,10 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 					if IsError(p) {
 						continue
 					}
-					if t, ok := p.Type.(*option.NamedType); ok {
-						key := t.ID()
-						if _, ok := defTypes[key]; !ok {
-							defTypes[key] = t
+					nameds := extractNamed(p.Type)
+					for _, named := range nameds {
+						if _, ok := defTypes[named.ID()]; !ok {
+							defTypes[named.ID()] = named
 						}
 					}
 					if m.Sig.IsNamed {
@@ -86,7 +86,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 			for _, e := range methodErrors {
 				if _, ok := errorsDub[e.Code]; !ok {
 					errorsDub[e.Code] = struct{}{}
-					mw.W("* @throws {%s}\n", e.Name)
+					mw.W("* @throws {%s}\n", jsErrorName(iface, e))
 				}
 			}
 
@@ -162,7 +162,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 				errorsDub[e.Code] = struct{}{}
 				g.w.W(
 					"export class %[1]s extends JSONRPCError {\nconstructor(message, data) {\nsuper(message, \"%[1]s\", %[2]d, data);\n}\n}\n",
-					e.Name, e.Code,
+					jsErrorName(iface, e), e.Code,
 				)
 			}
 		}
@@ -187,7 +187,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 				errorsDub[e.Code] = struct{}{}
 
 				g.w.W("case %d:\n", e.Code)
-				g.w.W("return new %s(e.message, e.data);\n", e.Name)
+				g.w.W("return new %s(e.message, e.data);\n", jsErrorName(iface, e))
 			}
 			g.w.W("}\n}\n")
 		}

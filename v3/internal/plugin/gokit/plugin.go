@@ -190,6 +190,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 					JSPkgImportPath: p.config.JSPkgImportPath,
 					Interfaces:      p.config.Interfaces,
 					IfaceErrors:     p.config.IfaceErrors,
+					Output:          p.config.JSONRPCDocOutput.Take(),
 				})
 			}
 

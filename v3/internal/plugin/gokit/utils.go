@@ -163,6 +163,9 @@ func findIfaceErrorsRecursive(pkgs *packages.Packages, funcDecl map[string]*type
 				selFun := extractSelector(call.Fun)
 				if selFun != nil {
 					sel := extractSelector(selFun.X)
+					if sel == nil {
+						sel = selFun
+					}
 					if obj := pkgs.ObjectOf(sel.Sel); obj != nil {
 						if named, ok := obj.Type().(*types.Named); ok {
 							if _, ok := named.Obj().Type().Underlying().(*types.Interface); ok {

@@ -14,6 +14,7 @@ type JSONRPCDocGenerator struct {
 	JSPkgImportPath string
 	Interfaces      []*config.Interface
 	IfaceErrors     map[string]map[string][]config.Error
+	Output          string
 }
 
 func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
@@ -97,9 +98,15 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			if len(errors) > 0 {
+				errorsDub := map[int64]struct{}{}
+
 				g.w.W("**Throws**:\n\n")
 				for _, e := range errors {
-					g.w.W("<code>%sException</code>\n\n", jsErrorName(iface, e))
+					if _, ok := errorsDub[e.Code]; ok {
+						continue
+					}
+					errorsDub[e.Code] = struct{}{}
+					g.w.W("<code>%s</code>\n\n", jsErrorName(iface, e))
 				}
 				g.w.W("\n\n")
 			}
@@ -135,7 +142,6 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 
 	for _, named := range visitedTypes {
 		st := named.Type.(*option.StructType)
-
 		g.w.W("### %s\n\n", named.Name)
 		g.w.W("| Field | Type | Description |\n|------|------|------|\n")
 		for _, f := range st.Fields {
@@ -152,7 +158,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 }
 
 func (g *JSONRPCDocGenerator) OutputDir() string {
-	return ""
+	return g.Output
 }
 
 func (g *JSONRPCDocGenerator) Filename() string {
