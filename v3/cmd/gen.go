@@ -57,6 +57,8 @@ var genCmd = &cobra.Command{
 		}
 		cmd.Printf("Packages: %s\n", strings.Join(packages, ", "))
 
+		packages = append(packages, filepath.Join(wd, "pkg", "swipe", "..."))
+
 		loader, errs := ast.NewLoader(wd, os.Environ(), packages)
 		if len(errs) > 0 {
 			for _, err := range errs {

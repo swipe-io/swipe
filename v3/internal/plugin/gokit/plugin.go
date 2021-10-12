@@ -48,6 +48,14 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, funcDeclIfaceTypes, funcErrors, cfg.Packages, p.config.Interfaces)
 	p.config.MethodOptionsMap = map[string]config.MethodDefaultOption{}
 
+	for _, methodOption := range p.config.MethodOptions {
+		if sig, ok := methodOption.Signature.Type.(*option.SignType); ok {
+			if recvNamed, ok := sig.Recv.(*option.NamedType); ok {
+				p.config.MethodOptionsMap[recvNamed.Name.Value+methodOption.Signature.Name.Value] = methodOption.MethodDefaultOption
+			}
+		}
+	}
+
 	for _, iface := range p.config.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
@@ -228,7 +236,6 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 }
 
 func (p *Plugin) checkExternalPackage() (errs []error, hasExternal bool) {
-
 	for _, iface := range p.config.Interfaces {
 		if iface.Named.Pkg.Module == nil {
 			errs = append(errs, errors.New("not add package for "+iface.Named.Pkg.Path+"."+iface.Named.Name.Value))
