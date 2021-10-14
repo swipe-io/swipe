@@ -1,7 +1,29 @@
 package option
 
+import "go/types"
+
 type SliceStringValue struct {
 	Value []string
+}
+
+type ExprStringValue struct {
+	Value interface{}
+}
+
+func (v ExprStringValue) IsValid() bool {
+	return v.Value != nil
+}
+
+func (v ExprStringValue) Take() string {
+	if v.Value == nil {
+		return ""
+	}
+	if named, ok := v.Value.(*NamedType); ok {
+		if c, ok := named.Obj.(*types.Const); ok {
+			return c.Val().String()
+		}
+	}
+	return ""
 }
 
 type StringValue struct {
