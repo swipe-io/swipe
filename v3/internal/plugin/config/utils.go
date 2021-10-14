@@ -40,30 +40,31 @@ func getFieldOpts(f *option.VarType, tags *structtag.Tags) (result fldOpts) {
 	result.fieldPath = f.Name.Value
 	result.t = f.Type
 
-	if tag, err := tags.Get("env"); err == nil {
-		for _, o := range tag.Options {
-			switch o {
-			case "use_zero":
-				result.useZero = true
-			case "required":
-				result.required = true
-			case "use_flag":
-				result.name = strcase.ToKebab(f.Name.Upper())
-				result.isFlag = true
-			default:
-				if stdstrings.HasPrefix(o, "desc:") {
-					descParts := stdstrings.Split(o, "desc:")
-					if len(descParts) == 2 {
-						result.desc = descParts[1]
+	if tags != nil {
+		if tag, err := tags.Get("env"); err == nil {
+			for _, o := range tag.Options {
+				switch o {
+				case "use_zero":
+					result.useZero = true
+				case "required":
+					result.required = true
+				case "use_flag":
+					result.name = strcase.ToKebab(f.Name.Upper())
+					result.isFlag = true
+				default:
+					if stdstrings.HasPrefix(o, "desc:") {
+						descParts := stdstrings.Split(o, "desc:")
+						if len(descParts) == 2 {
+							result.desc = descParts[1]
+						}
 					}
 				}
 			}
-		}
-		if tag.Name != "" {
-			result.name = tag.Name
+			if tag.Name != "" {
+				result.name = tag.Name
+			}
 		}
 	}
-
 	return
 }
 
