@@ -1,6 +1,9 @@
 package option
 
-import "go/types"
+import (
+	"go/types"
+	"strconv"
+)
 
 type SliceStringValue struct {
 	Value []string
@@ -18,9 +21,13 @@ func (v ExprStringValue) Take() string {
 	if v.Value == nil {
 		return ""
 	}
-	if named, ok := v.Value.(*NamedType); ok {
-		if c, ok := named.Obj.(*types.Const); ok {
-			return c.Val().String()
+	switch t := v.Value.(type) {
+	case string:
+		return t
+	case *NamedType:
+		if c, ok := t.Obj.(*types.Const); ok {
+			s, _ := strconv.Unquote(c.Val().String())
+			return s
 		}
 	}
 	return ""
