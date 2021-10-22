@@ -122,7 +122,11 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			}
 			g.w.W("}),\n")
 			g.w.W(")\n")
+
 			methodName := m.Name.Lower()
+			if iface.Namespace != "" {
+				methodName = iface.Namespace + "." + methodName
+			}
 
 			g.w.W("c.%sEndpoint = %s.NewClient(\n", LcNameIfaceMethod(iface, m), jsonrpcPkg)
 			g.w.W("u,\n")
