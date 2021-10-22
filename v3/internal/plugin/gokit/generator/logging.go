@@ -28,11 +28,12 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 		levelPkg := importer.Import("level", "github.com/go-kit/kit/log/level")
 
 		ifaceTypeName := NameInterface(iface)
-		name := NameLoggingMiddleware(iface)
-		constructName := fmt.Sprintf("NewLogging%sMiddleware", UcNameWithAppPrefix(iface))
+		middlewareNameType := NameLoggingMiddleware(iface)
+		middlewareFuncName := fmt.Sprintf("Logging%sMiddleware", UcNameWithAppPrefix(iface))
+		middlewareTypeName := IfaceMiddlewareTypeName(iface)
 
 		g.w.WriteTypeStruct(
-			name,
+			middlewareNameType,
 			[]string{
 				"next", ifaceTypeName,
 				"logger", loggerPkg + ".Logger",
@@ -80,7 +81,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 				results = append(results, result.Name.Value, swipe.TypeString(result, false, importer))
 			}
 
-			g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
+			g.w.W("func (s *%s) %s %s {\n", middlewareNameType, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 
 			if mopt.Logging.Take() && len(logParams) > 0 {
 				methodName := iface.Named.Name.Lower() + "." + m.Name.Value
@@ -132,7 +133,8 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 
 			g.w.W("}\n")
 		}
-		g.w.W("func %[1]s(s %[2]s, logger %[4]s.Logger) *%[3]s {\n return &%[3]s{next: s, logger: logger}\n}\n", constructName, ifaceTypeName, name, loggerPkg)
+
+		g.w.W("func %[1]s(logger %[4]s.Logger) %[5]s {\nreturn func(next %[2]s) %[2]s {\nreturn &%[3]s{\nnext: next,\nlogger: logger,\n}\n}\n}\n", middlewareFuncName, ifaceTypeName, middlewareNameType, loggerPkg, middlewareTypeName)
 	}
 	return g.w.Bytes()
 }

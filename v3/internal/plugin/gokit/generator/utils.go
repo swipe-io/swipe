@@ -174,7 +174,7 @@ func NameInterface(iface *config.Interface) string {
 }
 
 func NameLoggingMiddleware(iface *config.Interface) string {
-	return UcNameWithAppPrefix(iface) + "LoggingMiddleware"
+	return LcNameWithAppPrefix(iface) + "LoggingMiddleware"
 }
 
 func NameInstrumentingMiddleware(iface *config.Interface) string {
@@ -203,6 +203,10 @@ func LcNameIfaceMethod(iface *config.Interface, fn *option.FuncType) string {
 
 func ClientType(iface *config.Interface) string {
 	return UcNameWithAppPrefix(iface) + "Client"
+}
+
+func IfaceMiddlewareTypeName(iface *config.Interface) string {
+	return UcNameWithAppPrefix(iface) + "Middleware"
 }
 
 func IsContext(v *option.VarType) bool {
