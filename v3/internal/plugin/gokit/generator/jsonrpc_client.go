@@ -111,7 +111,7 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			if resultsLen > 0 {
 				var responseType string
 				responseName := NameResponse(m, iface)
-				if m.Sig.IsNamed {
+				if m.Sig.IsNamed && resultsLen > 1 {
 					responseType = responseName
 				} else {
 					responseType = swipe.TypeString(m.Sig.Results[0].Type, false, importer)
