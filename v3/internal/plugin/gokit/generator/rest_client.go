@@ -42,8 +42,12 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-		name := UcNameWithAppPrefix(iface)
 		clientType := ClientType(iface)
+
+		constructPostfix := UcNameWithAppPrefix(iface)
+		if len(g.Interfaces) == 1 {
+			constructPostfix = ""
+		}
 
 		if g.UseFast {
 			kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
@@ -56,7 +60,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			httpPkg = importer.Import("http", "net/http")
 		}
 
-		g.w.W("func NewClientREST%s(tgt string", name)
+		g.w.W("func NewClientREST%s(tgt string", constructPostfix)
 		g.w.W(" ,options ...ClientOption")
 		g.w.W(") (*%s, error) {\n", clientType)
 		g.w.W("opts := &clientOpts{}\n")
