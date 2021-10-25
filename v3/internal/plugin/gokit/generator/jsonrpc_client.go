@@ -35,7 +35,12 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 
 		clientType := ClientType(iface)
 
-		g.w.W("func NewClientJSONRPC%s(tgt string", UcNameWithAppPrefix(iface))
+		constructPostfix := UcNameWithAppPrefix(iface)
+		if len(g.Interfaces) == 1 {
+			constructPostfix = ""
+		}
+
+		g.w.W("func NewClientJSONRPC%s(tgt string", constructPostfix)
 		g.w.W(" ,options ...ClientOption")
 		g.w.W(") (*%s, error) {\n", clientType)
 		g.w.W("opts := &clientOpts{}\n")
