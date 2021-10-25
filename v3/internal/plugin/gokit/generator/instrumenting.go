@@ -45,19 +45,19 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 		for _, iface := range g.Interfaces {
 			ifaceType := iface.Named.Type.(*option.IfaceType)
 
-			ifaceName := NameInterface(iface)
-			name := NameInstrumentingMiddleware(iface)
+			ifaceTypeName := NameInterface(iface)
+			middlewareFuncName := fmt.Sprintf("Instrumenting%sMiddleware", UcNameWithAppPrefix(iface))
+			middlewareTypeName := IfaceMiddlewareTypeName(iface)
+			middlewareNameType := NameInstrumentingMiddleware(iface)
 
-			constructName := fmt.Sprintf("NewInstrumenting%sMiddleware", UcNameWithAppPrefix(iface))
-
-			g.w.W("type %s struct {\n", name)
-			g.w.W("next %s\n", ifaceName)
+			g.w.W("type %s struct {\n", middlewareNameType)
+			g.w.W("next %s\n", ifaceTypeName)
 			g.w.W("opts *instrumentingOpts\n")
 			g.w.W("}\n\n")
 
 			for _, m := range ifaceType.Methods {
 				mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
-				g.w.W("func (s *%s) %s %s {\n", name, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
+				g.w.W("func (s *%s) %s %s {\n", middlewareNameType, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 				if mopt.Instrumenting.Take() {
 					methodName := iface.Named.Name.Lower() + "." + m.Name.Value
 					g.w.WriteDefer(
@@ -105,8 +105,9 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 				g.w.W("}\n")
 			}
 
-			g.w.W("func %[1]s(s %[2]s, opts ...InstrumentingOption) *%[3]s {\n", constructName, ifaceName, name)
-			g.w.W("i := &%s{next: s, opts: &instrumentingOpts{}}\n", name)
+			g.w.W("func %[1]s(opts ...InstrumentingOption) %[3]s {\nreturn func(next %[2]s) %[2]s {\n", middlewareFuncName, ifaceTypeName, middlewareTypeName)
+
+			g.w.W("i := &%s{next: next, opts: &instrumentingOpts{}}\n", middlewareNameType)
 
 			g.w.W("for _, o := range opts {\no(i.opts)\n}\n")
 
@@ -128,7 +129,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 			g.w.W("}, []string{\"method\"})\n")
 			g.w.W("\n}\n")
 
-			g.w.W("return i\n}\n")
+			g.w.W("return i\n}\n}\n")
 		}
 	}
 
