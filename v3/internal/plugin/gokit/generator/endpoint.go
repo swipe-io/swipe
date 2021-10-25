@@ -47,7 +47,7 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 				g.w.W("}\n")
 			}
 			if DownloadFile(m.Sig.Results) == nil {
-				if m.Sig.IsNamed && LenWithoutErrors(m.Sig.Results) > 0 {
+				if m.Sig.IsNamed && LenWithoutErrors(m.Sig.Results) > 1 {
 					g.w.W("type %s struct {\n", NameResponse(m, iface))
 					for _, param := range m.Sig.Results {
 						if IsError(param) {
