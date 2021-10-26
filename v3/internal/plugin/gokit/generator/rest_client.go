@@ -349,11 +349,10 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("return nil, %sErrorDecode(%s)\n", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
 				g.w.W("}\n")
 
-				resultLen := LenWithoutErrors(m.Sig.Results)
-
-				if resultLen > 0 {
+				resultsLen := LenWithoutErrors(m.Sig.Results)
+				if resultsLen > 0 {
 					var responseType string
-					if m.Sig.IsNamed {
+					if m.Sig.IsNamed && resultsLen > 1 {
 						responseType = NameResponse(m, iface)
 					} else {
 						responseType = swipe.TypeString(m.Sig.Results[0].Type, false, importer)
