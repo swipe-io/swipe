@@ -63,12 +63,21 @@ var optionsCmd = &cobra.Command{
 			}
 		}
 
-		wd, _ = filepath.Abs(filepath.Join(wd, args[0]))
+		basePath, err := filepath.Abs(filepath.Join(wd, args[0]))
+		if err != nil {
+			cmd.PrintErrf("failed to get base directory: %s", err)
+			os.Exit(1)
+		}
 
 		cmd.Printf("Workdir: %s\n", wd)
 
-		fset := token.NewFileSet()
-		d, err := parser.ParseDir(fset, wd, nil, parser.ParseComments)
+		vd, err := parser.ParseDir(token.NewFileSet(), filepath.Join(wd, "option"), nil, parser.ParseComments)
+		if err != nil {
+			cmd.PrintErrln(err)
+			os.Exit(1)
+		}
+
+		d, err := parser.ParseDir(token.NewFileSet(), basePath, nil, parser.ParseComments)
 		if err != nil {
 			cmd.PrintErrln(err)
 			os.Exit(1)
@@ -84,7 +93,7 @@ var optionsCmd = &cobra.Command{
 								if a, err := annotations.Get("swipe"); err == nil {
 									baseTypeName := a.Value() + "Option"
 
-									opts := getOpts(baseTypeName, s)
+									opts := getOpts(baseTypeName, s, &valueTypeFinder{pkg: vd["option"]})
 
 									buf.WriteString(fmt.Sprintf("// %s\n", a.Value()))
 									buf.WriteString(fmt.Sprintf("func %s(", a.Value()))
@@ -137,7 +146,7 @@ var optionsCmd = &cobra.Command{
 										os.Exit(1)
 									}
 
-									f, err := os.Create(filepath.Join(wd, file.Name+"_gen.go"))
+									f, err := os.Create(filepath.Join(basePath, file.Name+"_gen.go"))
 									if err != nil {
 										cmd.PrintErrf("failed generate: %s", err)
 										os.Exit(1)
@@ -187,16 +196,27 @@ func getExprType(e goast.Expr) string {
 	}
 }
 
-func getOpt(optionName string, f *goast.Field, e goast.Expr, isRepeat bool) (result []optionFunc) {
+func getOpt(optionName string, f *goast.Field, e goast.Expr, vf *valueTypeFinder, isRepeat bool) (result []optionFunc) {
 	name, ok := getOptName(f)
 	if !ok {
 		return nil
 	}
 	switch t := e.(type) {
+	case *goast.SelectorExpr:
+		for _, file := range vf.pkg.Files {
+			if obj, ok := file.Scope.Objects[t.Sel.Name]; ok {
+				of := optionFunc{
+					typeName: optionName,
+					name:     name,
+				}
+				result = append(result, buildFuncOpts(obj, &of, vf)...)
+				result = append(result, of)
+			}
+		}
 	case *goast.ArrayType:
-		return getOpt(optionName, f, t.Elt, true)
+		return getOpt(optionName, f, t.Elt, vf, true)
 	case *goast.StarExpr:
-		return getOpt(optionName, f, t.X, isRepeat)
+		return getOpt(optionName, f, t.X, vf, isRepeat)
 	case *goast.StructType:
 		for _, ident := range f.Names {
 			result = append(result, optionFunc{
@@ -211,43 +231,44 @@ func getOpt(optionName string, f *goast.Field, e goast.Expr, isRepeat bool) (res
 			isRepeat: isRepeat,
 		}
 
-		var buildFuncOpts func(obj *goast.Object)
-		buildFuncOpts = func(obj *goast.Object) {
-			if ts, ok := obj.Decl.(*goast.TypeSpec); ok {
-				if s, ok := ts.Type.(*goast.StructType); ok {
-					var hasOpts bool
-					if s.Fields != nil {
-						for _, f := range s.Fields.List {
-							if len(f.Names) == 0 {
-								if ident, ok := f.Type.(*goast.Ident); ok {
-									buildFuncOpts(ident.Obj)
-									continue
-								}
-							}
-							name, ok := getOptName(f)
-							if !ok {
-								continue
-							}
-							if isFiledOpt(f) {
-								hasOpts = true
-								expr := astutil.Unparen(f.Type)
-								if e, ok := expr.(*goast.StarExpr); ok {
-									expr = e.X
-								}
-								result = append(result, getOpt(ts.Name.Name, f, expr, false)...)
-								continue
-							}
-							of.params = append(of.params, strcase.ToLowerCamel(name)+" "+getFieldType(f))
+		result = append(result, buildFuncOpts(t.Obj, &of, vf)...)
+		result = append(result, of)
+	}
+	return
+}
+
+func buildFuncOpts(obj *goast.Object, of *optionFunc, vf *valueTypeFinder) (result []optionFunc) {
+	if ts, ok := obj.Decl.(*goast.TypeSpec); ok {
+		if s, ok := ts.Type.(*goast.StructType); ok {
+			var hasOpts bool
+			if s.Fields != nil {
+				for _, f := range s.Fields.List {
+					if len(f.Names) == 0 {
+						if ident, ok := f.Type.(*goast.Ident); ok {
+							result = append(result, buildFuncOpts(ident.Obj, of, vf)...)
+							continue
 						}
 					}
-					if hasOpts {
-						of.optsType = ts.Name.Name
+					name, ok := getOptName(f)
+					if !ok {
+						continue
 					}
+					if isFiledOpt(f) {
+						hasOpts = true
+						expr := astutil.Unparen(f.Type)
+						if e, ok := expr.(*goast.StarExpr); ok {
+							expr = e.X
+						}
+						result = append(result, getOpt(ts.Name.Name, f, expr, vf, false)...)
+						continue
+					}
+					of.params = append(of.params, strcase.ToLowerCamel(name)+" "+getFieldType(f))
 				}
 			}
+			if hasOpts {
+				of.optsType = ts.Name.Name
+			}
 		}
-		buildFuncOpts(t.Obj)
-		result = append(result, of)
 	}
 	return
 }
@@ -260,20 +281,18 @@ type optionFunc struct {
 	optsType string
 }
 
-func getOpts(optionName string, s *goast.StructType) []optionFunc {
+func getOpts(optionName string, s *goast.StructType, vf *valueTypeFinder) (result []optionFunc) {
 	if s.Fields == nil {
 		return nil
 	}
-	var result []optionFunc
 	for _, f := range s.Fields.List {
 		expr := astutil.Unparen(f.Type)
 		if e, ok := expr.(*goast.StarExpr); ok {
 			expr = e.X
 		}
-		if opts := getOpt(optionName, f, expr, false); len(opts) > 0 {
+		if opts := getOpt(optionName, f, expr, vf, false); len(opts) > 0 {
 			result = append(result, opts...)
 		}
-
 	}
 	return result
 }
@@ -306,4 +325,8 @@ func getOptName(f *goast.Field) (name string, ok bool) {
 		}
 	}
 	return
+}
+
+type valueTypeFinder struct {
+	pkg *goast.Package
 }

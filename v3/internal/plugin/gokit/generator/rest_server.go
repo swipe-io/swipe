@@ -20,7 +20,7 @@ type RESTServerGenerator struct {
 	JSONRPCEnable       bool
 	DefaultErrorEncoder *option.FuncType
 	Interfaces          []*config.Interface
-	MethodOptions       map[string]config.MethodDefaultOption
+	MethodOptions       map[string]config.MethodOptions
 }
 
 func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {

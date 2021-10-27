@@ -46,12 +46,12 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 	funcErrors := findErrors(cfg.Module.Path, funcDeclTypes, cfg.Packages)
 
 	p.config.IfaceErrors = findIfaceErrors(funcDeclTypes, funcDeclIfaceTypes, funcErrors, cfg.Packages, p.config.Interfaces)
-	p.config.MethodOptionsMap = map[string]config.MethodDefaultOption{}
+	p.config.MethodOptionsMap = map[string]config.MethodOptions{}
 
 	for _, methodOption := range p.config.MethodOptions {
 		if sig, ok := methodOption.Signature.Type.(*option.SignType); ok {
 			if recvNamed, ok := sig.Recv.(*option.NamedType); ok {
-				p.config.MethodOptionsMap[recvNamed.Name.Value+methodOption.Signature.Name.Value] = methodOption.MethodDefaultOption
+				p.config.MethodOptionsMap[recvNamed.Name.Value+methodOption.Signature.Name.Value] = methodOption.MethodOptions
 			}
 		}
 	}
@@ -108,6 +108,7 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 	if len(checkErrs) > 0 {
 		errs = append(errs, checkErrs...)
 	}
+
 	p.config.HasExternal = hasExternal
 	return errs
 }
