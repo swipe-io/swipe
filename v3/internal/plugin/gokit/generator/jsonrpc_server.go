@@ -15,7 +15,7 @@ type JSONRPCServerGenerator struct {
 	w                   writer.GoWriter
 	UseFast             bool
 	Interfaces          []*config.Interface
-	MethodOptions       map[string]config.MethodDefaultOption
+	MethodOptions       map[string]config.MethodOptions
 	DefaultErrorEncoder *option.FuncType
 	JSONRPCPath         string
 }

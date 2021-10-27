@@ -15,7 +15,7 @@ import (
 type Logging struct {
 	w             writer.GoWriter
 	Interfaces    []*config.Interface
-	MethodOptions map[string]config.MethodDefaultOption
+	MethodOptions map[string]config.MethodOptions
 }
 
 func (g *Logging) Generate(ctx context.Context) []byte {

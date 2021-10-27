@@ -9,9 +9,9 @@ import (
 	"github.com/swipe-io/swipe/v3/swipe"
 )
 
-func init() {
-	swipe.RegisterPlugin(&Plugin{})
-}
+//func init() {
+//swipe.RegisterPlugin(&Plugin{})
+//}
 
 type Plugin struct {
 	config config.Config

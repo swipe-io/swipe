@@ -23,7 +23,7 @@ type RESTClientGenerator struct {
 	w             writer.GoWriter
 	Interfaces    []*config.Interface
 	UseFast       bool
-	MethodOptions map[string]config.MethodDefaultOption
+	MethodOptions map[string]config.MethodOptions
 }
 
 func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {

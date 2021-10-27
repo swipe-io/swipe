@@ -313,7 +313,7 @@ func makeFuncDeclTypes(pkgs *packages.Packages) (result map[string]*typeInfo) {
 	return
 }
 
-func fillMethodDefaultOptions(method, methodDefault config.MethodDefaultOption) config.MethodDefaultOption {
+func fillMethodDefaultOptions(method, methodDefault config.MethodOptions) config.MethodOptions {
 	if !method.RESTMethod.IsValid() {
 		method.RESTMethod = methodDefault.RESTMethod
 	}
