@@ -52,6 +52,18 @@ var genCmd = &cobra.Command{
 
 		cmd.Printf("Workdir: %s\n", wd)
 
+		// clear all before generated files.
+		_ = filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
+			if !strings.Contains(path, "/vendor/") {
+				if !info.IsDir() {
+					if strings.Contains(info.Name(), "swipe_gen_") {
+						_ = os.Remove(path)
+					}
+				}
+			}
+			return nil
+		})
+
 		if data, err := ioutil.ReadFile(filepath.Join(wd, "pkgs")); err == nil {
 			packages = append(packages, strings.Split(string(data), "\n")...)
 		}
@@ -71,18 +83,6 @@ var genCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			os.Exit(1)
 		}
-
-		// clear all before generated files.
-		_ = filepath.Walk(loader.WorkDir(), func(path string, info os.FileInfo, err error) error {
-			if !strings.Contains(path, "/vendor/") {
-				if !info.IsDir() {
-					if strings.Contains(info.Name(), "swipe_gen_") {
-						_ = os.Remove(path)
-					}
-				}
-			}
-			return nil
-		})
 
 		result, errs := swipe.Generate(cfg)
 		success := true
