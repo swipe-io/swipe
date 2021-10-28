@@ -169,6 +169,14 @@ func LcNameJS(iface *config.Interface) string {
 	return iface.Named.Name.Lower()
 }
 
+func ServicePropName(iface *config.Interface) string {
+	name := iface.Named.Name.Upper()
+	if iface.ClientName.IsValid() {
+		name = strcase.ToCamel(iface.ClientName.Take())
+	}
+	return "svc" + name
+}
+
 func NameInterface(iface *config.Interface) string {
 	return UcNameWithAppPrefix(iface) + "Interface"
 }

@@ -129,6 +129,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 	for i, iface := range g.Interfaces {
 		typeStr := NameInterface(iface)
+
 		if i > 0 {
 			g.w.W(",")
 		}
@@ -136,7 +137,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 			external = true
 			g.w.W("%s %sOption", LcNameWithAppPrefix(iface, true), UcNameWithAppPrefix(iface, true))
 		} else {
-			g.w.W("svc%s %s", iface.Named.Name.Upper(), typeStr)
+			g.w.W("%s %s", ServicePropName(iface), typeStr)
 		}
 	}
 
@@ -224,7 +225,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("}\n")
 			}
 		} else {
-			g.w.W("%s := Make%s(svc%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), iface.Named.Name.Upper())
+			g.w.W("%s := Make%s(%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), ServicePropName(iface))
 			for _, m := range ifaceType.Methods {
 				g.w.W(
 					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
