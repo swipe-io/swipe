@@ -146,7 +146,15 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			Interfaces: p.config.Interfaces,
 		},
 	)
-
+	if p.config.CURLEnable != nil {
+		result = append(result, &generator.CURL{
+			Interfaces:    p.config.Interfaces,
+			MethodOptions: p.config.MethodOptionsMap,
+			JSONRPCEnable: jsonRPCEnable,
+			JSONRPCPath:   p.config.JSONRPCPath.Take(),
+			Output:        p.config.CURLOutput.Take(),
+		})
+	}
 	if httpServerEnable {
 		if p.config.LoggingEnable {
 			result = append(result, &generator.Logging{

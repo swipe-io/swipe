@@ -51,12 +51,24 @@ func (d *Decoder) normalizeVar(pkg *packages.Package, t *stdtypes.Var, comment s
 	if t == nil {
 		return nil
 	}
+	varType := d.normalizeType(pkg, t.Type(), false, visited)
+
+	var isContext bool
+	if named, ok := varType.(*NamedType); ok {
+		if _, ok := named.Type.(*IfaceType); ok {
+			if named.Name.Value == "Context" && named.Pkg.Path == "context" {
+				isContext = true
+			}
+		}
+	}
+
 	return &VarType{
 		Name:       normalizeName(t.Name()),
 		Embedded:   t.Embedded(),
 		Exported:   t.Exported(),
 		IsField:    t.IsField(),
-		Type:       d.normalizeType(pkg, t.Type(), false, visited),
+		IsContext:  isContext,
+		Type:       varType,
 		originType: t.Type(),
 		Zero:       zeroValue(t.Type().Underlying()),
 		Comment:    comment,

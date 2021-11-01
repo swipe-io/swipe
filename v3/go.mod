@@ -3,6 +3,7 @@ module github.com/swipe-io/swipe/v3
 go 1.16
 
 require (
+	github.com/555f/curlbuilder v1.0.0 // indirect
 	github.com/achiku/varfmt v0.0.0-20160708124000-f820e1efecee
 	github.com/fatih/structtag v1.2.0
 	github.com/gertd/go-pluralize v0.1.7

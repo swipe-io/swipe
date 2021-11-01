@@ -41,6 +41,7 @@ type VarType struct {
 	Exported   bool
 	IsField    bool
 	IsVariadic bool
+	IsContext  bool
 	Type       interface{}
 	Comment    string
 	Zero       string
