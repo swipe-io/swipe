@@ -130,6 +130,8 @@ type Config struct {
 	HTTPServer           *struct{}
 	HTTPFast             *struct{}
 	ClientsEnable        ClientsEnable
+	CURLEnable           *struct{}
+	CURLOutput           option.StringValue
 	JSONRPCEnable        *struct{}
 	JSONRPCPath          option.StringValue
 	JSONRPCDocEnable     *struct{}

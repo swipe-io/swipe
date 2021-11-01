@@ -665,26 +665,6 @@ func isGolangNamedType(t *option.NamedType) bool {
 	return false
 }
 
-//func fillType(i interface{}, visited map[string]*option.NamedType) {
-//	switch t := i.(type) {
-//	case *option.NamedType:
-//		if _, ok := t.Type.(*option.StructType); ok {
-//			key := t.Pkg.Path + t.Name.Value
-//			_, ok := visited[key]
-//			if !ok {
-//				visited[key] = t
-//				fillType(t.Type, visited)
-//			}
-//		}
-//	case *option.SliceType:
-//		fillType(t.Value, visited)
-//	case *option.ArrayType:
-//		fillType(t.Value, visited)
-//	case *option.MapType:
-//		fillType(t.Value, visited)
-//	}
-//}
-
 func isFileUploadType(i interface{}, importer swipe.Importer) bool {
 	if n, ok := i.(*option.NamedType); ok {
 		if iface, ok := n.Type.(*option.IfaceType); ok {
