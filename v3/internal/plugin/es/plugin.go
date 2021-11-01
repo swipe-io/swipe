@@ -2,9 +2,9 @@ package es
 
 import (
 	"github.com/mitchellh/mapstructure"
-	"github.com/swipe-io/swipe/v3/internal/plugin/es/generator"
 
 	"github.com/swipe-io/swipe/v3/internal/plugin/es/config"
+	"github.com/swipe-io/swipe/v3/internal/plugin/es/generator"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
 )
