@@ -37,21 +37,21 @@ func (g *CURL) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *CURL) buildBody() {
-
+func (g *CURL) buildBody(vars option.VarsType) map[string]interface{} {
+	body := map[string]interface{}{}
+	for _, v := range vars {
+		if v.IsContext {
+			continue
+		}
+		body[v.Name.Value] = curlTypeValue(v.Type)
+	}
+	return body
 }
 
 func (g *CURL) writeCURLJSONRPC(iface *config.Interface) {
 	ifaceType := iface.Named.Type.(*option.IfaceType)
 	for _, m := range ifaceType.Methods {
-		//mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
-		body := map[string]interface{}{}
-		for _, p := range m.Sig.Params {
-			if p.IsContext {
-				continue
-			}
-			body[p.Name.Value] = ""
-		}
+		body := g.buildBody(m.Sig.Params)
 		methodName := m.Name.Lower()
 		if iface.Namespace != "" {
 			methodName = iface.Namespace + "." + methodName
@@ -73,7 +73,23 @@ func (g *CURL) writeCURLJSONRPC(iface *config.Interface) {
 }
 
 func (g *CURL) writeCURLREST(iface *config.Interface) {
-	//curlbuilder.New().SetMethod()
+	ifaceType := iface.Named.Type.(*option.IfaceType)
+	for _, m := range ifaceType.Methods {
+		mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
+		body := g.buildBody(m.Sig.Params)
+		methodName := m.Name.Lower()
+		if iface.Namespace != "" {
+			methodName = iface.Namespace + "." + methodName
+		}
+		result := curlbuilder.New().
+			SetMethod(mopt.RESTMethod.Take()).
+			SetURL(mopt.RESTPath.Take()).
+			SetBody(body).
+			String()
+
+		g.w.W("## %s\n\n", methodName)
+		g.w.W("```\n%s\n```\n", result)
+	}
 }
 
 func (g *CURL) OutputDir() string {

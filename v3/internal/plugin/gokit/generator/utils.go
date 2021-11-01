@@ -836,3 +836,36 @@ func extractNamed(i interface{}) (result []*option.NamedType) {
 	}
 	return
 }
+
+func curlTypeValue(v interface{}) interface{} {
+	return curlTypeValueRecursive(v, map[string]struct{}{})
+}
+
+func curlTypeValueRecursive(v interface{}, nested map[string]struct{}) interface{} {
+	switch t := v.(type) {
+	case *option.NamedType:
+		if _, ok := nested[t.Pkg.Path+t.Name.Value]; !ok {
+			nested[t.Pkg.Path+t.Name.Value] = struct{}{}
+			result := map[string]interface{}{}
+			if st, ok := t.Type.(*option.StructType); ok {
+				for _, field := range st.Fields {
+					result[field.Var.Name.Value] = curlTypeValueRecursive(field.Var.Type, nested)
+				}
+			}
+			return result
+		}
+	case *option.SliceType:
+		return []interface{}{curlTypeValueRecursive(t.Value, nested)}
+	case *option.ArrayType:
+		return []interface{}{curlTypeValueRecursive(t.Value, nested)}
+	case *option.MapType:
+		if b, ok := t.Key.(*option.BasicType); ok && b.IsString() {
+			return map[string]interface{}{"key": curlTypeValueRecursive(t.Value, nested)}
+		}
+	case *option.BasicType:
+		if t.IsNumeric() {
+			return 0
+		}
+	}
+	return nil
+}
