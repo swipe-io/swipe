@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"strings"
 
 	"github.com/555f/curlbuilder"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
@@ -16,6 +17,7 @@ type CURL struct {
 	JSONRPCEnable bool
 	JSONRPCPath   string
 	Output        string
+	URL           string
 }
 
 func (g *CURL) Generate(ctx context.Context) []byte {
@@ -55,10 +57,11 @@ func (g *CURL) writeCURLJSONRPC(iface *config.Interface) {
 		if iface.Namespace != "" {
 			methodName = iface.Namespace + "." + methodName
 		}
+
 		body := g.buildBody(m.Sig.Params)
 		result := curlbuilder.New().
 			SetMethod("POST").
-			SetURL(g.JSONRPCPath).
+			SetURL(strings.TrimRight(g.URL, "/") + "/" + strings.TrimLeft(g.JSONRPCPath, "/")).
 			SetBody(map[string]interface{}{
 				"jsonrpc": "2.0",
 				"id":      1,
@@ -83,7 +86,7 @@ func (g *CURL) writeCURLREST(iface *config.Interface) {
 		}
 		result := curlbuilder.New().
 			SetMethod(mopt.RESTMethod.Take()).
-			SetURL(mopt.RESTPath.Take()).
+			SetURL(strings.TrimRight(g.URL, "/") + "/" + strings.TrimLeft(mopt.RESTPath.Take(), "/")).
 			SetBody(body).
 			String()
 

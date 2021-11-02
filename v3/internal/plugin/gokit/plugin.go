@@ -153,6 +153,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			JSONRPCEnable: jsonRPCEnable,
 			JSONRPCPath:   p.config.JSONRPCPath.Take(),
 			Output:        p.config.CURLOutput.Take(),
+			URL:           p.config.CURLURL.Take(),
 		})
 	}
 	if httpServerEnable {
