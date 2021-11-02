@@ -51,11 +51,11 @@ func (g *CURL) buildBody(vars option.VarsType) map[string]interface{} {
 func (g *CURL) writeCURLJSONRPC(iface *config.Interface) {
 	ifaceType := iface.Named.Type.(*option.IfaceType)
 	for _, m := range ifaceType.Methods {
-		body := g.buildBody(m.Sig.Params)
 		methodName := m.Name.Lower()
 		if iface.Namespace != "" {
 			methodName = iface.Namespace + "." + methodName
 		}
+		body := g.buildBody(m.Sig.Params)
 		result := curlbuilder.New().
 			SetMethod("POST").
 			SetURL(g.JSONRPCPath).

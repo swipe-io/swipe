@@ -15,7 +15,6 @@ import (
 	"github.com/swipe-io/swipe/v3/internal/annotation"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/go/types/typeutil"
 )
 
 type Inject struct {
@@ -39,15 +38,13 @@ type Decoder struct {
 	module         *packages.Module
 	pkgs           *packages2.Packages
 	commentFuncMap map[string][]string
-	typesCache     map[uint32]interface{}
-	hasher         typeutil.Hasher
 }
 
 func normalizeName(s string) String {
 	return String{Value: s}
 }
 
-func (d *Decoder) normalizeVar(pkg *packages.Package, t *stdtypes.Var, comment string, visited map[uint32]interface{}) *VarType {
+func (d *Decoder) normalizeVar(pkg *packages.Package, t *stdtypes.Var, comment string, visited map[string]interface{}) *VarType {
 	if t == nil {
 		return nil
 	}
@@ -75,7 +72,7 @@ func (d *Decoder) normalizeVar(pkg *packages.Package, t *stdtypes.Var, comment s
 	}
 }
 
-func (d *Decoder) normalizeStruct(pkg *packages.Package, t *stdtypes.Struct, isPointer bool, visited map[uint32]interface{}) *StructType {
+func (d *Decoder) normalizeStruct(pkg *packages.Package, t *stdtypes.Struct, isPointer bool, visited map[string]interface{}) *StructType {
 	if t == nil {
 		return nil
 	}
@@ -83,6 +80,7 @@ func (d *Decoder) normalizeStruct(pkg *packages.Package, t *stdtypes.Struct, isP
 		IsPointer:  isPointer,
 		originType: t,
 	}
+
 	for i := 0; i < t.NumFields(); i++ {
 		f := &StructFieldType{
 			Var: d.normalizeVar(pkg, t.Field(i), "", visited),
@@ -95,7 +93,7 @@ func (d *Decoder) normalizeStruct(pkg *packages.Package, t *stdtypes.Struct, isP
 	return result
 }
 
-func (d *Decoder) normalizeType(pkg *packages.Package, t interface{}, isPointer bool, visited map[uint32]interface{}) interface{} {
+func (d *Decoder) normalizeType(pkg *packages.Package, t interface{}, isPointer bool, visited map[string]interface{}) interface{} {
 	switch t := t.(type) {
 	case *stdtypes.Func:
 		return d.normalizeFunc(pkg, t, visited)
@@ -123,17 +121,17 @@ func (d *Decoder) normalizeType(pkg *packages.Package, t interface{}, isPointer 
 	return nil
 }
 
-func (d *Decoder) normalizeTypeName(pkg *packages.Package, obj *stdtypes.TypeName, isPointer bool, visited map[uint32]interface{}) *NamedType {
-	k := d.hasher.Hash(obj.Type())
+func (d *Decoder) normalizeTypeName(pkg *packages.Package, obj *stdtypes.TypeName, isPointer bool, visited map[string]interface{}) *NamedType {
+	var prefix string
+	if isPointer {
+		prefix = "*"
+	}
+	if obj.Pkg() != nil {
+		prefix += obj.Pkg().Path()
+	}
+	k := prefix + obj.Name()
 	if v, ok := visited[k].(*NamedType); ok {
-		return &NamedType{
-			Obj:       obj,
-			Name:      v.Name,
-			Type:      v.Type,
-			Pkg:       v.Pkg,
-			IsPointer: isPointer,
-			Methods:   v.Methods,
-		}
+		return v
 	}
 	nt := &NamedType{
 		Obj:       obj,
@@ -149,17 +147,17 @@ func (d *Decoder) normalizeTypeName(pkg *packages.Package, obj *stdtypes.TypeNam
 	return nt
 }
 
-func (d *Decoder) normalizeNamed(pkg *packages.Package, named *stdtypes.Named, isPointer bool, visited map[uint32]interface{}) *NamedType {
-	k := d.hasher.Hash(named)
+func (d *Decoder) normalizeNamed(pkg *packages.Package, named *stdtypes.Named, isPointer bool, visited map[string]interface{}) *NamedType {
+	var prefix string
+	if isPointer {
+		prefix = "*"
+	}
+	if named.Obj().Pkg() != nil {
+		prefix += named.Obj().Pkg().Path()
+	}
+	k := prefix + named.Obj().Name()
 	if v, ok := visited[k].(*NamedType); ok {
-		return &NamedType{
-			Obj:       named.Obj(),
-			Name:      v.Name,
-			Type:      v.Type,
-			Pkg:       v.Pkg,
-			IsPointer: isPointer,
-			Methods:   v.Methods,
-		}
+		return v
 	}
 	nt := &NamedType{
 		Obj:       named.Obj(),
@@ -202,7 +200,7 @@ func (d *Decoder) normalizeBasic(t *stdtypes.Basic, isPointer bool) *BasicType {
 	}
 }
 
-func (d *Decoder) normalizeInterface(pkg *packages.Package, t *stdtypes.Interface, visited map[uint32]interface{}) *IfaceType {
+func (d *Decoder) normalizeInterface(pkg *packages.Package, t *stdtypes.Interface, visited map[string]interface{}) *IfaceType {
 	it := &IfaceType{
 		Origin: t,
 	}
@@ -218,7 +216,7 @@ func (d *Decoder) normalizeInterface(pkg *packages.Package, t *stdtypes.Interfac
 	return it
 }
 
-func (d *Decoder) normalizeFunc(pkg *packages.Package, t *stdtypes.Func, visited map[uint32]interface{}) *FuncType {
+func (d *Decoder) normalizeFunc(pkg *packages.Package, t *stdtypes.Func, visited map[string]interface{}) *FuncType {
 	comments := d.commentFuncMap[t.String()]
 	comment, paramsComment := parseMethodComments(comments)
 
@@ -232,7 +230,7 @@ func (d *Decoder) normalizeFunc(pkg *packages.Package, t *stdtypes.Func, visited
 	}
 }
 
-func (d *Decoder) normalizeSignature(pkg *packages.Package, t *stdtypes.Signature, comments map[string]string, visited map[uint32]interface{}) *SignType {
+func (d *Decoder) normalizeSignature(pkg *packages.Package, t *stdtypes.Signature, comments map[string]string, visited map[string]interface{}) *SignType {
 	if t == nil {
 		return nil
 	}
@@ -263,21 +261,21 @@ func (d *Decoder) normalizeSignature(pkg *packages.Package, t *stdtypes.Signatur
 	return st
 }
 
-func (d *Decoder) normalizeMap(pkg *packages.Package, key stdtypes.Type, val stdtypes.Type, isPointer bool, visited map[uint32]interface{}) *MapType {
+func (d *Decoder) normalizeMap(pkg *packages.Package, key stdtypes.Type, val stdtypes.Type, isPointer bool, visited map[string]interface{}) *MapType {
 	mapType := &MapType{IsPointer: isPointer}
 	mapType.Key = d.normalizeType(pkg, key, false, visited)
 	mapType.Value = d.normalizeType(pkg, val, false, visited)
 	return mapType
 }
 
-func (d *Decoder) normalizeSlice(pkg *packages.Package, val stdtypes.Type, isPointer bool, visited map[uint32]interface{}) *SliceType {
+func (d *Decoder) normalizeSlice(pkg *packages.Package, val stdtypes.Type, isPointer bool, visited map[string]interface{}) *SliceType {
 	return &SliceType{
 		Value:     d.normalizeType(pkg, val, false, visited),
 		IsPointer: isPointer,
 	}
 }
 
-func (d *Decoder) normalizeArray(pkg *packages.Package, val stdtypes.Type, len int64, isPointer bool, visited map[uint32]interface{}) *ArrayType {
+func (d *Decoder) normalizeArray(pkg *packages.Package, val stdtypes.Type, len int64, isPointer bool, visited map[string]interface{}) *ArrayType {
 	return &ArrayType{
 		Value:     d.normalizeType(pkg, val, false, visited),
 		Len:       len,
@@ -289,13 +287,13 @@ func (d *Decoder) normalizeSelector(pkg *packages.Package, obj stdtypes.Object) 
 	return &NamedType{
 		Obj:  obj,
 		Name: normalizeName(obj.Name()),
-		Type: d.normalizeType(pkg, obj.Type().Underlying(), false, map[uint32]interface{}{}),
+		Type: d.normalizeType(pkg, obj.Type().Underlying(), false, map[string]interface{}{}),
 		Pkg:  d.normalizePkg(obj.Pkg()),
 	}
 }
 
 func (d *Decoder) normalize(pkg *packages.Package, obj stdtypes.Object) interface{} {
-	return d.normalizeType(pkg, obj, false, map[uint32]interface{}{})
+	return d.normalizeType(pkg, obj, false, map[string]interface{}{})
 }
 
 func (d *Decoder) normalizeModule(module *packages.Module) *ModuleType {
@@ -506,6 +504,5 @@ func Decode(optionPkgs map[string]string, module *packages.Module, pkgs *package
 		module:         module,
 		pkgs:           pkgs,
 		commentFuncMap: commentFuncs,
-		hasher:         typeutil.MakeHasher(),
 	}).decode()
 }
