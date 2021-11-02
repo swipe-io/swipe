@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"strconv"
 	stdstrings "strings"
-
-	"github.com/swipe-io/swipe/v3/swipe"
+	"time"
 
 	"github.com/gertd/go-pluralize"
+	"github.com/google/uuid"
 
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/openapi"
 	"github.com/swipe-io/swipe/v3/option"
+	"github.com/swipe-io/swipe/v3/swipe"
 )
 
 const jsonRPCClientBase = `
@@ -838,22 +839,30 @@ func extractNamed(i interface{}) (result []*option.NamedType) {
 }
 
 func curlTypeValue(v interface{}) interface{} {
-	return curlTypeValueRecursive(v, map[string]struct{}{})
+	return curlTypeValueRecursive(v, map[string]int{})
 }
 
-func curlTypeValueRecursive(v interface{}, nested map[string]struct{}) interface{} {
+func curlTypeValueRecursive(v interface{}, nested map[string]int) interface{} {
 	switch t := v.(type) {
 	case *option.NamedType:
-		if _, ok := nested[t.Pkg.Path+t.Name.Value]; !ok {
-			nested[t.Pkg.Path+t.Name.Value] = struct{}{}
-			result := map[string]interface{}{}
-			if st, ok := t.Type.(*option.StructType); ok {
-				for _, field := range st.Fields {
-					result[field.Var.Name.Value] = curlTypeValueRecursive(field.Var.Type, nested)
-				}
-			}
+		if t.Name.Value == "UUID" {
+			return uuid.Must(uuid.NewRandom()).String()
+		}
+		if t.Pkg.Path == "time" && t.Name.Value == "Time" {
+			return time.Now().Format(time.RFC3339)
+		}
+		result := map[string]interface{}{}
+		nested[t.Pkg.Path+t.Name.Value]++
+		n := nested[t.Pkg.Path+t.Name.Value]
+		if n > 2 {
 			return result
 		}
+		if st, ok := t.Type.(*option.StructType); ok {
+			for _, field := range st.Fields {
+				result[field.Var.Name.Lower()] = curlTypeValueRecursive(field.Var.Type, nested)
+			}
+		}
+		return result
 	case *option.SliceType:
 		return []interface{}{curlTypeValueRecursive(t.Value, nested)}
 	case *option.ArrayType:
@@ -865,6 +874,9 @@ func curlTypeValueRecursive(v interface{}, nested map[string]struct{}) interface
 	case *option.BasicType:
 		if t.IsNumeric() {
 			return 0
+		}
+		if t.IsString() {
+			return ""
 		}
 	}
 	return nil

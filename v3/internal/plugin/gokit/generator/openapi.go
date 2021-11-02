@@ -217,19 +217,21 @@ func (g *Openapi) fillTypeDefRecursive(t interface{}) {
 		}
 		if _, ok := g.defTypes[t.Pkg.Path+t.Name.Value]; !ok {
 			g.defTypes[t.Pkg.Path+t.Name.Value] = t
-		}
-		switch tt := t.Type.(type) {
-		case *option.SliceType:
-			g.fillTypeDefRecursive(tt.Value)
-		case *option.ArrayType:
-			g.fillTypeDefRecursive(tt.Value)
-		case *option.MapType:
-			g.fillTypeDefRecursive(tt.Value)
-		case *option.StructType:
-			for _, field := range tt.Fields {
-				g.fillTypeDefRecursive(field.Var.Type)
+
+			switch tt := t.Type.(type) {
+			case *option.SliceType:
+				g.fillTypeDefRecursive(tt.Value)
+			case *option.ArrayType:
+				g.fillTypeDefRecursive(tt.Value)
+			case *option.MapType:
+				g.fillTypeDefRecursive(tt.Value)
+			case *option.StructType:
+				for _, field := range tt.Fields {
+					g.fillTypeDefRecursive(field.Var.Type)
+				}
 			}
 		}
+
 	}
 }
 
