@@ -132,6 +132,7 @@ type Config struct {
 	ClientsEnable        ClientsEnable
 	CURLEnable           *struct{}
 	CURLOutput           option.StringValue
+	CURLURL              option.StringValue
 	JSONRPCEnable        *struct{}
 	JSONRPCPath          option.StringValue
 	JSONRPCDocEnable     *struct{}
