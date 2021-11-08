@@ -30,23 +30,25 @@ type PluginConfig struct {
 }
 
 type Config struct {
-	WorkDir      string
-	Envs         []string
-	Patterns     []string
-	Modules      map[string]*option.Module
-	Module       *packages.Module
-	Packages     *packages2.Packages
-	CommentFuncs map[string][]string
+	WorkDir       string
+	Envs          []string
+	Patterns      []string
+	Modules       map[string]*option.Module
+	Module        *packages.Module
+	Packages      *packages2.Packages
+	CommentFuncs  map[string][]string
+	CommentFields *ast.CommentFields
 }
 
 func GetConfig(loader *ast.Loader) (*Config, error) {
 	cfg := Config{
-		WorkDir:      loader.WorkDir(),
-		Envs:         loader.Env(),
-		Patterns:     loader.Patterns(),
-		Module:       loader.Module(),
-		Packages:     packages2.NewPackages(loader.Pkgs()),
-		CommentFuncs: loader.CommentFuncs(),
+		WorkDir:       loader.WorkDir(),
+		Envs:          loader.Env(),
+		Patterns:      loader.Patterns(),
+		Module:        loader.Module(),
+		Packages:      packages2.NewPackages(loader.Pkgs()),
+		CommentFuncs:  loader.CommentFuncs(),
+		CommentFields: loader.CommentFields(),
 	}
 	if err := cfg.Load(); err != nil {
 		return nil, err
@@ -69,7 +71,7 @@ func (c *Config) Load() (err error) {
 	for _, plugin := range registeredPlugins {
 		optionPkgs[strings.ToLower(plugin.ID())] = plugin.ID()
 	}
-	c.Modules, err = option.Decode(optionPkgs, c.Module, c.Packages, c.CommentFuncs)
+	c.Modules, err = option.Decode(optionPkgs, c.Module, c.Packages, c.CommentFuncs, c.CommentFields)
 	return
 }
 
