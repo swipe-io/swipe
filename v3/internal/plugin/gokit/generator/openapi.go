@@ -279,6 +279,7 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 			filedSchema := &openapi.Schema{
 				Properties: openapi.Properties{},
 			}
+			filedSchema.Description = field.Var.Comment
 			schema.Properties[name] = filedSchema
 			g.schemaByTypeRecursive(filedSchema, field.Var.Type)
 		}

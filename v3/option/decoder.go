@@ -9,6 +9,8 @@ import (
 	stdtypes "go/types"
 	"path/filepath"
 
+	"github.com/swipe-io/swipe/v3/internal/ast"
+
 	packages2 "github.com/swipe-io/swipe/v3/internal/packages"
 
 	"github.com/fatih/structtag"
@@ -38,6 +40,7 @@ type Decoder struct {
 	module         *packages.Module
 	pkgs           *packages2.Packages
 	commentFuncMap map[string][]string
+	commentFields  *ast.CommentFields
 }
 
 func normalizeName(s string) String {
@@ -80,10 +83,11 @@ func (d *Decoder) normalizeStruct(pkg *packages.Package, t *stdtypes.Struct, isP
 		IsPointer:  isPointer,
 		originType: t,
 	}
-
 	for i := 0; i < t.NumFields(); i++ {
+		field := t.Field(i)
+		comment := d.commentFields.GetByFieldName(t, field.Name())
 		f := &StructFieldType{
-			Var: d.normalizeVar(pkg, t.Field(i), "", visited),
+			Var: d.normalizeVar(pkg, field, comment, visited),
 		}
 		if tags, err := structtag.Parse(t.Tag(i)); err == nil {
 			f.Tags = tags
@@ -498,11 +502,12 @@ func (d *Decoder) decode() (result map[string]*Module, err error) {
 	return
 }
 
-func Decode(optionPkgs map[string]string, module *packages.Module, pkgs *packages2.Packages, commentFuncs map[string][]string) (result map[string]*Module, err error) {
+func Decode(optionPkgs map[string]string, module *packages.Module, pkgs *packages2.Packages, commentFuncs map[string][]string, commentFields *ast.CommentFields) (result map[string]*Module, err error) {
 	return (&Decoder{
 		optionPkgs:     optionPkgs,
 		module:         module,
 		pkgs:           pkgs,
 		commentFuncMap: commentFuncs,
+		commentFields:  commentFields,
 	}).decode()
 }

@@ -4,11 +4,26 @@ import (
 	"context"
 	"errors"
 	"go/ast"
+	"go/types"
 	stdstrings "strings"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 )
+
+type CommentFields struct {
+	fields map[uint32]map[string]string
+	h      typeutil.Hasher
+}
+
+func (c *CommentFields) GetByFieldName(t types.Type, name string) string {
+	comments := c.fields[c.h.Hash(t)]
+	return comments[name]
+}
+
+func (c *CommentFields) Add(t types.Type, comments map[string]string) {
+	c.fields[c.h.Hash(t)] = comments
+}
 
 type Loader struct {
 	ctx           context.Context
@@ -17,12 +32,12 @@ type Loader struct {
 	patterns      []string
 	module        *packages.Module
 	commentFuncs  map[string][]string
-	commentFields map[string]map[string]string
+	commentFields *CommentFields
 	pkgs          []*packages.Package
 	enums         *typeutil.Map
 }
 
-func (l *Loader) CommentFields() map[string]map[string]string {
+func (l *Loader) CommentFields() *CommentFields {
 	return l.commentFields
 }
 
@@ -56,7 +71,7 @@ func (l *Loader) run() (errs []error) {
 	)
 
 	l.commentFuncs = map[string][]string{}
-	l.commentFields = map[string]map[string]string{}
+	l.commentFields = &CommentFields{fields: map[uint32]map[string]string{}, h: typeutil.MakeHasher()}
 	l.enums = new(typeutil.Map)
 
 	cfg := &packages.Config{
@@ -105,6 +120,7 @@ func (l *Loader) run() (errs []error) {
 		errs = append(errs, errors.New("go mod not found, run go mod init"))
 		return
 	}
+
 	inspect(l.pkgs, func(p *packages.Package, n ast.Node) bool {
 		if ts, ok := n.(*ast.TypeSpec); ok {
 			obj := p.TypesInfo.ObjectOf(ts.Name)
@@ -120,7 +136,7 @@ func (l *Loader) run() (errs []error) {
 					}
 				}
 				if len(comments) > 0 {
-					l.commentFields[obj.String()] = comments
+					l.commentFields.Add(obj.Type().Underlying(), comments)
 				}
 			}
 		} else if spec, ok := n.(*ast.Field); ok {
