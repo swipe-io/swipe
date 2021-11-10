@@ -179,7 +179,7 @@ func ServicePropName(iface *config.Interface) string {
 }
 
 func NameInterface(iface *config.Interface) string {
-	return UcNameWithAppPrefix(iface) + "Interface"
+	return LcNameWithAppPrefix(iface) + "Interface"
 }
 
 func NameLoggingMiddleware(iface *config.Interface) string {

@@ -145,6 +145,10 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 		&generator.InterfaceGenerator{
 			Interfaces: p.config.Interfaces,
 		},
+		&generator.Aggregate{
+			Interfaces:    p.config.Interfaces,
+			MethodOptions: p.config.MethodOptionsMap,
+		},
 	)
 	if p.config.CURLEnable != nil {
 		result = append(result, &generator.CURL{

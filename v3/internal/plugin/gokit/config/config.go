@@ -75,11 +75,11 @@ type MethodOptions struct {
 	RESTQueryValues        option.SliceStringValue `swipe:"option"`
 	RESTPathVars           map[string]string       `swipe:"option"`
 	RESTBodyType           option.StringValue      `swipe:"option"`
-	//Aggregate              []Aggregate       `swipe:"option"`
-	ServerEncodeResponse FuncTypeValue `swipe:"option"`
-	ServerDecodeRequest  FuncTypeValue `swipe:"option"`
-	ClientEncodeRequest  FuncTypeValue `swipe:"option"`
-	ClientDecodeResponse FuncTypeValue `swipe:"option"`
+	Aggregate              []Aggregate             `swipe:"option"`
+	ServerEncodeResponse   FuncTypeValue           `swipe:"option"`
+	ServerDecodeRequest    FuncTypeValue           `swipe:"option"`
+	ClientEncodeRequest    FuncTypeValue           `swipe:"option"`
+	ClientDecodeResponse   FuncTypeValue           `swipe:"option"`
 }
 
 type MethodOption struct {
