@@ -11,10 +11,6 @@ const (
 	JRPCErrorType ErrorType = "jrpc"
 )
 
-type FuncTypeValue struct {
-	Value *option.FuncType
-}
-
 type Error struct {
 	PkgName string
 	PkgPath string
@@ -76,10 +72,11 @@ type MethodOptions struct {
 	RESTPathVars           map[string]string       `swipe:"option"`
 	RESTBodyType           option.StringValue      `swipe:"option"`
 	//Aggregate              []Aggregate       `swipe:"option"`
-	ServerEncodeResponse FuncTypeValue `swipe:"option"`
-	ServerDecodeRequest  FuncTypeValue `swipe:"option"`
-	ClientEncodeRequest  FuncTypeValue `swipe:"option"`
-	ClientDecodeResponse FuncTypeValue `swipe:"option"`
+	ServerEncodeResponse option.FuncTypeValue `swipe:"option"`
+	ServerDecodeRequest  option.FuncTypeValue `swipe:"option"`
+	ClientEncodeRequest  option.FuncTypeValue `swipe:"option"`
+	ClientDecodeResponse option.FuncTypeValue `swipe:"option"`
+	ClientErrorDecode    option.FuncTypeValue `swipe:"option"`
 }
 
 type MethodOption struct {
@@ -147,7 +144,7 @@ type Config struct {
 	OpenapiServers       []OpenapiServer `mapstructure:"OpenapiServer"`
 	MethodOptions        []MethodOption
 	MethodDefaultOptions MethodOptions
-	DefaultErrorEncoder  FuncTypeValue
+	ServerErrorEncoder   option.FuncTypeValue
 
 	// non options params
 	LoggingEnable       bool                          `mapstructure:"-"`

@@ -83,12 +83,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("Decode: ")
 
 			if mopt.ServerDecodeRequest.Value != nil {
-				pkg := importer.Import(mopt.ServerDecodeRequest.Value.Pkg.Name, mopt.ServerDecodeRequest.Value.Pkg.Path)
-				fnName := mopt.ServerDecodeRequest.Value.Name.String()
-				if pkg != "" {
-					fnName = pkg + "." + fnName
-				}
-				g.w.W(fnName)
+				g.w.WriteFuncByFuncType(mopt.ServerDecodeRequest.Value, importer)
 			} else {
 				g.w.W("func(_ %s.Context, msg %s.RawMessage) (interface{}, error) {\n", contextPkg, jsonPkg)
 
@@ -106,15 +101,14 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("}")
 			}
 			g.w.W(",\n")
+
+			g.w.W("Encode: ")
+
 			if mopt.ServerEncodeResponse.Value != nil {
-				pkg := importer.Import(mopt.ServerEncodeResponse.Value.Pkg.Name, mopt.ServerEncodeResponse.Value.Pkg.Path)
-				fnName := mopt.ServerEncodeResponse.Value.Name.String()
-				if pkg != "" {
-					fnName = pkg + "." + fnName
-				}
-				g.w.W("Encode: " + fnName + ",\n")
+				g.w.WriteFuncByFuncType(mopt.ServerEncodeResponse.Value, importer)
+				g.w.W(",\n")
 			} else {
-				g.w.W("Encode: encodeResponseJSONRPC,\n")
+				g.w.W("encodeResponseJSONRPC,\n")
 			}
 			g.w.W("}\n}\n")
 		}

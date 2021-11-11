@@ -179,10 +179,19 @@ func getFieldType(f *goast.Field) string {
 	return getExprType(f.Type)
 }
 
+func typeByIdent(id *goast.Ident) string {
+	switch id.Name {
+	default:
+		return "interface{}"
+	case "string", "bool", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "complex64", "complex128", "byte", "rune":
+		return id.Name
+	}
+}
+
 func getExprType(e goast.Expr) string {
 	switch t := e.(type) {
 	case *goast.Ident:
-		return t.Name
+		return typeByIdent(t)
 	case *goast.ArrayType:
 		lenStr := ""
 		if t.Len != nil {

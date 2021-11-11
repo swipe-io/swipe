@@ -5,6 +5,10 @@ import (
 	"strconv"
 )
 
+type FuncTypeValue struct {
+	Value *FuncType
+}
+
 type SliceStringValue struct {
 	Value []string
 }

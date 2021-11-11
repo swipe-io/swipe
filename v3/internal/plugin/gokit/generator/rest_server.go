@@ -15,12 +15,12 @@ import (
 )
 
 type RESTServerGenerator struct {
-	w                   writer.GoWriter
-	UseFast             bool
-	JSONRPCEnable       bool
-	DefaultErrorEncoder *option.FuncType
-	Interfaces          []*config.Interface
-	MethodOptions       map[string]config.MethodOptions
+	w                  writer.GoWriter
+	UseFast            bool
+	JSONRPCEnable      bool
+	ServerErrorEncoder *option.FuncType
+	Interfaces         []*config.Interface
+	MethodOptions      map[string]config.MethodOptions
 }
 
 func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
@@ -44,7 +44,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		kitHTTPPkg = importer.Import("http", "github.com/go-kit/kit/transport/http")
 		httpPkg = importer.Import("http", "net/http")
 	}
-	if g.DefaultErrorEncoder == nil {
+	if g.ServerErrorEncoder == nil {
 		g.writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg)
 	}
 	g.writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg)
@@ -82,9 +82,9 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 	g.w.W("opts := &serverOpts{}\n")
 	g.w.W("for _, o := range options {\n o(opts)\n }\n")
-	if g.DefaultErrorEncoder != nil {
+	if g.ServerErrorEncoder != nil {
 		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(", kitHTTPPkg)
-		g.w.W(swipe.TypeString(g.DefaultErrorEncoder, false, importer))
+		g.w.W(swipe.TypeString(g.ServerErrorEncoder, false, importer))
 		g.w.W("))\n")
 	} else {
 		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)

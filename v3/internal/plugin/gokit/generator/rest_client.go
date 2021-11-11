@@ -174,7 +174,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("u,\n")
 
 			if mopt.ClientEncodeRequest.Value != nil {
-				g.w.W(swipe.TypeString(mopt.ClientEncodeRequest.Value, false, importer))
+				g.w.WriteFuncByFuncType(mopt.ClientEncodeRequest.Value, importer)
 			} else {
 				g.w.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
@@ -338,7 +338,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W(",\n")
 
 			if mopt.ClientDecodeResponse.Value != nil {
-				g.w.W(swipe.TypeString(mopt.ClientDecodeResponse.Value, false, importer))
+				g.w.WriteFuncByFuncType(mopt.ClientDecodeResponse.Value, importer)
 			} else {
 				g.w.W("func(_ %s.Context, r *%s.Response) (interface{}, error) {\n", contextPkg, httpPkg)
 				statusCode := "r.StatusCode"
@@ -346,8 +346,16 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 					statusCode = "r.StatusCode()"
 				}
 				g.w.W("if %s > 299 {\n", statusCode)
-				g.w.W("return nil, %sErrorDecode(%s)\n", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
-				g.w.W("}\n")
+
+				g.w.W("return nil, ")
+
+				if mopt.ClientErrorDecode.Value != nil {
+					g.w.WriteFuncCallByFuncType(mopt.ClientErrorDecode.Value, []string{"r"}, importer)
+				} else {
+					g.w.W("%sErrorDecode(%s)", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
+				}
+
+				g.w.W("\n}\n")
 
 				resultsLen := LenWithoutErrors(m.Sig.Results)
 				if resultsLen > 0 {
