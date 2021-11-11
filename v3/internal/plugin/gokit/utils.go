@@ -350,6 +350,9 @@ func fillMethodDefaultOptions(method, methodDefault config.MethodOptions) config
 	if method.ServerEncodeResponse.Value == nil {
 		method.ServerEncodeResponse.Value = methodDefault.ServerEncodeResponse.Value
 	}
+	if method.ClientErrorDecode.Value == nil {
+		method.ClientErrorDecode.Value = methodDefault.ClientErrorDecode.Value
+	}
 	if !method.Instrumenting.IsValid() {
 		method.Instrumenting = methodDefault.Instrumenting
 	}

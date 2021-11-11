@@ -76,6 +76,19 @@ func (w *GoWriter) WriteStructAssign(keyvals []string) {
 	w.W("}")
 }
 
+func (w *GoWriter) WriteFuncByFuncType(f *option.FuncType, importer swipe.Importer) {
+	pkg := importer.Import(f.Pkg.Name, f.Pkg.Path)
+	if pkg != "" {
+		pkg += "."
+	}
+	w.W("%s%s", pkg, f.Name)
+}
+
+func (w *GoWriter) WriteFuncCallByFuncType(f *option.FuncType, params []string, importer swipe.Importer) {
+	w.WriteFuncByFuncType(f, importer)
+	w.W("(%s)", stdstrings.Join(params, ","))
+}
+
 func (w *GoWriter) WriteFuncCall(id, name string, params []string) {
 	w.W(id + "." + name + "(")
 	w.W(stdstrings.Join(params, ","))

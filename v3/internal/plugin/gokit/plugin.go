@@ -193,7 +193,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 				UseFast:             useFast,
 				Interfaces:          p.config.Interfaces,
 				MethodOptions:       p.config.MethodOptionsMap,
-				DefaultErrorEncoder: p.config.DefaultErrorEncoder.Value,
+				DefaultErrorEncoder: p.config.ServerErrorEncoder.Value,
 				JSONRPCPath:         p.config.JSONRPCPath.Take(),
 			})
 			if jsClientEnable {
@@ -214,11 +214,11 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 
 		} else {
 			result = append(result, &generator.RESTServerGenerator{
-				UseFast:             useFast,
-				JSONRPCEnable:       jsonRPCEnable,
-				MethodOptions:       p.config.MethodOptionsMap,
-				DefaultErrorEncoder: p.config.DefaultErrorEncoder.Value,
-				Interfaces:          p.config.Interfaces,
+				UseFast:            useFast,
+				JSONRPCEnable:      jsonRPCEnable,
+				MethodOptions:      p.config.MethodOptionsMap,
+				ServerErrorEncoder: p.config.ServerErrorEncoder.Value,
+				Interfaces:         p.config.Interfaces,
 			})
 		}
 	}
