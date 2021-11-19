@@ -818,24 +818,32 @@ func makeOpenapiSchemaJRPCError(code int64) *openapi.Schema {
 	}
 }
 
-func extractNamed(i interface{}) (result []*option.NamedType) {
+func extractNamedRecursive(i interface{}, visited map[string]struct{}) (result []*option.NamedType) {
 	switch t := i.(type) {
 	case *option.NamedType:
+		if _, ok := visited[t.ID()]; ok {
+			return
+		}
+		visited[t.ID()] = struct{}{}
 		switch nt := t.Type.(type) {
 		case *option.StructType:
 			for _, field := range nt.Fields {
-				result = append(result, extractNamed(field.Var.Type)...)
+				result = append(result, extractNamedRecursive(field.Var.Type, visited)...)
 			}
 		}
 		result = append(result, t)
 	case *option.MapType:
-		result = append(result, extractNamed(t.Value)...)
+		result = append(result, extractNamedRecursive(t.Value, visited)...)
 	case *option.ArrayType:
-		result = append(result, extractNamed(t.Value)...)
+		result = append(result, extractNamedRecursive(t.Value, visited)...)
 	case *option.SliceType:
-		result = append(result, extractNamed(t.Value)...)
+		result = append(result, extractNamedRecursive(t.Value, visited)...)
 	}
 	return
+}
+
+func extractNamed(i interface{}) []*option.NamedType {
+	return extractNamedRecursive(i, map[string]struct{}{})
 }
 
 func curlTypeValue(v interface{}) interface{} {
