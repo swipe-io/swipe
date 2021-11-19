@@ -677,7 +677,10 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 			Name:        queryVar.value,
 			Description: queryVar.p.Comment,
 			Required:    queryVar.required,
-			Schema:      g.schemaByType(queryVar.p.Type),
+			Schema: &openapi.Schema{
+				Type:       "string",
+				Properties: openapi.Properties{},
+			},
 		})
 	}
 

@@ -189,6 +189,16 @@ func (w *GoWriter) WriteFormatType(importer swipe.Importer, assignId, valueId st
 	switch t := f.Type.(type) {
 	case *option.BasicType:
 		w.writeFormatBasicType(importer, assignId, valueId, t)
+	case *option.SliceType:
+		if bt, ok := t.Value.(*option.BasicType); ok {
+			w.W("var %s string\n", assignId)
+			w.W("for i, s := range %s {\n", valueId)
+			w.W("if i > 0 {\n %s += \",\"\n}\n", assignId)
+			w.writeFormatBasicType(importer, "v", "s", bt)
+			w.W("%s += v\n", assignId)
+			w.W("}\n")
+		}
+
 	case *option.NamedType:
 		switch t.Pkg.Path {
 		case "github.com/satori/uuid", "github.com/google/uuid":
