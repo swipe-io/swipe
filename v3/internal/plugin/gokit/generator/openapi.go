@@ -331,6 +331,10 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 			schema.Example = "abc"
 			return
 		}
+		if t.IsBool() {
+			schema.Type = "boolean"
+			schema.Example = "true"
+		}
 		if t.IsNumeric() {
 			if t.IsInt32() || t.IsUint32() {
 				schema.Type = "integer"
