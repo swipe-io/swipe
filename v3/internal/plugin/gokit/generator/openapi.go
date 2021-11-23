@@ -327,7 +327,6 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 	case *option.BasicType:
 		if t.IsString() {
 			schema.Type = "string"
-			schema.Format = "string"
 			schema.Example = "abc"
 			return
 		}
@@ -658,7 +657,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	for _, pathVar := range pathVars {
 		o.Parameters = append(o.Parameters, openapi.Parameter{
 			In:          "path",
-			Name:        pathVar.value,
+			Name:        pathVar.p.Name.Lower(),
 			Description: pathVar.p.Comment,
 			Required:    pathVar.required,
 			Schema:      g.schemaByType(pathVar.p.Type),
@@ -668,7 +667,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	for _, headerVar := range headerVars {
 		o.Parameters = append(o.Parameters, openapi.Parameter{
 			In:          "header",
-			Name:        headerVar.value,
+			Name:        headerVar.p.Name.Lower(),
 			Description: headerVar.p.Comment,
 			Required:    headerVar.required,
 			Schema:      g.schemaByType(headerVar.p.Type),
@@ -678,7 +677,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	for _, queryVar := range queryVars {
 		o.Parameters = append(o.Parameters, openapi.Parameter{
 			In:          "query",
-			Name:        queryVar.value,
+			Name:        queryVar.p.Name.Lower(),
 			Description: queryVar.p.Comment,
 			Required:    queryVar.required,
 			Schema: &openapi.Schema{
