@@ -84,7 +84,9 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	g.w.W("for _, o := range options {\n o(opts)\n }\n")
 	if g.ServerErrorEncoder != nil {
 		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(", kitHTTPPkg)
-		g.w.W(swipe.TypeString(g.ServerErrorEncoder, false, importer))
+
+		g.w.WriteFuncByFuncType(g.ServerErrorEncoder, importer)
+
 		g.w.W("))\n")
 	} else {
 		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)
