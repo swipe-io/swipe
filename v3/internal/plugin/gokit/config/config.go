@@ -127,6 +127,7 @@ type Config struct {
 	HTTPServer           *struct{}
 	HTTPFast             *struct{}
 	ClientsEnable        ClientsEnable
+	ClientOutput         option.StringValue
 	CURLEnable           *struct{}
 	CURLOutput           option.StringValue
 	CURLURL              option.StringValue

@@ -86,7 +86,13 @@ func Generate(cfg *Config) (result []GenerateResult, errs []error) {
 					}
 
 					generatorResult[i].OutputPath = filepath.Join(outputDir, filename)
-					f := frame.NewFrame(Version, filename, importerService, build.Pkg)
+
+					pkgName := build.Pkg.Name
+					if gp, ok := g.(GeneratorPackage); ok && gp.Package() != "" {
+						pkgName = gp.Package()
+					}
+
+					f := frame.NewFrame(Version, filename, importerService, pkgName)
 
 					ctx := context.WithValue(context.TODO(), ImporterKey, importerService)
 

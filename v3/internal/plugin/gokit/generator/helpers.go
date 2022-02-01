@@ -18,6 +18,12 @@ type Helpers struct {
 	HTTPServerEnable bool
 	UseFast          bool
 	IfaceErrors      map[string]map[string][]config.Error
+	Output           string
+	Pkg              string
+}
+
+func (g *Helpers) Package() string {
+	return g.Pkg
 }
 
 func (g *Helpers) Generate(ctx context.Context) []byte {
@@ -196,7 +202,7 @@ func (g *Helpers) writeFuncMiddlewareChain(endpointPkg string) {
 }
 
 func (g *Helpers) OutputDir() string {
-	return ""
+	return g.Output
 }
 
 func (g *Helpers) Filename() string {

@@ -14,6 +14,12 @@ type JSONRPCClientGenerator struct {
 	w          writer.GoWriter
 	Interfaces []*config.Interface
 	UseFast    bool
+	Output     string
+	Pkg        string
+}
+
+func (g *JSONRPCClientGenerator) Package() string {
+	return g.Pkg
 }
 
 func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
@@ -152,7 +158,7 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 }
 
 func (g *JSONRPCClientGenerator) OutputDir() string {
-	return ""
+	return g.Output
 }
 
 func (g *JSONRPCClientGenerator) Filename() string {

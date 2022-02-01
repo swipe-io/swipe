@@ -22,7 +22,8 @@ func init() {
 }
 
 type Plugin struct {
-	config config.Config
+	config  config.Config
+	workdir string
 }
 
 func (p *Plugin) ID() string {
@@ -39,6 +40,9 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 		return errs
 	}
 	_, appName := path.Split(module.Path)
+
+	p.workdir = cfg.WorkDir
+
 	p.config.AppName = strcase.ToCamel(appName)
 
 	funcDeclTypes := makeFuncDeclTypes(cfg.Packages)
@@ -129,23 +133,6 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	useFast := p.config.HTTPFast != nil
 	jsonRPCDocEnable := p.config.JSONRPCDocEnable != nil
 
-	result = append(result,
-		&generator.Helpers{
-			Interfaces:       p.config.Interfaces,
-			JSONRPCEnable:    jsonRPCEnable,
-			GoClientEnable:   goClientEnable,
-			HTTPServerEnable: httpServerEnable,
-			UseFast:          useFast,
-			IfaceErrors:      p.config.IfaceErrors,
-		},
-		&generator.Endpoint{
-			Interfaces:       p.config.Interfaces,
-			HTTPServerEnable: httpServerEnable,
-		},
-		&generator.InterfaceGenerator{
-			Interfaces: p.config.Interfaces,
-		},
-	)
 	if p.config.CURLEnable != nil {
 		result = append(result, &generator.CURL{
 			Interfaces:    p.config.Interfaces,
@@ -157,6 +144,24 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 		})
 	}
 	if httpServerEnable {
+		result = append(result,
+			&generator.Helpers{
+				Interfaces:       p.config.Interfaces,
+				JSONRPCEnable:    jsonRPCEnable,
+				GoClientEnable:   goClientEnable,
+				HTTPServerEnable: httpServerEnable,
+				UseFast:          useFast,
+				IfaceErrors:      p.config.IfaceErrors,
+			},
+			&generator.Endpoint{
+				Interfaces:       p.config.Interfaces,
+				HTTPServerEnable: httpServerEnable,
+			},
+			&generator.InterfaceGenerator{
+				Interfaces: p.config.Interfaces,
+			},
+		)
+
 		if p.config.LoggingEnable {
 			result = append(result, &generator.Logging{
 				Interfaces:    p.config.Interfaces,
@@ -224,21 +229,52 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	}
 
 	if goClientEnable {
-		result = append(result, &generator.ClientStruct{
-			UseFast:       useFast,
-			JSONRPCEnable: jsonRPCEnable,
-			Interfaces:    p.config.Interfaces,
-		})
+		output := p.config.ClientOutput.Take()
+		pkg := strcase.ToSnake(filepath.Base(output))
+
+		result = append(result,
+			&generator.Helpers{
+				Interfaces:       p.config.Interfaces,
+				JSONRPCEnable:    jsonRPCEnable,
+				GoClientEnable:   goClientEnable,
+				HTTPServerEnable: httpServerEnable,
+				UseFast:          useFast,
+				IfaceErrors:      p.config.IfaceErrors,
+				Pkg:              pkg,
+				Output:           output,
+			},
+			&generator.Endpoint{
+				Interfaces:       p.config.Interfaces,
+				HTTPServerEnable: httpServerEnable,
+				Pkg:              pkg,
+				Output:           output,
+			},
+			&generator.InterfaceGenerator{
+				Interfaces: p.config.Interfaces,
+				Pkg:        pkg,
+				Output:     output,
+			},
+			&generator.ClientStruct{
+				UseFast:       useFast,
+				JSONRPCEnable: jsonRPCEnable,
+				Interfaces:    p.config.Interfaces,
+				Pkg:           pkg,
+				Output:        output,
+			})
 		if jsonRPCEnable {
 			result = append(result, &generator.JSONRPCClientGenerator{
 				Interfaces: p.config.Interfaces,
 				UseFast:    useFast,
+				Pkg:        pkg,
+				Output:     output,
 			})
 		} else {
 			result = append(result, &generator.RESTClientGenerator{
 				Interfaces:    p.config.Interfaces,
 				UseFast:       useFast,
 				MethodOptions: p.config.MethodOptionsMap,
+				Pkg:           pkg,
+				Output:        output,
 			})
 		}
 	}
