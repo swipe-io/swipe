@@ -12,6 +12,12 @@ import (
 type InterfaceGenerator struct {
 	w          writer.GoWriter
 	Interfaces []*config.Interface
+	Output     string
+	Pkg        string
+}
+
+func (g *InterfaceGenerator) Package() string {
+	return g.Pkg
 }
 
 func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
@@ -41,7 +47,7 @@ func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 }
 
 func (g *InterfaceGenerator) OutputDir() string {
-	return ""
+	return g.Output
 }
 
 func (g *InterfaceGenerator) Filename() string {

@@ -15,6 +15,12 @@ type ClientStruct struct {
 	UseFast       bool
 	JSONRPCEnable bool
 	Interfaces    []*config.Interface
+	Output        string
+	Pkg           string
+}
+
+func (g *ClientStruct) Package() string {
+	return g.Pkg
 }
 
 func (g *ClientStruct) Generate(ctx context.Context) []byte {
@@ -200,7 +206,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 }
 
 func (g *ClientStruct) OutputDir() string {
-	return ""
+	return g.Output
 }
 
 func (g *ClientStruct) Filename() string {

@@ -168,21 +168,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			}
 		}
 	}
-
-	//for _, iface := range g.Interfaces {
-	//	g.w.W("%s := Make%s(svc%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), iface.Named.Name.Upper())
-	//}
-
-	//for _, iface := range g.Interfaces {
-	//	ifaceType := iface.Named.Type.(*option.IfaceType)
-	//	epSetName := NameEndpointSetNameVar(iface)
-	//	for _, m := range ifaceType.Methods {
-	//		g.w.W(
-	//			"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-	//			LcNameWithAppPrefix(iface)+m.Name.Value, m.Name, epSetName,
-	//		)
-	//	}
-	//}
 	if g.UseFast {
 		g.w.W("r := %s.New()\n", routerPkg)
 	} else {
@@ -362,16 +347,28 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 								fmtPkg := importer.Import("fmt", "fmt")
 								pkgIO := importer.Import("io", "io")
+
+								g.w.W("var data []byte\n")
+
 								if g.UseFast {
-									g.w.W("err = %s.Unmarshal(r.Body(), &req)\n", jsonPkg)
+									g.w.W("data = r.Body()\n")
 								} else {
 									ioutilPkg := importer.Import("ioutil", "io/ioutil")
-
-									g.w.W("b, err := %s.ReadAll(r.Body)\n", ioutilPkg)
+									g.w.W("data, err = %s.ReadAll(r.Body)\n", ioutilPkg)
 									g.w.WriteCheckErr("err", func() {
 										g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
 									})
-									g.w.W("err = %s.Unmarshal(b, &req)\n", jsonPkg)
+								}
+								if len(paramVars) == 1 {
+									if s, ok := paramVars[0].Type.(*option.SliceType); ok {
+										if b, ok := s.Value.(*option.BasicType); ok && b.IsByte() {
+											g.w.W("req%s = data\n", "."+paramVars[0].Name.Upper())
+										}
+									} else {
+										g.w.W("err = %s.Unmarshal(data, &req%s)\n", jsonPkg, "."+paramVars[0].Name.Upper())
+									}
+								} else {
+									g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
 								}
 								g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
 								g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)

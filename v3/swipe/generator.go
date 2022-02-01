@@ -7,3 +7,7 @@ type Generator interface {
 	OutputDir() string
 	Filename() string
 }
+
+type GeneratorPackage interface {
+	Package() string
+}

@@ -24,6 +24,12 @@ type RESTClientGenerator struct {
 	Interfaces    []*config.Interface
 	UseFast       bool
 	MethodOptions map[string]config.MethodOptions
+	Output        string
+	Pkg           string
+}
+
+func (g *RESTClientGenerator) Package() string {
+	return g.Pkg
 }
 
 func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
@@ -427,7 +433,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 }
 
 func (g *RESTClientGenerator) OutputDir() string {
-	return ""
+	return g.Output
 }
 
 func (g *RESTClientGenerator) Filename() string {

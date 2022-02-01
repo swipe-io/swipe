@@ -13,6 +13,12 @@ type Endpoint struct {
 	w                writer.GoWriter
 	Interfaces       []*config.Interface
 	HTTPServerEnable bool
+	Output           string
+	Pkg              string
+}
+
+func (g *Endpoint) Package() string {
+	return g.Pkg
 }
 
 func (g *Endpoint) Generate(ctx context.Context) []byte {
@@ -25,7 +31,7 @@ func (g *Endpoint) Generate(ctx context.Context) []byte {
 }
 
 func (g *Endpoint) OutputDir() string {
-	return ""
+	return g.Output
 }
 
 func (g *Endpoint) Filename() string {
