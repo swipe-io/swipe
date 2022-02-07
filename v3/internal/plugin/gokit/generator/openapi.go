@@ -667,7 +667,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	for _, headerVar := range headerVars {
 		o.Parameters = append(o.Parameters, openapi.Parameter{
 			In:          "header",
-			Name:        headerVar.p.Name.Lower(),
+			Name:        headerVar.value,
 			Description: headerVar.p.Comment,
 			Required:    headerVar.required,
 			Schema:      g.schemaByType(headerVar.p.Type),
