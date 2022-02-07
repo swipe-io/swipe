@@ -39,7 +39,6 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	)
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 	fmtPkg := importer.Import("fmt", "fmt")
 	contextPkg := importer.Import("context", "context")
 	urlPkg := importer.Import("url", "net/url")
@@ -150,7 +149,9 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 			methodHeaderVars := make(map[string]string, len(mopt.RESTHeaderVars.Value))
 			for i := 0; i < len(mopt.RESTHeaderVars.Value); i += 2 {
-				methodHeaderVars[mopt.RESTHeaderVars.Value[i]] = mopt.RESTHeaderVars.Value[i+1]
+				headerName := mopt.RESTHeaderVars.Value[i]
+				fieldName := mopt.RESTHeaderVars.Value[i+1]
+				methodHeaderVars[fieldName] = headerName
 			}
 
 			for _, p := range m.Sig.Params {
@@ -330,7 +331,6 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 						}
 					}
 				}
-
 				for _, p := range headerVars {
 					name := p.Name.Value + "Str"
 					g.w.WriteFormatType(importer, name, "req."+strcase.ToCamel(p.Name.Value), p)
@@ -395,8 +395,9 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 						})
 					}
 
-					g.w.W("if len(b) == 0 {\nreturn nil, nil\n}\n")
+					jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 
+					g.w.W("if len(b) == 0 {\nreturn nil, nil\n}\n")
 					g.w.W("err = %s.Unmarshal(b, &resp)\n", jsonPkg)
 					g.w.W("if err != nil {\n")
 					g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, responseType)
