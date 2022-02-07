@@ -229,8 +229,12 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	}
 
 	if goClientEnable {
+		var pkg string
+
 		output := p.config.ClientOutput.Take()
-		pkg := strcase.ToSnake(filepath.Base(output))
+		if output != "" {
+			pkg = strcase.ToSnake(filepath.Base(output))
+		}
 
 		result = append(result,
 			&generator.Helpers{
