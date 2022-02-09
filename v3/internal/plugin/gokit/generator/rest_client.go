@@ -185,9 +185,9 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			} else {
 				g.w.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
 
-				if paramsLen > 0 {
-					nameRequest := NameRequest(m, iface)
+				nameRequest := NameRequest(m, iface)
 
+				if paramsLen > 0 {
 					g.w.W("req, ok := request.(%s)\n", nameRequest)
 					g.w.W("if !ok {\n")
 					g.w.W("return %s.Errorf(\"couldn't assert request as %s, got %%T\", request)\n", fmtPkg, nameRequest)
@@ -273,7 +273,20 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 						case "json":
 							jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
 							g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
-							g.w.W("data, err := %s.Marshal(req)\n", jsonPkg)
+
+							g.w.W("var reqData interface{}\n")
+
+							if wrapRequest := mopt.RESTWrapRequest.Take(); wrapRequest != "" {
+								reqData, structPath := wrapDataClient(stdstrings.Split(wrapRequest, "."), nameRequest)
+
+								g.w.W("var wrapReq %s\n", reqData)
+								g.w.W("wrapReq.%s = req\n", structPath)
+								g.w.W("reqData = wrapReq\n")
+							} else {
+								g.w.W("reqData = request\n")
+							}
+
+							g.w.W("data, err := %s.Marshal(reqData)\n", jsonPkg)
 							g.w.W("if err != nil  {\n")
 							g.w.W("return %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\n", fmtPkg)
 							g.w.W("}\n")
