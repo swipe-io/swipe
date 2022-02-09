@@ -64,6 +64,7 @@ type MethodOptions struct {
 	LoggingContext         []LoggingContext        `swipe:"option"`
 	RESTMethod             option.ExprStringValue  `swipe:"option"`
 	RESTWrapResponse       option.StringValue      `swipe:"option"`
+	RESTWrapRequest        option.StringValue      `swipe:"option"`
 	RESTPath               option.ExprStringValue  `swipe:"option"`
 	RESTMultipartMaxMemory option.Int64Value       `swipe:"option"`
 	RESTHeaderVars         option.SliceStringValue `swipe:"option"`

@@ -363,6 +363,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 									if s, ok := paramVars[0].Type.(*option.SliceType); ok {
 										if b, ok := s.Value.(*option.BasicType); ok && b.IsByte() {
 											g.w.W("req%s = data\n", "."+paramVars[0].Name.Upper())
+										} else {
+											g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
 										}
 									} else {
 										g.w.W("err = %s.Unmarshal(data, &req%s)\n", jsonPkg, "."+paramVars[0].Name.Upper())
