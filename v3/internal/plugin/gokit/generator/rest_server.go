@@ -243,7 +243,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 				g.w.W(", ")
 			} else {
-				g.w.W("r.Methods(")
+				g.w.W("r.Methods(%s,", strconv.Quote("OPTIONS"))
 				if mopt.RESTMethod.Take() != "" {
 					g.w.W(strconv.Quote(mopt.RESTMethod.Take()))
 				} else {
@@ -367,7 +367,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 											g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
 										}
 									} else {
-										g.w.W("err = %s.Unmarshal(data, &req%s)\n", jsonPkg, "."+paramVars[0].Name.Upper())
+										g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
 									}
 								} else {
 									g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
