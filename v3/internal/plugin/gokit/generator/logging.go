@@ -21,11 +21,22 @@ type Logging struct {
 func (g *Logging) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
+	loggerPkg := importer.Import("log", "github.com/go-kit/kit/log")
+	levelPkg := importer.Import("level", "github.com/go-kit/kit/log/level")
+
+	g.w.W("type errLevel interface {\n\tLevel() string\n}\n\n")
+
+	g.w.W("func levelLogger(e errLevel, logger %[1]s.Logger) %[1]s.Logger {\n", loggerPkg)
+	g.w.W("switch e.Level() {\n")
+	g.w.W("default:\nreturn %s.Error(logger)\n", levelPkg)
+	g.w.W("case \"debug\":\nreturn %s.Debug(logger)\n", levelPkg)
+	g.w.W("case \"info\":\nreturn %s.Info(logger)\n", levelPkg)
+	g.w.W("case \"warn\":\nreturn %s.Warn(logger)\n", levelPkg)
+	g.w.W("}\n")
+	g.w.W("}\n\n")
+
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
-
-		loggerPkg := importer.Import("log", "github.com/go-kit/kit/log")
-		levelPkg := importer.Import("level", "github.com/go-kit/kit/log/level")
 
 		ifaceTypeName := NameInterface(iface)
 		middlewareNameType := NameLoggingMiddleware(iface)
@@ -97,10 +108,13 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 							g.w.W("}\n")
 						}
 					}
-
 					g.w.W("logger := %s.WithPrefix(s.logger, \"method\",\"%s\",\"took\",%s.Since(now))\n", loggerPkg, methodName, timePkg)
 					if resultErr != nil {
-						g.w.W("if %[2]s != nil {\nlogger = %[1]s.Error(logger)\n} else {\nlogger = %[1]s.Debug(logger)\n}\n", levelPkg, resultErr.Name)
+						g.w.W("if %s != nil {\n", resultErr.Name)
+						g.w.W("if e, ok := %s.(errLevel); ok {\n", resultErr.Name)
+						g.w.W("logger = levelLogger(e, logger)\n")
+						g.w.W("} else {\nlogger = %s.Error(logger)\n}\n", levelPkg)
+						g.w.W("} else {\nlogger = %s.Debug(logger)\n}\n", levelPkg)
 					}
 					g.w.W("_ = logger.Log(%s)\n", strings.Join(logParams, ","))
 				})
@@ -129,7 +143,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 			}
 			g.w.W(")\n")
 
-			g.w.W("return")
+			g.w.W("return\n")
 
 			g.w.W("}\n")
 		}
