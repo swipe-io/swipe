@@ -47,6 +47,11 @@ type LoggingContext struct {
 	Name string
 }
 
+type InstrumentingLabel struct {
+	Key  interface{}
+	Name string
+}
+
 type RESTMultipart struct {
 	MaxMemory int64
 }
@@ -147,6 +152,7 @@ type Config struct {
 	MethodOptions        []MethodOption
 	MethodDefaultOptions MethodOptions
 	ServerErrorEncoder   option.FuncTypeValue
+	InstrumentingLabels  []InstrumentingLabel `swipe:"option"`
 
 	// non options params
 	LoggingEnable       bool                          `mapstructure:"-"`

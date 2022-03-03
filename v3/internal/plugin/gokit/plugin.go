@@ -172,6 +172,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			result = append(result, &generator.Instrumenting{
 				Interfaces:    p.config.Interfaces,
 				MethodOptions: p.config.MethodOptionsMap,
+				Labels:        p.config.InstrumentingLabels,
 			})
 		}
 		if p.config.OpenapiEnable != nil {
