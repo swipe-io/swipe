@@ -15,6 +15,7 @@ type Instrumenting struct {
 	w             writer.GoWriter
 	Interfaces    []*config.Interface
 	MethodOptions map[string]config.MethodOptions
+	Labels        []config.InstrumentingLabel
 }
 
 func (g *Instrumenting) Generate(ctx context.Context) []byte {
@@ -64,16 +65,38 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 						[]string{"begin " + timePkg + ".Time"},
 						[]string{timePkg + ".Now()"},
 						func() {
+
+							g.w.W("requestCount := s.opts.requestCount.With(\"method\", \"%s\")\n", methodName)
+							g.w.W("requestLatency := s.opts.requestLatency.With(\"method\", \"%s\")\n", methodName)
+
+							if len(g.Labels) > 0 {
+								g.w.W("requestCount = requestCount.With(")
+								for i, l := range g.Labels {
+									if i > 0 {
+										g.w.W(", ")
+									}
+									g.w.W("%s, ctx.Value(%s).(string)", strconv.Quote(l.Name), swipe.TypeString(l.Key, false, importer))
+								}
+								g.w.W(")\n")
+								g.w.W("requestLatency = requestLatency.With(")
+								for i, l := range g.Labels {
+									if i > 0 {
+										g.w.W(", ")
+									}
+									g.w.W("%s, ctx.Value(%s).(string)", strconv.Quote(l.Name), swipe.TypeString(l.Key, false, importer))
+								}
+								g.w.W(")\n")
+							}
 							e := Error(m.Sig.Results)
 							if e != nil {
-								g.w.W("if %[1]s != nil {\ns.opts.requestCount.With(\"method\", \"%[2]s\", \"err\", %[1]s.Error()).Add(1)\n} else {\n", e.Name, methodName)
+								g.w.W("if %[1]s != nil {\nrequestCount.With(\"err\", %[1]s.Error()).Add(1)\n} else {\n", e.Name)
 								g.w.W("")
 							}
-							g.w.W("s.opts.requestCount.With(\"method\", \"%s\", \"err\", \"\").Add(1)\n", methodName)
+							g.w.W("requestCount.With(\"err\", \"\").Add(1)\n")
 							if e != nil {
 								g.w.W("}\n")
 							}
-							g.w.W("s.opts.requestLatency.With(\"method\", \"%s\").Observe(%s.Since(begin).Seconds())\n", methodName, timePkg)
+							g.w.W("requestLatency.Observe(%s.Since(begin).Seconds())\n", timePkg)
 						},
 					)
 				}
@@ -117,7 +140,15 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 			g.w.W("Subsystem: i.opts.subsystem,\n")
 			g.w.W("Name: %s,\n", strconv.Quote("request_count"))
 			g.w.W("Help: %s,\n", strconv.Quote("Number of requests received."))
-			g.w.W("}, []string{\"method\", \"err\"})\n")
+
+			g.w.W("}, []string{\"method\", \"err\"")
+			if len(g.Labels) > 0 {
+				for _, l := range g.Labels {
+					g.w.W(", %s", strconv.Quote(l.Name))
+				}
+			}
+			g.w.W("})\n")
+
 			g.w.W("\n}\n")
 
 			g.w.W("if i.opts.requestLatency == nil {\n")
@@ -126,9 +157,16 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 			g.w.W("Subsystem: i.opts.subsystem,\n")
 			g.w.W("Name: %s,\n", strconv.Quote("request_latency_microseconds"))
 			g.w.W("Help: %s,\n", strconv.Quote("Total duration of requests in microseconds."))
-			g.w.W("}, []string{\"method\"})\n")
-			g.w.W("\n}\n")
+			g.w.W("}, []string{\"method\"")
 
+			if len(g.Labels) > 0 {
+				for _, l := range g.Labels {
+					g.w.W(", %s", strconv.Quote(l.Name))
+				}
+			}
+
+			g.w.W("})\n")
+			g.w.W("\n}\n")
 			g.w.W("return i\n}\n}\n")
 		}
 	}
