@@ -68,7 +68,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	}
 
 	if external {
-		g.w.W(", logger %s.Logger", importer.Import("log", "github.com/go-kit/kit/log"))
+		g.w.W(", logger %s.Logger", importer.Import("log", "github.com/go-kit/log"))
 	}
 
 	g.w.W(", options ...ServerOption")
