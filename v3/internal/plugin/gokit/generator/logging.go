@@ -21,8 +21,8 @@ type Logging struct {
 func (g *Logging) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	loggerPkg := importer.Import("log", "github.com/go-kit/kit/log")
-	levelPkg := importer.Import("level", "github.com/go-kit/kit/log/level")
+	loggerPkg := importer.Import("log", "github.com/go-kit/log")
+	levelPkg := importer.Import("level", "github.com/go-kit/log/level")
 
 	g.w.W("type errLevel interface {\n\tLevel() string\n}\n\n")
 
