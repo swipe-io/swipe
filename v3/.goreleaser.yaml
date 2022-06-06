@@ -2,7 +2,7 @@
 # Make sure to check the documentation at https://goreleaser.com
 before:
   hooks:
-    - cd v3 && go mod download
+    - go mod download
 builds:
   - env:
       - CGO_ENABLED=0
@@ -10,7 +10,7 @@ builds:
       - linux
       - windows
       - darwin
-    main: v3/cmd/swipe/main.go
+    main: cmd/swipe/main.go
 archives:
   - replacements:
       darwin: Darwin
