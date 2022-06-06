@@ -10,7 +10,7 @@ builds:
       - linux
       - windows
       - darwin
-    main: cmd/swipe/main.go
+    main: v3/cmd/swipe/main.go
 archives:
   - replacements:
       darwin: Darwin

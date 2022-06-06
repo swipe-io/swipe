@@ -1,7 +1,6 @@
 .idea
 .DS_Store
 
-v2/fixtures/*/app/*_gen.go
-releases
+dist/
 
 *.go-e
