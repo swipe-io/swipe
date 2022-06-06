@@ -21,6 +21,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           distribution: goreleaser
+          workdir: v3
           version: latest
           args: release --rm-dist
         env:
