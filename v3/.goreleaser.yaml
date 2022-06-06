@@ -32,5 +32,5 @@ brews:
   - name: swipe3
     homepage: https://github.com/swipe-io/homebrew-swipe
     tap:
-      owner: scraly
+      owner: swipe-io
       name: homebrew-swipe
