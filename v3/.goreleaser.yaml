@@ -34,4 +34,6 @@ brews:
     tap:
       owner: swipe-io
       name: homebrew-swipe
-      token: "{{ .Env.GITHUB_TOKEN }}"
+    commit_author:
+      email: vitaly@lobchuk.ru
+      name: l-vitaly
