@@ -12,7 +12,7 @@ import (
 	"github.com/swipe-io/swipe/v3/option"
 )
 
-const Version = "v3.0.0-beta2"
+const Version = "v3.0.0"
 
 type ContextKey string
 
