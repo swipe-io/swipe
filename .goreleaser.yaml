@@ -2,7 +2,7 @@
 # Make sure to check the documentation at https://goreleaser.com
 before:
   hooks:
-    - go mod download
+    - cd v3 && go mod download
 builds:
   - env:
       - CGO_ENABLED=0
