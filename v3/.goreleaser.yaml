@@ -34,4 +34,3 @@ brews:
     tap:
       owner: swipe-io
       name: homebrew-swipe
-      token: "{{ .Env.GITHUB_TOKEN }}"
