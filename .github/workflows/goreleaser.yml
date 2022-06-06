@@ -1,9 +1,5 @@
 name: goreleaser
 
-defaults:
-  run:
-    working-directory: v3
-
 on:
  push:
     tags:
