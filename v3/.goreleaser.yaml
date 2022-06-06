@@ -32,7 +32,7 @@ brews:
   - name: swipe3
     homepage: https://github.com/swipe-io/homebrew-swipe
     tap:
-      owner: swipe-io
+      owner: l-vitaly
       name: homebrew-swipe
     commit_author:
       email: vitaly@lobchuk.ru
