@@ -7,6 +7,10 @@ import (
 	"strconv"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v3/internal/convert"
+
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
@@ -15,12 +19,11 @@ import (
 )
 
 type RESTServerGenerator struct {
-	w                  writer.GoWriter
-	UseFast            bool
-	JSONRPCEnable      bool
-	ServerErrorEncoder *option.FuncType
-	Interfaces         []*config.Interface
-	MethodOptions      map[string]config.MethodOptions
+	w             writer.GoWriter
+	UseFast       bool
+	JSONRPCEnable bool
+	Interfaces    []*config.Interface
+	MethodOptions map[string]config.MethodOptions
 }
 
 func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
@@ -44,9 +47,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		kitHTTPPkg = importer.Import("http", "github.com/go-kit/kit/transport/http")
 		httpPkg = importer.Import("http", "net/http")
 	}
-	if g.ServerErrorEncoder == nil {
-		g.writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg)
-	}
+
+	g.writeDefaultErrorEncoder(contextPkg, httpPkg, kitHTTPPkg, jsonPkg)
 	g.writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg)
 
 	g.w.W("// MakeHandlerREST make REST HTTP transport\n")
@@ -82,15 +84,12 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 	g.w.W("opts := &serverOpts{}\n")
 	g.w.W("for _, o := range options {\n o(opts)\n }\n")
-	if g.ServerErrorEncoder != nil {
-		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(", kitHTTPPkg)
 
-		g.w.WriteFuncByFuncType(g.ServerErrorEncoder, importer)
-
-		g.w.W("))\n")
-	} else {
-		g.w.W("opts.genericServerOption = append(opts.genericServerOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)
-	}
+	g.w.W("if opts.errorEncoder == nil {\n")
+	g.w.W("opts.genericOpts.serverOption = append(opts.genericOpts.serverOption, %s.ServerErrorEncoder(defaultErrorEncoder))\n", kitHTTPPkg)
+	g.w.W("} else {\n")
+	g.w.W("opts.genericOpts.serverOption = append(opts.genericOpts.serverOption, %s.ServerErrorEncoder(opts.errorEncoder))\n", kitHTTPPkg)
+	g.w.W("}\n\n")
 
 	for _, iface := range g.Interfaces {
 		optName := LcNameWithAppPrefix(iface, iface.Gateway != nil)
@@ -153,7 +152,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 					m.Name, epSetName,
 				)
 				g.w.W(
-					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericOpts.endpointMiddleware, opts.%[1]sOpts.endpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
 					LcNameWithAppPrefix(iface)+m.Name.Upper(), m.Name, epSetName,
 				)
 				g.w.W("}\n")
@@ -162,7 +161,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("%s := Make%s(svc%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), iface.Named.Name.Upper())
 			for _, m := range ifaceType.Methods {
 				g.w.W(
-					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericOpts.endpointMiddleware, opts.%[1]sOpts.endpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
 					LcNameWithAppPrefix(iface)+m.Name.Upper(), m.Name, epSetName,
 				)
 			}
@@ -180,32 +179,39 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 		for _, m := range ifaceType.Methods {
 			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
+			encRespFuncName := LcNameWithAppPrefix(iface) + m.Name.Upper()
+
+			g.w.W("%s := encodeResponseHTTP\n", encRespFuncName)
+			//g.w.W("if opts.%sOpts.encRespFunc != nil {\n", encRespFuncName)
+			//g.w.W("%[1]s = opts.%[1]sOpts.encRespFunc\n", encRespFuncName)
+			//g.w.W("}\n")
+
 			bodyType := mopt.RESTBodyType.Take()
 			if bodyType == "" {
 				bodyType = "json"
 			}
 
-			queryVars := make([]varType, 0, len(mopt.RESTQueryVars.Value))
-			headerVars := make([]varType, 0, len(mopt.RESTHeaderVars.Value))
-			pathVars := make([]varType, 0, len(mopt.RESTPathVars))
+			queryVars := make([]plugin.VarType, 0, len(mopt.RESTQueryVars.Value))
+			headerVars := make([]plugin.VarType, 0, len(mopt.RESTHeaderVars.Value))
+			pathVars := make([]plugin.VarType, 0, len(mopt.RESTPathVars))
 			paramVars := make([]*option.VarType, 0, len(m.Sig.Params))
 
 			for _, p := range m.Sig.Params {
-				if IsContext(p) {
+				if plugin.IsContext(p) {
 					continue
 				}
-				if v, ok := findParam(p, mopt.RESTQueryVars.Value); ok {
+				if v, ok := plugin.FindParam(p, mopt.RESTQueryVars.Value); ok {
 					queryVars = append(queryVars, v)
 					continue
 				}
-				if v, ok := findParam(p, mopt.RESTHeaderVars.Value); ok {
+				if v, ok := plugin.FindParam(p, mopt.RESTHeaderVars.Value); ok {
 					headerVars = append(headerVars, v)
 					continue
 				}
 				if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
-					pathVars = append(pathVars, varType{
-						p:     p,
-						value: regexp,
+					pathVars = append(pathVars, plugin.VarType{
+						Param: p,
+						Value: regexp,
 					})
 					continue
 				}
@@ -263,215 +269,244 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				epSetName,
 				m.Name,
 			)
-			if mopt.ServerDecodeRequest.Value != nil {
-				pkg := importer.Import(mopt.ServerDecodeRequest.Value.Pkg.Name, mopt.ServerDecodeRequest.Value.Pkg.Path)
-				fnName := mopt.ServerDecodeRequest.Value.Name.String()
-				if pkg != "" {
-					fnName = pkg + "." + fnName
+
+			g.w.W("func(ctx %s.Context, r *%s.Request) (_ interface{}, err error) {\n", contextPkg, httpPkg)
+
+			nameRequest := NameRequest(m, iface)
+			if len(m.Sig.Params) > 0 {
+				g.w.W("var req %s\n", nameRequest)
+				if len(mopt.RESTPathVars) > 0 {
+					if g.UseFast {
+						fmtPkg := importer.Import("fmt", "fmt")
+
+						g.w.W("vars, ok := ctx.Value(%s.ContextKeyRouter).(*%s.Context)\n", kitHTTPPkg, routerPkg)
+						g.w.W("if !ok {\n")
+						g.w.W("return nil, %s.Errorf(\"couldn't assert %s.ContextKeyRouter to *%s.Context\")\n", fmtPkg, kitHTTPPkg, routerPkg)
+						g.w.W("}\n")
+					} else {
+						g.w.W("vars := %s.Vars(r)\n", routerPkg)
+					}
 				}
-				g.w.W(fnName)
-			} else {
-				g.w.W("func(ctx %s.Context, r *%s.Request) (_ interface{}, err error) {\n", contextPkg, httpPkg)
-
-				nameRequest := NameRequest(m, iface)
-
-				if len(m.Sig.Params) > 0 {
-					g.w.W("var req %s\n", nameRequest)
-					if len(mopt.RESTPathVars) > 0 {
-						if g.UseFast {
-							fmtPkg := importer.Import("fmt", "fmt")
-
-							g.w.W("vars, ok := ctx.Value(%s.ContextKeyRouter).(*%s.Context)\n", kitHTTPPkg, routerPkg)
-							g.w.W("if !ok {\n")
-							g.w.W("return nil, %s.Errorf(\"couldn't assert %s.ContextKeyRouter to *%s.Context\")\n", fmtPkg, kitHTTPPkg, routerPkg)
-							g.w.W("}\n")
-						} else {
-							g.w.W("vars := %s.Vars(r)\n", routerPkg)
-						}
+				if len(mopt.RESTQueryVars.Value) > 0 {
+					if g.UseFast {
+						g.w.W("q := r.URI().QueryArgs()\n")
+					} else {
+						g.w.W("q := r.URL.Query()\n")
 					}
-					if len(mopt.RESTQueryVars.Value) > 0 {
-						if g.UseFast {
-							g.w.W("q := r.URI().QueryArgs()\n")
-						} else {
-							g.w.W("q := r.URL.Query()\n")
-						}
-					}
+				}
+
+				if len(pathVars) > 0 {
+					errorPkg := importer.Import("errors", "errors")
 
 					for _, pathVar := range pathVars {
-						var valueID string
+						var valueVar string
 						if g.UseFast {
-							valueID = "vars.Param(" + strconv.Quote(pathVar.p.Name.Value) + ")"
+							valueVar = "vars.Param(" + strconv.Quote(pathVar.Param.Name.Value) + ")"
 						} else {
-							valueID = "vars[" + strconv.Quote(pathVar.p.Name.Value) + "]"
+							valueVar = "vars[" + strconv.Quote(pathVar.Param.Name.Value) + "]"
 						}
-						g.w.WriteConvertType(importer, "req."+strcase.ToCamel(pathVar.p.Name.Value), valueID, pathVar.p, []string{"nil"}, "", false, "")
+
+						convert.NewBuilder(importer).
+							SetAssignVar("req." + strcase.ToCamel(pathVar.Param.Name.Value)).
+							SetValueVar(valueVar).
+							SetFieldName(pathVar.Param.Name).
+							SetFieldType(pathVar.Param.Type).
+							SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+							Write(&g.w)
+
+						//g.w.WriteConvertType(importer, "req."+strcase.ToCamel(pathVar.Param.Name.Value), valueID, pathVar.Param, []string{"nil"}, "", false, "")
 					}
+				}
+
+				if len(queryVars) > 0 {
+					errorPkg := importer.Import("errors", "errors")
 
 					for _, queryVar := range queryVars {
-						var valueID string
+						var valueVar string
 						if g.UseFast {
-							valueID = "string(q.Peek(" + strconv.Quote(queryVar.value) + "))"
+							valueVar = "string(q.Peek(" + strconv.Quote(queryVar.Value) + "))"
 						} else {
-							valueID = "q.Get(" + strconv.Quote(queryVar.value) + ")"
+							valueVar = "q.Get(" + strconv.Quote(queryVar.Value) + ")"
 						}
-						if queryVar.required {
+						if queryVar.IsRequired {
 							fmtPkg := importer.Import("fmt", "fmt")
 							if g.UseFast {
-								g.w.W("if !q.Has(\"%[1]s\") {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.value, fmtPkg)
+								g.w.W("if !q.Has(\"%[1]s\") {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.Value, fmtPkg)
 							} else {
-								g.w.W("if _, ok := q[\"%[1]s\"]; !ok {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.value, fmtPkg)
+								g.w.W("if _, ok := q[\"%[1]s\"]; !ok {\nreturn nil, %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.Value, fmtPkg)
 							}
 						}
-						tmpID := "tmp" + queryVar.p.Name.Value
-						g.w.W("%s := %s\n", tmpID, valueID)
+						tmpID := "tmp" + queryVar.Param.Name.Value
+						g.w.W("%s := %s\n", tmpID, valueVar)
 						g.w.W("if %s != \"\" {\n", tmpID)
-						g.w.WriteConvertType(importer, "req."+queryVar.p.Name.Upper(), tmpID, queryVar.p, []string{"nil"}, "", false, "")
+
+						convert.NewBuilder(importer).
+							SetAssignVar("req." + queryVar.Param.Name.Upper()).
+							SetValueVar(tmpID).
+							SetFieldName(queryVar.Param.Name).
+							SetFieldType(queryVar.Param.Type).
+							SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+							Write(&g.w)
 						g.w.W("}\n")
 					}
+				}
 
+				if len(headerVars) > 0 {
+					errorPkg := importer.Import("errors", "errors")
 					for _, headerVar := range headerVars {
-						var valueID string
+						var valueVar string
 						if g.UseFast {
-							valueID = "string(r.Header.Peek(" + strconv.Quote(headerVar.value) + "))"
+							valueVar = "string(r.Header.Peek(" + strconv.Quote(headerVar.Value) + "))"
 						} else {
-							valueID = "r.Header.Get(" + strconv.Quote(headerVar.value) + ")"
+							valueVar = "r.Header.Get(" + strconv.Quote(headerVar.Value) + ")"
 						}
-						g.w.WriteConvertType(importer, "req."+headerVar.p.Name.Upper(), valueID, headerVar.p, []string{"nil"}, "", false, "")
+						convert.NewBuilder(importer).
+							SetAssignVar("req." + headerVar.Param.Name.Upper()).
+							SetValueVar(valueVar).
+							SetFieldName(headerVar.Param.Name).
+							SetFieldType(headerVar.Param.Type).
+							SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+							Write(&g.w)
 					}
+				}
 
-					if len(paramVars) > 0 {
-						switch stdstrings.ToUpper(mopt.RESTMethod.Take()) {
-						case "POST", "PUT", "PATCH":
-							switch bodyType {
-							case "json":
-								jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-								fmtPkg := importer.Import("fmt", "fmt")
-								pkgIO := importer.Import("io", "io")
+				if len(paramVars) > 0 {
+					errorPkg := importer.Import("errors", "errors")
 
-								g.w.W("var data []byte\n")
+					switch stdstrings.ToUpper(mopt.RESTMethod.Take()) {
+					case "POST", "PUT", "PATCH":
+						switch bodyType {
+						case "json":
+							jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+							fmtPkg := importer.Import("fmt", "fmt")
+							pkgIO := importer.Import("io", "io")
 
-								if g.UseFast {
-									g.w.W("data = r.Body()\n")
-								} else {
-									ioutilPkg := importer.Import("ioutil", "io/ioutil")
-									g.w.W("data, err = %s.ReadAll(r.Body)\n", ioutilPkg)
-									g.w.WriteCheckErr("err", func() {
-										g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
-									})
-								}
-								if len(paramVars) == 1 {
-									if s, ok := paramVars[0].Type.(*option.SliceType); ok {
-										if b, ok := s.Value.(*option.BasicType); ok && b.IsByte() {
-											g.w.W("req%s = data\n", "."+paramVars[0].Name.Upper())
-										} else {
-											g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
-										}
+							g.w.W("var data []byte\n")
+							if g.UseFast {
+								g.w.W("data = r.Body()\n")
+							} else {
+								ioutilPkg := importer.Import("ioutil", "io/ioutil")
+								g.w.W("data, err = %s.ReadAll(r.Body)\n", ioutilPkg)
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
+								})
+							}
+							if len(paramVars) == 1 {
+								if s, ok := paramVars[0].Type.(*option.SliceType); ok {
+									if b, ok := s.Value.(*option.BasicType); ok && b.IsByte() {
+										g.w.W("req%s = data\n", "."+paramVars[0].Name.Upper())
 									} else {
 										g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
 									}
 								} else {
 									g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
 								}
-								g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
-								g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)
-								g.w.W("}\n")
-							case "urlencoded":
-								if g.UseFast {
-								} else {
-									g.w.W("r.ParseForm()\n")
-									for _, p := range paramVars {
-										valueID := "r.Form.Get(" + strconv.Quote(p.Name.Value) + ")"
-										g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
-									}
-								}
-							case "multipart":
-								multipartMaxMemory := mopt.RESTMultipartMaxMemory.Take()
-								if multipartMaxMemory == 0 {
-									multipartMaxMemory = 67108864
-								}
-								if g.UseFast {
-									g.w.W("form, err := r.MultipartForm()\n")
-								} else {
-									g.w.W("err = r.ParseMultipartForm(%d)\n", multipartMaxMemory)
-								}
-								g.w.WriteCheckErr("err", func() {
-									g.w.W("return nil, err\n")
-								})
-								for _, p := range paramVars {
-									if isFileUploadType(p.Type, importer) {
-										osPkg := importer.Import("os", "os")
+							} else {
+								g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
+							}
+							g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
+							g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, nameRequest)
+							g.w.W("}\n")
+						case "urlencoded":
+							if g.UseFast {
+							} else {
+								g.w.W("r.ParseForm()\n")
+								for _, paramVar := range paramVars {
+									valueVar := "r.Form.Get(" + strconv.Quote(paramVar.Name.Value) + ")"
 
-										if g.UseFast {
-											g.w.W("parts := form.File[%s]\n", strconv.Quote(p.Name.Value))
-											g.w.W("var (\nf *%s.File\n)\n", osPkg)
-											g.w.W("if len(parts) > 0 {\n")
-											g.w.W("f, err = %s.Open(parts[0].Filename)\n", osPkg)
-											g.w.WriteCheckErr("err", func() {
-												g.w.W("return nil, err\n")
-											})
-											g.w.W("}\n")
-										} else {
-											g.w.W("_, h, err := r.FormFile(%s)\n", strconv.Quote(p.Name.Value))
-											g.w.WriteCheckErr("err", func() {
-												g.w.W("return nil, err\n")
-											})
-											g.w.W("f, err := %s.Open(h.Filename)\n", osPkg)
-											g.w.WriteCheckErr("err", func() {
-												g.w.W("return nil, err\n")
-											})
-										}
-										g.w.W("req.%s = f\n", p.Name.Upper())
-										continue
-									}
-									var valueID string
+									convert.NewBuilder(importer).
+										SetAssignVar("req." + "req." + paramVar.Name.Upper()).
+										SetValueVar(valueVar).
+										SetFieldName(paramVar.Name).
+										SetFieldType(paramVar.Type).
+										SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+										Write(&g.w)
+								}
+							}
+						case "multipart":
+							multipartMaxMemory := mopt.RESTMultipartMaxMemory.Take()
+							if multipartMaxMemory == 0 {
+								multipartMaxMemory = 67108864
+							}
+							if g.UseFast {
+								g.w.W("form, err := r.MultipartForm()\n")
+							} else {
+								g.w.W("err = r.ParseMultipartForm(%d)\n", multipartMaxMemory)
+							}
+							g.w.WriteCheckErr("err", func() {
+								g.w.W("return nil, err\n")
+							})
+							for _, paramVar := range paramVars {
+								if isFileUploadType(paramVar.Type, importer) {
+									osPkg := importer.Import("os", "os")
+
 									if g.UseFast {
-										valueID = "form" + p.Name.Upper()
-										g.w.W("var %s string\n", valueID)
-										g.w.W("if fv, ok := form.Value[%s]; ok && len(fv) > 0 {\n", strconv.Quote(p.Name.Value))
-										g.w.W("%s = fv[0]\n", valueID)
+										g.w.W("parts := form.File[%s]\n", strconv.Quote(paramVar.Name.Value))
+										g.w.W("var (\nf *%s.File\n)\n", osPkg)
+										g.w.W("if len(parts) > 0 {\n")
+										g.w.W("f, err = %s.Open(parts[0].Filename)\n", osPkg)
+										g.w.WriteCheckErr("err", func() {
+											g.w.W("return nil, err\n")
+										})
 										g.w.W("}\n")
 									} else {
-										valueID = "r.FormValue(" + strconv.Quote(p.Name.Value) + ")"
+										g.w.W("_, h, err := r.FormFile(%s)\n", strconv.Quote(paramVar.Name.Value))
+										g.w.WriteCheckErr("err", func() {
+											g.w.W("return nil, err\n")
+										})
+										g.w.W("f, err := %s.Open(h.Filename)\n", osPkg)
+										g.w.WriteCheckErr("err", func() {
+											g.w.W("return nil, err\n")
+										})
 									}
-									g.w.WriteConvertType(importer, "req."+p.Name.Upper(), valueID, p, []string{"nil"}, "", false, "")
+									g.w.W("req.%s = f\n", paramVar.Name.Upper())
+									continue
 								}
+								var valueVar string
+								if g.UseFast {
+									valueVar = "form" + paramVar.Name.Upper()
+									g.w.W("var %s string\n", valueVar)
+									g.w.W("if fv, ok := form.Value[%s]; ok && len(fv) > 0 {\n", strconv.Quote(paramVar.Name.Value))
+									g.w.W("%s = fv[0]\n", valueVar)
+									g.w.W("}\n")
+								} else {
+									valueVar = "r.FormValue(" + strconv.Quote(paramVar.Name.Value) + ")"
+								}
+
+								convert.NewBuilder(importer).
+									SetAssignVar("req." + "req." + "req." + paramVar.Name.Upper()).
+									SetValueVar(valueVar).
+									SetFieldName(paramVar.Name).
+									SetFieldType(paramVar.Type).
+									SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+									Write(&g.w)
 							}
 						}
 					}
-
-					g.w.W("return req, nil\n")
-				} else {
-					g.w.W("return nil, nil\n")
 				}
-				g.w.W("}")
-			}
-			g.w.W(",\n")
 
-			if mopt.ServerEncodeResponse.Value != nil {
-				pkg := importer.Import(mopt.ServerEncodeResponse.Value.Pkg.Name, mopt.ServerEncodeResponse.Value.Pkg.Path)
-				fnName := mopt.ServerEncodeResponse.Value.Name.String()
-				if pkg != "" {
-					fnName = pkg + "." + fnName
-				}
-				g.w.W(fnName)
+				g.w.W("return req, nil\n")
 			} else {
-				if mopt.RESTWrapResponse.Take() != "" {
-					var responseWriterType string
-					if g.UseFast {
-						responseWriterType = fmt.Sprintf("*%s.Response", httpPkg)
-					} else {
-						responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
-					}
-					g.w.W("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
-					g.w.W("return encodeResponseHTTP(ctx, w, %s)\n", wrapDataServer(stdstrings.Split(mopt.RESTWrapResponse.Take(), ".")))
-					g.w.W("}")
-				} else {
-					g.w.W("encodeResponseHTTP")
-				}
+				g.w.W("return nil, nil\n")
 			}
-			g.w.W(",\n")
+			g.w.W("},\n")
 
-			g.w.W("append(opts.genericServerOption, opts.%sServerOption...)...,\n", LcNameWithAppPrefix(iface)+m.Name.Value)
+			if mopt.RESTWrapResponse.Take() != "" {
+				var responseWriterType string
+				if g.UseFast {
+					responseWriterType = fmt.Sprintf("*%s.Response", httpPkg)
+				} else {
+					responseWriterType = fmt.Sprintf("%s.ResponseWriter", httpPkg)
+				}
+				g.w.W("func (ctx context.Context, w %s, response interface{}) error {\n", responseWriterType)
+				g.w.W("return %s(ctx, w, %s)\n", encRespFuncName, wrapDataServer(stdstrings.Split(mopt.RESTWrapResponse.Take(), ".")))
+				g.w.W("}")
+			} else {
+				g.w.W(encRespFuncName)
+			}
+
+			g.w.W(",\n")
+			g.w.W("append(opts.genericOpts.serverOption, opts.%sOpts.serverOption...)...,\n", LcNameWithAppPrefix(iface)+m.Name.Value)
 			g.w.W(")")
 
 			if g.UseFast {
@@ -508,9 +543,17 @@ func (g *RESTServerGenerator) writeEncodeResponseFunc(contextPkg, httpPkg, jsonP
 	g.w.W(", response interface{}) (err error) {\n")
 	g.w.W("contentType := \"application/json; charset=utf-8\"\n")
 	g.w.W("statusCode := 200\n")
+
 	g.w.W("var data []byte\n")
 
 	g.w.W("if response != nil {\n")
+
+	g.w.W("if cookie, ok := response.(interface{ HTTPCookies() []%s.Cookie }); ok {\n", httpPkg)
+	g.w.W("for _, c := range cookie.HTTPCookies() {\n")
+	g.w.W("%s.SetCookie(w, &c)\n", httpPkg)
+	g.w.W("}\n")
+	g.w.W("}\n")
+
 	g.w.W("if download, ok := response.(downloader); ok {\n")
 	g.w.W("contentType = download.ContentType()\n")
 	g.w.W("data = download.Data()\n")
@@ -542,6 +585,7 @@ func (g *RESTServerGenerator) writeEncodeResponseFunc(contextPkg, httpPkg, jsonP
 func (g *RESTServerGenerator) writeDefaultErrorEncoder(contextPkg string, httpPkg string, kitHTTPPkg string, jsonPkg string) {
 	g.w.W("type errorWrapper struct {\n")
 	g.w.W("Error string `json:\"error\"`\n")
+	g.w.W("Code string `json:\"code,omitempty\"`\n")
 	g.w.W("Data interface{} `json:\"data,omitempty\"`\n")
 	g.w.W("}\n")
 
@@ -552,19 +596,23 @@ func (g *RESTServerGenerator) writeDefaultErrorEncoder(contextPkg string, httpPk
 		g.w.W("w %s.ResponseWriter) {\n", httpPkg)
 	}
 
-	g.w.W("var errData interface{}\n")
-	g.w.W("if e, ok := err.(interface{ ErrorData() interface{} }); ok {\n")
-	g.w.W("errData = e.ErrorData()\n")
+	g.w.W("var (\nerrData interface{}\nerrCode string\n)\n")
+	g.w.W("if e, ok := err.(interface{ Data() interface{} }); ok {\n")
+	g.w.W("errData = e.Data()\n")
 	g.w.W("}\n")
 
-	g.w.W("data, merr := %s.Marshal(errorWrapper{Error: err.Error(), Data: errData})\n", jsonPkg)
-	g.w.W("if merr != nil {\n")
+	g.w.W("if e, ok := err.(interface{ Code() string }); ok {\n")
+	g.w.W("errCode = e.Code()\n")
+	g.w.W("}\n")
+
+	g.w.W("data, jsonErr := %s.Marshal(errorWrapper{Error: err.Error(), Code: errCode, Data: errData})\n", jsonPkg)
+	g.w.W("if jsonErr != nil {\n")
 	if g.UseFast {
 		g.w.W("w.SetBody([]byte(")
 	} else {
 		g.w.W("_, _ = w.Write([]byte(")
 	}
-	g.w.W("%s))\n", strconv.Quote("unexpected error"))
+	g.w.W("%s))\n", strconv.Quote("unexpected marshal error"))
 	g.w.W("return\n")
 	g.w.W("}\n")
 

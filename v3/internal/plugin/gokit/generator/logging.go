@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -72,36 +74,25 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 				}
 			}
 
-			var params, results []string
-
-			for _, param := range m.Sig.Params {
-				var prefix string
-				if param.IsVariadic {
-					prefix = "..."
-				}
-				params = append(params, prefix+swipe.TypeString(param, false, importer))
-			}
-
+			var logResults []string
 			for _, result := range m.Sig.Results {
-				if IsError(result) {
-					logParams = append(logParams, strconv.Quote("err"), result.Name.Value)
+				if plugin.IsError(result) {
+					logResults = append(logResults, strconv.Quote("err"), result.Name.Value)
 					continue
 				}
-
-				logParams = append(logParams, makeLogParam(result.Name.Value, result.Type)...)
-				results = append(results, result.Name.Value, swipe.TypeString(result, false, importer))
+				logResults = append(logResults, makeLogParam(result.Name.Value, result.Type)...)
 			}
 
 			g.w.W("func (s *%s) %s %s {\n", middlewareNameType, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 
-			if mopt.Logging.Take() && len(logParams) > 0 {
+			if mopt.Logging.Take() && (len(logParams) > 0 || len(logResults) > 0) {
 				methodName := iface.Named.Name.Lower() + "." + m.Name.Value
 				timePkg := importer.Import("time", "time")
 
 				g.w.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
 					var resultErr *option.VarType
 					for _, result := range m.Sig.Results {
-						if IsError(result) {
+						if plugin.IsError(result) {
 							resultErr = result
 							g.w.W("if logErr, ok := %s.(interface{LogError() error}); ok {\n", result.Name)
 							g.w.W("%s = logErr.LogError()\n", result.Name)
@@ -109,14 +100,23 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 						}
 					}
 					g.w.W("logger := %s.WithPrefix(s.logger, \"method\",\"%s\",\"took\",%s.Since(now))\n", loggerPkg, methodName, timePkg)
+
+					logParamsStr := strings.Join(logParams, ",")
+					logResultsStr := strings.Join(logResults, ",")
+
+					if logParamsStr != "" {
+						logResultsStr = "," + logResultsStr
+					}
+
 					if resultErr != nil {
 						g.w.W("if %s != nil {\n", resultErr.Name)
 						g.w.W("if e, ok := %s.(errLevel); ok {\n", resultErr.Name)
 						g.w.W("logger = levelLogger(e, logger)\n")
-						g.w.W("} else {\nlogger = %s.Error(logger)\n}\n", levelPkg)
-						g.w.W("} else {\nlogger = %s.Debug(logger)\n}\n", levelPkg)
+						g.w.W("} else {\n_ = %s.Error(logger).Log(%s)\n}\n", levelPkg, logParamsStr)
+						g.w.W("} else {\n_ = %s.Debug(logger).Log(%s)\n}\n", levelPkg, logParamsStr+logResultsStr)
+					} else {
+						g.w.W("_ = %s.Debug(logger).Log(%s)\n", levelPkg, logParamsStr+logResultsStr)
 					}
-					g.w.W("_ = logger.Log(%s)\n", strings.Join(logParams, ","))
 				})
 			}
 

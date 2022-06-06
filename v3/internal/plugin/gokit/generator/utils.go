@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/swipe-io/strcase"
+
+	"github.com/swipe-io/swipe/v3/internal/plugin"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/openapi"
 	"github.com/swipe-io/swipe/v3/option"
@@ -218,33 +220,6 @@ func IfaceMiddlewareTypeName(iface *config.Interface) string {
 	return UcNameWithAppPrefix(iface) + "Middleware"
 }
 
-func IsContext(v *option.VarType) bool {
-	if named, ok := v.Type.(*option.NamedType); ok {
-		if _, ok := named.Type.(*option.IfaceType); ok {
-			return named.Name.Value == "Context" && named.Pkg.Path == "context"
-		}
-	}
-	return false
-}
-
-func IsError(v *option.VarType) bool {
-	if named, ok := v.Type.(*option.NamedType); ok {
-		if _, ok := named.Type.(*option.IfaceType); ok && named.Name.Value == "error" {
-			return true
-		}
-	}
-	return false
-}
-
-func Error(vars option.VarsType) *option.VarType {
-	for _, v := range vars {
-		if IsError(v) {
-			return v
-		}
-	}
-	return nil
-}
-
 func DownloadFile(vars option.VarsType) *option.VarType {
 	for _, v := range vars {
 		if isFileDownloadType(v.Type) {
@@ -256,7 +231,7 @@ func DownloadFile(vars option.VarsType) *option.VarType {
 
 func Contexts(vars option.VarsType) (result []*option.VarType) {
 	for _, v := range vars {
-		if IsContext(v) {
+		if plugin.IsContext(v) {
 			result = append(result, v)
 		}
 	}
@@ -264,7 +239,7 @@ func Contexts(vars option.VarsType) (result []*option.VarType) {
 }
 
 func LenWithoutErrors(vars option.VarsType) int {
-	if Error(vars) != nil {
+	if plugin.Error(vars) != nil {
 		return len(vars) - 1
 	}
 	return len(vars)
@@ -280,7 +255,7 @@ func makeLogParams(include, exclude map[string]struct{}, data ...*option.VarType
 
 func makeLogParamsRecursive(include, exclude map[string]struct{}, parentName string, data ...*option.VarType) (result []string) {
 	for _, v := range data {
-		if IsContext(v) {
+		if plugin.IsContext(v) {
 			continue
 		}
 		if len(include) > 0 {
@@ -338,7 +313,7 @@ func hasMethodString(v *option.NamedType) bool {
 
 func findContextVar(vars option.VarsType) (v *option.VarType) {
 	for _, p := range vars {
-		if IsContext(p) {
+		if plugin.IsContext(p) {
 			v = p
 			break
 		}
@@ -348,7 +323,7 @@ func findContextVar(vars option.VarsType) (v *option.VarType) {
 
 func findErrorVar(vars option.VarsType) (v *option.VarType) {
 	for _, p := range vars {
-		if IsError(p) {
+		if plugin.IsError(p) {
 			v = p
 			break
 		}
@@ -486,17 +461,6 @@ func getOpenapiJSONRPCErrorSchemas() openapi.Schemas {
 						},
 					},
 				},
-			},
-		},
-	}
-}
-
-func getOpenapiRESTErrorSchema() *openapi.Schema {
-	return &openapi.Schema{
-		Type: "object",
-		Properties: openapi.Properties{
-			"error": &openapi.Schema{
-				Type: "string",
 			},
 		},
 	}
@@ -650,22 +614,6 @@ func singular(word string) string {
 	return pluralize.NewClient().Singular(word)
 }
 
-func isGolangNamedType(t *option.NamedType) bool {
-	switch t.Pkg.Path {
-	case "time":
-		switch t.Name.Value {
-		case "Time", "Location":
-			return true
-		}
-	case "sql":
-		switch t.Name.Value {
-		case "NullBool", "NullFloat64", "NullInt32", "NullInt64", "NullString", "NullTime":
-			return true
-		}
-	}
-	return false
-}
-
 func isFileUploadType(i interface{}, importer swipe.Importer) bool {
 	if n, ok := i.(*option.NamedType); ok {
 		if iface, ok := n.Type.(*option.IfaceType); ok {
@@ -759,30 +707,26 @@ func wrapDataClient(parts []string, responseType string) (result, structPath str
 
 }
 
-func findParam(p *option.VarType, vars []string) (varType, bool) {
-	for i := 0; i < len(vars); i += 2 {
-		paramName := vars[i+1]
-		if paramName == p.Name.Value {
-			varName := vars[i]
-			var required bool
-			if stdstrings.HasPrefix(varName, "!") {
-				varName = varName[1:]
-				required = true
-			}
-			return varType{
-				p:        p,
-				value:    varName,
-				required: required,
-			}, true
-		}
-	}
-	return varType{}, false
-}
-
-func makeOpenapiSchemaRESTError() *openapi.Schema {
+func makeOpenapiSchemaRESTError(errCode string) *openapi.Schema {
 	return &openapi.Schema{
 		Type: "object",
 		Properties: openapi.Properties{
+			"data": &openapi.Schema{
+				Type: "object",
+				Properties: openapi.Properties{
+					"key": &openapi.Schema{AnyOf: []openapi.Schema{
+						{Type: "string"},
+						{Type: "number"},
+						{Type: "integer"},
+						{Type: "array"},
+						{Type: "object"},
+					}},
+				},
+			},
+			"code": &openapi.Schema{
+				Type:    "string",
+				Example: errCode,
+			},
 			"error": &openapi.Schema{
 				Type: "string",
 			},

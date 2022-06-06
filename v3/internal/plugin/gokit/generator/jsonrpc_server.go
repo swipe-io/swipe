@@ -12,12 +12,11 @@ import (
 )
 
 type JSONRPCServerGenerator struct {
-	w                   writer.GoWriter
-	UseFast             bool
-	Interfaces          []*config.Interface
-	MethodOptions       map[string]config.MethodOptions
-	DefaultErrorEncoder *option.FuncType
-	JSONRPCPath         string
+	w             writer.GoWriter
+	UseFast       bool
+	Interfaces    []*config.Interface
+	MethodOptions map[string]config.MethodOptions
+	JSONRPCPath   string
 }
 
 func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
@@ -74,42 +73,26 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 
 		for _, m := range ifaceType.Methods {
 			nameRequest := NameRequest(m, iface)
-			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
-
 			g.w.W("if ep.%sEndpoint != nil {\n", m.Name)
-
 			g.w.W("ecm[namespace+\"%s\"] = %s.EndpointCodec{\n", m.Name.Lower(), jsonrpcPkg)
 			g.w.W("Endpoint: ep.%sEndpoint,\n", m.Name)
 			g.w.W("Decode: ")
-
-			if mopt.ServerDecodeRequest.Value != nil {
-				g.w.WriteFuncByFuncType(mopt.ServerDecodeRequest.Value, importer)
+			g.w.W("func(_ %s.Context, msg %s.RawMessage) (interface{}, error) {\n", contextPkg, jsonPkg)
+			if len(m.Sig.Params) > 0 {
+				fmtPkg := importer.Import("fmt", "fmt")
+				g.w.W("var req %s\n", nameRequest)
+				g.w.W("err := %s.Unmarshal(msg, &req)\n", ffJSONPkg)
+				g.w.W("if err != nil {\n")
+				g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, nameRequest)
+				g.w.W("}\n")
+				g.w.W("return req, nil\n")
 			} else {
-				g.w.W("func(_ %s.Context, msg %s.RawMessage) (interface{}, error) {\n", contextPkg, jsonPkg)
-
-				if len(m.Sig.Params) > 0 {
-					fmtPkg := importer.Import("fmt", "fmt")
-					g.w.W("var req %s\n", nameRequest)
-					g.w.W("err := %s.Unmarshal(msg, &req)\n", ffJSONPkg)
-					g.w.W("if err != nil {\n")
-					g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, nameRequest)
-					g.w.W("}\n")
-					g.w.W("return req, nil\n")
-				} else {
-					g.w.W("return nil, nil\n")
-				}
-				g.w.W("}")
+				g.w.W("return nil, nil\n")
 			}
-			g.w.W(",\n")
-
+			g.w.W("},\n")
 			g.w.W("Encode: ")
 
-			if mopt.ServerEncodeResponse.Value != nil {
-				g.w.WriteFuncByFuncType(mopt.ServerEncodeResponse.Value, importer)
-				g.w.W(",\n")
-			} else {
-				g.w.W("encodeResponseJSONRPC,\n")
-			}
+			g.w.W("encodeResponseJSONRPC,\n")
 			g.w.W("}\n}\n")
 		}
 		g.w.W("return ecm\n")
@@ -213,8 +196,8 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 					m.Name, epSetName,
 				)
 				g.w.W(
-					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-					LcNameWithAppPrefix(iface)+m.Name.Upper(), m.Name, epSetName,
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericOpts.endpointMiddleware, opts.%[1]sOpts.endpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					LcNameIfaceMethod(iface, m), m.Name, epSetName,
 				)
 				g.w.W("}\n")
 			}
@@ -222,8 +205,8 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("%s := Make%s(%s)\n", NameEndpointSetNameVar(iface), NameEndpointSetName(iface), ServicePropName(iface))
 			for _, m := range ifaceType.Methods {
 				g.w.W(
-					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
-					LcNameWithAppPrefix(iface)+m.Name.Upper(), m.Name, epSetName,
+					"%[3]s.%[2]sEndpoint = middlewareChain(append(opts.genericOpts.endpointMiddleware, opts.%[1]sOpts.endpointMiddleware...))(%[3]s.%[2]sEndpoint)\n",
+					LcNameIfaceMethod(iface, m), m.Name, epSetName,
 				)
 			}
 		}
@@ -260,7 +243,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 		g.w.W(")")
 	}
 
-	g.w.W(", opts.genericServerOption...)\n")
+	g.w.W(", opts.genericOpts.serverOption...)\n")
 
 	jsonRPCPath := g.JSONRPCPath
 	if g.UseFast {

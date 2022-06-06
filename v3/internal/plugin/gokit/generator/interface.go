@@ -23,7 +23,7 @@ func (g *InterfaceGenerator) Package() string {
 func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	g.w.W("type downloader interface {\nName() string\nContentType() string\nData() []byte\n}\n\n")
+	g.w.W("type downloader interface {\nContentType() string\nData() []byte\n}\n\n")
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
