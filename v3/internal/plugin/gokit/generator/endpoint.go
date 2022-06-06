@@ -3,6 +3,8 @@ package generator
 import (
 	"context"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -12,6 +14,7 @@ import (
 type Endpoint struct {
 	w                writer.GoWriter
 	Interfaces       []*config.Interface
+	MethodOptions    map[string]config.MethodOptions
 	HTTPServerEnable bool
 	Output           string
 	Pkg              string
@@ -42,21 +45,24 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
+			//mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
+
 			if len(m.Sig.Params) > 0 {
 				g.w.W("type %s struct {\n", NameRequest(m, iface))
 				for _, param := range m.Sig.Params {
-					if IsContext(param) {
+					if plugin.IsContext(param) {
 						continue
 					}
 					g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), swipe.TypeString(param.Type, false, importer), param.Name)
 				}
 				g.w.W("}\n")
 			}
+
 			if DownloadFile(m.Sig.Results) == nil {
 				if m.Sig.IsNamed && LenWithoutErrors(m.Sig.Results) > 1 {
 					g.w.W("type %s struct {\n", NameResponse(m, iface))
 					for _, param := range m.Sig.Results {
-						if IsError(param) {
+						if plugin.IsError(param) {
 							continue
 						}
 						g.w.W("%s %s `json:\"%s\"`\n", param.Name.Upper(), swipe.TypeString(param.Type, false, importer), param.Name)
@@ -98,7 +104,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 
 			var callParams []string
 			for _, param := range m.Sig.Params {
-				if IsContext(param) {
+				if plugin.IsContext(param) {
 					callParams = append(callParams, "ctx")
 					continue
 				}
@@ -129,7 +135,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 
 			if len(m.Sig.Results) > 0 {
 				for _, result := range m.Sig.Results {
-					if IsError(result) {
+					if plugin.IsError(result) {
 						g.w.WriteCheckErr(result.Name.Value, func() {
 							g.w.W("return nil, %s\n", result.Name.Value)
 						})
@@ -143,7 +149,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 				g.w.W("%s", NameResponse(m, iface))
 				var resultKeyVal []string
 				for _, result := range m.Sig.Results {
-					if IsError(result) {
+					if plugin.IsError(result) {
 						continue
 					}
 					resultKeyVal = append(resultKeyVal, result.Name.Upper(), result.Name.Value)
@@ -151,7 +157,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 				g.w.WriteStructAssign(resultKeyVal)
 			} else if resultLen == 1 {
 				for _, result := range m.Sig.Results {
-					if IsError(result) {
+					if plugin.IsError(result) {
 						continue
 					}
 					g.w.W("%s", result.Name.Value)

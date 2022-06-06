@@ -143,38 +143,37 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			URL:           p.config.CURLURL.Take(),
 		})
 	}
+	if p.config.LoggingEnable {
+		result = append(result, &generator.Logging{
+			Interfaces:    p.config.Interfaces,
+			MethodOptions: p.config.MethodOptionsMap,
+		})
+	}
+	if p.config.InstrumentingEnable {
+		result = append(result, &generator.Instrumenting{
+			Interfaces:    p.config.Interfaces,
+			MethodOptions: p.config.MethodOptionsMap,
+			Labels:        p.config.InstrumentingLabels,
+		})
+	}
 	if httpServerEnable {
 		result = append(result,
-			&generator.Helpers{
+			&generator.MiddlewareChain{},
+			&generator.ServerHelpers{
 				Interfaces:       p.config.Interfaces,
 				JSONRPCEnable:    jsonRPCEnable,
-				GoClientEnable:   goClientEnable,
 				HTTPServerEnable: httpServerEnable,
 				UseFast:          useFast,
-				IfaceErrors:      p.config.IfaceErrors,
 			},
 			&generator.Endpoint{
 				Interfaces:       p.config.Interfaces,
+				MethodOptions:    p.config.MethodOptionsMap,
 				HTTPServerEnable: httpServerEnable,
 			},
 			&generator.InterfaceGenerator{
 				Interfaces: p.config.Interfaces,
 			},
 		)
-
-		if p.config.LoggingEnable {
-			result = append(result, &generator.Logging{
-				Interfaces:    p.config.Interfaces,
-				MethodOptions: p.config.MethodOptionsMap,
-			})
-		}
-		if p.config.InstrumentingEnable {
-			result = append(result, &generator.Instrumenting{
-				Interfaces:    p.config.Interfaces,
-				MethodOptions: p.config.MethodOptionsMap,
-				Labels:        p.config.InstrumentingLabels,
-			})
-		}
 		if p.config.OpenapiEnable != nil {
 			result = append(result, &generator.Openapi{
 				JSONRPCEnable: jsonRPCEnable,
@@ -196,11 +195,10 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 		}
 		if jsonRPCEnable {
 			result = append(result, &generator.JSONRPCServerGenerator{
-				UseFast:             useFast,
-				Interfaces:          p.config.Interfaces,
-				MethodOptions:       p.config.MethodOptionsMap,
-				DefaultErrorEncoder: p.config.ServerErrorEncoder.Value,
-				JSONRPCPath:         p.config.JSONRPCPath.Take(),
+				UseFast:       useFast,
+				Interfaces:    p.config.Interfaces,
+				MethodOptions: p.config.MethodOptionsMap,
+				JSONRPCPath:   p.config.JSONRPCPath.Take(),
 			})
 			if jsClientEnable {
 				result = append(result, &generator.JSONRPCJSClientGenerator{
@@ -220,11 +218,10 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 
 		} else {
 			result = append(result, &generator.RESTServerGenerator{
-				UseFast:            useFast,
-				JSONRPCEnable:      jsonRPCEnable,
-				MethodOptions:      p.config.MethodOptionsMap,
-				ServerErrorEncoder: p.config.ServerErrorEncoder.Value,
-				Interfaces:         p.config.Interfaces,
+				UseFast:       useFast,
+				JSONRPCEnable: jsonRPCEnable,
+				MethodOptions: p.config.MethodOptionsMap,
+				Interfaces:    p.config.Interfaces,
 			})
 		}
 	}
@@ -238,18 +235,21 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 		}
 
 		result = append(result,
-			&generator.Helpers{
-				Interfaces:       p.config.Interfaces,
-				JSONRPCEnable:    jsonRPCEnable,
-				GoClientEnable:   goClientEnable,
-				HTTPServerEnable: httpServerEnable,
-				UseFast:          useFast,
-				IfaceErrors:      p.config.IfaceErrors,
-				Pkg:              pkg,
-				Output:           output,
+			&generator.MiddlewareChain{
+				Output: output,
+				Pkg:    pkg,
+			},
+			&generator.ClientHelpers{
+				Interfaces:    p.config.Interfaces,
+				JSONRPCEnable: jsonRPCEnable,
+				UseFast:       useFast,
+				IfaceErrors:   p.config.IfaceErrors,
+				Pkg:           pkg,
+				Output:        output,
 			},
 			&generator.Endpoint{
 				Interfaces:       p.config.Interfaces,
+				MethodOptions:    p.config.MethodOptionsMap,
 				HTTPServerEnable: httpServerEnable,
 				Pkg:              pkg,
 				Output:           output,

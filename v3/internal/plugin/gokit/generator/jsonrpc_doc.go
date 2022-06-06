@@ -3,6 +3,8 @@ package generator
 import (
 	"context"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/writer"
@@ -51,7 +53,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 
 			g.w.W("### <a name=\"%[1]s\"></a>%[1]s(", name)
 			for i, p := range m.Sig.Params {
-				if IsContext(p) {
+				if plugin.IsContext(p) {
 					continue
 				}
 				nameds := extractNamed(p.Type)
@@ -94,7 +96,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 						responseTypes[responseName] = m.Sig.Results
 					}
 					for _, p := range m.Sig.Results {
-						if IsError(p) {
+						if plugin.IsError(p) {
 							continue
 						}
 						nameds := extractNamed(p.Type)
@@ -149,7 +151,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("### %s\n\n", name)
 		g.w.W("| Field | Type | Description |\n|------|------|------|\n")
 		for _, p := range results {
-			if IsError(p) {
+			if plugin.IsError(p) {
 				continue
 			}
 			g.w.W("|%s|<code>%s</code>|%s|\n", p.Name.Value, jsDocType(p.Type), p.Comment)

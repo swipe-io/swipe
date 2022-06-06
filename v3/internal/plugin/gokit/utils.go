@@ -72,12 +72,48 @@ func extractValues(pkg *stdpackages.Package, stmtList []ast.Stmt) (values []inte
 		if ret, ok := stmt.(*ast.ReturnStmt); ok {
 			for _, result := range ret.Results {
 				if v, ok := pkg.TypesInfo.Types[result]; ok {
-					values = append(values, constant.Val(v.Value))
+					tv := constant.Val(v.Value)
+					if tv != nil {
+						values = append(values, tv)
+					} else {
+						values = append(values, v.Type)
+					}
 				}
 			}
 		}
 	}
 	return
+}
+
+func findMethodByNamed(t *stdtypes.Named, name ...string) *stdtypes.Func {
+	for i := 0; i < t.NumMethods(); i++ {
+		m := t.Method(i)
+		for _, s := range name {
+			if m.Name() == s {
+				return m
+			}
+		}
+	}
+	return nil
+}
+
+func extractReturnValuesByFunc(pkg *stdpackages.Package, f *stdtypes.Func, declTypes map[string]*typeInfo) []interface{} {
+	sig := f.Type().(*types.Signature)
+	id := f.Name()
+	if recv := sig.Recv(); recv != nil {
+		recvType := recv.Type()
+		if ptr, ok := recvType.(*types.Pointer); ok {
+			recvType = ptr.Elem()
+		}
+		recvNamed := recvType.(*types.Named)
+		id = "/" + recvNamed.Obj().Name() + "." + id
+	} else {
+		id = "." + id
+	}
+	if info, ok := declTypes[pkg.PkgPath+id]; ok {
+		return extractValues(pkg, info.stmtList)
+	}
+	return nil
 }
 
 func findErrors(modulePath string, declTypes map[string]*typeInfo, pkgs *packages.Packages) (result map[string]config.Error) {
@@ -87,43 +123,33 @@ func findErrors(modulePath string, declTypes map[string]*typeInfo, pkgs *package
 			return
 		}
 		if t, ok := obj.Type().(*types.Named); ok {
-			for i := 0; i < t.NumMethods(); i++ {
-				m := t.Method(i)
-				if m.Name() == "ErrorCode" || m.Name() == "StatusCode" {
-					sig := m.Type().(*types.Signature)
-					id := m.Name()
-					if recv := sig.Recv(); recv != nil {
-						recvType := recv.Type()
-						if ptr, ok := recvType.(*types.Pointer); ok {
-							recvType = ptr.Elem()
-						}
-						recvNamed := recvType.(*types.Named)
-						id = "/" + recvNamed.Obj().Name() + "." + id
-					} else {
-						id = "." + id
-					}
-					if info, ok := declTypes[pkg.PkgPath+id]; ok {
-						values := extractValues(pkg, info.stmtList)
-						if len(values) != 1 {
-							continue
-						}
-						val, ok := values[0].(int64)
-						if !ok {
-							continue
-						}
-						tp := config.RESTErrorType
-						if m.Name() == "ErrorCode" {
-							tp = config.JRPCErrorType
-						}
-						result[t.Obj().Pkg().Path()+"/"+t.Obj().Name()] = config.Error{
-							PkgName: t.Obj().Pkg().Name(),
-							PkgPath: t.Obj().Pkg().Path(),
-							Name:    t.Obj().Name(),
-							Type:    tp,
-							Code:    val,
-						}
-					}
+			f := findMethodByNamed(t, "ErrorCode", "StatusCode")
+			if f == nil {
+				return
+			}
+			values := extractReturnValuesByFunc(pkg, f, declTypes)
+			if len(values) != 1 {
+				return
+			}
+			code, ok := values[0].(int64)
+			if !ok {
+				return
+			}
+
+			var errCode string
+			if f := findMethodByNamed(t, "Code"); f != nil {
+				values := extractReturnValuesByFunc(pkg, f, declTypes)
+				if len(values) > 0 {
+					errCode, _ = values[0].(string)
 				}
+			}
+
+			result[t.Obj().Pkg().Path()+"/"+t.Obj().Name()] = config.Error{
+				PkgName: t.Obj().Pkg().Name(),
+				PkgPath: t.Obj().Pkg().Path(),
+				Name:    t.Obj().Name(),
+				Code:    code,
+				ErrCode: errCode,
 			}
 		}
 		return
@@ -337,21 +363,6 @@ func fillMethodDefaultOptions(method, methodDefault config.MethodOptions) config
 	}
 	if !method.RESTWrapResponse.IsValid() {
 		method.RESTWrapResponse.Value = methodDefault.RESTWrapResponse.Value
-	}
-	if method.ClientEncodeRequest.Value == nil {
-		method.ClientEncodeRequest.Value = methodDefault.ClientEncodeRequest.Value
-	}
-	if method.ClientDecodeResponse.Value == nil {
-		method.ClientDecodeResponse.Value = methodDefault.ClientDecodeResponse.Value
-	}
-	if method.ServerDecodeRequest.Value == nil {
-		method.ServerDecodeRequest.Value = methodDefault.ServerDecodeRequest.Value
-	}
-	if method.ServerEncodeResponse.Value == nil {
-		method.ServerEncodeResponse.Value = methodDefault.ServerEncodeResponse.Value
-	}
-	if method.ClientErrorDecode.Value == nil {
-		method.ClientErrorDecode.Value = methodDefault.ClientErrorDecode.Value
 	}
 	if !method.Instrumenting.IsValid() {
 		method.Instrumenting = methodDefault.Instrumenting

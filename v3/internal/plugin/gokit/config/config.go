@@ -4,19 +4,12 @@ import (
 	"github.com/swipe-io/swipe/v3/option"
 )
 
-type ErrorType string
-
-const (
-	RESTErrorType ErrorType = "rest"
-	JRPCErrorType ErrorType = "jrpc"
-)
-
 type Error struct {
 	PkgName string
 	PkgPath string
 	Name    string
-	Type    ErrorType
 	Code    int64
+	ErrCode string
 }
 
 type ExternalInterface struct {
@@ -78,11 +71,6 @@ type MethodOptions struct {
 	RESTPathVars           map[string]string       `swipe:"option"`
 	RESTBodyType           option.StringValue      `swipe:"option"`
 	//Aggregate              []Aggregate       `swipe:"option"`
-	ServerEncodeResponse option.FuncTypeValue `swipe:"option"`
-	ServerDecodeRequest  option.FuncTypeValue `swipe:"option"`
-	ClientEncodeRequest  option.FuncTypeValue `swipe:"option"`
-	ClientDecodeResponse option.FuncTypeValue `swipe:"option"`
-	ClientErrorDecode    option.FuncTypeValue `swipe:"option"`
 }
 
 type MethodOption struct {
@@ -151,7 +139,6 @@ type Config struct {
 	OpenapiServers       []OpenapiServer `mapstructure:"OpenapiServer"`
 	MethodOptions        []MethodOption
 	MethodDefaultOptions MethodOptions
-	ServerErrorEncoder   option.FuncTypeValue
 	InstrumentingLabels  []InstrumentingLabel `swipe:"option"`
 
 	// non options params

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/swipe-io/strcase"
 
@@ -70,9 +72,10 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 	}
 	if g.JSONRPCEnable {
 		o.Components.Schemas = getOpenapiJSONRPCErrorSchemas()
-	} else {
-		o.Components.Schemas["Error"] = getOpenapiRESTErrorSchema()
 	}
+	//else {
+	//	o.Components.Schemas["Error"] = getOpenapiRESTErrorSchema()
+	//}
 	for _, s := range g.Servers {
 		o.Servers = append(o.Servers, openapi.Server{
 			URL:         s.Url,
@@ -108,7 +111,7 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 					pathStr = strcase.ToKebab(m.Name.Value)
 				}
 				for _, p := range m.Sig.Params {
-					if IsContext(p) {
+					if plugin.IsContext(p) {
 						continue
 					}
 					if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
@@ -120,16 +123,9 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 				}
 			}
 
-			errType := config.RESTErrorType
-			if g.JSONRPCEnable {
-				errType = config.JRPCErrorType
-			}
 			if methodErrors, ok := g.IfaceErrors[iface.Named.Name.Value]; ok {
 				for _, errors := range methodErrors {
 					for _, e := range errors {
-						if e.Type != errType {
-							continue
-						}
 						codeStr := strconv.FormatInt(e.Code, 10)
 						errResponse := &openapi.Response{
 							Content: openapi.Content{
@@ -140,13 +136,13 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 								},
 							},
 						}
-						if e.Type == config.JRPCErrorType {
+						if g.JSONRPCEnable {
 							codeStr = "x-" + codeStr
 							o.Components.Schemas[e.Name] = makeOpenapiSchemaJRPCError(e.Code)
 							errResponse.Description = e.Name
 						} else {
 							errResponse.Description = http.StatusText(int(e.Code))
-							o.Components.Schemas[e.Name] = makeOpenapiSchemaRESTError()
+							o.Components.Schemas[e.Name] = makeOpenapiSchemaRESTError(e.ErrCode)
 						}
 
 						op.Responses[codeStr] = errResponse
@@ -380,7 +376,7 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 
 	if LenWithoutErrors(m.Sig.Params) > 0 {
 		for _, p := range m.Sig.Params {
-			if IsContext(p) {
+			if plugin.IsContext(p) {
 				continue
 			}
 			g.fillTypeDef(p.Type)
@@ -399,7 +395,7 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 
 	if lenResults > 1 {
 		for _, r := range m.Sig.Results {
-			if IsError(r) {
+			if plugin.IsError(r) {
 				continue
 			}
 			if isFileDownloadType(r.Type) {
@@ -548,32 +544,32 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 		Properties: map[string]*openapi.Schema{},
 	}
 
-	queryVars := make([]varType, 0, len(mopt.RESTQueryVars.Value))
-	queryValues := make([]varType, 0, len(mopt.RESTQueryValues.Value))
-	headerVars := make([]varType, 0, len(mopt.RESTHeaderVars.Value))
-	pathVars := make([]varType, 0, len(mopt.RESTPathVars))
+	queryVars := make([]plugin.VarType, 0, len(mopt.RESTQueryVars.Value))
+	queryValues := make([]plugin.VarType, 0, len(mopt.RESTQueryValues.Value))
+	headerVars := make([]plugin.VarType, 0, len(mopt.RESTHeaderVars.Value))
+	pathVars := make([]plugin.VarType, 0, len(mopt.RESTPathVars))
 	paramVars := make([]*option.VarType, 0, len(m.Sig.Params))
 
 	for _, p := range m.Sig.Params {
-		if IsContext(p) {
+		if plugin.IsContext(p) {
 			continue
 		}
-		if v, ok := findParam(p, mopt.RESTQueryVars.Value); ok {
+		if v, ok := plugin.FindParam(p, mopt.RESTQueryVars.Value); ok {
 			queryVars = append(queryVars, v)
 			continue
 		}
-		if v, ok := findParam(p, mopt.RESTQueryValues.Value); ok {
+		if v, ok := plugin.FindParam(p, mopt.RESTQueryValues.Value); ok {
 			queryValues = append(queryValues, v)
 			continue
 		}
-		if v, ok := findParam(p, mopt.RESTHeaderVars.Value); ok {
+		if v, ok := plugin.FindParam(p, mopt.RESTHeaderVars.Value); ok {
 			headerVars = append(headerVars, v)
 			continue
 		}
 		if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
-			pathVars = append(pathVars, varType{
-				p:     p,
-				value: regexp,
+			pathVars = append(pathVars, plugin.VarType{
+				Param: p,
+				Value: regexp,
 			})
 			continue
 		}
@@ -590,7 +586,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	lenResults := LenWithoutErrors(m.Sig.Results)
 	if lenResults > 1 {
 		for _, r := range m.Sig.Results {
-			if IsError(r) {
+			if plugin.IsError(r) {
 				continue
 			}
 			if isFileDownloadType(r.Type) {
@@ -657,29 +653,29 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	for _, pathVar := range pathVars {
 		o.Parameters = append(o.Parameters, openapi.Parameter{
 			In:          "path",
-			Name:        pathVar.p.Name.Lower(),
-			Description: pathVar.p.Comment,
-			Required:    pathVar.required,
-			Schema:      g.schemaByType(pathVar.p.Type),
+			Name:        pathVar.Param.Name.Lower(),
+			Description: pathVar.Param.Comment,
+			Required:    pathVar.IsRequired,
+			Schema:      g.schemaByType(pathVar.Param.Type),
 		})
 	}
 
 	for _, headerVar := range headerVars {
 		o.Parameters = append(o.Parameters, openapi.Parameter{
 			In:          "header",
-			Name:        headerVar.value,
-			Description: headerVar.p.Comment,
-			Required:    headerVar.required,
-			Schema:      g.schemaByType(headerVar.p.Type),
+			Name:        headerVar.Value,
+			Description: headerVar.Param.Comment,
+			Required:    headerVar.IsRequired,
+			Schema:      g.schemaByType(headerVar.Param.Type),
 		})
 	}
 
 	for _, queryVar := range queryVars {
 		o.Parameters = append(o.Parameters, openapi.Parameter{
 			In:          "query",
-			Name:        queryVar.p.Name.Lower(),
-			Description: queryVar.p.Comment,
-			Required:    queryVar.required,
+			Name:        queryVar.Param.Name.Lower(),
+			Description: queryVar.Param.Comment,
+			Required:    queryVar.IsRequired,
 			Schema: &openapi.Schema{
 				Type:       "string",
 				Properties: openapi.Properties{},

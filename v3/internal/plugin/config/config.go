@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/swipe-io/swipe/v3/internal/convert"
+
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -117,10 +119,19 @@ func (g *Generator) Filename() string {
 func (g *Generator) writeEnv(importer swipe.Importer, f *option.VarType, opts fldOpts) {
 	tmpVar := strcase.ToLowerCamel(opts.fieldPath) + "Tmp"
 	pkgOS := importer.Import("os", "os")
+	pkgError := importer.Import("errors", "errors")
 	g.w.W("%s, ok := %s.LookupEnv(%s)\n", tmpVar, pkgOS, strconv.Quote(opts.name))
 	g.w.W("if ok {\n")
 
-	g.w.WriteConvertType(importer, "cfg."+opts.fieldPath, tmpVar, f, nil, "errs", false, "convert "+opts.name+" error")
+	convert.NewBuilder(importer).
+		SetDeclareErr(true).
+		SetAssignVar("cfg." + opts.fieldPath).
+		SetValueVar(tmpVar).
+		SetFieldName(f.Name).
+		SetFieldType(f.Type).
+		SetErrorReturn(fmt.Sprintf("errs = append(errs, %s.New(%s))", pkgError, strconv.Quote("convert "+opts.name+" error"))).
+		Write(&g.w)
+
 	g.writeCheckZero(importer, f, opts)
 
 	g.w.W("}")

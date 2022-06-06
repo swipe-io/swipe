@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -24,26 +26,9 @@ func (g *ClientStruct) Package() string {
 }
 
 func (g *ClientStruct) Generate(ctx context.Context) []byte {
-	var (
-		kitHTTPPkg  string
-		endpointPkg string
-	)
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
-	if g.JSONRPCEnable {
-		if g.UseFast {
-			kitHTTPPkg = importer.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/fasthttp/jsonrpc")
-		} else {
-			kitHTTPPkg = importer.Import("jsonrpc", "github.com/l-vitaly/go-kit/transport/http/jsonrpc")
-		}
-	} else {
-		if g.UseFast {
-			kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
-		} else {
-			kitHTTPPkg = importer.Import("http", "github.com/go-kit/kit/transport/http")
-		}
-	}
-	endpointPkg = importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
-	clientOptionType := "ClientOption"
+
+	endpointPkg := importer.Import("endpoint", "github.com/go-kit/kit/endpoint")
 
 	if len(g.Interfaces) > 1 {
 		g.w.W("type AppClient struct {\n")
@@ -82,44 +67,6 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 		}
 		g.w.W("}, nil\n")
 		g.w.W("}\n\n")
-	}
-
-	g.w.W("type %s func(*clientOpts)\n", clientOptionType)
-	g.w.W("type clientOpts struct {\n")
-	for _, iface := range g.Interfaces {
-		ifaceType := iface.Named.Type.(*option.IfaceType)
-		for _, m := range ifaceType.Methods {
-			g.w.W("%sClientOption []%s.ClientOption\n", LcNameWithAppPrefix(iface)+m.Name.Value, kitHTTPPkg)
-			g.w.W("%sEndpointMiddleware []%s.Middleware\n", LcNameWithAppPrefix(iface)+m.Name.Value, endpointPkg)
-		}
-	}
-	g.w.W("genericClientOption []%s.ClientOption\n", kitHTTPPkg)
-	g.w.W("genericEndpointMiddleware []%s.Middleware\n", endpointPkg)
-	g.w.W("}\n\n")
-
-	g.w.W("func GenericClientOptions(opt ...%s) %s {\n", kitHTTPPkg+".ClientOption", clientOptionType)
-	g.w.W("return func(c *clientOpts) { c.genericClientOption = opt }\n")
-	g.w.W("}\n")
-
-	g.w.W("func GenericClientEndpointMiddlewares(opt ...%s) %s {\n", endpointPkg+".Middleware", clientOptionType)
-	g.w.W("return func(c *clientOpts) { c.genericEndpointMiddleware = opt }\n")
-	g.w.W("}\n")
-
-	for _, iface := range g.Interfaces {
-		ifaceType := iface.Named.Type.(*option.IfaceType)
-
-		for _, m := range ifaceType.Methods {
-			ucName := UcNameWithAppPrefix(iface) + m.Name.Value
-			lcName := LcNameWithAppPrefix(iface) + m.Name.Value
-
-			g.w.W("func %sClientOptions(opt ...%s) %s {\n", ucName, kitHTTPPkg+".ClientOption", clientOptionType)
-			g.w.W("return func(c *clientOpts) { c.%sClientOption = opt }\n", lcName)
-			g.w.W("}\n")
-
-			g.w.W("func %sClientEndpointMiddlewares(opt ...%s) %s {\n", ucName, endpointPkg+".Middleware", clientOptionType)
-			g.w.W("return func(c *clientOpts) { c.%sEndpointMiddleware = opt }\n", lcName)
-			g.w.W("}\n")
-		}
 	}
 
 	if len(g.Interfaces) > 0 {
@@ -167,7 +114,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 				if len(m.Sig.Params) > 0 {
 					g.w.W("%s{", NameRequest(m, iface))
 					for _, param := range m.Sig.Params {
-						if IsContext(param) {
+						if plugin.IsContext(param) {
 							continue
 						}
 						g.w.W("%s: %s,", param.Name.Upper(), param.Name.Value)
@@ -186,7 +133,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 				lenResults := LenWithoutErrors(m.Sig.Results)
 				if lenResults > 0 {
 					for _, result := range m.Sig.Results {
-						if IsError(result) {
+						if plugin.IsError(result) {
 							continue
 						}
 						if lenResults == 1 {

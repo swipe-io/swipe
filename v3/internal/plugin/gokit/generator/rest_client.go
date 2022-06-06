@@ -6,6 +6,10 @@ import (
 	"strconv"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
+	"github.com/swipe-io/swipe/v3/internal/format"
+
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
@@ -45,6 +49,19 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	netPkg := importer.Import("net", "net")
 	stringsPkg := importer.Import("strings", "strings")
 
+	if g.UseFast {
+		kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
+	} else {
+		kitHTTPPkg = importer.Import("http", "github.com/go-kit/kit/transport/http")
+	}
+	if g.UseFast {
+		httpPkg = importer.Import("fasthttp", "github.com/valyala/fasthttp")
+	} else {
+		httpPkg = importer.Import("http", "net/http")
+	}
+
+	g.writeCreateReqFuncs(importer, httpPkg, contextPkg, fmtPkg, urlPkg)
+
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		clientType := ClientType(iface)
@@ -52,17 +69,6 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 		constructPostfix := UcNameWithAppPrefix(iface)
 		if len(g.Interfaces) == 1 {
 			constructPostfix = ""
-		}
-
-		if g.UseFast {
-			kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
-		} else {
-			kitHTTPPkg = importer.Import("http", "github.com/go-kit/kit/transport/http")
-		}
-		if g.UseFast {
-			httpPkg = importer.Import("fasthttp", "github.com/valyala/fasthttp")
-		} else {
-			httpPkg = importer.Import("http", "net/http")
 		}
 
 		g.w.W("func NewClientREST%s(tgt string", constructPostfix)
@@ -97,14 +103,108 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 
 			epName := LcNameEndpoint(iface, m)
 
-			bodyType := mopt.RESTBodyType.Take()
-			if bodyType == "" {
-				bodyType = "json"
-			}
-
 			httpMethod := mopt.RESTMethod.Take()
 			if httpMethod == "" {
 				httpMethod = "GET"
+			}
+
+			g.w.W("c.%s = %s.NewClient(\n", epName, kitHTTPPkg)
+			g.w.W(strconv.Quote(httpMethod))
+			g.w.W(",\n")
+			g.w.W("u,\n")
+			g.w.W("%sReqFn,\n", LcNameIfaceMethod(iface, m))
+			g.w.W("%sRespFn,\n", LcNameIfaceMethod(iface, m))
+			g.w.W("append(opts.genericOpts.clientOption, opts.%sOpts.clientOption...)...,\n).Endpoint()\n", LcNameIfaceMethod(iface, m))
+			g.w.W(
+				"c.%[1]s = middlewareChain(append(opts.genericOpts.endpointMiddleware, opts.%[2]sOpts.endpointMiddleware...))(c.%[1]s)\n",
+				epName, LcNameIfaceMethod(iface, m),
+			)
+		}
+		g.w.W("return c, nil\n}\n\n")
+	}
+	return g.w.Bytes()
+}
+
+func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpPkg, contextPkg, fmtPkg, urlPkg string) {
+	for _, iface := range g.Interfaces {
+		ifaceType := iface.Named.Type.(*option.IfaceType)
+		for _, m := range ifaceType.Methods {
+			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
+
+			g.w.W("func %sRespFn(_ %s.Context, r *%s.Response) (response interface{}, err error) {\n", LcNameIfaceMethod(iface, m), contextPkg, httpPkg)
+			statusCode := "r.StatusCode"
+			if g.UseFast {
+				statusCode = "r.StatusCode()"
+			}
+			g.w.W("if %s > 299 {\n", statusCode)
+
+			g.w.W("return nil, ")
+
+			g.w.W("%sErrorDecode(%s)", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
+
+			g.w.W("\n}\n")
+
+			resultsLen := LenWithoutErrors(m.Sig.Results)
+			if resultsLen > 0 {
+				var responseType string
+				if m.Sig.IsNamed && resultsLen > 1 {
+					responseType = NameResponse(m, iface)
+				} else {
+					responseType = swipe.TypeString(m.Sig.Results[0].Type, false, importer)
+				}
+
+				var (
+					wrapData, structPath string
+				)
+
+				if mopt.RESTWrapResponse.Take() != "" {
+					wrapData, structPath = wrapDataClient(stdstrings.Split(mopt.RESTWrapResponse.Take(), "."), responseType)
+					g.w.W("var resp %s\n", wrapData)
+				} else {
+					g.w.W("var resp %s\n", responseType)
+				}
+
+				g.w.W("var b []byte\n")
+
+				if g.UseFast {
+					g.w.W("b = r.Body()\n")
+				} else {
+					ioutilPkg := importer.Import("ioutil", "io/ioutil")
+					g.w.W("b, err = %s.ReadAll(r.Body)\n", ioutilPkg)
+					g.w.WriteCheckErr("err", func() {
+						g.w.W("return nil, err\n")
+					})
+				}
+
+				jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+
+				g.w.W("if len(b) == 0 {\nreturn nil, nil\n}\n")
+				g.w.W("err = %s.Unmarshal(b, &resp)\n", jsonPkg)
+				g.w.W("if err != nil {\n")
+				g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, responseType)
+				g.w.W("}\n")
+
+				if mopt.RESTWrapResponse.Take() != "" {
+					g.w.W("return resp.%s, nil\n", structPath)
+				} else {
+					g.w.W("return resp, nil\n")
+				}
+			} else {
+				g.w.W("return nil, nil\n")
+			}
+			g.w.W("}\n")
+
+			g.w.W("func %sReqFn(_ %s.Context, r *%s.Request, request interface{}) error {\n", LcNameIfaceMethod(iface, m), contextPkg, httpPkg)
+
+			nameRequest := NameRequest(m, iface)
+			httpMethod := mopt.RESTMethod.Take()
+			if httpMethod == "" {
+				httpMethod = "GET"
+			}
+
+			bodyType := mopt.RESTBodyType.Take()
+			if bodyType == "" {
+				bodyType = "json"
 			}
 
 			var pathStr string
@@ -155,7 +255,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			for _, p := range m.Sig.Params {
-				if IsContext(p) {
+				if plugin.IsContext(p) {
 					continue
 				}
 				if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
@@ -174,276 +274,201 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			paramsLen := LenWithoutContexts(m.Sig.Params)
+			if paramsLen > 0 {
+				g.w.W("req, ok := request.(%s)\n", nameRequest)
+				g.w.W("if !ok {\n")
+				g.w.W("return %s.Errorf(\"couldn't assert request as %s, got %%T\", request)\n", fmtPkg, nameRequest)
+				g.w.W("}\n")
+			}
 
-			g.w.W("c.%s = %s.NewClient(\n", epName, kitHTTPPkg)
+			if g.UseFast {
+				g.w.W("r.Header.SetMethod(")
+			} else {
+				g.w.W("r.Method = ")
+			}
 			g.w.W(strconv.Quote(httpMethod))
-			g.w.W(",\n")
-			g.w.W("u,\n")
 
-			if mopt.ClientEncodeRequest.Value != nil {
-				g.w.WriteFuncByFuncType(mopt.ClientEncodeRequest.Value, importer)
+			if g.UseFast {
+				g.w.W(")")
+			}
+			g.w.W("\n")
+
+			pathVarNames := make([]string, 0, len(pathVars))
+			for _, p := range pathVars {
+				name := p.Name.Value + "Str"
+				pathVarNames = append(pathVarNames, name)
+
+				format.NewBuilder(importer).
+					SetAssignVar(name).
+					SetValueVar("req." + p.Name.Upper()).
+					SetFieldType(p.Type).
+					Write(&g.w)
+			}
+			if g.UseFast {
+				g.w.W("r.URI().SetPath(")
 			} else {
-				g.w.W("func(_ %s.Context, r *%s.Request, request interface{}) error {\n", contextPkg, httpPkg)
+				g.w.W("r.URL.Path += ")
+			}
+			if len(pathVars) > 0 {
+				g.w.W("%s.Sprintf(%s, %s)", fmtPkg, strconv.Quote(pathStr), stdstrings.Join(pathVarNames, ", "))
+			} else {
+				g.w.W(strconv.Quote(pathStr))
+			}
+			if g.UseFast {
+				g.w.W(")")
+			}
+			g.w.W("\n")
 
-				nameRequest := NameRequest(m, iface)
-
-				if paramsLen > 0 {
-					g.w.W("req, ok := request.(%s)\n", nameRequest)
-					g.w.W("if !ok {\n")
-					g.w.W("return %s.Errorf(\"couldn't assert request as %s, got %%T\", request)\n", fmtPkg, nameRequest)
-					g.w.W("}\n")
-				}
-
+			if len(queryVars) > 0 || len(methodQueryValues) > 0 {
 				if g.UseFast {
-					g.w.W("r.Header.SetMethod(")
+					g.w.W("q := r.URI().QueryArgs()\n")
 				} else {
-					g.w.W("r.Method = ")
+					g.w.W("q := r.URL.Query()\n")
 				}
-				g.w.W(strconv.Quote(httpMethod))
-
-				if g.UseFast {
-					g.w.W(")")
-				}
-				g.w.W("\n")
-
-				pathVarNames := make([]string, 0, len(pathVars))
-				for _, p := range pathVars {
+				for _, p := range queryVars {
+					var isPointer bool
+					valueVar := "req." + strcase.ToCamel(p.Name.Value)
 					name := p.Name.Value + "Str"
-					pathVarNames = append(pathVarNames, name)
-					g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
+					if t, ok := p.Type.(*option.BasicType); ok {
+						if t.IsPointer {
+							isPointer = true
+						}
+					}
+					if isPointer {
+						g.w.W("if %s != nil {\n", valueVar)
+					}
+
+					format.NewBuilder(importer).
+						SetAssignVar(name).
+						SetValueVar(valueVar).
+						SetFieldType(p.Type).
+						Write(&g.w)
+
+					g.w.W("q.Add(%s, %s)\n", strconv.Quote(methodQueryVars[p.Name.Value].value), name)
+
+					if isPointer {
+						g.w.W("}\n")
+					}
 				}
+
+				if len(methodQueryValues) > 0 {
+					for k, v := range methodQueryValues {
+						g.w.W("q.Add(%s, %s)\n", strconv.Quote(k), strconv.Quote(v))
+					}
+				}
+
 				if g.UseFast {
-					g.w.W("r.URI().SetPath(")
+					g.w.W("r.URI().SetQueryString(q.String())\n")
 				} else {
-					g.w.W("r.URL.Path += ")
+					g.w.W("r.URL.RawQuery = q.Encode()\n")
 				}
-				if len(pathVars) > 0 {
-					g.w.W("%s.Sprintf(%s, %s)", fmtPkg, strconv.Quote(pathStr), stdstrings.Join(pathVarNames, ", "))
-				} else {
-					g.w.W(strconv.Quote(pathStr))
-				}
-				if g.UseFast {
-					g.w.W(")")
-				}
-				g.w.W("\n")
-
-				if len(queryVars) > 0 || len(methodQueryValues) > 0 {
-					if g.UseFast {
-						g.w.W("q := r.URI().QueryArgs()\n")
-					} else {
-						g.w.W("q := r.URL.Query()\n")
-					}
-					for _, p := range queryVars {
-						var isPointer bool
-						valueID := "req." + strcase.ToCamel(p.Name.Value)
-						name := p.Name.Value + "Str"
-						if t, ok := p.Type.(*option.BasicType); ok {
-							if t.IsPointer {
-								isPointer = true
-							}
-						}
-						if isPointer {
-							g.w.W("if %s != nil {\n", valueID)
-						}
-						g.w.WriteFormatType(importer, name, valueID, p)
-						g.w.W("q.Add(%s, %s)\n", strconv.Quote(methodQueryVars[p.Name.Value].value), name)
-
-						if isPointer {
-							g.w.W("}\n")
-						}
-					}
-
-					if len(methodQueryValues) > 0 {
-						for k, v := range methodQueryValues {
-							g.w.W("q.Add(%s, %s)\n", strconv.Quote(k), strconv.Quote(v))
-						}
-					}
-
-					if g.UseFast {
-						g.w.W("r.URI().SetQueryString(q.String())\n")
-					} else {
-						g.w.W("r.URL.RawQuery = q.Encode()\n")
-					}
-				}
-
-				if paramsLen > 0 {
-					switch stdstrings.ToUpper(httpMethod) {
-					case "POST", "PUT", "PATCH":
-						switch bodyType {
-						case "json":
-							jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-							g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
-
-							g.w.W("var reqData interface{}\n")
-
-							if wrapRequest := mopt.RESTWrapRequest.Take(); wrapRequest != "" {
-								reqData, structPath := wrapDataClient(stdstrings.Split(wrapRequest, "."), nameRequest)
-
-								g.w.W("var wrapReq %s\n", reqData)
-								g.w.W("wrapReq.%s = req\n", structPath)
-								g.w.W("reqData = wrapReq\n")
-							} else {
-								g.w.W("reqData = request\n")
-							}
-
-							g.w.W("data, err := %s.Marshal(reqData)\n", jsonPkg)
-							g.w.W("if err != nil  {\n")
-							g.w.W("return %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\n", fmtPkg)
-							g.w.W("}\n")
-							if g.UseFast {
-								g.w.W("r.SetBody(data)\n")
-							} else {
-								ioutilPkg := importer.Import("ioutil", "io/ioutil")
-								bytesPkg := importer.Import("bytes", "bytes")
-								g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
-							}
-						case "urlencoded":
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
-							bytesPkg := importer.Import("bytes", "bytes")
-							g.w.W("r.Header.Add(\"Content-Type\", \"application/x-www-form-urlencoded; charset=utf-8\")\n")
-							g.w.W("params := %s.Values{}\n", urlPkg)
-							for _, p := range paramVars {
-								name := p.Name.Value + "Str"
-								g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
-								g.w.W("params.Set(\"data\", %s)\n", name)
-							}
-							g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", ioutilPkg, bytesPkg)
-						case "multipart":
-							bytesPkg := importer.Import("bytes", "bytes")
-							multipartPkg := importer.Import("multipart", "mime/multipart")
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
-
-							g.w.W("body := new(%s.Buffer)\n", bytesPkg)
-							g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
-
-							for _, p := range paramVars {
-								if isFileUploadType(p.Type, importer) {
-									g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
-									g.w.WriteCheckErr("err", func() {
-										g.w.W("return err\n")
-									})
-									g.w.W("data, err := %s.ReadAll(req.%s)\n", ioutilPkg, p.Name.Upper())
-									g.w.WriteCheckErr("err", func() {
-										g.w.W("return err\n")
-									})
-									g.w.W("part.Write(data)\n")
-									continue
-								}
-								name := p.Name.Value + "Str"
-								g.w.WriteFormatType(importer, name, "req."+p.Name.Upper(), p)
-								g.w.W("_ = writer.WriteField(%s, %s)\n", strconv.Quote(p.Name.Value), name)
-							}
-							g.w.W("if err := writer.Close(); err != nil {\n return err\n}\n")
-
-							if g.UseFast {
-								g.w.W("r.SetBody(body.Bytes())\n")
-							} else {
-								g.w.W("r.Body = %s.NopCloser(body)\n", ioutilPkg)
-							}
-							g.w.W("r.Header.Set(\"Content-Type\", writer.FormDataContentType())\n")
-						}
-					}
-				}
-				for _, p := range headerVars {
-					name := p.Name.Value + "Str"
-					g.w.WriteFormatType(importer, name, "req."+strcase.ToCamel(p.Name.Value), p)
-					g.w.W("r.Header.Add(%s, %s)\n", strconv.Quote(methodHeaderVars[p.Name.Value]), name)
-				}
-
-				g.w.W("return nil\n")
-				g.w.W("}")
 			}
 
-			g.w.W(",\n")
+			if paramsLen > 0 {
+				switch stdstrings.ToUpper(httpMethod) {
+				case "POST", "PUT", "PATCH":
+					switch bodyType {
+					case "json":
+						jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
+						g.w.W("r.Header.Set(\"Content-Type\", \"application/json\")\n")
 
-			if mopt.ClientDecodeResponse.Value != nil {
-				g.w.WriteFuncByFuncType(mopt.ClientDecodeResponse.Value, importer)
-			} else {
-				g.w.W("func(_ %s.Context, r *%s.Response) (interface{}, error) {\n", contextPkg, httpPkg)
-				statusCode := "r.StatusCode"
-				if g.UseFast {
-					statusCode = "r.StatusCode()"
-				}
-				g.w.W("if %s > 299 {\n", statusCode)
+						g.w.W("var reqData interface{}\n")
 
-				g.w.W("return nil, ")
+						if wrapRequest := mopt.RESTWrapRequest.Take(); wrapRequest != "" {
+							reqData, structPath := wrapDataClient(stdstrings.Split(wrapRequest, "."), nameRequest)
 
-				if mopt.ClientErrorDecode.Value != nil {
-					g.w.WriteFuncCallByFuncType(mopt.ClientErrorDecode.Value, []string{"r"}, importer)
-				} else {
-					g.w.W("%sErrorDecode(%s)", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
-				}
+							g.w.W("var wrapReq %s\n", reqData)
+							g.w.W("wrapReq.%s = req\n", structPath)
+							g.w.W("reqData = wrapReq\n")
+						} else {
+							g.w.W("reqData = request\n")
+						}
 
-				g.w.W("\n}\n")
-
-				resultsLen := LenWithoutErrors(m.Sig.Results)
-				if resultsLen > 0 {
-					var responseType string
-					if m.Sig.IsNamed && resultsLen > 1 {
-						responseType = NameResponse(m, iface)
-					} else {
-						responseType = swipe.TypeString(m.Sig.Results[0].Type, false, importer)
-					}
-
-					var (
-						wrapData, structPath string
-					)
-
-					if mopt.RESTWrapResponse.Take() != "" {
-						wrapData, structPath = wrapDataClient(stdstrings.Split(mopt.RESTWrapResponse.Take(), "."), responseType)
-						g.w.W("var resp %s\n", wrapData)
-					} else {
-						g.w.W("var resp %s\n", responseType)
-					}
-
-					g.w.W("var b []byte\n")
-
-					if g.UseFast {
-						g.w.W("b = r.Body()\n")
-					} else {
+						g.w.W("data, err := %s.Marshal(reqData)\n", jsonPkg)
+						g.w.W("if err != nil  {\n")
+						g.w.W("return %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\n", fmtPkg)
+						g.w.W("}\n")
+						if g.UseFast {
+							g.w.W("r.SetBody(data)\n")
+						} else {
+							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+							bytesPkg := importer.Import("bytes", "bytes")
+							g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
+						}
+					case "urlencoded":
 						ioutilPkg := importer.Import("ioutil", "io/ioutil")
-						g.w.W("b, err = %s.ReadAll(r.Body)\n", ioutilPkg)
-						g.w.WriteCheckErr("err", func() {
-							g.w.W("return nil, err\n")
-						})
+						bytesPkg := importer.Import("bytes", "bytes")
+						g.w.W("r.Header.Add(\"Content-Type\", \"application/x-www-form-urlencoded; charset=utf-8\")\n")
+						g.w.W("params := %s.Values{}\n", urlPkg)
+						for _, p := range paramVars {
+							name := p.Name.Value + "Str"
+
+							format.NewBuilder(importer).
+								SetAssignVar(name).
+								SetValueVar("req." + p.Name.Upper()).
+								SetFieldType(p.Type).
+								Write(&g.w)
+
+							g.w.W("params.Set(\"data\", %s)\n", name)
+						}
+						g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", ioutilPkg, bytesPkg)
+					case "multipart":
+						bytesPkg := importer.Import("bytes", "bytes")
+						multipartPkg := importer.Import("multipart", "mime/multipart")
+						ioutilPkg := importer.Import("ioutil", "io/ioutil")
+
+						g.w.W("body := new(%s.Buffer)\n", bytesPkg)
+						g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
+
+						for _, p := range paramVars {
+							if isFileUploadType(p.Type, importer) {
+								g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return err\n")
+								})
+								g.w.W("data, err := %s.ReadAll(req.%s)\n", ioutilPkg, p.Name.Upper())
+								g.w.WriteCheckErr("err", func() {
+									g.w.W("return err\n")
+								})
+								g.w.W("part.Write(data)\n")
+								continue
+							}
+							name := p.Name.Value + "Str"
+
+							format.NewBuilder(importer).
+								SetAssignVar(name).
+								SetValueVar("req." + p.Name.Upper()).
+								SetFieldType(p.Type).
+								Write(&g.w)
+
+							g.w.W("_ = writer.WriteField(%s, %s)\n", strconv.Quote(p.Name.Value), name)
+						}
+						g.w.W("if err := writer.Close(); err != nil {\n return err\n}\n")
+
+						if g.UseFast {
+							g.w.W("r.SetBody(body.Bytes())\n")
+						} else {
+							g.w.W("r.Body = %s.NopCloser(body)\n", ioutilPkg)
+						}
+						g.w.W("r.Header.Set(\"Content-Type\", writer.FormDataContentType())\n")
 					}
-
-					jsonPkg := importer.Import("ffjson", "github.com/pquerna/ffjson/ffjson")
-
-					g.w.W("if len(b) == 0 {\nreturn nil, nil\n}\n")
-					g.w.W("err = %s.Unmarshal(b, &resp)\n", jsonPkg)
-					g.w.W("if err != nil {\n")
-					g.w.W("return nil, %s.Errorf(\"couldn't unmarshal body to %s: %%s\", err)\n", fmtPkg, responseType)
-					g.w.W("}\n")
-
-					if mopt.RESTWrapResponse.Take() != "" {
-						g.w.W("return resp.%s, nil\n", structPath)
-					} else {
-						g.w.W("return resp, nil\n")
-					}
-				} else {
-					g.w.W("return nil, nil\n")
 				}
+			}
+			for _, p := range headerVars {
+				name := p.Name.Value + "Str"
+				format.NewBuilder(importer).
+					SetAssignVar(name).
+					SetValueVar("req." + strcase.ToCamel(p.Name.Value)).
+					SetFieldType(p.Type).
+					Write(&g.w)
 
-				g.w.W("}")
+				g.w.W("r.Header.Add(%s, %s)\n", strconv.Quote(methodHeaderVars[p.Name.Value]), name)
 			}
 
-			g.w.W(",\n")
-
-			g.w.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", LcNameWithAppPrefix(iface)+m.Name.Value)
-
-			g.w.W(").Endpoint()\n")
-
-			g.w.W(
-				"c.%[1]s = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sMiddleware...))(c.%[1]s)\n",
-				epName,
-			)
+			g.w.W("return nil\n")
+			g.w.W("}\n")
 		}
-		g.w.W("return c, nil\n")
-		g.w.W("}\n\n")
 	}
-
-	return g.w.Bytes()
 }
 
 func (g *RESTClientGenerator) OutputDir() string {

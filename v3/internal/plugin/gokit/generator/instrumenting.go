@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -26,17 +28,12 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 	g.w.W("type instrumentingOpts struct {\n")
 	g.w.W("requestCount %s.Counter\n", metricsPkg)
 	g.w.W("requestLatency %s.Histogram\n", metricsPkg)
-	g.w.W("namespace string\n")
-	g.w.W("subsystem string\n")
 	g.w.W("}\n\n")
 
 	g.w.W("type InstrumentingOption func(*instrumentingOpts)\n\n")
 
-	g.w.W("func Namespace(v string) InstrumentingOption {\nreturn func(o *instrumentingOpts) {\no.namespace = v\n}\n}\n\n")
-	g.w.W("func Subsystem(v string) InstrumentingOption {\nreturn func(o *instrumentingOpts) {\no.subsystem = v\n}\n}\n\n")
-
-	g.w.W("func RequestLatency(requestLatency %s.Histogram) InstrumentingOption {\nreturn func(o *instrumentingOpts) {\no.requestLatency = requestLatency\n}\n}\n\n", metricsPkg)
-	g.w.W("func RequestCount(requestCount %s.Counter) InstrumentingOption {\nreturn func(o *instrumentingOpts) {\no.requestCount = requestCount\n}\n}\n\n", metricsPkg)
+	g.w.W("func InstrumentingRequestLatency(requestLatency %s.Histogram) InstrumentingOption {\nreturn func(o *instrumentingOpts) {\no.requestLatency = requestLatency\n}\n}\n\n", metricsPkg)
+	g.w.W("func InstrumentingRequestCount(requestCount %s.Counter) InstrumentingOption {\nreturn func(o *instrumentingOpts) {\no.requestCount = requestCount\n}\n}\n\n", metricsPkg)
 
 	if len(g.Interfaces) > 0 {
 		timePkg := importer.Import("time", "time")
@@ -87,7 +84,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 								}
 								g.w.W(")\n")
 							}
-							e := Error(m.Sig.Results)
+							e := plugin.Error(m.Sig.Results)
 							if e != nil {
 								g.w.W("if %[1]s != nil {\nrequestCount.With(\"err\", %[1]s.Error()).Add(1)\n} else {\n", e.Name)
 								g.w.W("")
@@ -128,7 +125,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 				g.w.W("}\n")
 			}
 
-			g.w.W("func %[1]s(opts ...InstrumentingOption) %[3]s {\nreturn func(next %[2]s) %[2]s {\n", middlewareFuncName, ifaceTypeName, middlewareTypeName)
+			g.w.W("func %[1]s(namespace, subsystem string, opts ...InstrumentingOption) %[3]s {\nreturn func(next %[2]s) %[2]s {\n", middlewareFuncName, ifaceTypeName, middlewareTypeName)
 
 			g.w.W("i := &%s{next: next, opts: &instrumentingOpts{}}\n", middlewareNameType)
 
@@ -136,8 +133,8 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 
 			g.w.W("if i.opts.requestCount == nil {\n")
 			g.w.W("i.opts.requestCount = %s.NewCounterFrom(%s.CounterOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
-			g.w.W("Namespace: i.opts.namespace,\n")
-			g.w.W("Subsystem: i.opts.subsystem,\n")
+			g.w.W("Namespace: namespace,\n")
+			g.w.W("Subsystem: subsystem,\n")
 			g.w.W("Name: %s,\n", strconv.Quote("request_count"))
 			g.w.W("Help: %s,\n", strconv.Quote("Number of requests received."))
 
@@ -153,8 +150,8 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 
 			g.w.W("if i.opts.requestLatency == nil {\n")
 			g.w.W("i.opts.requestLatency = %s.NewSummaryFrom(%s.SummaryOpts{\n", kitPrometheusPkg, stdPrometheusPkg)
-			g.w.W("Namespace: i.opts.namespace,\n")
-			g.w.W("Subsystem: i.opts.subsystem,\n")
+			g.w.W("Namespace: namespace,\n")
+			g.w.W("Subsystem: subsystem,\n")
 			g.w.W("Name: %s,\n", strconv.Quote("request_latency_microseconds"))
 			g.w.W("Help: %s,\n", strconv.Quote("Total duration of requests in microseconds."))
 			g.w.W("}, []string{\"method\"")

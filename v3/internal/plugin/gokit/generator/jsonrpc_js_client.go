@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/writer"
@@ -38,7 +40,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 				mw.W("*\n")
 			}
 			for _, p := range m.Sig.Params {
-				if IsContext(p) {
+				if plugin.IsContext(p) {
 					continue
 				}
 				nameds := extractNamed(p.Type)
@@ -58,7 +60,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 
 				results := make([]string, 0, len(m.Sig.Results))
 				for _, p := range m.Sig.Results {
-					if IsError(p) {
+					if plugin.IsError(p) {
 						continue
 					}
 					nameds := extractNamed(p.Type)
@@ -95,7 +97,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 
 			params := make([]string, 0, len(m.Sig.Params))
 			for _, p := range m.Sig.Params {
-				if IsContext(p) {
+				if plugin.IsContext(p) {
 					continue
 				}
 				name := p.Name.Value
@@ -116,7 +118,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 
 			requestParams := make([]string, 0, len(m.Sig.Params))
 			for _, p := range m.Sig.Params {
-				if IsContext(p) {
+				if plugin.IsContext(p) {
 					continue
 				}
 				requestParams = append(requestParams, fmt.Sprintf("%[1]s:%[1]s", p.Name))
