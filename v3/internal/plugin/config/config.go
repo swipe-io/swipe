@@ -84,7 +84,7 @@ func (g *Generator) Generate(ctx context.Context) []byte {
 	g.w.W("return\n")
 	g.w.W("}\n\n")
 
-	g.w.W("func (cfg %s) String() string {\n", typeName)
+	g.w.W("func (cfg *%s) String() string {\n", typeName)
 	g.w.W("out := `\n")
 	if len(envs) > 0 {
 		fmtPkg := importer.Import("fmt", "fmt")
