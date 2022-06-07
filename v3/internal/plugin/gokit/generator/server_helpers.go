@@ -57,23 +57,11 @@ func (g *ServerHelpers) Generate(ctx context.Context) []byte {
 		g.w.W("return func(c *opts) { c.endpointMiddleware = opt }\n")
 		g.w.W("}\n")
 
-		//if !g.JSONRPCEnable {
-		//	g.w.W("func DecodeRequestFuncOption(opt %s.DecodeRequestFunc) Option {\n", kitHTTPPkg)
-		//	g.w.W("return func(c *opts) { c.decReqFunc = opt }\n")
-		//	g.w.W("}\n")
-		//
-		//	g.w.W("func EncodeResponseFuncOption(opt %s.EncodeResponseFunc) Option {\n", kitHTTPPkg)
-		//	g.w.W("return func(c *opts) { c.encRespFunc = opt }\n")
-		//	g.w.W("}\n")
-		//}
 		g.w.W("type opts struct {\n")
 		g.w.W("serverOption []%s\n", kitHTTPServerOption)
 		g.w.W("endpoint %s\n", endpointOption)
 		g.w.W("endpointMiddleware []%s\n", endpointMiddlewareOption)
-		//if !g.JSONRPCEnable {
-		//	g.w.W("decReqFunc %s.DecodeRequestFunc\n", kitHTTPPkg)
-		//	g.w.W("encRespFunc %s.EncodeResponseFunc\n", kitHTTPPkg)
-		//}
+
 		g.w.W("}\n\n")
 
 		for _, iface := range g.Interfaces {

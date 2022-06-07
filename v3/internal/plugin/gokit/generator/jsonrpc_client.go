@@ -85,7 +85,7 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("}\n")
 
 		for _, m := range ifaceType.Methods {
-			g.w.W("opts.%[1]sClientOption = append(\nopts.%[1]sClientOption,\n", LcNameIfaceMethod(iface, m))
+			g.w.W("opts.%[1]sOpts.clientOption = append(\nopts.%[1]sOpts.clientOption,\n", LcNameIfaceMethod(iface, m))
 			g.w.W("%s.ClientRequestEncoder(", jsonrpcPkg)
 			g.w.W("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
 
@@ -142,11 +142,11 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("c.%sEndpoint = %s.NewClient(\n", LcNameIfaceMethod(iface, m), jsonrpcPkg)
 			g.w.W("u,\n")
 			g.w.W("%s,\n", strconv.Quote(methodName))
-			g.w.W("append(opts.genericClientOption, opts.%sClientOption...)...,\n", LcNameIfaceMethod(iface, m))
+			g.w.W("append(opts.genericOpts.clientOption, opts.%sOpts.clientOption...)...,\n", LcNameIfaceMethod(iface, m))
 			g.w.W(").Endpoint()\n")
 
 			g.w.W(
-				"c.%[1]sEndpoint = middlewareChain(append(opts.genericEndpointMiddleware, opts.%[1]sEndpointMiddleware...))(c.%[1]sEndpoint)\n",
+				"c.%[1]sEndpoint = middlewareChain(append(opts.genericOpts.endpointMiddleware, opts.%[1]sOpts.endpointMiddleware...))(c.%[1]sEndpoint)\n",
 				LcNameIfaceMethod(iface, m),
 			)
 		}
