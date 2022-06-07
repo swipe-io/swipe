@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -36,6 +37,7 @@ var genCmd = &cobra.Command{
 			packages = viper.GetStringSlice("packages")
 		}
 
+		swipePkg := viper.GetString("swipe-pkg")
 		wd := viper.GetString("work-dir")
 		if wd == "" {
 			wd, _ = cmd.Flags().GetString("work-dir")
@@ -68,9 +70,10 @@ var genCmd = &cobra.Command{
 			packages = append(packages, strings.Split(string(data), "\n")...)
 		}
 		cmd.Printf("Packages: %s\n", strings.Join(packages, ", "))
+		cmd.Printf("Swipe Package: %s\n", swipePkg)
 
-		packages = append(packages, filepath.Join(wd, "pkg", "swipe", "..."))
-
+		packages = append(packages, filepath.Join(wd, swipePkg, "swipe", "..."))
+		fmt.Println(packages)
 		loader, errs := ast.NewLoader(wd, os.Environ(), packages)
 		if len(errs) > 0 {
 			for _, err := range errs {
@@ -137,7 +140,14 @@ var genCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(genCmd)
+	genCmd.Flags().StringP("swipe-pkg", "p", "pkg", "Swipe package directory name")
 	genCmd.Flags().StringP("work-dir", "w", "", "Workdir")
 	genCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+
+	_ = viper.BindPFlag("swipe-pkg", genCmd.Flags().Lookup("swipe-pkg"))
+	_ = viper.BindPFlag("work-dir", genCmd.Flags().Lookup("work-dir"))
+	_ = viper.BindPFlag("verbose", genCmd.Flags().Lookup("verbose"))
+
+	rootCmd.AddCommand(genCmd)
+
 }

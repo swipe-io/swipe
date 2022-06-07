@@ -228,11 +228,12 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 
 	if goClientEnable {
 		var pkg string
-
 		output := p.config.ClientOutput.Take()
-		if output != "" {
-			pkg = strcase.ToSnake(filepath.Base(output))
+		if output == "" {
+			output = "./client"
 		}
+
+		pkg = strcase.ToSnake(filepath.Base(output))
 
 		result = append(result,
 			&generator.MiddlewareChain{
