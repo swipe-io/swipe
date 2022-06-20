@@ -2,6 +2,7 @@ package echo
 
 import (
 	"github.com/mitchellh/mapstructure"
+	"github.com/swipe-io/swipe/v3/internal/plugin"
 
 	"github.com/swipe-io/swipe/v3/internal/plugin/echo/config"
 	"github.com/swipe-io/swipe/v3/internal/plugin/echo/generator"
@@ -21,7 +22,7 @@ func (p *Plugin) ID() string {
 	return "Echo"
 }
 
-func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map[string]interface{}) []error {
+func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map[string]interface{}) (errs []error) {
 	p.config = config.Config{}
 	if err := mapstructure.Decode(options, &p.config); err != nil {
 		return []error{err}
@@ -37,7 +38,23 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 		}
 	}
 
-	return nil
+	for _, iface := range p.config.Interfaces {
+		ifaceType := iface.Named.Type.(*option.IfaceType)
+		for _, m := range ifaceType.Methods {
+			dstMethodOption, _ := p.config.MethodOptionsMap[iface.Named.Name.Value+m.Name.Value]
+			//dstMethodOption = fillMethodDefaultOptions(dstMethodOption, p.config.MethodDefaultOptions)
+
+			pathVars, err := plugin.PathVars(dstMethodOption.RESTPath.Take())
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			dstMethodOption.RESTPathVars = pathVars
+
+			p.config.MethodOptionsMap[iface.Named.Name.Value+m.Name.Value] = dstMethodOption
+		}
+	}
+	return
 }
 
 func (p *Plugin) Generators() ([]swipe.Generator, []error) {

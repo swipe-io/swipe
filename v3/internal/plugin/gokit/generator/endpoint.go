@@ -45,8 +45,6 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
-			//mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
-
 			if len(m.Sig.Params) > 0 {
 				g.w.W("type %s struct {\n", NameRequest(m, iface))
 				for _, param := range m.Sig.Params {

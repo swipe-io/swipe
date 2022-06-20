@@ -12,7 +12,7 @@ import (
 	"github.com/swipe-io/swipe/v3/option"
 )
 
-const Version = "v3.0.19"
+const Version = "v3.0.20"
 
 type ContextKey string
 
@@ -35,9 +35,10 @@ type GenerateResult struct {
 	Errs       []error
 }
 
-func Generate(cfg *Config) (result []GenerateResult, errs []error) {
+func Generate(cfg *Config, prefix string, useDoNotEdit bool) (result []GenerateResult, errs []error) {
 	result = make([]GenerateResult, 0, 100)
 	importerMap := map[string]*importer.Importer{}
+
 	for _, module := range cfg.Modules {
 		if module.External {
 			continue
@@ -74,7 +75,7 @@ func Generate(cfg *Config) (result []GenerateResult, errs []error) {
 						}
 						outputDir = path
 					}
-					filename := "swipe_gen_" + strcase.ToSnake(p.ID()) + "_" + g.Filename()
+					filename := prefix + strcase.ToSnake(p.ID()) + "_" + g.Filename()
 
 					importerKey := build.Pkg.Path + filename
 
@@ -92,7 +93,7 @@ func Generate(cfg *Config) (result []GenerateResult, errs []error) {
 						pkgName = gp.Package()
 					}
 
-					f := frame.NewFrame(Version, filename, importerService, pkgName)
+					f := frame.NewFrame(Version, filename, importerService, pkgName, useDoNotEdit)
 
 					ctx := context.WithValue(context.TODO(), ImporterKey, importerService)
 

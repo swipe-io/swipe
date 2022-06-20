@@ -1,11 +1,11 @@
 package cmd
 
 import (
+	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -31,18 +31,23 @@ var genCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, packages []string) {
 		var err error
 
-		cmd.Println("Please wait the command is running, it may take some time")
+		cmd.Println("Please wait the command is running, it may take some time\n")
 
 		if len(packages) == 0 {
 			packages = viper.GetStringSlice("packages")
 		}
 
+		prefix := viper.GetString("prefix")
 		swipePkg := viper.GetString("swipe-pkg")
+		verbose, _ := cmd.Flags().GetBool("verbose")
 		wd := viper.GetString("work-dir")
+		useDoNotEdit := viper.GetBool("dn-edit")
+
 		if wd == "" {
 			wd, _ = cmd.Flags().GetString("work-dir")
 		}
-		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		swipeSysFilepath := filepath.Join(wd, ".swipe")
 
 		if wd == "" {
 			wd, err = os.Getwd()
@@ -52,19 +57,23 @@ var genCmd = &cobra.Command{
 			}
 		}
 
+		basePath := path.Dir(wd)
+
 		cmd.Printf("Workdir: %s\n", wd)
 
 		// clear all before generated files.
-		_ = filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
-			if !strings.Contains(path, "/vendor/") {
-				if !info.IsDir() {
-					if strings.Contains(info.Name(), "swipe_gen_") {
-						_ = os.Remove(path)
+		data, err := ioutil.ReadFile(swipeSysFilepath)
+		if err == nil {
+			genOldFiles := strings.Split(string(data), "\n")
+
+			for _, filepath := range genOldFiles {
+				if err := os.Remove(basePath + filepath); err != nil {
+					if verbose {
+						cmd.Printf("Remove generated file %s error: %s", filepath, err)
 					}
 				}
 			}
-			return nil
-		})
+		}
 
 		if data, err := ioutil.ReadFile(filepath.Join(wd, "pkgs")); err == nil {
 			packages = append(packages, strings.Split(string(data), "\n")...)
@@ -72,8 +81,9 @@ var genCmd = &cobra.Command{
 		cmd.Printf("Packages: %s\n", strings.Join(packages, ", "))
 		cmd.Printf("Swipe Package: %s\n", swipePkg)
 
+		cmd.Println()
+
 		packages = append(packages, filepath.Join(wd, swipePkg, "swipe", "..."))
-		fmt.Println(packages)
 		loader, errs := ast.NewLoader(wd, os.Environ(), packages)
 		if len(errs) > 0 {
 			for _, err := range errs {
@@ -87,7 +97,7 @@ var genCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		result, errs := swipe.Generate(cfg)
+		result, errs := swipe.Generate(cfg, prefix, useDoNotEdit)
 		success := true
 
 		if len(errs) > 0 {
@@ -98,8 +108,13 @@ var genCmd = &cobra.Command{
 		}
 
 		diffExcludes := make([]string, 0, len(result))
+		generatedFiles := bytes.NewBuffer(nil)
 
-		for _, g := range result {
+		if verbose {
+			cmd.Println("Generated files")
+		}
+
+		for i, g := range result {
 			if len(g.Errs) > 0 {
 				for _, err := range g.Errs {
 					cmd.PrintErrln(err)
@@ -111,6 +126,13 @@ var genCmd = &cobra.Command{
 				continue
 			}
 
+			outputPath := strings.Replace(g.OutputPath, basePath, "", -1)
+
+			if i > 0 {
+				generatedFiles.WriteString("\n")
+			}
+			generatedFiles.WriteString(outputPath)
+
 			diffExcludes = append(diffExcludes, strings.Replace(g.OutputPath, cfg.WorkDir+"/", "", -1))
 
 			dirPath := filepath.Dir(g.OutputPath)
@@ -121,10 +143,10 @@ var genCmd = &cobra.Command{
 			err := ioutil.WriteFile(g.OutputPath, g.Content, 0755)
 			if err == nil {
 				if verbose {
-					log.Printf("%s: wrote %s\n", g.PkgPath, g.OutputPath)
+					cmd.Printf("%s: wrote %s\n", g.PkgPath, g.OutputPath)
 				}
 			} else {
-				log.Printf("%s: failed to write %s: %v\n", g.PkgPath, g.OutputPath, err)
+				cmd.PrintErrf("%s: failed to write %s: %v\n", g.PkgPath, g.OutputPath, err)
 				success = false
 			}
 		}
@@ -135,19 +157,28 @@ var genCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			os.Exit(1)
 		}
-		cmd.Println("Command execution completed successfully")
+
+		if err := ioutil.WriteFile(swipeSysFilepath, generatedFiles.Bytes(), 0755); err != nil {
+			cmd.PrintErrf("Failed to create system file: %s", err)
+			os.Exit(1)
+		}
+
+		cmd.Println("\n\nCommand execution completed successfully.")
 	},
 }
 
 func init() {
-	genCmd.Flags().StringP("swipe-pkg", "p", "pkg", "Swipe package directory name")
-	genCmd.Flags().StringP("work-dir", "w", "", "Workdir")
+	genCmd.Flags().StringP("swipe-pkg", "p", "pkg", "Swipe package name")
+	genCmd.Flags().StringP("work-dir", "w", "", "Work directory")
 	genCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+	genCmd.Flags().StringP("prefix", "x", "swipe_gen_", "Prefix for generated file names")
+	genCmd.Flags().BoolP("dn-edit", "d", true, "Generate a 'DO NOT EDIT' warning")
 
 	_ = viper.BindPFlag("swipe-pkg", genCmd.Flags().Lookup("swipe-pkg"))
 	_ = viper.BindPFlag("work-dir", genCmd.Flags().Lookup("work-dir"))
 	_ = viper.BindPFlag("verbose", genCmd.Flags().Lookup("verbose"))
+	_ = viper.BindPFlag("prefix", genCmd.Flags().Lookup("prefix"))
+	_ = viper.BindPFlag("dn-edit", genCmd.Flags().Lookup("dn-edit"))
 
 	rootCmd.AddCommand(genCmd)
-
 }
