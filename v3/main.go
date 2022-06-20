@@ -7,6 +7,6 @@ import (
 	_ "github.com/swipe-io/swipe/v3/internal/plugin/gokit"
 )
 
-func Main() {
-	cmd.Execute()
+func Main(version string) {
+	cmd.Execute(version)
 }

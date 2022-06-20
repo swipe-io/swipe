@@ -21,22 +21,25 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/swipe-io/swipe/v3/swipe"
 )
 
 var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "v3",
-	Short: "Swipe a generation tool " + swipe.Version,
-	Long:  ``,
+	Short: "Swipe a code generation tool",
+	Run: func(cmd *cobra.Command, args []string) {
+		if !viper.GetBool("version") {
+			cmd.Println(cmd.Version)
+			os.Exit(0)
+		}
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
+func Execute(version string) {
+	rootCmd.Version = version
 	cobra.CheckErr(rootCmd.Execute())
 }
 
@@ -49,9 +52,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/swipe3.yaml)")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolP("version", "v", true, "Show version")
+	_ = viper.BindPFlag("version", genCmd.Flags().Lookup("version"))
 }
 
 // initConfig reads in config file and ENV variables if set.
