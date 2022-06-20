@@ -28,14 +28,14 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
-brews:
-  - name: swipe3
-    homepage: https://github.com/swipe-io/homebrew-swipe
-    tap:
-      owner: swipe-io
-      name: homebrew-swipe
-      branch: main
-      token: "{{ .Env.GITHUB_TOKEN }}"
-    commit_author:
-      email: vitaly@lobchuk.ru
-      name: l-vitaly
+#brews:
+#  - name: swipe3
+#    homepage: https://github.com/swipe-io/homebrew-swipe
+#    tap:
+#      owner: swipe-io
+#      name: homebrew-swipe
+#      branch: main
+#      token: "{{ .Env.GITHUB_TOKEN }}"
+#    commit_author:
+#      email: vitaly@lobchuk.ru
+#      name: l-vitaly
