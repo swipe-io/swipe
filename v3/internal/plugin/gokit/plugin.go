@@ -8,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/swipe-io/strcase"
@@ -74,7 +76,7 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 			}
 
 			if p.config.JSONRPCEnable == nil && dstMethodOption.RESTPath.Value != nil {
-				pathVars, err := pathVars(dstMethodOption.RESTPath.Take())
+				pathVars, err := plugin.PathVars(dstMethodOption.RESTPath.Take())
 				if err != nil {
 					errs = append(errs, err)
 					continue

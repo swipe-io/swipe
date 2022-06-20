@@ -29,10 +29,19 @@ var initCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+
+		pkgName := viper.GetString("pkg")
+
+		if pkgName == "" {
+			pkgName = "pkg"
+		}
+
 		cmd.Printf("Workdir: %s\n", wd)
+		cmd.Printf("Package: %s\n", pkgName)
+
 		for name, data := range swipe.Options() {
 			buf := bytes.NewBuffer(nil)
-			path := filepath.Join(wd, "pkg", "swipe", name)
+			path := filepath.Join(wd, pkgName, "swipe", name)
 			if err := os.MkdirAll(path, 0775); err != nil {
 				cmd.PrintErrf("Error: %s", err)
 				os.Exit(1)
@@ -62,5 +71,9 @@ var initCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().StringP("work-dir", "w", "", "Workdir")
+	initCmd.Flags().StringP("pkg", "p", "pkg", "Package name")
+	initCmd.Flags().StringP("work-dir", "w", "", "Swipe work directory")
+
+	_ = viper.BindPFlag("pkg", initCmd.Flags().Lookup("pkg"))
+	_ = viper.BindPFlag("work-dir", initCmd.Flags().Lookup("work-dir"))
 }

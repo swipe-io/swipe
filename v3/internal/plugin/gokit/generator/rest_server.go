@@ -182,9 +182,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 			encRespFuncName := LcNameWithAppPrefix(iface) + m.Name.Upper()
 
 			g.w.W("%s := encodeResponseHTTP\n", encRespFuncName)
-			//g.w.W("if opts.%sOpts.encRespFunc != nil {\n", encRespFuncName)
-			//g.w.W("%[1]s = opts.%[1]sOpts.encRespFunc\n", encRespFuncName)
-			//g.w.W("}\n")
 
 			bodyType := mopt.RESTBodyType.Take()
 			if bodyType == "" {
@@ -297,7 +294,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 
 				if len(pathVars) > 0 {
 					errorPkg := importer.Import("errors", "errors")
-
 					for _, pathVar := range pathVars {
 						var valueVar string
 						if g.UseFast {
@@ -313,14 +309,10 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							SetFieldType(pathVar.Param.Type).
 							SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
 							Write(&g.w)
-
-						//g.w.WriteConvertType(importer, "req."+strcase.ToCamel(pathVar.Param.Name.Value), valueID, pathVar.Param, []string{"nil"}, "", false, "")
 					}
 				}
-
 				if len(queryVars) > 0 {
 					errorPkg := importer.Import("errors", "errors")
-
 					for _, queryVar := range queryVars {
 						var valueVar string
 						if g.UseFast {
@@ -350,7 +342,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 						g.w.W("}\n")
 					}
 				}
-
 				if len(headerVars) > 0 {
 					errorPkg := importer.Import("errors", "errors")
 					for _, headerVar := range headerVars {
@@ -369,10 +360,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							Write(&g.w)
 					}
 				}
-
 				if len(paramVars) > 0 {
-					errorPkg := importer.Import("errors", "errors")
-
 					switch stdstrings.ToUpper(mopt.RESTMethod.Take()) {
 					case "POST", "PUT", "PATCH":
 						switch bodyType {
@@ -410,6 +398,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 						case "urlencoded":
 							if g.UseFast {
 							} else {
+								errorPkg := importer.Import("errors", "errors")
+
 								g.w.W("r.ParseForm()\n")
 								for _, paramVar := range paramVars {
 									valueVar := "r.Form.Get(" + strconv.Quote(paramVar.Name.Value) + ")"
@@ -472,6 +462,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								} else {
 									valueVar = "r.FormValue(" + strconv.Quote(paramVar.Name.Value) + ")"
 								}
+								errorPkg := importer.Import("errors", "errors")
 
 								convert.NewBuilder(importer).
 									SetAssignVar("req." + "req." + "req." + paramVar.Name.Upper()).
