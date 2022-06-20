@@ -19,7 +19,7 @@ import (
 
 // genCmd represents the gen command
 var genCmd = &cobra.Command{
-	Use:   "gen",
+	Use:   "gen [dir]",
 	Short: "Generate code",
 	Long:  ``,
 	Args: func(cmd *cobra.Command, packages []string) error {
@@ -97,7 +97,7 @@ var genCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		result, errs := swipe.Generate(cfg, prefix, useDoNotEdit)
+		result, errs := swipe.Generate(cfg, prefix, useDoNotEdit, cmd.Version)
 		success := true
 
 		if len(errs) > 0 {

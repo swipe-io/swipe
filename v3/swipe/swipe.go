@@ -12,8 +12,6 @@ import (
 	"github.com/swipe-io/swipe/v3/option"
 )
 
-const Version = "v3.0.20"
-
 type ContextKey string
 
 const (
@@ -35,7 +33,7 @@ type GenerateResult struct {
 	Errs       []error
 }
 
-func Generate(cfg *Config, prefix string, useDoNotEdit bool) (result []GenerateResult, errs []error) {
+func Generate(cfg *Config, prefix string, useDoNotEdit bool, version string) (result []GenerateResult, errs []error) {
 	result = make([]GenerateResult, 0, 100)
 	importerMap := map[string]*importer.Importer{}
 
@@ -93,7 +91,7 @@ func Generate(cfg *Config, prefix string, useDoNotEdit bool) (result []GenerateR
 						pkgName = gp.Package()
 					}
 
-					f := frame.NewFrame(Version, filename, importerService, pkgName, useDoNotEdit)
+					f := frame.NewFrame(version, filename, importerService, pkgName, useDoNotEdit)
 
 					ctx := context.WithValue(context.TODO(), ImporterKey, importerService)
 
