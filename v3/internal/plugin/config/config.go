@@ -113,7 +113,7 @@ func (g *Generator) OutputPath() string {
 }
 
 func (g *Generator) Filename() string {
-	return "config.go"
+	return "loader.go"
 }
 
 func (g *Generator) writeEnv(importer swipe.Importer, f *option.VarType, opts fldOpts) {
