@@ -18,7 +18,7 @@ type Builder struct {
 	assignOp    string
 	assignVar   string
 	valueVar    string
-	errorReturn string
+	errorReturn func() string
 	w           writer.GoWriter
 }
 
@@ -41,7 +41,7 @@ func (b *Builder) SetFieldName(fieldName option.String) *Builder {
 	return b
 }
 
-func (b *Builder) SetErrorReturn(errorReturn string) *Builder {
+func (b *Builder) SetErrorReturn(errorReturn func() string) *Builder {
 	b.errorReturn = errorReturn
 	return b
 }
@@ -123,7 +123,7 @@ func (b *Builder) writeBasicType(t *option.BasicType) {
 	}
 
 	b.w.W("%s.%s\n", strconvPkg, fmt.Sprintf(funcName, b.valueVar))
-	b.w.W("if err != nil {\n %s\n}\n", b.errorReturn)
+	b.w.W("if err != nil {\n %s\n}\n", b.errorReturn())
 
 	if tmpVar != "" {
 		if t.Name != "int64" {
@@ -266,7 +266,7 @@ func (b *Builder) writeNameType(t *option.NamedType) {
 			b.w.W("%s, err %s %s.ParseDuration(%s)\n", b.assignVar, b.assignOp, timePkg, b.valueVar)
 		}
 	}
-	b.w.W("if err != nil {\n %s\n}\n", b.errorReturn)
+	b.w.W("if err != nil {\n %s\n}\n", b.errorReturn())
 }
 
 func NewBuilder(importer swipe.Importer) *Builder {

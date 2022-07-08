@@ -293,7 +293,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 				}
 
 				if len(pathVars) > 0 {
-					errorPkg := importer.Import("errors", "errors")
 					for _, pathVar := range pathVars {
 						var valueVar string
 						if g.UseFast {
@@ -307,7 +306,9 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							SetValueVar(valueVar).
 							SetFieldName(pathVar.Param.Name).
 							SetFieldType(pathVar.Param.Type).
-							SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+							SetErrorReturn(func() string {
+								return fmt.Sprintf("return nil, %s.New(%s)", importer.Import("errors", "errors"), strconv.Quote("convert error"))
+							}).
 							Write(&g.w)
 					}
 				}
@@ -337,13 +338,14 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							SetValueVar(tmpID).
 							SetFieldName(queryVar.Param.Name).
 							SetFieldType(queryVar.Param.Type).
-							SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+							SetErrorReturn(func() string {
+								return fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))
+							}).
 							Write(&g.w)
 						g.w.W("}\n")
 					}
 				}
 				if len(headerVars) > 0 {
-					errorPkg := importer.Import("errors", "errors")
 					for _, headerVar := range headerVars {
 						var valueVar string
 						if g.UseFast {
@@ -356,7 +358,9 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							SetValueVar(valueVar).
 							SetFieldName(headerVar.Param.Name).
 							SetFieldType(headerVar.Param.Type).
-							SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+							SetErrorReturn(func() string {
+								return fmt.Sprintf("return nil, %s.New(%s)", importer.Import("errors", "errors"), strconv.Quote("convert error"))
+							}).
 							Write(&g.w)
 					}
 				}
@@ -398,8 +402,6 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 						case "urlencoded":
 							if g.UseFast {
 							} else {
-								errorPkg := importer.Import("errors", "errors")
-
 								g.w.W("r.ParseForm()\n")
 								for _, paramVar := range paramVars {
 									valueVar := "r.Form.Get(" + strconv.Quote(paramVar.Name.Value) + ")"
@@ -409,7 +411,9 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 										SetValueVar(valueVar).
 										SetFieldName(paramVar.Name).
 										SetFieldType(paramVar.Type).
-										SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+										SetErrorReturn(func() string {
+											return fmt.Sprintf("return nil, %s.New(%s)", importer.Import("errors", "errors"), strconv.Quote("convert error"))
+										}).
 										Write(&g.w)
 								}
 							}
@@ -462,14 +466,14 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								} else {
 									valueVar = "r.FormValue(" + strconv.Quote(paramVar.Name.Value) + ")"
 								}
-								errorPkg := importer.Import("errors", "errors")
-
 								convert.NewBuilder(importer).
 									SetAssignVar("req." + "req." + "req." + paramVar.Name.Upper()).
 									SetValueVar(valueVar).
 									SetFieldName(paramVar.Name).
 									SetFieldType(paramVar.Type).
-									SetErrorReturn(fmt.Sprintf("return nil, %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+									SetErrorReturn(func() string {
+										return fmt.Sprintf("return nil, %s.New(%s)", importer.Import("errors", "errors"), strconv.Quote("convert error"))
+									}).
 									Write(&g.w)
 							}
 						}

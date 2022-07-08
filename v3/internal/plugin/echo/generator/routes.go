@@ -38,10 +38,13 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 	for i, iface := range g.Interfaces {
 		ifacePkg := importer.Import(iface.Named.Pkg.Name, iface.Named.Pkg.Path)
 		paramName := iface.Named.Name.Lower()
-		g.w.W("%s %s.%s", paramName, ifacePkg, iface.Named.Name)
+
 		if i > 0 {
 			g.w.W(",")
 		}
+
+		g.w.W("%s %s.%s", paramName, ifacePkg, iface.Named.Name)
+
 	}
 
 	g.w.W(") {\n")
@@ -164,7 +167,6 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 				}
 			}
 			if len(pathVars) > 0 {
-				errorPkg := importer.Import("errors", "errors")
 				for _, pathVar := range pathVars {
 					valueVar := "ctx.Param(" + strconv.Quote(pathVar.Param.Name.Value) + ")"
 
@@ -173,7 +175,9 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 						SetValueVar(valueVar).
 						SetFieldName(pathVar.Param.Name).
 						SetFieldType(pathVar.Param.Type).
-						SetErrorReturn(fmt.Sprintf("return %s.New(%s)", errorPkg, strconv.Quote("convert error"))).
+						SetErrorReturn(func() string {
+							return fmt.Sprintf("return %s.New(%s)", importer.Import("errors", "errors"), strconv.Quote("convert error"))
+						}).
 						Write(&g.w)
 				}
 			}
@@ -183,7 +187,9 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 					SetFieldType(headerVar.Param.Type).
 					SetAssignVar("req." + headerVar.Param.Name.Upper()).
 					SetValueVar("r.Header.Get(" + strconv.Quote(headerVar.Value) + ")").
-					SetErrorReturn(fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+headerVar.Param.Name.Upper())).
+					SetErrorReturn(func() string {
+						return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+headerVar.Param.Name.Upper())
+					}).
 					Write(&g.w)
 			}
 
@@ -199,7 +205,9 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 						SetFieldType(queryVar.Param.Type).
 						SetAssignVar("req." + queryVar.Param.Name.Upper()).
 						SetValueVar("q.Get(" + strconv.Quote(queryVar.Value) + ")").
-						SetErrorReturn(fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+queryVar.Param.Name.Upper())).
+						SetErrorReturn(func() string {
+							return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+queryVar.Param.Name.Upper())
+						}).
 						Write(&g.w)
 				}
 			}
@@ -211,10 +219,11 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 					}
 					g.w.W(p.Name.Value)
 				}
-			}
-
-			if len(m.Sig.Results) > 0 {
-				g.w.W(" := ")
+				if len(m.Sig.Results) == 1 {
+					g.w.W(" = ")
+				} else {
+					g.w.W(" := ")
+				}
 			}
 
 			g.w.W("%s.%s(%s)\n", paramName, m.Name.Upper(), stdstrings.Join(paramValues, ","))
@@ -240,22 +249,23 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 						g.w.W("%s: %s,\n", strconv.Quote(result.Name.Value), result.Name)
 					}
 					g.w.W("}\n")
-					g.w.W("return encodeResponseHTTP(ctx, response)\n})\n")
+					g.w.W("return encodeResponseHTTP(ctx, response)\n")
 				} else if len(results) == 1 {
-					g.w.W("return encodeResponseHTTP(ctx, %s)\n})\n", results[0].Name)
+					g.w.W("return encodeResponseHTTP(ctx, %s)\n", results[0].Name)
 				} else {
 					g.w.W("return nil\n")
 				}
 			} else {
 				g.w.W("return nil\n")
 			}
+
+			g.w.W("})\n")
 		}
 	}
 
 	g.w.W("\n}\n")
 
 	return g.w.Bytes()
-
 }
 
 func (g *RoutesGenerator) writeDefaultErrorEncoder(echoPkg, httpPkg string) {
