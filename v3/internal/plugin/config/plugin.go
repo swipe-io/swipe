@@ -9,7 +9,9 @@ import (
 const defaultFuncName = "LoadConfig"
 
 func init() {
-	swipe.RegisterPlugin(&Plugin{})
+	swipe.RegisterPlugin(new(Plugin).ID(), func() swipe.Plugin {
+		return &Plugin{}
+	})
 }
 
 type Environment struct {

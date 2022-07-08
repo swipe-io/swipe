@@ -2,6 +2,7 @@ package swipe
 
 import (
 	"log"
+	"sync"
 
 	"github.com/swipe-io/swipe/v3/option"
 )
@@ -13,11 +14,11 @@ type Plugin interface {
 	Options() []byte
 }
 
-var registeredPlugins = map[string]Plugin{}
+var registeredPlugins = sync.Map{}
 
-func RegisterPlugin(p Plugin) {
-	if _, found := registeredPlugins[p.ID()]; found {
-		log.Fatalf("plugin %q already registered", p.ID())
+func RegisterPlugin(id string, cb func() Plugin) {
+	_, loaded := registeredPlugins.LoadOrStore(id, cb)
+	if loaded {
+		log.Fatalf("plugin %q already registered", id)
 	}
-	registeredPlugins[p.ID()] = p
 }

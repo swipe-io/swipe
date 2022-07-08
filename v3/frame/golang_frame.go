@@ -5,12 +5,10 @@ import (
 	"fmt"
 
 	"github.com/swipe-io/swipe/v3/format"
-
-	"github.com/swipe-io/swipe/v3/internal/importer"
 )
 
 type GolangFrame struct {
-	importer     *importer.Importer
+	imports      []string
 	pkgName      string
 	version      string
 	useDoNotEdit bool
@@ -25,9 +23,9 @@ func (f *GolangFrame) Frame(data []byte) ([]byte, error) {
 	buf.WriteString(f.pkgName)
 	buf.WriteString("\n\n")
 
-	if f.importer.HasImports() {
+	if len(f.imports) > 0 {
 		buf.WriteString("import (\n")
-		for _, imp := range f.importer.SortedImports() {
+		for _, imp := range f.imports {
 			_, _ = fmt.Fprint(&buf, imp)
 		}
 		buf.WriteString(")\n\n")
@@ -42,6 +40,6 @@ func (f *GolangFrame) Frame(data []byte) ([]byte, error) {
 	return fmtSrc, nil
 }
 
-func NewGolangFrame(importer *importer.Importer, version, pkgName string, useDoNotEdit bool) *GolangFrame {
-	return &GolangFrame{importer: importer, version: version, pkgName: pkgName, useDoNotEdit: useDoNotEdit}
+func NewGolangFrame(imports []string, version, pkgName string, useDoNotEdit bool) *GolangFrame {
+	return &GolangFrame{imports: imports, version: version, pkgName: pkgName, useDoNotEdit: useDoNotEdit}
 }
