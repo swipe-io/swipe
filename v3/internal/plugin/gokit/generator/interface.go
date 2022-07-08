@@ -46,7 +46,7 @@ func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *InterfaceGenerator) OutputDir() string {
+func (g *InterfaceGenerator) OutputPath() string {
 	return g.Output
 }
 

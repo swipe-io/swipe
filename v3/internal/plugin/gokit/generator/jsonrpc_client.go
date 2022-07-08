@@ -157,7 +157,7 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *JSONRPCClientGenerator) OutputDir() string {
+func (g *JSONRPCClientGenerator) OutputPath() string {
 	return g.Output
 }
 

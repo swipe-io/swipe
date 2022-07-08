@@ -4,7 +4,7 @@ import "context"
 
 type Generator interface {
 	Generate(ctx context.Context) []byte
-	OutputDir() string
+	OutputPath() string
 	Filename() string
 }
 

@@ -186,7 +186,7 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 	return data
 }
 
-func (g *Openapi) OutputDir() string {
+func (g *Openapi) OutputPath() string {
 	return g.Output
 }
 

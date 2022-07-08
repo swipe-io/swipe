@@ -267,7 +267,7 @@ func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *JSONRPCServerGenerator) OutputDir() string {
+func (g *JSONRPCServerGenerator) OutputPath() string {
 	return ""
 }
 

@@ -95,7 +95,7 @@ func (g *CURL) writeCURLREST(iface *config.Interface) {
 	}
 }
 
-func (g *CURL) OutputDir() string {
+func (g *CURL) OutputPath() string {
 	return g.Output
 }
 

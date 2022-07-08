@@ -106,7 +106,7 @@ func (g *ServerHelpers) Package() string {
 	return g.Pkg
 }
 
-func (g *ServerHelpers) OutputDir() string {
+func (g *ServerHelpers) OutputPath() string {
 	return g.Output
 }
 

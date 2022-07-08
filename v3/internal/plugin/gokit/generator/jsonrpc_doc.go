@@ -180,7 +180,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *JSONRPCDocGenerator) OutputDir() string {
+func (g *JSONRPCDocGenerator) OutputPath() string {
 	return g.Output
 }
 

@@ -201,7 +201,7 @@ func (g *ClientHelpers) Package() string {
 	return g.Pkg
 }
 
-func (g *ClientHelpers) OutputDir() string {
+func (g *ClientHelpers) OutputPath() string {
 	return g.Output
 }
 

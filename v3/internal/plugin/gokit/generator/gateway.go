@@ -79,7 +79,7 @@ func (g *GatewayGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *GatewayGenerator) OutputDir() string {
+func (g *GatewayGenerator) OutputPath() string {
 	return ""
 }
 

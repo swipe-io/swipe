@@ -164,7 +164,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *Logging) OutputDir() string {
+func (g *Logging) OutputPath() string {
 	return ""
 }
 
