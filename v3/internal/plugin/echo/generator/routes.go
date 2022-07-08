@@ -311,7 +311,7 @@ func (g *RoutesGenerator) writeEncodeResponseFunc(echoPkg, httpPkg string) {
 	g.w.W("}\n\n")
 }
 
-func (g *RoutesGenerator) OutputDir() string {
+func (g *RoutesGenerator) OutputPath() string {
 	return ""
 }
 

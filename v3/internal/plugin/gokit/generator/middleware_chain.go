@@ -39,7 +39,7 @@ func (g *MiddlewareChain) Package() string {
 	return g.Pkg
 }
 
-func (g *MiddlewareChain) OutputDir() string {
+func (g *MiddlewareChain) OutputPath() string {
 	return g.Output
 }
 

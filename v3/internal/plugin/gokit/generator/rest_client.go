@@ -471,7 +471,7 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 	}
 }
 
-func (g *RESTClientGenerator) OutputDir() string {
+func (g *RESTClientGenerator) OutputPath() string {
 	return g.Output
 }
 

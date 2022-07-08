@@ -108,7 +108,7 @@ func (g *Generator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *Generator) OutputDir() string {
+func (g *Generator) OutputPath() string {
 	return ""
 }
 

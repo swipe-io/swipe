@@ -516,7 +516,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *RESTServerGenerator) OutputDir() string {
+func (g *RESTServerGenerator) OutputPath() string {
 	return ""
 }
 

@@ -152,7 +152,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *ClientStruct) OutputDir() string {
+func (g *ClientStruct) OutputPath() string {
 	return g.Output
 }
 

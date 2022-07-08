@@ -171,7 +171,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *Instrumenting) OutputDir() string {
+func (g *Instrumenting) OutputPath() string {
 	return ""
 }
 

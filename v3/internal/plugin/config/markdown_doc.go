@@ -71,7 +71,7 @@ func (g *MarkdownDocGenerator) getTypeSrt(t interface{}) string {
 	}
 }
 
-func (g *MarkdownDocGenerator) OutputDir() string {
+func (g *MarkdownDocGenerator) OutputPath() string {
 	return g.Output
 }
 

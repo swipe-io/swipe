@@ -33,7 +33,7 @@ func (g *Endpoint) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *Endpoint) OutputDir() string {
+func (g *Endpoint) OutputPath() string {
 	return g.Output
 }
 

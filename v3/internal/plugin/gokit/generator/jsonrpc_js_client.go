@@ -204,7 +204,7 @@ func (g *JSONRPCJSClientGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *JSONRPCJSClientGenerator) OutputDir() string {
+func (g *JSONRPCJSClientGenerator) OutputPath() string {
 	return ""
 }
 
