@@ -67,19 +67,24 @@ func (c *Config) WalkBuilds(fn func(module *option.Module, build *option.Inject)
 }
 
 func (c *Config) Load() (err error) {
-	optionPkgs := map[string]string{}
-	for _, plugin := range registeredPlugins {
-		optionPkgs[strings.ToLower(plugin.ID())] = plugin.ID()
-	}
-	c.Modules, err = option.Decode(optionPkgs, c.Module, c.Packages, c.CommentFuncs, c.CommentFields)
+	optionPackages := map[string]string{}
+	registeredPlugins.Range(func(key, value any) bool {
+		pluginID := key.(string)
+		optionPackages[strings.ToLower(pluginID)] = pluginID
+		return true
+	})
+	c.Modules, err = option.Decode(optionPackages, c.Module, c.Packages, c.CommentFuncs, c.CommentFields)
 	return
 }
 
 func Options() (data map[string][]byte) {
 	data = map[string][]byte{}
-	for _, plugin := range registeredPlugins {
-		name := strings.ToLower(plugin.ID())
-		data[name] = append(data[name], plugin.Options()...)
-	}
+	registeredPlugins.Range(func(key, value any) bool {
+		pluginID := key.(string)
+		p := value.(Plugin)
+		name := strings.ToLower(pluginID)
+		data[name] = append(data[name], p.Options()...)
+		return true
+	})
 	return
 }

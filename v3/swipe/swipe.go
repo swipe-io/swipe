@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/swipe-io/swipe/v3/frame"
-
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/importer"
 	"github.com/swipe-io/swipe/v3/option"
@@ -27,15 +25,17 @@ type AstFinder interface {
 }
 
 type GenerateResult struct {
+	PkgName    string
 	PkgPath    string
 	OutputPath string
+	Imports    []string
 	Content    []byte
 	Errs       []error
 }
 
-func Generate(cfg *Config, prefix string, useDoNotEdit bool, version string) (result []GenerateResult, errs []error) {
-	result = make([]GenerateResult, 0, 100)
-	importerMap := map[string]*importer.Importer{}
+func Generate(cfg *Config, prefix string) (result map[string]*GenerateResult, errs []error) {
+	result = make(map[string]*GenerateResult, 512)
+	importerCache := map[string]*importer.Importer{}
 
 	for _, module := range cfg.Modules {
 		if module.External {
@@ -43,11 +43,15 @@ func Generate(cfg *Config, prefix string, useDoNotEdit bool, version string) (re
 		}
 		for _, build := range module.Injects {
 			for id, options := range build.Option {
-				p, ok := registeredPlugins[id]
+				iface, ok := registeredPlugins.Load(id)
 				if !ok {
 					errs = append(errs, &warnError{Err: fmt.Errorf("plugin %q not found", id)})
 					continue
 				}
+
+				cb := iface.(func() Plugin)
+				p := cb()
+
 				cfgErrs := p.Configure(cfg, module, options.(map[string]interface{}))
 				if len(cfgErrs) > 0 {
 					errs = append(errs, cfgErrs...)
@@ -58,53 +62,59 @@ func Generate(cfg *Config, prefix string, useDoNotEdit bool, version string) (re
 					errs = append(errs, genErrs...)
 					continue
 				}
-				generatorResult := make([]GenerateResult, len(generators))
-				for i, g := range generators {
-					generatorResult[i].PkgPath = build.Pkg.Path
 
-					outputDir := g.OutputDir()
-					if outputDir == "" {
-						outputDir = build.BasePath
-					} else {
-						path, err := filepath.Abs(filepath.Join(cfg.WorkDir, outputDir))
-						if err != nil {
-							generatorResult[i].Errs = append(generatorResult[i].Errs, err)
-							continue
-						}
-						outputDir = path
-					}
+				for _, g := range generators {
 					filename := prefix + strcase.ToSnake(p.ID()) + "_" + g.Filename()
 
-					importerKey := build.Pkg.Path + filename
-
-					// importer cache for package.
-					importerService, ok := importerMap[importerKey]
-					if !ok {
-						importerService = importer.NewImporter(build.Pkg)
-						importerMap[filename] = importerService
+					var outputPath string
+					if g.OutputPath() == "" {
+						outputPath = filepath.Join(build.BasePath, filename)
+					} else {
+						path, err := filepath.Abs(filepath.Join(cfg.WorkDir, outputPath))
+						if err != nil {
+							errs = append(errs, err)
+							continue
+						}
+						outputPath = filepath.Join(path, filename)
 					}
 
-					generatorResult[i].OutputPath = filepath.Join(outputDir, filename)
+					generateResult, ok := result[outputPath]
+					if !ok {
+						generateResult = &GenerateResult{
+							PkgPath:    build.Pkg.Path,
+							OutputPath: outputPath,
+						}
+						result[outputPath] = generateResult
+					}
+
+					// importer cache for package.
+					importerService, ok := importerCache[outputPath]
+					if !ok {
+						importerService = importer.NewImporter(build.Pkg)
+						importerCache[outputPath] = importerService
+					}
 
 					pkgName := build.Pkg.Name
 					if gp, ok := g.(GeneratorPackage); ok && gp.Package() != "" {
 						pkgName = gp.Package()
 					}
 
-					f := frame.NewFrame(version, filename, importerService, pkgName, useDoNotEdit)
+					generateResult.PkgName = pkgName
 
 					ctx := context.WithValue(context.TODO(), ImporterKey, importerService)
 
-					data, err := f.Frame(g.Generate(ctx))
-					if err != nil {
-						generatorResult[i].Errs = append(generatorResult[i].Errs, err)
-						continue
-					}
-					generatorResult[i].Content = data
+					generateResult.Content = append(generateResult.Content, g.Generate(ctx)...)
 				}
-				result = append(result, generatorResult...)
 			}
 		}
 	}
+
+	for _, generateResult := range result {
+		importerService := importerCache[generateResult.OutputPath]
+		if importerService.HasImports() {
+			generateResult.Imports = importerService.SortedImports()
+		}
+	}
+
 	return
 }

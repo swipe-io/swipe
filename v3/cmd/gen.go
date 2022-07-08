@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/swipe-io/swipe/v3/frame"
 	"github.com/swipe-io/swipe/v3/internal/ast"
 	"github.com/swipe-io/swipe/v3/internal/gitattributes"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -97,9 +98,8 @@ var genCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		result, errs := swipe.Generate(cfg, prefix, useDoNotEdit, cmd.Version)
+		result, errs := swipe.Generate(cfg, prefix)
 		success := true
-
 		if len(errs) > 0 {
 			for _, err := range errs {
 				cmd.PrintErrln(err)
@@ -114,7 +114,8 @@ var genCmd = &cobra.Command{
 			cmd.Println("Generated files")
 		}
 
-		for i, g := range result {
+		var i int
+		for _, g := range result {
 			if len(g.Errs) > 0 {
 				for _, err := range g.Errs {
 					cmd.PrintErrln(err)
@@ -122,8 +123,17 @@ var genCmd = &cobra.Command{
 				success = false
 				continue
 			}
+
 			if len(g.Content) == 0 {
 				continue
+			}
+
+			filename := filepath.Base(g.OutputPath)
+			f := frame.NewFrame(cmd.Version, filename, g.Imports, g.PkgName, useDoNotEdit)
+			data, err := f.Frame(g.Content)
+			if err != nil {
+				cmd.PrintErrf("%s: failed to write %s: %v\n", g.PkgPath, g.OutputPath, err)
+				os.Exit(1)
 			}
 
 			outputPath := strings.Replace(g.OutputPath, basePath, "", -1)
@@ -140,7 +150,7 @@ var genCmd = &cobra.Command{
 				cmd.PrintErrf("%s: failed to create dir %s: %v\n", g.PkgPath, dirPath, err)
 				os.Exit(1)
 			}
-			err := ioutil.WriteFile(g.OutputPath, g.Content, 0755)
+			err = ioutil.WriteFile(g.OutputPath, data, 0755)
 			if err == nil {
 				if verbose {
 					cmd.Printf("%s: wrote %s\n", g.PkgPath, g.OutputPath)
@@ -149,6 +159,7 @@ var genCmd = &cobra.Command{
 				cmd.PrintErrf("%s: failed to write %s: %v\n", g.PkgPath, g.OutputPath, err)
 				success = false
 			}
+			i++
 		}
 		if !success {
 			os.Exit(1)
