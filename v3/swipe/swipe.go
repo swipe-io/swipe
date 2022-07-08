@@ -66,8 +66,8 @@ func Generate(cfg *Config, prefix string) (result map[string]*GenerateResult, er
 				for _, g := range generators {
 					filename := prefix + strcase.ToSnake(p.ID()) + "_" + g.Filename()
 
-					var outputPath string
-					if g.OutputPath() == "" {
+					outputPath := g.OutputPath()
+					if outputPath == "" {
 						outputPath = filepath.Join(build.BasePath, filename)
 					} else {
 						path, err := filepath.Abs(filepath.Join(cfg.WorkDir, outputPath))
