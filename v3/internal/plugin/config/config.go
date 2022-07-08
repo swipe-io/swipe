@@ -119,7 +119,7 @@ func (g *Generator) Filename() string {
 func (g *Generator) writeEnv(importer swipe.Importer, f *option.VarType, opts fldOpts) {
 	tmpVar := strcase.ToLowerCamel(opts.fieldPath) + "Tmp"
 	pkgOS := importer.Import("os", "os")
-	pkgError := importer.Import("errors", "errors")
+
 	g.w.W("%s, ok := %s.LookupEnv(%s)\n", tmpVar, pkgOS, strconv.Quote(opts.name))
 	g.w.W("if ok {\n")
 
@@ -129,7 +129,9 @@ func (g *Generator) writeEnv(importer swipe.Importer, f *option.VarType, opts fl
 		SetValueVar(tmpVar).
 		SetFieldName(f.Name).
 		SetFieldType(f.Type).
-		SetErrorReturn(fmt.Sprintf("errs = append(errs, %s.New(%s))", pkgError, strconv.Quote("convert "+opts.name+" error"))).
+		SetErrorReturn(func() string {
+			return fmt.Sprintf("errs = append(errs, %s.New(%s))", importer.Import("errors", "errors"), strconv.Quote("convert "+opts.name+" error"))
+		}).
 		Write(&g.w)
 
 	g.writeCheckZero(importer, f, opts)
