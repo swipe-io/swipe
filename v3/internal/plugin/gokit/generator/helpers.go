@@ -220,35 +220,6 @@ func IfaceMiddlewareTypeName(iface *config.Interface) string {
 	return UcNameWithAppPrefix(iface) + "Middleware"
 }
 
-func DownloadFile(vars option.VarsType) *option.VarType {
-	for _, v := range vars {
-		if isFileDownloadType(v.Type) {
-			return v
-		}
-	}
-	return nil
-}
-
-func Contexts(vars option.VarsType) (result []*option.VarType) {
-	for _, v := range vars {
-		if plugin.IsContext(v) {
-			result = append(result, v)
-		}
-	}
-	return
-}
-
-func LenWithoutErrors(vars option.VarsType) int {
-	if plugin.Error(vars) != nil {
-		return len(vars) - 1
-	}
-	return len(vars)
-}
-
-func LenWithoutContexts(vars option.VarsType) int {
-	return len(vars) - len(Contexts(vars))
-}
-
 func makeLogParams(include, exclude map[string]struct{}, data ...*option.VarType) (result []string) {
 	return makeLogParamsRecursive(include, exclude, "", data...)
 }
@@ -281,7 +252,7 @@ func makeLogParam(name string, t interface{}) []string {
 	default:
 		return []string{quoteName, name}
 	case *option.NamedType:
-		if isFileDownloadType(t) {
+		if plugin.IsFileDownloadType(t) {
 			return []string{quoteName, "len(" + name + ".Data())"}
 		}
 		if hasMethodString(t) {
@@ -628,23 +599,6 @@ func isFileUploadType(i interface{}, importer swipe.Importer) bool {
 			if done == 3 {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-func isFileDownloadType(i interface{}) bool {
-	if n, ok := i.(*option.NamedType); ok {
-		var done int
-		for _, method := range n.Methods {
-			sigStr := swipe.TypeStringWithoutImport(method, true)
-			switch sigStr {
-			case "ContentType() (string)", "Name() (string)", "Data() ([]byte)":
-				done++
-			}
-		}
-		if done == 3 {
-			return true
 		}
 	}
 	return false

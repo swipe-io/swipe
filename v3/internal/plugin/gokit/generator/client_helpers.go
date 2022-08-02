@@ -3,6 +3,7 @@ package generator
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
@@ -56,7 +57,7 @@ func (g *ClientHelpers) Generate(ctx context.Context) []byte {
 	g.w.W("return func(c *opts) { c.endpointMiddleware = opt }\n")
 	g.w.W("}\n")
 
-	//if !g.JSONRPCEnable {
+	//if !g.useJSONRPC {
 	//	g.w.W("func DecodeRequestFuncOption(opt %s.CreateRequestFunc) Option {\n", kitHTTPPkg)
 	//	g.w.W("return func(c *opts) { c.createReqFunc = opt }\n")
 	//	g.w.W("}\n")
@@ -69,7 +70,7 @@ func (g *ClientHelpers) Generate(ctx context.Context) []byte {
 	g.w.W("type opts struct {\n")
 	g.w.W("clientOption []%s\n", kitHTTPClientOption)
 	g.w.W("endpointMiddleware []%s\n", endpointMiddlewareOption)
-	//if !g.JSONRPCEnable {
+	//if !g.useJSONRPC {
 	//	g.w.W("createReqFunc %s.CreateRequestFunc\n", kitHTTPPkg)
 	//	g.w.W("decRespFunc %s.DecodeResponseFunc\n", kitHTTPPkg)
 	//}
@@ -140,6 +141,8 @@ func (g *ClientHelpers) Generate(ctx context.Context) []byte {
 		g.w.W("func (e *httpError) SetErrorMessage(message string) {\ne.message = message\n}\n")
 
 		errorDecodeParams = append(errorDecodeParams, "message", "string", "data", "interface{}")
+	} else {
+		errorDecodeParams = append(errorDecodeParams, "errCode", "string")
 	}
 
 	for _, iface := range g.Interfaces {
@@ -162,6 +165,7 @@ func (g *ClientHelpers) Generate(ctx context.Context) []byte {
 
 			g.w.W("switch code {\n")
 			g.w.W("default:\nerr = &httpError{code: code}\n")
+
 			if g.JSONRPCEnable {
 				errorsDub := map[int64]struct{}{}
 				for _, e := range methodErrors {
@@ -169,14 +173,36 @@ func (g *ClientHelpers) Generate(ctx context.Context) []byte {
 						continue
 					}
 					errorsDub[e.Code] = struct{}{}
-
 					g.w.W("case %d:\n", e.Code)
 					pkgName := importer.Import(e.PkgName, e.PkgPath)
 					if pkgName != "" {
 						pkgName += "."
 					}
-
 					g.w.W("err = &%s%s{}\n", pkgName, e.Name)
+				}
+			} else {
+				errorsMap := map[int64][]config.Error{}
+				for _, e := range methodErrors {
+					errorsMap[e.Code] = append(errorsMap[e.Code], e)
+				}
+
+				for statusCode, errs := range errorsMap {
+					g.w.W("case %d:\n", statusCode)
+					g.w.W("switch errCode {\n")
+
+					errorsDub := map[string]struct{}{}
+					for _, e := range errs {
+						pkgName := importer.Import(e.PkgName, e.PkgPath)
+						if pkgName != "" {
+							pkgName += "."
+						}
+						if _, ok := errorsDub[e.ErrCode]; !ok {
+							errorsDub[e.ErrCode] = struct{}{}
+							g.w.W("case %s:", strconv.Quote(e.ErrCode))
+							g.w.W("err = &%s%s{}\n", pkgName, e.Name)
+						}
+					}
+					g.w.W("}\n")
 				}
 			}
 			g.w.W("}\n")

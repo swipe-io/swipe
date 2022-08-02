@@ -129,7 +129,7 @@ func (p *Plugin) Options() []byte {
 	return nil
 }
 
-func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
+func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	goClientEnable := p.config.ClientsEnable.Langs.Contains("go")
 	jsClientEnable := p.config.ClientsEnable.Langs.Contains("js")
 	jsonRPCEnable := p.config.JSONRPCEnable != nil
@@ -138,7 +138,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 	jsonRPCDocEnable := p.config.JSONRPCDocEnable != nil
 
 	if p.config.CURLEnable != nil {
-		result = append(result, &generator.CURL{
+		generators = append(generators, &generator.CURL{
 			Interfaces:    p.config.Interfaces,
 			MethodOptions: p.config.MethodOptionsMap,
 			JSONRPCEnable: jsonRPCEnable,
@@ -148,20 +148,20 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 		})
 	}
 	if p.config.LoggingEnable {
-		result = append(result, &generator.Logging{
+		generators = append(generators, &generator.Logging{
 			Interfaces:    p.config.Interfaces,
 			MethodOptions: p.config.MethodOptionsMap,
 		})
 	}
 	if p.config.InstrumentingEnable {
-		result = append(result, &generator.Instrumenting{
+		generators = append(generators, &generator.Instrumenting{
 			Interfaces:    p.config.Interfaces,
 			MethodOptions: p.config.MethodOptionsMap,
 			Labels:        p.config.InstrumentingLabels,
 		})
 	}
 	if httpServerEnable {
-		result = append(result,
+		generators = append(generators,
 			&generator.MiddlewareChain{},
 			&generator.ServerHelpers{
 				Interfaces:       p.config.Interfaces,
@@ -179,7 +179,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			},
 		)
 		if p.config.OpenapiEnable != nil {
-			result = append(result, &generator.Openapi{
+			generators = append(generators, &generator.Openapi{
 				JSONRPCEnable: jsonRPCEnable,
 				Contact:       p.config.OpenapiContact,
 				Info:          p.config.OpenapiInfo,
@@ -193,25 +193,25 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			})
 		}
 		if p.config.HasExternal {
-			result = append(result, &generator.GatewayGenerator{
+			generators = append(generators, &generator.GatewayGenerator{
 				Interfaces: p.config.Interfaces,
 			})
 		}
 		if jsonRPCEnable {
-			result = append(result, &generator.JSONRPCServerGenerator{
+			generators = append(generators, &generator.JSONRPCServerGenerator{
 				UseFast:       useFast,
 				Interfaces:    p.config.Interfaces,
 				MethodOptions: p.config.MethodOptionsMap,
 				JSONRPCPath:   p.config.JSONRPCPath.Take(),
 			})
 			if jsClientEnable {
-				result = append(result, &generator.JSONRPCJSClientGenerator{
+				generators = append(generators, &generator.JSONRPCJSClientGenerator{
 					Interfaces:  p.config.Interfaces,
 					IfaceErrors: p.config.IfaceErrors,
 				})
 			}
 			if jsonRPCDocEnable {
-				result = append(result, &generator.JSONRPCDocGenerator{
+				generators = append(generators, &generator.JSONRPCDocGenerator{
 					AppName:         p.config.AppName,
 					JSPkgImportPath: p.config.JSPkgImportPath,
 					Interfaces:      p.config.Interfaces,
@@ -221,7 +221,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 			}
 
 		} else {
-			result = append(result, &generator.RESTServerGenerator{
+			generators = append(generators, &generator.RESTServerGenerator{
 				UseFast:       useFast,
 				JSONRPCEnable: jsonRPCEnable,
 				MethodOptions: p.config.MethodOptionsMap,
@@ -239,7 +239,7 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 
 		pkg = strcase.ToSnake(filepath.Base(output))
 
-		result = append(result,
+		generators = append(generators,
 			&generator.MiddlewareChain{
 				Output: output,
 				Pkg:    pkg,
@@ -272,14 +272,14 @@ func (p *Plugin) Generators() (result []swipe.Generator, errs []error) {
 				Output:        output,
 			})
 		if jsonRPCEnable {
-			result = append(result, &generator.JSONRPCClientGenerator{
+			generators = append(generators, &generator.JSONRPCClientGenerator{
 				Interfaces: p.config.Interfaces,
 				UseFast:    useFast,
 				Pkg:        pkg,
 				Output:     output,
 			})
 		} else {
-			result = append(result, &generator.RESTClientGenerator{
+			generators = append(generators, &generator.RESTClientGenerator{
 				Interfaces:    p.config.Interfaces,
 				UseFast:       useFast,
 				MethodOptions: p.config.MethodOptionsMap,

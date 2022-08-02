@@ -1,117 +1,100 @@
-package generator
+package openapi
 
 import (
-	"context"
 	"encoding/json"
-	"go/types"
 	"net/http"
 	"path"
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/pquerna/ffjson/ffjson"
 	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v3/internal/plugin"
-	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
-	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/openapi"
 	"github.com/swipe-io/swipe/v3/option"
 )
 
-type Openapi struct {
-	JSONRPCEnable bool
-	Contact       config.OpenapiContact
-	Info          config.OpenapiInfo
-	MethodTags    map[string][]string
-	Servers       []config.OpenapiServer
-	Licence       config.OpenapiLicence
-	Output        string
-	Interfaces    []*config.Interface
-	MethodOptions map[string]config.MethodOptions
-	IfaceErrors   map[string]map[string][]config.Error
-	defTypes      map[string]*option.NamedType
+type InterfaceMethod struct {
+	Name             option.String
+	RESTMethod       string
+	RESTPath         string
+	RESTQueryVars    []string
+	RESTPathVars     map[string]string
+	Tags             []string
+	Func             *option.FuncType
+	Description      string
+	RESTWrapResponse string
+	RESTQueryValues  []string
+	RESTHeaderVars   []string
 }
 
-func (g *Openapi) Generate(ctx context.Context) []byte {
+type Interface struct {
+	Name      option.String
+	Namespace string
+	Methods   []InterfaceMethod
+}
+
+type Error struct {
+	PkgName string
+	PkgPath string
+	Name    string
+	Code    int64
+	ErrCode string
+}
+
+type Openapi struct {
+	info       Info
+	servers    []Server
+	interfaces []Interface
+	errors     map[string]map[string][]Error
+	useJSONRPC bool
+	defTypes   map[string]*option.NamedType
+}
+
+func (g *Openapi) Build() OpenAPI {
 	g.defTypes = make(map[string]*option.NamedType, 1024)
-
-	version := ""
-	switch t := g.Info.Version.(type) {
-	case string:
-		version = t
-	case *option.NamedType:
-		if c, ok := t.Obj.(*types.Const); ok {
-			version, _ = strconv.Unquote(c.Val().String())
-		}
-	}
-
-	o := openapi.OpenAPI{
+	o := OpenAPI{
 		OpenAPI: "3.0.0",
-		Info: openapi.Info{
-			Title:          g.Info.Title,
-			Description:    g.Info.Description,
-			TermsOfService: "",
-			Contact: &openapi.Contact{
-				Name:  g.Contact.Name,
-				URL:   g.Contact.Url,
-				Email: g.Contact.Email,
-			},
-			License: &openapi.License{
-				Name: g.Licence.Name,
-				URL:  g.Licence.Url,
-			},
-			Version: version,
-		},
-		Paths: map[string]*openapi.Path{},
-		Components: openapi.Components{
-			Schemas: openapi.Schemas{},
+		Paths:   map[string]*Path{},
+		Components: Components{
+			Schemas: Schemas{},
 		},
 	}
-	if g.JSONRPCEnable {
+
+	o.Info = g.info
+	o.Servers = g.servers
+
+	if g.useJSONRPC {
 		o.Components.Schemas = getOpenapiJSONRPCErrorSchemas()
 	}
-	//else {
-	//	o.Components.Schemas["Error"] = getOpenapiRESTErrorSchema()
-	//}
-	for _, s := range g.Servers {
-		o.Servers = append(o.Servers, openapi.Server{
-			URL:         s.Url,
-			Description: s.Description,
-			Variables:   nil,
-		})
-	}
-	for _, iface := range g.Interfaces {
-		ifaceType := iface.Named.Type.(*option.IfaceType)
-		for _, m := range ifaceType.Methods {
-			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 
+	for _, iface := range g.interfaces {
+		for _, m := range iface.Methods {
 			var (
 				pathStr        string
-				op             *openapi.Operation
-				httpMethodName = mopt.RESTMethod.Take()
+				op             *Operation
+				httpMethodName = m.RESTMethod
 			)
-			tags := g.MethodTags[iface.Named.Name.Value+m.Name.Value]
 
-			if g.JSONRPCEnable {
-				op = g.makeJSONRPCPath(m, iface.Namespace, mopt)
+			if g.useJSONRPC {
+				op = g.makeJSONRPCPath(m, iface.Namespace)
 				pathStr = "/" + m.Name.Lower()
 				if iface.Namespace != "" {
 					pathStr = "/" + iface.Namespace + "." + m.Name.Lower()
 				}
 				httpMethodName = "POST"
 			} else {
-				op = g.makeRestPath(m, mopt)
+				op = g.makeRestPath(m)
 
-				if mopt.RESTPath.IsValid() {
-					pathStr = mopt.RESTPath.Take()
+				if m.RESTPath != "" {
+					pathStr = m.RESTPath
 				} else {
 					pathStr = strcase.ToKebab(m.Name.Value)
 				}
-				for _, p := range m.Sig.Params {
+				for _, p := range m.Func.Sig.Params {
 					if plugin.IsContext(p) {
 						continue
 					}
-					if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
+					if regexp, ok := m.RESTPathVars[p.Name.Value]; ok {
 						pathStr = stdstrings.Replace(pathStr, ":"+regexp, "", -1)
 					}
 				}
@@ -120,20 +103,20 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 				}
 			}
 
-			if methodErrors, ok := g.IfaceErrors[iface.Named.Name.Value]; ok {
+			if methodErrors, ok := g.errors[iface.Name.Value]; ok {
 				for _, errors := range methodErrors {
 					for _, e := range errors {
 						codeStr := strconv.FormatInt(e.Code, 10)
-						errResponse := &openapi.Response{
-							Content: openapi.Content{
+						errResponse := &Response{
+							Content: Content{
 								"application/json": {
-									Schema: &openapi.Schema{
+									Schema: &Schema{
 										Ref: "#/components/schemas/" + e.Name,
 									},
 								},
 							},
 						}
-						if g.JSONRPCEnable {
+						if g.useJSONRPC {
 							codeStr = "x-" + codeStr
 							o.Components.Schemas[e.Name] = makeOpenapiSchemaJRPCError(e.Code)
 							errResponse.Description = e.Name
@@ -147,17 +130,14 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 				}
 			}
 
-			ifaceTag := iface.Named.Name.Upper()
 			if iface.Namespace != "" {
-				ifaceTag = iface.Namespace
+				op.Tags = append(op.Tags, iface.Namespace)
 			}
-			tags = append(tags, ifaceTag)
-
-			op.Description = m.Comment
-			op.Tags = tags
+			op.Tags = append(op.Tags, m.Tags...)
+			op.Description = m.Description
 
 			if _, ok := o.Paths[pathStr]; !ok {
-				o.Paths[pathStr] = &openapi.Path{}
+				o.Paths[pathStr] = &Path{}
 			}
 
 			switch httpMethodName {
@@ -178,17 +158,7 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 	for _, namedType := range g.defTypes {
 		o.Components.Schemas[namedType.Name.Value] = g.schemaByType(namedType.Type)
 	}
-
-	data, _ := ffjson.Marshal(o)
-	return data
-}
-
-func (g *Openapi) OutputPath() string {
-	return g.Output
-}
-
-func (g *Openapi) Filename() string {
-	return "openapi.json"
+	return o
 }
 
 func (g *Openapi) makeRef(named *option.NamedType) string {
@@ -232,7 +202,7 @@ func (g *Openapi) fillTypeDef(t interface{}) {
 	g.fillTypeDefRecursive(t)
 }
 
-func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
+func (g *Openapi) schemaByTypeRecursive(schema *Schema, t interface{}) {
 	switch t := t.(type) {
 	case *option.NamedType:
 		switch t.Pkg.Path {
@@ -241,7 +211,7 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 			return
 		case "encoding/json":
 			schema.Type = "object"
-			schema.Properties = openapi.Properties{}
+			schema.Properties = Properties{}
 			return
 		case "time":
 			switch t.Name.Value {
@@ -269,24 +239,24 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 			if name == "-" {
 				continue
 			}
-			filedSchema := &openapi.Schema{
-				Properties: openapi.Properties{},
+			filedSchema := &Schema{
+				Properties: Properties{},
 			}
 			filedSchema.Description = field.Var.Comment
 			schema.Properties[name] = filedSchema
 			g.schemaByTypeRecursive(filedSchema, field.Var.Type)
 		}
 	case *option.MapType:
-		mapSchema := &openapi.Schema{
-			Properties: openapi.Properties{},
+		mapSchema := &Schema{
+			Properties: Properties{},
 		}
-		schema.Properties = openapi.Properties{"key": mapSchema}
+		schema.Properties = Properties{"key": mapSchema}
 		g.schemaByTypeRecursive(mapSchema, t.Value)
 		return
 	case *option.ArrayType:
 		schema.Type = "array"
-		schema.Items = &openapi.Schema{
-			Properties: openapi.Properties{},
+		schema.Items = &Schema{
+			Properties: Properties{},
 		}
 		g.schemaByTypeRecursive(schema.Items, t.Value)
 		return
@@ -297,8 +267,8 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 			schema.Example = "U3dhZ2dlciByb2Nrcw=="
 		} else {
 			schema.Type = "array"
-			schema.Items = &openapi.Schema{
-				Properties: openapi.Properties{},
+			schema.Items = &Schema{
+				Properties: Properties{},
 			}
 			g.schemaByTypeRecursive(schema.Items, t.Value)
 		}
@@ -306,9 +276,9 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 	case *option.IfaceType:
 		schema.Type = "object"
 		schema.Description = "Can be any value - string, number, boolean, array or object."
-		schema.Properties = openapi.Properties{}
+		schema.Properties = Properties{}
 		schema.Example = json.RawMessage("null")
-		schema.AnyOf = []openapi.Schema{
+		schema.AnyOf = []Schema{
 			{Type: "string", Example: "abc"},
 			{Type: "integer", Example: 1},
 			{Type: "number", Format: "float", Example: 1.11},
@@ -353,26 +323,26 @@ func (g *Openapi) schemaByTypeRecursive(schema *openapi.Schema, t interface{}) {
 	}
 }
 
-func (g *Openapi) schemaByType(t interface{}) (schema *openapi.Schema) {
-	schema = &openapi.Schema{
-		Properties: openapi.Properties{},
+func (g *Openapi) schemaByType(t interface{}) (schema *Schema) {
+	schema = &Schema{
+		Properties: Properties{},
 	}
 	g.schemaByTypeRecursive(schema, t)
 	return
 }
 
-func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config.MethodOptions) *openapi.Operation {
-	responseSchema := &openapi.Schema{
+func (g *Openapi) makeJSONRPCPath(m InterfaceMethod, prefix string) *Operation {
+	responseSchema := &Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*Schema{},
 	}
-	requestSchema := &openapi.Schema{
+	requestSchema := &Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*Schema{},
 	}
 
-	if plugin.LenWithoutErrors(m.Sig.Params) > 0 {
-		for _, p := range m.Sig.Params {
+	if plugin.LenWithoutErrors(m.Func.Sig.Params) > 0 {
+		for _, p := range m.Func.Sig.Params {
 			if plugin.IsContext(p) {
 				continue
 			}
@@ -388,10 +358,10 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 		requestSchema.Example = json.RawMessage("null")
 	}
 
-	lenResults := plugin.LenWithoutErrors(m.Sig.Results)
+	lenResults := plugin.LenWithoutErrors(m.Func.Sig.Results)
 
 	if lenResults > 1 {
-		for _, r := range m.Sig.Results {
+		for _, r := range m.Func.Sig.Results {
 			if plugin.IsError(r) {
 				continue
 			}
@@ -403,30 +373,30 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 			responseSchema.Properties[r.Name.Lower()] = schema
 		}
 	} else if lenResults == 1 {
-		if !plugin.IsFileDownloadType(m.Sig.Results[0].Type) {
-			g.fillTypeDef(m.Sig.Results[0].Type)
-			responseSchema = g.schemaByType(m.Sig.Results[0].Type)
+		if !plugin.IsFileDownloadType(m.Func.Sig.Results[0].Type) {
+			g.fillTypeDef(m.Func.Sig.Results[0].Type)
+			responseSchema = g.schemaByType(m.Func.Sig.Results[0].Type)
 		}
 	} else {
 		responseSchema.Example = json.RawMessage("null")
 	}
 
-	if mopt.RESTWrapResponse.Take() != "" {
-		properties := openapi.Properties{}
-		properties[mopt.RESTWrapResponse.Take()] = responseSchema
-		responseSchema = &openapi.Schema{
+	if m.RESTWrapResponse != "" {
+		properties := Properties{}
+		properties[m.RESTWrapResponse] = responseSchema
+		responseSchema = &Schema{
 			Properties: properties,
 		}
 	}
 
-	response := &openapi.Schema{
+	response := &Schema{
 		Type: "object",
-		Properties: openapi.Properties{
-			"jsonrpc": &openapi.Schema{
+		Properties: Properties{
+			"jsonrpc": &Schema{
 				Type:    "string",
 				Example: "2.0",
 			},
-			"id": &openapi.Schema{
+			"id": &Schema{
 				Type:    "string",
 				Example: "c9b14c57-7503-447a-9fb9-be6f8920f31f",
 			},
@@ -439,18 +409,18 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 		restMethod = prefix + "." + restMethod
 	}
 
-	request := &openapi.Schema{
+	request := &Schema{
 		Type: "object",
-		Properties: openapi.Properties{
-			"jsonrpc": &openapi.Schema{
+		Properties: Properties{
+			"jsonrpc": &Schema{
 				Type:    "string",
 				Example: "2.0",
 			},
-			"id": &openapi.Schema{
+			"id": &Schema{
 				Type:    "string",
 				Example: "c9b14c57-7503-447a-9fb9-be6f8920f31f",
 			},
-			"method": &openapi.Schema{
+			"method": &Schema{
 				Type: "string",
 				Enum: []string{restMethod},
 			},
@@ -458,19 +428,19 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 		},
 	}
 
-	return &openapi.Operation{
-		RequestBody: &openapi.RequestBody{
+	return &Operation{
+		RequestBody: &RequestBody{
 			Required: true,
-			Content: map[string]openapi.Media{
+			Content: map[string]Media{
 				"application/json": {
 					Schema: request,
 				},
 			},
 		},
-		Responses: map[string]*openapi.Response{
+		Responses: map[string]*Response{
 			"200": {
 				Description: "OK",
-				Content: openapi.Content{
+				Content: Content{
 					"application/json": {
 						Schema: response,
 					},
@@ -478,9 +448,9 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 			},
 			"x-32700": {
 				Description: "Parse error. Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
-				Content: openapi.Content{
+				Content: Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &Schema{
 							Ref: "#/components/schemas/ParseError",
 						},
 					},
@@ -488,9 +458,9 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 			},
 			"x-32600": {
 				Description: "Invalid Request. The JSON sent is not a valid Request object.",
-				Content: openapi.Content{
+				Content: Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &Schema{
 							Ref: "#/components/schemas/InvalidRequestError",
 						},
 					},
@@ -498,9 +468,9 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 			},
 			"x-32601": {
 				Description: "Method not found. The method does not exist / is not available.",
-				Content: openapi.Content{
+				Content: Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &Schema{
 							Ref: "#/components/schemas/MethodNotFoundError",
 						},
 					},
@@ -508,9 +478,9 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 			},
 			"x-32602": {
 				Description: "Invalid params. Invalid method parameters.",
-				Content: openapi.Content{
+				Content: Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &Schema{
 							Ref: "#/components/schemas/InvalidParamsError",
 						},
 					},
@@ -518,9 +488,9 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 			},
 			"x-32603": {
 				Description: "Internal error. Internal JSON-RPC error.",
-				Content: openapi.Content{
+				Content: Content{
 					"application/json": {
-						Schema: &openapi.Schema{
+						Schema: &Schema{
 							Ref: "#/components/schemas/InternalError",
 						},
 					},
@@ -530,40 +500,40 @@ func (g *Openapi) makeJSONRPCPath(m *option.FuncType, prefix string, mopt config
 	}
 }
 
-func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *openapi.Operation {
-	responseSchema := &openapi.Schema{
+func (g *Openapi) makeRestPath(m InterfaceMethod) *Operation {
+	responseSchema := &Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*Schema{},
 	}
 
-	requestSchema := &openapi.Schema{
+	requestSchema := &Schema{
 		Type:       "object",
-		Properties: map[string]*openapi.Schema{},
+		Properties: map[string]*Schema{},
 	}
 
-	queryVars := make([]plugin.VarType, 0, len(mopt.RESTQueryVars.Value))
-	queryValues := make([]plugin.VarType, 0, len(mopt.RESTQueryValues.Value))
-	headerVars := make([]plugin.VarType, 0, len(mopt.RESTHeaderVars.Value))
-	pathVars := make([]plugin.VarType, 0, len(mopt.RESTPathVars))
-	paramVars := make([]*option.VarType, 0, len(m.Sig.Params))
+	queryVars := make([]plugin.VarType, 0, len(m.RESTQueryVars))
+	queryValues := make([]plugin.VarType, 0, len(m.RESTQueryValues))
+	headerVars := make([]plugin.VarType, 0, len(m.RESTHeaderVars))
+	pathVars := make([]plugin.VarType, 0, len(m.RESTPathVars))
+	paramVars := make([]*option.VarType, 0, len(m.Func.Sig.Params))
 
-	for _, p := range m.Sig.Params {
+	for _, p := range m.Func.Sig.Params {
 		if plugin.IsContext(p) {
 			continue
 		}
-		if v, ok := plugin.FindParam(p, mopt.RESTQueryVars.Value); ok {
+		if v, ok := plugin.FindParam(p, m.RESTQueryVars); ok {
 			queryVars = append(queryVars, v)
 			continue
 		}
-		if v, ok := plugin.FindParam(p, mopt.RESTQueryValues.Value); ok {
+		if v, ok := plugin.FindParam(p, m.RESTQueryValues); ok {
 			queryValues = append(queryValues, v)
 			continue
 		}
-		if v, ok := plugin.FindParam(p, mopt.RESTHeaderVars.Value); ok {
+		if v, ok := plugin.FindParam(p, m.RESTHeaderVars); ok {
 			headerVars = append(headerVars, v)
 			continue
 		}
-		if regexp, ok := mopt.RESTPathVars[p.Name.Value]; ok {
+		if regexp, ok := m.RESTPathVars[p.Name.Value]; ok {
 			pathVars = append(pathVars, plugin.VarType{
 				Param: p,
 				Value: regexp,
@@ -580,9 +550,9 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 		requestSchema.Properties[p.Name.Lower()] = schema
 	}
 
-	lenResults := plugin.LenWithoutErrors(m.Sig.Results)
+	lenResults := plugin.LenWithoutErrors(m.Func.Sig.Results)
 	if lenResults > 1 {
-		for _, r := range m.Sig.Results {
+		for _, r := range m.Func.Sig.Results {
 			if plugin.IsError(r) {
 				continue
 			}
@@ -595,44 +565,44 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 			responseSchema.Properties[r.Name.Lower()] = g.schemaByType(r.Type)
 		}
 	} else if lenResults == 1 {
-		if !plugin.IsFileDownloadType(m.Sig.Results[0].Type) {
-			g.fillTypeDef(m.Sig.Results[0].Type)
-			responseSchema = g.schemaByType(m.Sig.Results[0].Type)
+		if !plugin.IsFileDownloadType(m.Func.Sig.Results[0].Type) {
+			g.fillTypeDef(m.Func.Sig.Results[0].Type)
+			responseSchema = g.schemaByType(m.Func.Sig.Results[0].Type)
 		} else {
 			responseSchema.Type = "string"
 			responseSchema.Format = "binary"
 		}
 	}
-	if mopt.RESTWrapResponse.Take() != "" {
-		properties := openapi.Properties{}
-		properties[mopt.RESTWrapResponse.Take()] = responseSchema
-		responseSchema = &openapi.Schema{
+	if m.RESTWrapResponse != "" {
+		properties := Properties{}
+		properties[m.RESTWrapResponse] = responseSchema
+		responseSchema = &Schema{
 			Properties: properties,
 		}
 	}
-	responses := map[string]*openapi.Response{}
+	responses := map[string]*Response{}
 	if lenResults == 0 {
-		responses["201"] = &openapi.Response{
+		responses["201"] = &Response{
 			Description: "Created",
-			Content: openapi.Content{
+			Content: Content{
 				"text/plain": {},
 			},
 		}
 	} else {
 
 		if responseSchema.Type == "string" && responseSchema.Format == "binary" {
-			responses["200"] = &openapi.Response{
+			responses["200"] = &Response{
 				Description: "OK",
-				Content: openapi.Content{
+				Content: Content{
 					"application/file": {
 						Schema: responseSchema,
 					},
 				},
 			}
 		} else {
-			responses["200"] = &openapi.Response{
+			responses["200"] = &Response{
 				Description: "OK",
-				Content: openapi.Content{
+				Content: Content{
 					"application/json": {
 						Schema: responseSchema,
 					},
@@ -642,13 +612,13 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 
 	}
 
-	o := &openapi.Operation{
+	o := &Operation{
 		Summary:   m.Name.Value,
 		Responses: responses,
 	}
 
 	for _, pathVar := range pathVars {
-		o.Parameters = append(o.Parameters, openapi.Parameter{
+		o.Parameters = append(o.Parameters, Parameter{
 			In:          "path",
 			Name:        pathVar.Param.Name.Lower(),
 			Description: pathVar.Param.Comment,
@@ -658,7 +628,7 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	}
 
 	for _, headerVar := range headerVars {
-		o.Parameters = append(o.Parameters, openapi.Parameter{
+		o.Parameters = append(o.Parameters, Parameter{
 			In:          "header",
 			Name:        headerVar.Value,
 			Description: headerVar.Param.Comment,
@@ -668,23 +638,23 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 	}
 
 	for _, queryVar := range queryVars {
-		o.Parameters = append(o.Parameters, openapi.Parameter{
+		o.Parameters = append(o.Parameters, Parameter{
 			In:          "query",
 			Name:        queryVar.Param.Name.Lower(),
 			Description: queryVar.Param.Comment,
 			Required:    queryVar.IsRequired,
-			Schema: &openapi.Schema{
+			Schema: &Schema{
 				Type:       "string",
-				Properties: openapi.Properties{},
+				Properties: Properties{},
 			},
 		})
 	}
 
-	switch mopt.RESTMethod.Take() {
+	switch m.RESTMethod {
 	case "POST", "PUT", "PATCH":
-		o.RequestBody = &openapi.RequestBody{
+		o.RequestBody = &RequestBody{
 			Required: true,
-			Content: map[string]openapi.Media{
+			Content: map[string]Media{
 				"application/json": {
 					Schema: requestSchema,
 				},
@@ -692,4 +662,8 @@ func (g *Openapi) makeRestPath(m *option.FuncType, mopt config.MethodOptions) *o
 		}
 	}
 	return o
+}
+
+func NewOpenapi(info Info, servers []Server, interfaces []Interface, errors map[string]map[string][]Error, useJSONRPC bool) *Openapi {
+	return &Openapi{info: info, servers: servers, interfaces: interfaces, errors: errors, useJSONRPC: useJSONRPC}
 }

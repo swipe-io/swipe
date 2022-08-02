@@ -25,11 +25,6 @@ type Interface struct {
 	Gateway    *struct{}          `swipe:"option"`
 }
 
-type OpenapiTag struct {
-	Methods []option.NamedType `mapstructure:"methods"`
-	Tags    []string           `mapstructure:"tags"`
-}
-
 type LoggingParams struct {
 	Includes []string
 	Excludes []string
@@ -98,6 +93,11 @@ type OpenapiLicence struct {
 type OpenapiServer struct {
 	Description string
 	Url         string
+}
+
+type OpenapiTag struct {
+	Methods []option.NamedType `mapstructure:"methods"`
+	Tags    []string           `mapstructure:"tags"`
 }
 
 type Langs []string

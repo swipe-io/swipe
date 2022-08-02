@@ -77,6 +77,11 @@ func findErrors(modulePath string, declTypes map[string]*typeInfo, pkgs *package
 			return
 		}
 		if t, ok := obj.Type().(*types.Named); ok {
+
+			if t.Obj().Pkg() != nil && strings.Contains(t.Obj().Pkg().Path(), "swipe") {
+				return
+			}
+
 			f := findMethodByNamed(t, "ErrorCode", "StatusCode")
 			if f == nil {
 				return

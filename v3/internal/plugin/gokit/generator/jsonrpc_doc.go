@@ -74,7 +74,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 			}
 			g.w.W(") ⇒")
 
-			resultRen := LenWithoutErrors(m.Sig.Results)
+			resultRen := plugin.LenWithoutErrors(m.Sig.Results)
 
 			if resultRen == 0 {
 				g.w.W("<code>void</code>")
@@ -131,7 +131,7 @@ func (g *JSONRPCDocGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("\n\n")
 			}
 
-			if LenWithoutContexts(m.Sig.Params) > 0 {
+			if plugin.LenWithoutContexts(m.Sig.Params) > 0 {
 				g.w.W("| Param | Type | Description |\n|------|------|------|\n")
 				for _, p := range m.Sig.Params {
 					g.w.W("|%s|<code>%s</code>|%s|\n", p.Name.Value, jsDocType(p.Type), p.Comment)

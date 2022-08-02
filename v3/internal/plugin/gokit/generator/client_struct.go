@@ -101,7 +101,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 					assignResult = ""
 				}
 
-				if LenWithoutErrors(m.Sig.Results) == 0 {
+				if plugin.LenWithoutErrors(m.Sig.Results) == 0 {
 					responseVarName = "_"
 				}
 
@@ -130,7 +130,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 					g.w.W("return\n")
 				})
 
-				lenResults := LenWithoutErrors(m.Sig.Results)
+				lenResults := plugin.LenWithoutErrors(m.Sig.Results)
 				if lenResults > 0 {
 					for _, result := range m.Sig.Results {
 						if plugin.IsError(result) {

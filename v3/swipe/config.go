@@ -81,7 +81,8 @@ func Options() (data map[string][]byte) {
 	data = map[string][]byte{}
 	registeredPlugins.Range(func(key, value any) bool {
 		pluginID := key.(string)
-		p := value.(Plugin)
+		f := value.(func() Plugin)
+		p := f()
 		name := strings.ToLower(pluginID)
 		data[name] = append(data[name], p.Options()...)
 		return true

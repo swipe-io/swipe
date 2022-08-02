@@ -6,11 +6,10 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v3/internal/plugin"
+	"github.com/swipe-io/strcase"
 
 	"github.com/swipe-io/swipe/v3/internal/format"
-
-	"github.com/swipe-io/strcase"
+	"github.com/swipe-io/swipe/v3/internal/plugin"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -48,6 +47,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	urlPkg := importer.Import("url", "net/url")
 	netPkg := importer.Import("net", "net")
 	stringsPkg := importer.Import("strings", "strings")
+	jsonPkg := importer.Import("json", "encoding/json")
 
 	if g.UseFast {
 		kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
@@ -60,7 +60,13 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 		httpPkg = importer.Import("http", "net/http")
 	}
 
-	g.writeCreateReqFuncs(importer, httpPkg, contextPkg, fmtPkg, urlPkg)
+	g.w.W("type errorWrapper struct {\n")
+	g.w.W("Error string `json:\"error\"`\n")
+	g.w.W("Code string `json:\"code,omitempty\"`\n")
+	g.w.W("Data interface{} `json:\"data,omitempty\"`\n")
+	g.w.W("}\n")
+
+	g.writeCreateReqFuncs(importer, httpPkg, contextPkg, fmtPkg, urlPkg, jsonPkg)
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
@@ -125,7 +131,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpPkg, contextPkg, fmtPkg, urlPkg string) {
+func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpPkg, contextPkg, fmtPkg, urlPkg, jsonPkg string) {
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
@@ -138,13 +144,16 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 			}
 			g.w.W("if %s > 299 {\n", statusCode)
 
+			g.w.W("var errorData errorWrapper\n")
+			g.w.W("if err := %s.NewDecoder(r.Body).Decode(&errorData); err != nil {\nreturn nil, err\n}\n", jsonPkg)
+
 			g.w.W("return nil, ")
 
-			g.w.W("%sErrorDecode(%s)", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
+			g.w.W("%sErrorDecode(%s, errorData.Code)", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
 
 			g.w.W("\n}\n")
 
-			resultsLen := LenWithoutErrors(m.Sig.Results)
+			resultsLen := plugin.LenWithoutErrors(m.Sig.Results)
 			if resultsLen > 0 {
 				var responseType string
 				if m.Sig.IsNamed && resultsLen > 1 {
@@ -273,7 +282,7 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 				}
 			}
 
-			paramsLen := LenWithoutContexts(m.Sig.Params)
+			paramsLen := plugin.LenWithoutContexts(m.Sig.Params)
 			if paramsLen > 0 {
 				g.w.W("req, ok := request.(%s)\n", nameRequest)
 				g.w.W("if !ok {\n")

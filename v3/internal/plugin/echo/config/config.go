@@ -1,6 +1,9 @@
 package config
 
-import "github.com/swipe-io/swipe/v3/option"
+import (
+	"github.com/swipe-io/swipe/v3/internal/finder"
+	"github.com/swipe-io/swipe/v3/option"
+)
 
 type Interface struct {
 	Named      *option.NamedType  `mapstructure:"iface"`
@@ -26,12 +29,48 @@ type MethodOptions struct {
 	RESTBodyType           option.StringValue      `swipe:"option"`
 }
 
+type OpenapiInfo struct {
+	Title       string
+	Description string
+	Version     interface{}
+}
+
+type OpenapiContact struct {
+	Name  string
+	Email string
+	Url   string
+}
+
+type OpenapiLicence struct {
+	Name string
+	Url  string
+}
+
+type OpenapiServer struct {
+	Description string
+	Url         string
+}
+
+type OpenapiTag struct {
+	Methods []option.NamedType `mapstructure:"methods"`
+	Tags    []string           `mapstructure:"tags"`
+}
+
 // Config
 // @swipe:"Echo"
 type Config struct {
 	Interfaces           []*Interface `mapstructure:"Interface"`
 	MethodOptions        []MethodOption
 	MethodDefaultOptions MethodOptions
+	OpenapiEnable        *struct{}
+	OpenapiTags          []OpenapiTag
+	OpenapiOutput        option.StringValue
+	OpenapiInfo          OpenapiInfo
+	OpenapiContact       OpenapiContact
+	OpenapiLicence       OpenapiLicence
+	OpenapiServers       []OpenapiServer `mapstructure:"OpenapiServer"`
 
-	MethodOptionsMap map[string]MethodOptions `mapstructure:"-"`
+	MethodOptionsMap  map[string]MethodOptions             `mapstructure:"-"`
+	OpenapiMethodTags map[string][]string                  `mapstructure:"-"`
+	IfaceErrors       map[string]map[string][]finder.Error `mapstructure:"-"`
 }

@@ -56,8 +56,8 @@ func (g *Endpoint) writeReqResp(importer swipe.Importer) {
 				g.w.W("}\n")
 			}
 
-			if DownloadFile(m.Sig.Results) == nil {
-				if m.Sig.IsNamed && LenWithoutErrors(m.Sig.Results) > 1 {
+			if plugin.DownloadFile(m.Sig.Results) == nil {
+				if m.Sig.IsNamed && plugin.LenWithoutErrors(m.Sig.Results) > 1 {
 					g.w.W("type %s struct {\n", NameResponse(m, iface))
 					for _, param := range m.Sig.Results {
 						if plugin.IsError(param) {
@@ -112,7 +112,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 				}
 				callParams = append(callParams, "req."+param.Name.Upper())
 			}
-			if LenWithoutContexts(m.Sig.Params) > 0 {
+			if plugin.LenWithoutContexts(m.Sig.Params) > 0 {
 				g.w.W("req := request.(%s)\n", NameRequest(m, iface))
 			}
 
@@ -142,7 +142,7 @@ func (g *Endpoint) writeEndpointMake(importer swipe.Importer) {
 			}
 			g.w.W("return ")
 
-			resultLen := LenWithoutErrors(m.Sig.Results)
+			resultLen := plugin.LenWithoutErrors(m.Sig.Results)
 			if resultLen > 1 {
 				g.w.W("%s", NameResponse(m, iface))
 				var resultKeyVal []string

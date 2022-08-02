@@ -5,6 +5,8 @@ import (
 	"strings"
 	stdstrings "strings"
 
+	"github.com/swipe-io/swipe/v3/swipe"
+
 	"github.com/swipe-io/swipe/v3/option"
 )
 
@@ -104,4 +106,50 @@ func FindParam(p *option.VarType, vars []string) (VarType, bool) {
 		}
 	}
 	return VarType{}, false
+}
+
+func Contexts(vars option.VarsType) (result []*option.VarType) {
+	for _, v := range vars {
+		if IsContext(v) {
+			result = append(result, v)
+		}
+	}
+	return
+}
+
+func LenWithoutErrors(vars option.VarsType) int {
+	if Error(vars) != nil {
+		return len(vars) - 1
+	}
+	return len(vars)
+}
+
+func LenWithoutContexts(vars option.VarsType) int {
+	return len(vars) - len(Contexts(vars))
+}
+
+func DownloadFile(vars option.VarsType) *option.VarType {
+	for _, v := range vars {
+		if IsFileDownloadType(v.Type) {
+			return v
+		}
+	}
+	return nil
+}
+
+func IsFileDownloadType(i interface{}) bool {
+	if n, ok := i.(*option.NamedType); ok {
+		var done int
+		for _, method := range n.Methods {
+			sigStr := swipe.TypeStringWithoutImport(method, true)
+			switch sigStr {
+			case "ContentType() (string)", "Name() (string)", "Data() ([]byte)":
+				done++
+			}
+		}
+		if done == 3 {
+			return true
+		}
+	}
+	return false
 }

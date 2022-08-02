@@ -4,6 +4,8 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/swipe-io/swipe/v3/internal/plugin"
+
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
@@ -90,8 +92,8 @@ func (g *JSONRPCClientGenerator) Generate(ctx context.Context) []byte {
 			g.w.W("func(_ %s.Context, obj interface{}) (%s.RawMessage, error) {\n", contextPkg, jsonPkg)
 
 			requestName := NameRequest(m, iface)
-			paramsLen := LenWithoutContexts(m.Sig.Params)
-			resultsLen := LenWithoutErrors(m.Sig.Results)
+			paramsLen := plugin.LenWithoutContexts(m.Sig.Params)
+			resultsLen := plugin.LenWithoutErrors(m.Sig.Results)
 
 			if paramsLen > 0 {
 				g.w.W("req, ok := obj.(%s)\n", requestName)
