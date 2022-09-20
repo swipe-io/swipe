@@ -137,6 +137,14 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	useFast := p.config.HTTPFast != nil
 	jsonRPCDocEnable := p.config.JSONRPCDocEnable != nil
 
+	var pkg string
+	output := p.config.ClientOutput.Take()
+	if output == "" {
+		output = "./client"
+	}
+
+	pkg = strcase.ToSnake(filepath.Base(output))
+
 	if p.config.CURLEnable != nil {
 		generators = append(generators, &generator.CURL{
 			Interfaces:    p.config.Interfaces,
@@ -148,18 +156,29 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 		})
 	}
 	if p.config.LoggingEnable {
-		generators = append(generators, &generator.Logging{
-			Interfaces:    p.config.Interfaces,
-			MethodOptions: p.config.MethodOptionsMap,
-		})
+		generators = append(generators,
+			&generator.Logging{
+				Interfaces:    p.config.Interfaces,
+				MethodOptions: p.config.MethodOptionsMap,
+			},
+		)
 	}
 	if p.config.InstrumentingEnable {
-		generators = append(generators, &generator.Instrumenting{
-			Interfaces:    p.config.Interfaces,
-			MethodOptions: p.config.MethodOptionsMap,
-			Labels:        p.config.InstrumentingLabels,
+		generators = append(generators,
+			&generator.Instrumenting{
+				Interfaces:    p.config.Interfaces,
+				MethodOptions: p.config.MethodOptionsMap,
+				Labels:        p.config.InstrumentingLabels,
+			},
+		)
+	}
+
+	if p.config.InstrumentingEnable || p.config.LoggingEnable || httpServerEnable {
+		generators = append(generators, &generator.InterfaceGenerator{
+			Interfaces: p.config.Interfaces,
 		})
 	}
+
 	if httpServerEnable {
 		generators = append(generators,
 			&generator.MiddlewareChain{},
@@ -173,9 +192,6 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 				Interfaces:       p.config.Interfaces,
 				MethodOptions:    p.config.MethodOptionsMap,
 				HTTPServerEnable: httpServerEnable,
-			},
-			&generator.InterfaceGenerator{
-				Interfaces: p.config.Interfaces,
 			},
 		)
 		if p.config.OpenapiEnable != nil {
@@ -231,14 +247,6 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	}
 
 	if goClientEnable {
-		var pkg string
-		output := p.config.ClientOutput.Take()
-		if output == "" {
-			output = "./client"
-		}
-
-		pkg = strcase.ToSnake(filepath.Base(output))
-
 		generators = append(generators,
 			&generator.MiddlewareChain{
 				Output: output,

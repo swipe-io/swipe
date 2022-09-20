@@ -57,7 +57,7 @@ func (g *Instrumenting) Generate(ctx context.Context) []byte {
 				mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 				g.w.W("func (s *%s) %s %s {\n", middlewareNameType, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 				if mopt.Instrumenting.Take() {
-					methodName := iface.Named.Name.Lower() + "." + m.Name.Value
+					methodName := m.Name.Value
 					g.w.WriteDefer(
 						[]string{"begin " + timePkg + ".Time"},
 						[]string{timePkg + ".Now()"},

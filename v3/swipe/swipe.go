@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/importer"
@@ -65,33 +66,42 @@ func Generate(cfg *Config, prefix string) (result map[string]*GenerateResult, er
 
 				for _, g := range generators {
 					filename := prefix + strcase.ToSnake(p.ID()) + "_" + g.Filename()
-
-					outputPath := g.OutputPath()
+					var (
+						outputPath, outputFile, pkgPath string
+					)
+					outputPath = g.OutputPath()
 					if outputPath == "" {
-						outputPath = filepath.Join(build.BasePath, filename)
+						outputFile = filepath.Join(build.BasePath, filename)
 					} else {
 						path, err := filepath.Abs(filepath.Join(cfg.WorkDir, outputPath))
 						if err != nil {
 							errs = append(errs, err)
 							continue
 						}
-						outputPath = filepath.Join(path, filename)
+						outputPath = path
+						outputFile = filepath.Join(path, filename)
 					}
 
-					generateResult, ok := result[outputPath]
+					if outputPath == "" {
+						pkgPath = build.Pkg.Path
+					} else {
+						pkgPath = module.Path + strings.Replace(outputPath, cfg.WorkDir, "", -1)
+					}
+
+					generateResult, ok := result[outputFile]
 					if !ok {
 						generateResult = &GenerateResult{
 							PkgPath:    build.Pkg.Path,
-							OutputPath: outputPath,
+							OutputPath: outputFile,
 						}
-						result[outputPath] = generateResult
+						result[outputFile] = generateResult
 					}
 
 					// importer cache for package.
-					importerService, ok := importerCache[outputPath]
+					importerService, ok := importerCache[outputFile]
 					if !ok {
-						importerService = importer.NewImporter(build.Pkg)
-						importerCache[outputPath] = importerService
+						importerService = importer.NewImporter(pkgPath)
+						importerCache[outputFile] = importerService
 					}
 
 					pkgName := build.Pkg.Name

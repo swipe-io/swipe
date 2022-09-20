@@ -2,11 +2,8 @@ package importer
 
 import (
 	"fmt"
-	"go/token"
 	"sort"
 	stdstrings "strings"
-
-	"github.com/swipe-io/swipe/v3/option"
 )
 
 type ImportInfo struct {
@@ -15,12 +12,12 @@ type ImportInfo struct {
 }
 
 type Importer struct {
-	pkg     *option.PackageType
+	pkgPath string
 	imports map[string]ImportInfo
 }
 
 func (i *Importer) Import(name, path string) string {
-	if path == i.pkg.Path {
+	if path == i.pkgPath {
 		return ""
 	}
 	const vendorPart = "vendor/"
@@ -47,8 +44,8 @@ func (i *Importer) nameInFileScope(name string) bool {
 			return true
 		}
 	}
-	_, obj := i.pkg.Types.Scope().LookupParent(name, token.NoPos)
-	return obj != nil
+	//_, obj := i.pkgPath.Types.Scope().LookupParent(name, token.NoPos)
+	return false
 }
 
 func (i *Importer) HasImports() bool {
@@ -74,9 +71,9 @@ func (i *Importer) SortedImports() (result []string) {
 
 }
 
-func NewImporter(pkg *option.PackageType) *Importer {
+func NewImporter(pkgPath string) *Importer {
 	return &Importer{
-		pkg:     pkg,
+		pkgPath: pkgPath,
 		imports: map[string]ImportInfo{},
 	}
 }

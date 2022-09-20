@@ -7,13 +7,12 @@ import (
 	"strconv"
 	stdstrings "strings"
 
-	"github.com/swipe-io/swipe/v3/internal/convert"
-
-	"github.com/swipe-io/swipe/v3/internal/plugin"
-	"github.com/swipe-io/swipe/v3/option"
-
 	"github.com/swipe-io/strcase"
+
+	"github.com/swipe-io/swipe/v3/internal/convert"
+	"github.com/swipe-io/swipe/v3/internal/plugin"
 	"github.com/swipe-io/swipe/v3/internal/plugin/echo/config"
+	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
 	"github.com/swipe-io/swipe/v3/writer"
 )
@@ -27,27 +26,68 @@ type RoutesGenerator struct {
 func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	echoPkg := importer.Import("echo", "github.com/labstack/echo")
+	echoPkg := importer.Import("echo", "github.com/labstack/echo/v4")
 	httpPkg := importer.Import("http", "net/http")
+	contextPkg := importer.Import("context", "context")
+	timePkg := importer.Import("time", "time")
 
+	g.writeContextWrapper(echoPkg, contextPkg, timePkg)
 	g.writeDefaultErrorEncoder(echoPkg, httpPkg)
 	g.writeEncodeResponseFunc(echoPkg, httpPkg)
+
+	g.w.W("type Option func(*opts)\n")
+	g.w.W("type ServerOption func(*serverOpts)\n\n")
+
+	for _, iface := range g.Interfaces {
+		ifaceType := iface.Named.Type.(*option.IfaceType)
+		for _, m := range ifaceType.Methods {
+			g.w.W("type %s struct { opts }\n\n", LcNameIfaceMethod(iface, m)+"Opts")
+		}
+	}
+
+	g.w.W("type serverOpts struct {\ngenericOpts opts\n")
+	for _, iface := range g.Interfaces {
+		ifaceType := iface.Named.Type.(*option.IfaceType)
+
+		g.w.W("generic%s opts\n", UcNameWithAppPrefix(iface)+"Opts")
+
+		for _, m := range ifaceType.Methods {
+			serverOpt := LcNameWithAppPrefix(iface) + m.Name.Value + "Opts"
+			g.w.W("%[1]s %[1]s\n", serverOpt)
+		}
+	}
+	g.w.W("}\n")
+
+	for _, iface := range g.Interfaces {
+		ifaceType := iface.Named.Type.(*option.IfaceType)
+
+		g.w.W("func %sOptions(opt ...Option) ServerOption {\nreturn func(c *serverOpts) {\nfor _, o := range opt {\no(&c.generic%s)\n}\n}\n}\n\n", UcNameWithAppPrefix(iface), UcNameWithAppPrefix(iface)+"Opts")
+
+		for _, m := range ifaceType.Methods {
+			serverOptName := LcNameWithAppPrefix(iface) + m.Name.Value + "Opts"
+			serverOptFuncName := UcNameWithAppPrefix(iface) + m.Name.Value
+			g.w.W("func %sOptions(opt ...Option) ServerOption {\nreturn func(c *serverOpts) {\nfor _, o := range opt {\no(&c.%s.opts)\n}\n}\n}\n\n", serverOptFuncName, serverOptName)
+		}
+	}
+
+	g.w.W("type opts struct {\nmiddlewares []%s.MiddlewareFunc\n}\n", echoPkg)
+
+	g.w.W("func Middlewares(middlewares []%s.MiddlewareFunc) Option {\nreturn func(c *opts) {\n c.middlewares = middlewares\n}\n}\n\n", echoPkg)
 
 	g.w.W("func SetupRoutes(e *%s.Echo,", echoPkg)
 
 	for i, iface := range g.Interfaces {
 		ifacePkg := importer.Import(iface.Named.Pkg.Name, iface.Named.Pkg.Path)
 		paramName := iface.Named.Name.Lower()
-
 		if i > 0 {
 			g.w.W(",")
 		}
-
 		g.w.W("%s %s.%s", paramName, ifacePkg, iface.Named.Name)
-
 	}
 
-	g.w.W(") {\n")
+	g.w.W(",options ...ServerOption) {\n")
+
+	g.w.W("opts := &serverOpts{}\nfor _, o := range options {\no(opts)\n}\n")
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
@@ -109,17 +149,20 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 			if mopt.RESTMethod.Take() != "" {
 				httpMethod = stdstrings.ToUpper(mopt.RESTMethod.Take())
 			}
+
 			g.w.W("e.%s(%s, func(ctx %s.Context) (err error) {\n", httpMethod, strconv.Quote(urlPath), echoPkg)
 
-			var paramValues []string
-
-			if len(headerVars) > 0 || len(queryVars) > 0 {
-				g.w.W("r := ctx.Request()\n")
-			}
+			var (
+				paramValues  []string
+				paramContext *option.VarType
+			)
 
 			if len(m.Sig.Params) > 0 {
 				g.w.W("var req struct {\n")
 				for _, p := range m.Sig.Params {
+					if p.IsContext && paramContext == nil {
+						paramContext = p
+					}
 					g.w.W("%s %s `json:\"%s\"`\n", p.Name.Upper(), swipe.TypeString(p.Type, true, importer), p.Name)
 					if p.IsVariadic {
 						paramValues = append(paramValues, "req."+p.Name.Upper()+"...")
@@ -128,6 +171,14 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 					}
 				}
 				g.w.W("}\n")
+			}
+
+			if len(headerVars) > 0 || len(queryVars) > 0 || len(paramVars) > 0 {
+				g.w.W("r := ctx.Request()\n")
+			}
+
+			if paramContext != nil {
+				g.w.W("req.%s = &contextWrapper{ctx: ctx, next: ctx.Request().Context()}\n", paramContext.Name.Upper())
 			}
 
 			if len(paramVars) > 0 {
@@ -195,20 +246,45 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 
 			if len(mopt.RESTQueryVars.Value) > 0 {
 				g.w.W("q := r.URL.Query()\n")
+
 				for _, queryVar := range queryVars {
+
 					if queryVar.IsRequired {
 						fmtPkg := importer.Import("fmt", "fmt")
 						g.w.W("if _, ok := q[\"%[1]s\"]; !ok {\nreturn %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.Value, fmtPkg)
 					}
-					convert.NewBuilder(importer).
-						SetFieldName(queryVar.Param.Name).
-						SetFieldType(queryVar.Param.Type).
-						SetAssignVar("req." + queryVar.Param.Name.Upper()).
-						SetValueVar("q.Get(" + strconv.Quote(queryVar.Value) + ")").
-						SetErrorReturn(func() string {
-							return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+queryVar.Param.Name.Upper())
-						}).
-						Write(&g.w)
+
+					if named, ok := queryVar.Param.Type.(*option.NamedType); ok {
+						if st, ok := named.Type.(*option.StructType); ok {
+							for _, field := range st.Fields {
+								if tag, err := field.Tags.Get("json"); err == nil {
+
+									g.w.W("if q.Has(" + strconv.Quote(tag.Value()) + ") {\n")
+
+									convert.NewBuilder(importer).
+										SetFieldName(field.Var.Name).
+										SetFieldType(field.Var.Type).
+										SetAssignVar("req." + queryVar.Param.Name.Upper() + "." + field.Var.Name.Upper()).
+										SetValueVar("q.Get(" + strconv.Quote(tag.Value()) + ")").
+										SetErrorReturn(func() string {
+											return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+queryVar.Param.Name.Upper())
+										}).
+										Write(&g.w)
+									g.w.W("}\n")
+								}
+							}
+						}
+					} else {
+						convert.NewBuilder(importer).
+							SetFieldName(queryVar.Param.Name).
+							SetFieldType(queryVar.Param.Type).
+							SetAssignVar("req." + queryVar.Param.Name.Upper()).
+							SetValueVar("q.Get(" + strconv.Quote(queryVar.Value) + ")").
+							SetErrorReturn(func() string {
+								return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+queryVar.Param.Name.Upper())
+							}).
+							Write(&g.w)
+					}
 				}
 			}
 
@@ -259,13 +335,23 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("return nil\n")
 			}
 
-			g.w.W("})\n")
+			g.w.W("}, append(opts.generic%s.middlewares, opts.%s.middlewares...)...)\n", UcNameWithAppPrefix(iface)+"Opts", LcNameIfaceMethod(iface, m)+"Opts")
 		}
 	}
 
 	g.w.W("\n}\n")
 
 	return g.w.Bytes()
+}
+
+func (g *RoutesGenerator) writeContextWrapper(echoPkg, contextPkg, timePkg string) {
+	g.w.W("type contextWrapper struct {\n")
+	g.w.W("ctx %s.Context\n", echoPkg)
+	g.w.W("next %s.Context\n}\n", contextPkg)
+	g.w.W("func (e *contextWrapper) Deadline() (deadline %s.Time, ok bool) {\nreturn e.next.Deadline()\n}\n", timePkg)
+	g.w.W("func (e *contextWrapper) Done() <-chan struct{} {\nreturn e.next.Done()\n}\n")
+	g.w.W("func (e *contextWrapper) Err() error {\nreturn e.next.Err()\n}\n")
+	g.w.W("func (e *contextWrapper) Value(key any) any {\nif k, ok := key.(string); ok {\nreturn e.ctx.Get(k)\n}\nreturn e.next.Value(key)\n}\n")
 }
 
 func (g *RoutesGenerator) writeDefaultErrorEncoder(echoPkg, httpPkg string) {
@@ -315,7 +401,7 @@ func (g *RoutesGenerator) writeEncodeResponseFunc(echoPkg, httpPkg string) {
 	g.w.W("return ctx.Blob(200, download.ContentType(), download.Data())\n")
 	g.w.W("}")
 	g.w.W("} else {\n")
-	g.w.W("return ctx.Blob(201, \"text/plain; charset=utf-8\", nil)\n")
+	g.w.W("return ctx.Blob(204, \"text/plain; charset=utf-8\", nil)\n")
 	g.w.W("}\n")
 	g.w.W("return ctx.JSON(200, response)\n")
 	g.w.W("}\n\n")

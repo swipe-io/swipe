@@ -60,7 +60,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 		httpPkg = importer.Import("http", "net/http")
 	}
 
-	g.w.W("type errorWrapper struct {\n")
+	g.w.W("type clientErrorWrapper struct {\n")
 	g.w.W("Error string `json:\"error\"`\n")
 	g.w.W("Code string `json:\"code,omitempty\"`\n")
 	g.w.W("Data interface{} `json:\"data,omitempty\"`\n")
@@ -144,7 +144,7 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 			}
 			g.w.W("if %s > 299 {\n", statusCode)
 
-			g.w.W("var errorData errorWrapper\n")
+			g.w.W("var errorData clientErrorWrapper\n")
 			g.w.W("if err := %s.NewDecoder(r.Body).Decode(&errorData); err != nil {\nreturn nil, err\n}\n", jsonPkg)
 
 			g.w.W("return nil, ")

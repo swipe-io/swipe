@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"go/ast"
+	"go/parser"
+	"go/token"
 	"go/types"
 	stdstrings "strings"
 
@@ -76,6 +78,9 @@ func (l *Loader) run() (errs []error) {
 
 	cfg := &packages.Config{
 		Context: l.ctx,
+		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+			return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+		},
 		Mode: packages.NeedDeps |
 			packages.NeedSyntax |
 			packages.NeedTypesInfo |

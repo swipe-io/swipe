@@ -66,7 +66,6 @@ func (g *ServerHelpers) Generate(ctx context.Context) []byte {
 
 		for _, iface := range g.Interfaces {
 			ifaceType := iface.Named.Type.(*option.IfaceType)
-
 			for _, m := range ifaceType.Methods {
 				g.w.W("type %s struct { opts }\n\n", LcNameIfaceMethod(iface, m)+"Opts")
 			}

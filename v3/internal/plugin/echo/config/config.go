@@ -27,12 +27,13 @@ type MethodOptions struct {
 	RESTQueryValues        option.SliceStringValue `swipe:"option"`
 	RESTPathVars           map[string]string       `swipe:"option"`
 	RESTBodyType           option.StringValue      `swipe:"option"`
+	BearerAuth             *struct{}               `swipe:"option"`
 }
 
 type OpenapiInfo struct {
 	Title       string
 	Description string
-	Version     interface{}
+	Version     string
 }
 
 type OpenapiContact struct {

@@ -3,6 +3,7 @@ package generator
 import (
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/plugin/echo/config"
+	"github.com/swipe-io/swipe/v3/option"
 )
 
 func NameInterface(iface *config.Interface) string {
@@ -24,4 +25,12 @@ func UcNameWithAppPrefix(iface *config.Interface, useServicePrefix ...bool) stri
 		return strcase.ToCamel(iface.ClientName.Take())
 	}
 	return iface.Named.Name.Upper()
+}
+
+func LcNameWithAppPrefix(iface *config.Interface, notInternal ...bool) string {
+	return strcase.ToLowerCamel(UcNameWithAppPrefix(iface, notInternal...))
+}
+
+func LcNameIfaceMethod(iface *config.Interface, fn *option.FuncType) string {
+	return LcNameWithAppPrefix(iface) + fn.Name.Upper()
 }

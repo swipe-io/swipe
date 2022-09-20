@@ -117,6 +117,13 @@ func (n *NamedType) ID() string {
 	return n.Pkg.Path + "." + n.Name.Value
 }
 
+func NewInt64Type() *BasicType {
+	return &BasicType{
+		Name: "int64",
+		kind: types.Int64,
+	}
+}
+
 type BasicType struct {
 	Name      string
 	IsPointer bool

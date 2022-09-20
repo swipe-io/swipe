@@ -2,7 +2,8 @@ package generator
 
 import (
 	"context"
-	"encoding/json"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/swipe-io/swipe/v3/option"
 
@@ -34,6 +35,7 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 		for _, m := range ifaceType.Methods {
 			mopt := g.MethodOptions[iface.Named.Name.Value+m.Name.Value]
 			tags := g.MethodTags[iface.Named.Name.Value+m.Name.Value]
+
 			openapiIface.Methods = append(openapiIface.Methods, openapi.InterfaceMethod{
 				Name:             m.Name,
 				RESTMethod:       mopt.RESTMethod.Take(),
@@ -46,20 +48,32 @@ func (g *Openapi) Generate(ctx context.Context) []byte {
 				RESTWrapResponse: mopt.RESTWrapResponse.Take(),
 				RESTQueryValues:  mopt.RESTQueryValues.Value,
 				RESTHeaderVars:   mopt.RESTHeaderVars.Value,
+				BearerAuth:       mopt.BearerAuth != nil,
 			})
 		}
 		interfaces = append(interfaces, openapiIface)
 	}
+	var openapiServers []openapi.Server
+	for _, server := range g.Servers {
+		openapiServers = append(openapiServers, openapi.Server{
+			URL:         server.Url,
+			Description: server.Description,
+		})
+	}
 
 	o := openapi.NewOpenapi(
-		openapi.Info{},
-		[]openapi.Server{},
+		openapi.Info{
+			Title:       g.Info.Title,
+			Description: g.Info.Description,
+			Version:     g.Info.Version,
+		},
+		openapiServers,
 		interfaces,
 		map[string]map[string][]openapi.Error{},
 		false,
 	)
 	result := o.Build()
-	data, _ := json.MarshalIndent(result, "", " ")
+	data, _ := yaml.Marshal(result)
 	return data
 }
 
@@ -68,5 +82,5 @@ func (g *Openapi) OutputPath() string {
 }
 
 func (g *Openapi) Filename() string {
-	return "openapi.json"
+	return "openapi.yaml"
 }

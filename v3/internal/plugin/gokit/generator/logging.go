@@ -91,7 +91,7 @@ func (g *Logging) Generate(ctx context.Context) []byte {
 			g.w.W("func (s *%s) %s %s {\n", middlewareNameType, m.Name.Value, swipe.TypeString(m.Sig, false, importer))
 
 			if mopt.Logging.Take() && (len(logParams) > 0 || len(logResults) > 0 || len(errorVars) > 0) {
-				methodName := iface.Named.Name.Lower() + "." + m.Name.Value
+				methodName := m.Name.Value
 				timePkg := importer.Import("time", "time")
 
 				g.w.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {

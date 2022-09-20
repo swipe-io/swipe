@@ -27,8 +27,9 @@ func (b *Builder) SetDeclareErr(declareErr bool) *Builder {
 	return b
 }
 
-func (b *Builder) SetAssignOp(assignOp string) {
+func (b *Builder) SetAssignOp(assignOp string) *Builder {
 	b.assignOp = assignOp
+	return b
 }
 
 func (b *Builder) SetFieldType(fieldType interface{}) *Builder {
@@ -245,6 +246,24 @@ func (b *Builder) writeNameType(t *option.NamedType) {
 		case "URL":
 			urlPkg := b.importer.Import("url", "net/url")
 			b.w.W("%s, err %s %s.Parse(%s)\n", b.assignVar, b.assignOp, urlPkg, b.valueVar)
+		}
+	case "gopkg.in/guregu/null.v4":
+		nullPkg := b.importer.Import(t.Pkg.Name, t.Pkg.Path)
+		switch t.Name.Value {
+		case "String":
+			b.w.W("%s %s %s.StringFrom(%s)\n", b.assignVar, b.assignOp, nullPkg, b.valueVar)
+			return
+		case "Int":
+			tmpValueName := "tmp" + b.fieldName.Upper()
+			NewBuilder(b.importer).
+				SetAssignOp(":=").
+				SetAssignVar(tmpValueName).
+				SetValueVar(b.valueVar).
+				SetFieldType(option.NewInt64Type()).
+				SetErrorReturn(b.errorReturn).
+				Write(&b.w)
+			b.w.W("%s %s %s.IntFrom(%s)\n", b.assignVar, b.assignOp, nullPkg, tmpValueName)
+			return
 		}
 	case "github.com/satori/uuid", "github.com/google/uuid":
 		if t.Name.Value == "UUID" {
