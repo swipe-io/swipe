@@ -140,17 +140,22 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 			g.w.W("func %sRespFn(_ %s.Context, r *%s.Response) (response interface{}, err error) {\n", LcNameIfaceMethod(iface, m), contextPkg, httpPkg)
 			statusCode := "r.StatusCode"
 			if g.UseFast {
-				statusCode = "r.StatusCode()"
+				statusCode = "r.StatusCode(r)"
 			}
 			g.w.W("if %s > 299 {\n", statusCode)
 
-			g.w.W("var errorData clientErrorWrapper\n")
-			g.w.W("if err := %s.NewDecoder(r.Body).Decode(&errorData); err != nil {\nreturn nil, err\n}\n", jsonPkg)
-
-			g.w.W("return nil, ")
-
-			g.w.W("%sErrorDecode(%s, errorData.Code)", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
-
+			if mopt.ErrorDecode.Fn != nil {
+				pkgName := importer.Import(mopt.ErrorDecode.Fn.Pkg.Name, mopt.ErrorDecode.Fn.Pkg.Path)
+				if pkgName != "" {
+					pkgName = pkgName + "."
+				}
+				g.w.W("return %s%s(r)\n", pkgName, mopt.ErrorDecode.Fn.Name)
+			} else {
+				g.w.W("var errorData clientErrorWrapper\n")
+				g.w.W("if err := %s.NewDecoder(r.Body).Decode(&errorData); err != nil {\nreturn nil, err\n}\n", jsonPkg)
+				g.w.W("return nil, ")
+				g.w.W("%sErrorDecode(%s, errorData.Code)", LcNameWithAppPrefix(iface)+m.Name.Value, statusCode)
+			}
 			g.w.W("\n}\n")
 
 			resultsLen := plugin.LenWithoutErrors(m.Sig.Results)
@@ -430,7 +435,7 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 						g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
 
 						for _, p := range paramVars {
-							if isFileUploadType(p.Type, importer) {
+							if isFileUploadType(p.Type) {
 								g.w.W("part, err := writer.CreateFormFile(%s, req.%s.Name())\n", strconv.Quote(p.Name.Value), p.Name.Upper())
 								g.w.WriteCheckErr("err", func() {
 									g.w.W("return err\n")

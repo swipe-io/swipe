@@ -1,7 +1,10 @@
 package echo
 
 import (
+	"path/filepath"
+
 	"github.com/mitchellh/mapstructure"
+	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/finder"
 	"github.com/swipe-io/swipe/v3/internal/plugin"
 
@@ -78,11 +81,45 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 }
 
 func (p *Plugin) Generators() ([]swipe.Generator, []error) {
+	var pkg string
+
 	generators := []swipe.Generator{
 		&generator.RoutesGenerator{
 			Interfaces:    p.config.Interfaces,
 			MethodOptions: p.config.MethodOptionsMap,
 		},
+		&generator.InterfaceGenerator{
+			Interfaces: p.config.Interfaces,
+		},
+		&generator.Logging{
+			Interfaces: p.config.Interfaces,
+		},
+	}
+	if p.config.ClientEnable != nil {
+		output := p.config.ClientOutput.Take()
+		if output == "" {
+			output = "./client"
+		}
+		pkg = strcase.ToSnake(filepath.Base(output))
+
+		generators = append(generators,
+			&generator.ClientHelpers{
+				Interfaces: p.config.Interfaces,
+				Output:     p.config.ClientOutput.Take(),
+				Pkg:        pkg,
+			},
+			&generator.ClientStruct{
+				Interfaces:    p.config.Interfaces,
+				MethodOptions: p.config.MethodOptionsMap,
+				Output:        p.config.ClientOutput.Take(),
+				Pkg:           pkg,
+			},
+			&generator.ClientGenerator{
+				Interfaces: p.config.Interfaces,
+				Output:     p.config.ClientOutput.Take(),
+				Pkg:        pkg,
+			},
+		)
 	}
 	if p.config.OpenapiEnable != nil {
 		generators = append(generators, &generator.Openapi{

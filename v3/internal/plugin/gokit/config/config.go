@@ -50,6 +50,10 @@ type Aggregate struct {
 	Results option.SliceStringValue `swipe:"option"`
 }
 
+type MethodErrorDecode struct {
+	Fn *option.NamedType
+}
+
 type MethodOptions struct {
 	Instrumenting          option.BoolValue        `swipe:"option"`
 	Logging                option.BoolValue        `swipe:"option"`
@@ -65,6 +69,8 @@ type MethodOptions struct {
 	RESTQueryValues        option.SliceStringValue `swipe:"option"`
 	RESTPathVars           map[string]string       `swipe:"option"`
 	RESTBodyType           option.StringValue      `swipe:"option"`
+	ErrorDecode            MethodErrorDecode       `swipe:"option"`
+
 	//Aggregate              []Aggregate       `swipe:"option"`
 }
 

@@ -193,7 +193,7 @@ func (g *Openapi) fillTypeDefRecursive(t interface{}) {
 		g.fillTypeDefRecursive(t.Value)
 	case *option.NamedType:
 		switch t.Pkg.Path {
-		case "time", "error", "github.com/pborman/uuid", "github.com/google/uuid":
+		case "time", "error", "github.com/pborman/uuid", "github.com/google/uuid", "gopkg.in/guregu/null.v4":
 			return
 		}
 		if _, ok := g.defTypes[t.Pkg.Path+t.Name.Value]; !ok {
@@ -240,6 +240,14 @@ func (g *Openapi) schemaByTypeRecursive(schema *Schema, t interface{}) {
 				schema.Type = "string"
 				schema.Format = "date-time"
 				schema.Example = "1985-04-02T01:30:00.00Z"
+			}
+			return
+		case "gopkg.in/guregu/null.v4":
+			switch t.Name.Value {
+			case "String":
+				schema.Type = "string"
+			case "Int":
+				schema.Type = "number"
 			}
 			return
 		case "github.com/pborman/uuid", "github.com/google/uuid":

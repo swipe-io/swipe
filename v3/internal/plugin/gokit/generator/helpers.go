@@ -585,7 +585,7 @@ func singular(word string) string {
 	return pluralize.NewClient().Singular(word)
 }
 
-func isFileUploadType(i interface{}, importer swipe.Importer) bool {
+func isFileUploadType(i interface{}) bool {
 	if n, ok := i.(*option.NamedType); ok {
 		if iface, ok := n.Type.(*option.IfaceType); ok {
 			var done int

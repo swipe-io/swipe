@@ -124,6 +124,13 @@ func NewInt64Type() *BasicType {
 	}
 }
 
+func NewStringType() *BasicType {
+	return &BasicType{
+		Name: "string",
+		kind: types.String,
+	}
+}
+
 type BasicType struct {
 	Name      string
 	IsPointer bool

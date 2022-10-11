@@ -142,7 +142,6 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 	if output == "" {
 		output = "./client"
 	}
-
 	pkg = strcase.ToSnake(filepath.Base(output))
 
 	if p.config.CURLEnable != nil {
@@ -190,7 +189,6 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 			},
 			&generator.Endpoint{
 				Interfaces:       p.config.Interfaces,
-				MethodOptions:    p.config.MethodOptionsMap,
 				HTTPServerEnable: httpServerEnable,
 			},
 		)
@@ -215,10 +213,9 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 		}
 		if jsonRPCEnable {
 			generators = append(generators, &generator.JSONRPCServerGenerator{
-				UseFast:       useFast,
-				Interfaces:    p.config.Interfaces,
-				MethodOptions: p.config.MethodOptionsMap,
-				JSONRPCPath:   p.config.JSONRPCPath.Take(),
+				UseFast:     useFast,
+				Interfaces:  p.config.Interfaces,
+				JSONRPCPath: p.config.JSONRPCPath.Take(),
 			})
 			if jsClientEnable {
 				generators = append(generators, &generator.JSONRPCJSClientGenerator{
@@ -262,7 +259,6 @@ func (p *Plugin) Generators() (generators []swipe.Generator, errs []error) {
 			},
 			&generator.Endpoint{
 				Interfaces:       p.config.Interfaces,
-				MethodOptions:    p.config.MethodOptionsMap,
 				HTTPServerEnable: httpServerEnable,
 				Pkg:              pkg,
 				Output:           output,

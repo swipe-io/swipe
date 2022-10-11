@@ -3,7 +3,7 @@ package generator
 import (
 	"context"
 
-	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
+	"github.com/swipe-io/swipe/v3/internal/plugin/echo/config"
 	"github.com/swipe-io/swipe/v3/option"
 	"github.com/swipe-io/swipe/v3/swipe"
 	"github.com/swipe-io/swipe/v3/writer"
@@ -14,6 +14,10 @@ type InterfaceGenerator struct {
 	Interfaces []*config.Interface
 	Output     string
 	Pkg        string
+}
+
+func (g *InterfaceGenerator) Package() string {
+	return g.Pkg
 }
 
 func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
@@ -38,10 +42,6 @@ func (g *InterfaceGenerator) Generate(ctx context.Context) []byte {
 		g.w.W("func %[1]s(outer %[2]s, others ...%[2]s) %[2]s {return func(next %[3]s) %[3]s {\n\t\tfor i := len(others) - 1; i >= 0; i-- {\nnext = others[i](next)\n}\nreturn outer(next)\n}\n}\n", middlewareChainName, middlewareTypeName, ifaceTypeName)
 	}
 	return g.w.Bytes()
-}
-
-func (g *InterfaceGenerator) Package() string {
-	return g.Pkg
 }
 
 func (g *InterfaceGenerator) OutputPath() string {

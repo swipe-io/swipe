@@ -14,7 +14,6 @@ import (
 type Endpoint struct {
 	w                writer.GoWriter
 	Interfaces       []*config.Interface
-	MethodOptions    map[string]config.MethodOptions
 	HTTPServerEnable bool
 	Output           string
 	Pkg              string

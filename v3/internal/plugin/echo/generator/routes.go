@@ -28,10 +28,7 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 
 	echoPkg := importer.Import("echo", "github.com/labstack/echo/v4")
 	httpPkg := importer.Import("http", "net/http")
-	contextPkg := importer.Import("context", "context")
-	timePkg := importer.Import("time", "time")
 
-	g.writeContextWrapper(echoPkg, contextPkg, timePkg)
 	g.writeDefaultErrorEncoder(echoPkg, httpPkg)
 	g.writeEncodeResponseFunc(echoPkg, httpPkg)
 
@@ -88,6 +85,8 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 	g.w.W(",options ...ServerOption) {\n")
 
 	g.w.W("opts := &serverOpts{}\nfor _, o := range options {\no(opts)\n}\n")
+
+	var contextParamFound bool
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
@@ -178,6 +177,7 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 			}
 
 			if paramContext != nil {
+				contextParamFound = true
 				g.w.W("req.%s = &contextWrapper{ctx: ctx, next: ctx.Request().Context()}\n", paramContext.Name.Upper())
 			}
 
@@ -335,11 +335,17 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 				g.w.W("return nil\n")
 			}
 
-			g.w.W("}, append(opts.generic%s.middlewares, opts.%s.middlewares...)...)\n", UcNameWithAppPrefix(iface)+"Opts", LcNameIfaceMethod(iface, m)+"Opts")
+			g.w.W("}, append(append(opts.genericOpts.middlewares, opts.generic%s.middlewares...), opts.%s.middlewares...)...)\n", UcNameWithAppPrefix(iface)+"Opts", LcNameIfaceMethod(iface, m)+"Opts")
 		}
 	}
 
 	g.w.W("\n}\n")
+
+	if contextParamFound {
+		contextPkg := importer.Import("context", "context")
+		timePkg := importer.Import("time", "time")
+		g.writeContextWrapper(echoPkg, contextPkg, timePkg)
+	}
 
 	return g.w.Bytes()
 }

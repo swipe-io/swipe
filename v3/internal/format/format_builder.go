@@ -98,6 +98,19 @@ func (b *Builder) writeNameType(t *option.NamedType) {
 		if t.Name.Value == "UUID" {
 			b.w.W("%s := %s.String() \n", b.assignVar, b.valueVar)
 		}
+	case "gopkg.in/guregu/null.v4":
+		switch t.Name.Value {
+		case "String":
+			b.w.W("%s := %s.String \n", b.assignVar, b.valueVar)
+			return
+		case "Int":
+			NewBuilder(b.importer).
+				SetAssignVar(b.assignVar).
+				SetFieldType(option.NewInt64Type()).
+				SetValueVar(b.valueVar + ".Int64").
+				Write(&b.w)
+			return
+		}
 	case "time":
 		switch t.Name.Value {
 		case "Duration":

@@ -3,8 +3,7 @@ package frame
 import (
 	"bytes"
 	"fmt"
-
-	"github.com/swipe-io/swipe/v3/format"
+	"go/format"
 )
 
 type GolangFrame struct {
@@ -32,12 +31,17 @@ func (f *GolangFrame) Frame(data []byte) ([]byte, error) {
 	}
 	buf.Write(data)
 
-	goSrc := buf.Bytes()
-	fmtSrc, err := format.Source(goSrc)
+	fmtData, err := format.Source(buf.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("error: %w\n ***\n%s\n***\n\n", err, string(goSrc))
+		sourceBuf := bytes.NewBuffer(nil)
+		for i, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
+			sourceBuf.WriteString(fmt.Sprintf("%d  ", i))
+			sourceBuf.Write(line)
+			sourceBuf.WriteByte('\n')
+		}
+		return nil, fmt.Errorf("error: %w\n ***\n%s\n***\n\n", err, sourceBuf.String())
 	}
-	return fmtSrc, nil
+	return fmtData, nil
 }
 
 func NewGolangFrame(imports []string, version, pkgName string, useDoNotEdit bool) *GolangFrame {

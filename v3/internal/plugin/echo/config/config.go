@@ -61,6 +61,8 @@ type OpenapiTag struct {
 // @swipe:"Echo"
 type Config struct {
 	Interfaces           []*Interface `mapstructure:"Interface"`
+	ClientEnable         *struct{}
+	ClientOutput         option.StringValue
 	MethodOptions        []MethodOption
 	MethodDefaultOptions MethodOptions
 	OpenapiEnable        *struct{}

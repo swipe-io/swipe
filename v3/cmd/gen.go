@@ -63,9 +63,9 @@ var genCmd = &cobra.Command{
 		cmd.Printf("Workdir: %s\n", wd)
 
 		// clear all before generated files.
-		data, err := ioutil.ReadFile(swipeSysFilepath)
+		swipeSysData, err := ioutil.ReadFile(swipeSysFilepath)
 		if err == nil {
-			genOldFiles := strings.Split(string(data), "\n")
+			genOldFiles := strings.Split(string(swipeSysData), "\n")
 
 			for _, filepath := range genOldFiles {
 				if err := os.Remove(basePath + filepath); err != nil {
@@ -130,7 +130,7 @@ var genCmd = &cobra.Command{
 
 			filename := filepath.Base(g.OutputPath)
 			f := frame.NewFrame(cmd.Version, filename, g.Imports, g.PkgName, useDoNotEdit)
-			data, err := f.Frame(g.Content)
+			frameData, err := f.Frame(g.Content)
 			if err != nil {
 				cmd.PrintErrf("%s: failed to write %s: %v\n", g.PkgPath, g.OutputPath, err)
 				os.Exit(1)
@@ -150,7 +150,7 @@ var genCmd = &cobra.Command{
 				cmd.PrintErrf("%s: failed to create dir %s: %v\n", g.PkgPath, dirPath, err)
 				os.Exit(1)
 			}
-			err = ioutil.WriteFile(g.OutputPath, data, 0755)
+			err = ioutil.WriteFile(g.OutputPath, frameData, 0755)
 			if err == nil {
 				if verbose {
 					cmd.Printf("%s: wrote %s\n", g.PkgPath, g.OutputPath)

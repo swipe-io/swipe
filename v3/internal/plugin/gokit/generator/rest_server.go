@@ -431,7 +431,7 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 								g.w.W("return nil, err\n")
 							})
 							for _, paramVar := range paramVars {
-								if isFileUploadType(paramVar.Type, importer) {
+								if isFileUploadType(paramVar.Type) {
 									osPkg := importer.Import("os", "os")
 
 									if g.UseFast {
@@ -529,6 +529,8 @@ func (g *RESTServerGenerator) Filename() string {
 }
 
 func (g *RESTServerGenerator) writeEncodeResponseFunc(contextPkg, httpPkg, jsonPkg string) {
+	g.w.W("type downloader interface {\nContentType() string\nData() []byte\n}\n\n")
+
 	g.w.W("func encodeResponseHTTP(ctx %s.Context, ", contextPkg)
 	if g.UseFast {
 		g.w.W("w *%s.Response", httpPkg)

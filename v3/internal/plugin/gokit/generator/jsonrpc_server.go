@@ -12,11 +12,10 @@ import (
 )
 
 type JSONRPCServerGenerator struct {
-	w             writer.GoWriter
-	UseFast       bool
-	Interfaces    []*config.Interface
-	MethodOptions map[string]config.MethodOptions
-	JSONRPCPath   string
+	w           writer.GoWriter
+	UseFast     bool
+	Interfaces  []*config.Interface
+	JSONRPCPath string
 }
 
 func (g *JSONRPCServerGenerator) Generate(ctx context.Context) []byte {
