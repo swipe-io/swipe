@@ -134,7 +134,8 @@ func (l *Logging) Build() []byte {
 							l.w.W("if %s != nil {\n", errorVar.Name)
 							l.w.W("if e, ok := %s.(errLevel); ok {\n", errorVar.Name)
 							l.w.W("logger = levelLogger(e, logger)\n")
-							l.w.W("} else {\n_ = %s.Error(logger).Log(%s)\n}\n", levelPkg, logParamsStr+errLogStr)
+							l.w.W("} else {\nlogger = %s.Error(logger)\n}\n", levelPkg)
+							l.w.W("_ = logger.Log(%s)\n", logParamsStr+errLogStr)
 							l.w.W("} else {\n_ = %s.Debug(logger).Log(%s)\n}\n", levelPkg, logParamsStr+logResultsStr)
 						}
 					} else {
