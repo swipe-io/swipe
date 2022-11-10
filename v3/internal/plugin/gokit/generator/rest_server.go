@@ -377,8 +377,8 @@ func (g *RESTServerGenerator) Generate(ctx context.Context) []byte {
 							if g.UseFast {
 								g.w.W("data = r.Body()\n")
 							} else {
-								ioutilPkg := importer.Import("ioutil", "io/ioutil")
-								g.w.W("data, err = %s.ReadAll(r.Body)\n", ioutilPkg)
+								pkgIO := importer.Import("io", "io")
+								g.w.W("data, err = %s.ReadAll(r.Body)\n", pkgIO)
 								g.w.WriteCheckErr("err", func() {
 									g.w.W("return nil, %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, nameRequest)
 								})

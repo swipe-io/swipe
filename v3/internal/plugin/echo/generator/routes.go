@@ -192,10 +192,9 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 
 						g.w.W("var data []byte\n")
 
-						ioutilPkg := importer.Import("ioutil", "io/ioutil")
-						g.w.W("data, err = %s.ReadAll(r.Body)\n", ioutilPkg)
+						g.w.W("data, err = %s.ReadAll(r.Body)\n", pkgIO)
 						g.w.WriteCheckErr("err", func() {
-							g.w.W("return %s.Errorf(\"couldn't read body for %s: %%w\", err)\n", fmtPkg, m.Name.Upper())
+							g.w.W("return %s.NewHTTPError(500, %s.Sprintf(\"couldn't read body for %s: %%s\", err))\n", echoPkg, fmtPkg, m.Name.Upper())
 						})
 
 						if len(paramVars) == 1 {
@@ -212,7 +211,7 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 							g.w.W("err = %s.Unmarshal(data, &req)\n", jsonPkg)
 						}
 						g.w.W("if err != nil && err != %s.EOF {\n", pkgIO)
-						g.w.W("return %s.Errorf(\"couldn't unmarshal body to %s: %%w\", err)\n", fmtPkg, m.Name.Upper())
+						g.w.W("return %s.NewHTTPError(400, %s.Sprintf(\"couldn't unmarshal body to %s: %%s\", err))\n", echoPkg, fmtPkg, m.Name.Upper())
 						g.w.W("}\n")
 					}
 				}
@@ -227,32 +226,36 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 						SetFieldName(pathVar.Param.Name).
 						SetFieldType(pathVar.Param.Type).
 						SetErrorReturn(func() string {
-							return fmt.Sprintf("return %s.New(%s)", importer.Import("errors", "errors"), strconv.Quote("convert error"))
+							fmtPkg := importer.Import("fmt", "fmt")
+							return fmt.Sprintf("return %s.NewHTTPError(500, %s.Sprintf(\"convert error: %%v\", %s))", echoPkg, fmtPkg, valueVar)
 						}).
 						Write(&g.w)
 				}
 			}
 			for _, headerVar := range headerVars {
+				textProtoPkg := importer.Import("textproto", "net/textproto")
+				g.w.W("if _, ok := r.Header[%s.CanonicalMIMEHeaderKey(%s)]; ok {\n", textProtoPkg, strconv.Quote(headerVar.Value))
 				convert.NewBuilder(importer).
 					SetFieldName(headerVar.Param.Name).
 					SetFieldType(headerVar.Param.Type).
 					SetAssignVar("req." + headerVar.Param.Name.Upper()).
 					SetValueVar("r.Header.Get(" + strconv.Quote(headerVar.Value) + ")").
 					SetErrorReturn(func() string {
-						return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+headerVar.Param.Name.Upper())
+						fmtPkg := importer.Import("fmt", "fmt")
+						return fmt.Sprintf("return %s.NewHTTPError(500, %s.Sprintf(\"convert error: %%v\", %s))", echoPkg, fmtPkg, "req."+headerVar.Param.Name.Upper())
 					}).
 					Write(&g.w)
+				if headerVar.IsRequired {
+					g.w.W("} else {\nreturn %s.NewHTTPError(400, \"header %s is required\")\n}\n", echoPkg, headerVar.Value)
+				} else {
+					g.w.W("}\n")
+				}
 			}
 
 			if len(mopt.RESTQueryVars.Value) > 0 {
 				g.w.W("q := r.URL.Query()\n")
 
 				for _, queryVar := range queryVars {
-
-					if queryVar.IsRequired {
-						fmtPkg := importer.Import("fmt", "fmt")
-						g.w.W("if _, ok := q[\"%[1]s\"]; !ok {\nreturn %[2]s.Errorf(\"%[1]s required\")\n}\n", queryVar.Value, fmtPkg)
-					}
 
 					if named, ok := queryVar.Param.Type.(*option.NamedType); ok {
 						if st, ok := named.Type.(*option.StructType); ok {
@@ -267,7 +270,8 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 										SetAssignVar("req." + queryVar.Param.Name.Upper() + "." + field.Var.Name.Upper()).
 										SetValueVar("q.Get(" + strconv.Quote(tag.Value()) + ")").
 										SetErrorReturn(func() string {
-											return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+queryVar.Param.Name.Upper())
+											fmtPkg := importer.Import("fmt", "fmt")
+											return fmt.Sprintf("return %s.NewHTTPError(500, %s.Sprintf(\"convert error: %%v\", %s))", echoPkg, fmtPkg, "req."+queryVar.Param.Name.Upper())
 										}).
 										Write(&g.w)
 									g.w.W("}\n")
@@ -275,15 +279,22 @@ func (g *RoutesGenerator) Generate(ctx context.Context) []byte {
 							}
 						}
 					} else {
+						g.w.W("if _, ok := q[%s]; ok {\n", strconv.Quote(queryVar.Value))
 						convert.NewBuilder(importer).
 							SetFieldName(queryVar.Param.Name).
 							SetFieldType(queryVar.Param.Type).
 							SetAssignVar("req." + queryVar.Param.Name.Upper()).
 							SetValueVar("q.Get(" + strconv.Quote(queryVar.Value) + ")").
 							SetErrorReturn(func() string {
-								return fmt.Sprintf("return %s.Errorf(\"convert error: %%v\", %s)", importer.Import("fmt", "fmt"), "req."+queryVar.Param.Name.Upper())
+								fmtPkg := importer.Import("fmt", "fmt")
+								return fmt.Sprintf("return %s.NewHTTPError(500, %s.Sprintf(\"convert error: %%v\", %s))", echoPkg, fmtPkg, "req."+queryVar.Param.Name.Upper())
 							}).
 							Write(&g.w)
+						if queryVar.IsRequired {
+							g.w.W("} else {\nreturn %s.NewHTTPError(400, \"query var %s is required\")\n}\n", echoPkg, queryVar.Value)
+						} else {
+							g.w.W("}\n")
+						}
 					}
 				}
 			}

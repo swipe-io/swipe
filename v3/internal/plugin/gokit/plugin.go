@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 
-	"github.com/swipe-io/swipe/v3/internal/plugin"
-
 	"github.com/mitchellh/mapstructure"
+	"github.com/swipe-io/swipe/v3/internal/plugin"
 
 	"github.com/swipe-io/strcase"
 	"github.com/swipe-io/swipe/v3/internal/plugin/gokit/config"
@@ -100,7 +99,7 @@ func (p *Plugin) Configure(cfg *swipe.Config, module *option.Module, options map
 	}
 
 	pkgJsonFilepath := filepath.Join(cfg.WorkDir, "package.json")
-	data, err := ioutil.ReadFile(pkgJsonFilepath)
+	data, err := os.ReadFile(pkgJsonFilepath)
 	if err == nil {
 		var packageJSON map[string]interface{}
 		err := json.Unmarshal(data, &packageJSON)

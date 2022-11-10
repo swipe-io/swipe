@@ -7,7 +7,7 @@ default: build
 
 build:
 	go mod download
-	go build -o $(GOPATH)/bin/swipe3 cmd/swipe/main.go
+	go build -o  /opt/homebrew/bin/swipe3 cmd/swipe/main.go
 
 chglog:
 	git-chglog -o CHANGELOG.md

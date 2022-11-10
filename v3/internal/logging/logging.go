@@ -109,37 +109,41 @@ func (l *Logging) Build() []byte {
 				timePkg := l.importer.Import("time", "time")
 
 				l.w.WriteDefer([]string{"now " + timePkg + ".Time"}, []string{timePkg + ".Now()"}, func() {
-					for _, result := range m.Sig.Results {
-						if plugin.IsError(result) {
-							l.w.W("if logErr, ok := %s.(interface{LogError() error}); ok {\n", result.Name)
-							l.w.W("%s = logErr.LogError()\n", result.Name)
-							l.w.W("}\n")
-						}
-					}
-					l.w.W("logger := %[1]s.WithPrefix(s.logger, \"message\", \"call method - %[2]s\", \"method\",\"%[2]s\",\"took\",%[3]s.Since(now))\n", loggerPkg, methodName, timePkg)
-
 					logParamsStr := strings.Join(logParams, ",")
 					logResultsStr := strings.Join(logResults, ",")
 
-					if logParamsStr != "" {
-						logResultsStr = "," + logResultsStr
+					if len(logParams) > 0 {
+						logParamsStr = ", " + logParamsStr
 					}
+
+					l.w.W("logger := %[1]s.WithPrefix(s.logger, \"message\", \"call method - %[2]s\", \"method\",\"%[2]s\",\"took\",%[3]s.Since(now)%s)\n", loggerPkg, methodName, timePkg, logParamsStr)
+
+					//if logParamsStr != "" {
+					//	logResultsStr = "," + logResultsStr
+					//}
 
 					if len(errorVars) > 0 {
 						for _, errorVar := range errorVars {
-							errLogStr := fmt.Sprintf("%s, %s", strconv.Quote(errorVar.Name.String()), errorVar.Name.String())
-							if logParamsStr != "" {
-								errLogStr = "," + errLogStr
-							}
+							//errLogStr := fmt.Sprintf("%s, %s", strconv.Quote(errorVar.Name.String()), errorVar.Name.String())
+							//if logParamsStr != "" {
+							//	errLogStr = "," + errLogStr
+							//}
 							l.w.W("if %s != nil {\n", errorVar.Name)
 							l.w.W("if e, ok := %s.(errLevel); ok {\n", errorVar.Name)
 							l.w.W("logger = levelLogger(e, logger)\n")
 							l.w.W("} else {\nlogger = %s.Error(logger)\n}\n", levelPkg)
-							l.w.W("_ = logger.Log(%s)\n", logParamsStr+errLogStr)
-							l.w.W("} else {\n_ = %s.Debug(logger).Log(%s)\n}\n", levelPkg, logParamsStr+logResultsStr)
+
+							//l.w.W("logger = %s.WithPrefix(logger, %s)\n", loggerPkg, logParamsStr)
+
+							l.w.W("if logErr, ok := %s.(interface{LogError() error}); ok {\n", errorVar.Name.String())
+							l.w.W("_ = logger.Log(\"%s\", logErr.LogError())\n", errorVar.Name)
+							l.w.W("} else {\n")
+							l.w.W("_ = logger.Log(\"%[1]s\", %[1]s)\n", errorVar.Name)
+							l.w.W("}\n")
+							l.w.W("} else {\n_ = %s.Debug(logger).Log(%s)\n}\n", levelPkg, logResultsStr)
 						}
 					} else {
-						l.w.W("_ = %s.Debug(logger).Log(%s)\n", levelPkg, logParamsStr+logResultsStr)
+						l.w.W("_ = %s.Debug(logger).Log(%s)\n", levelPkg, logResultsStr)
 					}
 				})
 			}

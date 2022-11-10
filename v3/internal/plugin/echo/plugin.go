@@ -94,6 +94,9 @@ func (p *Plugin) Generators() ([]swipe.Generator, []error) {
 		&generator.Logging{
 			Interfaces: p.config.Interfaces,
 		},
+		&generator.Metric{
+			Interfaces: p.config.Interfaces,
+		},
 	}
 	if p.config.ClientEnable != nil {
 		output := p.config.ClientOutput.Take()

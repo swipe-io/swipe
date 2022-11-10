@@ -42,12 +42,9 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	)
 	importer := ctx.Value(swipe.ImporterKey).(swipe.Importer)
 
-	fmtPkg := importer.Import("fmt", "fmt")
-	contextPkg := importer.Import("context", "context")
 	urlPkg := importer.Import("url", "net/url")
 	netPkg := importer.Import("net", "net")
 	stringsPkg := importer.Import("strings", "strings")
-	jsonPkg := importer.Import("json", "encoding/json")
 
 	if g.UseFast {
 		kitHTTPPkg = importer.Import("fasthttp", "github.com/l-vitaly/go-kit/transport/fasthttp")
@@ -66,7 +63,7 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	g.w.W("Data interface{} `json:\"data,omitempty\"`\n")
 	g.w.W("}\n")
 
-	g.writeCreateReqFuncs(importer, httpPkg, contextPkg, fmtPkg, urlPkg, jsonPkg)
+	g.writeCreateReqFuncs(importer, httpPkg, urlPkg)
 
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
@@ -131,7 +128,10 @@ func (g *RESTClientGenerator) Generate(ctx context.Context) []byte {
 	return g.w.Bytes()
 }
 
-func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpPkg, contextPkg, fmtPkg, urlPkg, jsonPkg string) {
+func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpPkg, urlPkg string) {
+	fmtPkg := importer.Import("fmt", "fmt")
+	contextPkg := importer.Import("context", "context")
+
 	for _, iface := range g.Interfaces {
 		ifaceType := iface.Named.Type.(*option.IfaceType)
 		for _, m := range ifaceType.Methods {
@@ -151,6 +151,7 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 				}
 				g.w.W("return %s%s(r)\n", pkgName, mopt.ErrorDecode.Fn.Name)
 			} else {
+				jsonPkg := importer.Import("json", "encoding/json")
 				g.w.W("var errorData clientErrorWrapper\n")
 				g.w.W("if err := %s.NewDecoder(r.Body).Decode(&errorData); err != nil {\nreturn nil, err\n}\n", jsonPkg)
 				g.w.W("return nil, ")
@@ -183,8 +184,8 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 				if g.UseFast {
 					g.w.W("b = r.Body()\n")
 				} else {
-					ioutilPkg := importer.Import("ioutil", "io/ioutil")
-					g.w.W("b, err = %s.ReadAll(r.Body)\n", ioutilPkg)
+					pkgIO := importer.Import("io", "io")
+					g.w.W("b, err = %s.ReadAll(r.Body)\n", pkgIO)
 					g.w.WriteCheckErr("err", func() {
 						g.w.W("return nil, err\n")
 					})
@@ -405,12 +406,12 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 						if g.UseFast {
 							g.w.W("r.SetBody(data)\n")
 						} else {
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+							pkgIO := importer.Import("io", "io")
 							bytesPkg := importer.Import("bytes", "bytes")
-							g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
+							g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", pkgIO, bytesPkg)
 						}
 					case "urlencoded":
-						ioutilPkg := importer.Import("ioutil", "io/ioutil")
+						pkgIO := importer.Import("io", "io")
 						bytesPkg := importer.Import("bytes", "bytes")
 						g.w.W("r.Header.Add(\"Content-Type\", \"application/x-www-form-urlencoded; charset=utf-8\")\n")
 						g.w.W("params := %s.Values{}\n", urlPkg)
@@ -425,11 +426,11 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 
 							g.w.W("params.Set(\"data\", %s)\n", name)
 						}
-						g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", ioutilPkg, bytesPkg)
+						g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", pkgIO, bytesPkg)
 					case "multipart":
 						bytesPkg := importer.Import("bytes", "bytes")
 						multipartPkg := importer.Import("multipart", "mime/multipart")
-						ioutilPkg := importer.Import("ioutil", "io/ioutil")
+						pkgIO := importer.Import("io", "io")
 
 						g.w.W("body := new(%s.Buffer)\n", bytesPkg)
 						g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
@@ -440,7 +441,7 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 								g.w.WriteCheckErr("err", func() {
 									g.w.W("return err\n")
 								})
-								g.w.W("data, err := %s.ReadAll(req.%s)\n", ioutilPkg, p.Name.Upper())
+								g.w.W("data, err := %s.ReadAll(req.%s)\n", pkgIO, p.Name.Upper())
 								g.w.WriteCheckErr("err", func() {
 									g.w.W("return err\n")
 								})
@@ -462,7 +463,7 @@ func (g *RESTClientGenerator) writeCreateReqFuncs(importer swipe.Importer, httpP
 						if g.UseFast {
 							g.w.W("r.SetBody(body.Bytes())\n")
 						} else {
-							g.w.W("r.Body = %s.NopCloser(body)\n", ioutilPkg)
+							g.w.W("r.Body = %s.NopCloser(body)\n", pkgIO)
 						}
 						g.w.W("r.Header.Set(\"Content-Type\", writer.FormDataContentType())\n")
 					}

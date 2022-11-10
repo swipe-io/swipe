@@ -307,13 +307,12 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 							g.w.WriteCheckErr("err", func() {
 								g.w.W("err = %s.Errorf(\"couldn't marshal request %%T: %%s\", req, err)\nreturn\n", fmtPkg)
 							})
-
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+							pkgIO := importer.Import("io", "io")
 							bytesPkg := importer.Import("bytes", "bytes")
-							g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", ioutilPkg, bytesPkg)
+							g.w.W("r.Body = %s.NopCloser(%s.NewBuffer(data))\n", pkgIO, bytesPkg)
 
 						case "urlencoded":
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+							pkgIO := importer.Import("io", "io")
 							urlPkg := importer.Import("url", "url")
 
 							bytesPkg := importer.Import("bytes", "bytes")
@@ -330,11 +329,11 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 
 								g.w.W("params.Set(\"data\", %s)\n", name)
 							}
-							g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", ioutilPkg, bytesPkg)
+							g.w.W("r.Body = %s.NopCloser(%s.NewBufferString(params.Encode()))\n", pkgIO, bytesPkg)
 						case "multipart":
 							bytesPkg := importer.Import("bytes", "bytes")
 							multipartPkg := importer.Import("multipart", "mime/multipart")
-							ioutilPkg := importer.Import("ioutil", "io/ioutil")
+							pkgIO := importer.Import("io", "io")
 
 							g.w.W("body := new(%s.Buffer)\n", bytesPkg)
 							g.w.W("writer := %s.NewWriter(body)\n", multipartPkg)
@@ -345,7 +344,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 									g.w.WriteCheckErr("err", func() {
 										g.w.W("return err\n")
 									})
-									g.w.W("data, err := %s.ReadAll(req.%s)\n", ioutilPkg, p.Name.Upper())
+									g.w.W("data, err := %s.ReadAll(req.%s)\n", pkgIO, p.Name.Upper())
 									g.w.WriteCheckErr("err", func() {
 										g.w.W("return err\n")
 									})
@@ -364,7 +363,7 @@ func (g *ClientStruct) Generate(ctx context.Context) []byte {
 							}
 							g.w.W("if err := writer.Close(); err != nil {\n return err\n}\n")
 
-							g.w.W("r.Body = %s.NopCloser(body)\n", ioutilPkg)
+							g.w.W("r.Body = %s.NopCloser(body)\n", pkgIO)
 
 							g.w.W("r.Header.Set(\"Content-Type\", writer.FormDataContentType())\n")
 						}
